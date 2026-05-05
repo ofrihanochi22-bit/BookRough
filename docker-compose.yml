@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookrough_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bookrough
+      POSTGRES_PASSWORD: bookrough
+      POSTGRES_DB: music_app_dev
+    volumes:
+      # Persist data across container restarts
+      - bookrough_pg_data:/var/lib/postgresql/data
+      # Run init scripts on first boot to create the test DB
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookrough -d music_app_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bookrough_pg_data:
+    driver: local
