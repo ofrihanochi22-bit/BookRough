@@ -1,13 +1,198 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// BookRough — Prisma Schema
+// Full table-by-table contract is documented in tables.docx.
+//
+// Generator note: Prisma 7 outputs to a local `generated/` directory
+// (not the standard `@prisma/client`). Import from `../../generated/prisma/client.js`.
 
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
 }
 
+// Prisma 7: `url` is configured in prisma.config.ts (for migrations) and via the
+// pg adapter passed to PrismaClient (for queries). See src/db/prisma.ts.
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+// The streaming service a user prefers to receive links for.
+// Determines which universal link is shown to them when viewing a post.
+enum PreferredService {
+  SPOTIFY
+  APPLE_MUSIC
+  YOUTUBE
+  TIDAL
+  DEEZER
+}
+
+// Role within a community — drives admin-only actions like kicking members.
+enum CommunityRole {
+  ADMIN
+  MEMBER
+}
+
+// Friend-request lifecycle state.
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id                String           @id @default(uuid())
+  email             String           @unique
+  username          String           @unique
+  /// Nullable because Google-login users have no password.
+  passwordHash      String?
+  displayName       String
+  profilePictureUrl String?
+  preferredService  PreferredService @default(SPOTIFY)
+  /// False until a Google-signup user completes the onboarding form.
+  profileComplete   Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+
+  // Relations
+  passwordResets    PasswordReset[]
+  communities       CommunityMember[]
+  posts             Post[]           @relation("AuthoredPosts")
+  ratings           Rating[]
+  bookmarks         Bookmark[]
+  sentRequests      Friend[]         @relation("SentRequests")
+  receivedRequests  Friend[]         @relation("ReceivedRequests")
+
+  @@map("users")
+}
+
+// ─── Password resets ─────────────────────────────────────────────────────────
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Cryptographically random hex string (32 bytes = 64 hex chars).
+  token     String   @unique
+  /// Token becomes invalid after this timestamp (typically now + 1 hour).
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}
+
+// ─── Communities ─────────────────────────────────────────────────────────────
+
+model Community {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  coverImageUrl  String?
+  /// Static token used to build invite URLs (UC-15). Regenerated on demand by admins.
+  inviteToken    String?  @unique
+  createdAt      DateTime @default(now())
+
+  members CommunityMember[]
+  posts   Post[]
+
+  @@map("communities")
+}
+
+// Junction table: resolves the many-to-many User ↔ Community relationship.
+model CommunityMember {
+  userId      String
+  communityId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  role        CommunityRole @default(MEMBER)
+  joinedAt    DateTime  @default(now())
+
+  @@id([userId, communityId])
+  @@map("community_members")
+}
+
+// ─── Friends ─────────────────────────────────────────────────────────────────
+
+// A pending or accepted directional friendship.
+// Application logic prevents duplicate reverse rows (A→B when B→A exists).
+model Friend {
+  requesterId String
+  addresseeId String
+  requester   User         @relation("SentRequests",     fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User         @relation("ReceivedRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+
+  @@id([requesterId, addresseeId])
+  @@map("friends")
+}
+
+// ─── Posts (song recommendations) ────────────────────────────────────────────
+
+model Post {
+  id          String    @id @default(uuid())
+  authorId    String
+  communityId String
+  author      User      @relation("AuthoredPosts", fields: [authorId],    references: [id], onDelete: Cascade)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  /// The raw link the user pasted (always saved even if scraping fails).
+  originalUrl String
+  /// True when the Playwright scraper couldn't convert the link.
+  conversionPending Boolean @default(false)
+
+  // Metadata fetched / scraped from squigly.link
+  songTitle      String?
+  songArtist     String?
+  songCoverArtUrl String?
+
+  // Per-platform universal links produced by the scraper
+  universalLinkSpotify String?
+  universalLinkApple   String?
+  universalLinkYoutube String?
+  universalLinkTidal   String?
+  universalLinkDeezer  String?
+
+  /// Optional comment the author adds alongside the link.
+  textComment String?
+  createdAt   DateTime @default(now())
+
+  ratings   Rating[]
+  bookmarks Bookmark[]
+
+  @@map("posts")
+}
+
+// ─── Ratings ─────────────────────────────────────────────────────────────────
+
+model Rating {
+  id      String @id @default(uuid())
+  postId  String
+  userId  String
+  post    Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 1–10 star rating.
+  score   Int
+  /// Optional text review alongside the star score.
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  /// Each user can rate a given post exactly once.
+  @@unique([postId, userId])
+  @@map("ratings")
+}
+
+// ─── Bookmarks ("Listen Later") ──────────────────────────────────────────────
+
+model Bookmark {
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+  @@map("bookmarks")
 }

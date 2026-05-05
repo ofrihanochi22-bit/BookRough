@@ -1,5 +1,11 @@
 node_modules
-# Keep environment variables out of version control
-.env
 
+# Environment variables — copy from .env.example, never commit secrets
+.env
+.env.test
+
+# Compiled output
+dist/
+
+# Prisma generated client
 /generated/prisma

@@ -1,44 +1,35 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
+  // Only compile files under src/ — vitest.config.ts and prisma.config.ts
+  // are picked up by their own tools and must not be in rootDir.
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "generated"],
+
   "compilerOptions": {
-    // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    // ── File layout ──────────────────────────────────────────────────────────
+    "rootDir": "./src",
+    "outDir": "./dist",
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
+    // ── Module system ─────────────────────────────────────────────────────────
+    // nodenext pairs with "type": "module" in package.json for full ESM support.
+    // Relative imports must end with .js (TypeScript emits them as-is).
     "module": "nodenext",
+    "moduleResolution": "nodenext",
     "target": "esnext",
-    "types": [],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "lib": ["esnext"],
+    "types": ["node"],
 
-    // Other Outputs
+    // ── Output ────────────────────────────────────────────────────────────────
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
 
-    // Stricter Typechecking Options
+    // ── Strict type checking ──────────────────────────────────────────────────
+    "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-
-    // Style Options
-    // "noImplicitReturns": true,
-    // "noImplicitOverride": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true,
-    // "noFallthroughCasesInSwitch": true,
-    // "noPropertyAccessFromIndexSignature": true,
-
-    // Recommended Options
-    "strict": true,
-    "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": true,  // enforces `import type` for type-only imports
     "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true,
+    "skipLibCheck": true
   }
 }
