@@ -69,6 +69,7 @@ This file is the working contract between the developer and Claude. Read it befo
 │   │   └── App.tsx
 │   ├── index.html
 │   └── vite.config.ts
+├── docs/                   ← spec documents; each spec is a .docx + a parallel .md (see §14)
 ├── CLAUDE.md               ← you are here
 ├── DEVELOPMENT.md          ← step-by-step roadmap (UPDATE THIS)
 └── README.md
@@ -139,7 +140,7 @@ Every JSON response uses one of these two shapes:
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in `tables.docx`. Eight tables in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). Eight tables in total:
 
 `users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`, `password_resets`.
 
@@ -161,7 +162,7 @@ Always create migrations via `npx prisma migrate dev --name <descriptive-name>`.
 
 ## 8. Frontend screens
 
-The full screen catalog is in `frontend screens.docx`. Thirteen screens, four groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). Thirteen screens, four groups:
 
 - **Auth & Onboarding**: Welcome, Registration, Login, Forgot Password, Create New Password.
 - **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
@@ -174,7 +175,7 @@ Mobile-first layouts; Tailwind responsive utilities.
 
 ## 9. Use cases
 
-The full UC list (UC-1 through UC-18) is in `use_cases.docx`. **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
+The full UC list (UC-1 through UC-18) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
 
 ---
 
@@ -221,7 +222,7 @@ The full UC list (UC-1 through UC-18) is in `use_cases.docx`. **Every feature mu
 
 ## 12. Development strategy
 
-The five-phase roadmap from `development strategy.docx` is the source of truth for ordering. Do not skip ahead. The full step-by-step breakdown is in [DEVELOPMENT.md](DEVELOPMENT.md):
+The five-phase roadmap from [docs/development strategy.md](<docs/development strategy.md>) (companion `docs/development strategy.docx`) is the source of truth for ordering. Do not skip ahead. The full step-by-step breakdown is in [DEVELOPMENT.md](DEVELOPMENT.md):
 
 1. **Phase 1** — Foundation & Identity (UC-1, 2, 3, 17)
 2. **Phase 2** — Core Social Structures (UC-4, 9, 10, 14, 15)
@@ -243,3 +244,18 @@ Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in
 > **This update happens in the same commit / PR as the step itself.** A step is not "done" until DEVELOPMENT.md reflects what was built and how to confirm it works. Treat the README-style update as part of the deliverable, not paperwork.
 
 If the step is partial (e.g. the backend half landed but the UI is still in flight), mark the step `🟡 In progress` and describe exactly what is and isn't usable yet.
+
+---
+
+## 14. Spec documents (`docs/`) — dual-file rule
+
+All specification documents live in `docs/`. Each spec exists as **two parallel files that must stay in sync**:
+
+- `docs/<name>.docx` — the formatted document (open in Word / a docx viewer).
+- `docs/<name>.md` — a plain-Markdown mirror of the same content, for fast reading and diffing (this is the version Claude reads by default).
+
+Both files are in **English**. The full set: `general`, `auth`, `tables`, `use cases`, `frontend screens`, `tech stack`, `system architecture conventions`, `git workflow`, `tests`, `development strategy`, `link converter implementation guide`.
+
+> **🔴 MANDATORY — edit both files together.** Any change to a spec must be applied to **both** the `.docx` and the `.md` of that document, in the same commit. Never let the two drift. If you only have time to update one, the spec change is not done.
+
+The `.md` files were generated from the `.docx` originals; if you spot a conversion artifact in a `.md`, fix it against the `.docx` (which is authoritative for wording).
