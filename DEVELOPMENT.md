@@ -35,7 +35,7 @@ How to view & test: <FILL IN ON COMPLETION — exact commands, URLs, manual step
 ## Phase 0 — Local environment & shared infra
 
 ### Step 0.1 — Local Postgres + env files  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/local-env-setup
 
 Goal: A new contributor can start Postgres locally and boot both apps with copied `.env` files.
@@ -46,13 +46,13 @@ Tasks:
 - [x] Frontend: `frontend/.env.example` with `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`.
 - [x] Docs:     README section "Local setup" with the four-line bring-up commands.
 
-What I did: Created `docker-compose.yml` (postgres:16-alpine, port 5432, named volume `bookrough_pg_data`) and `infra/postgres-init/01-create-test-db.sql` which creates the `music_app_test_db` database on first boot. Added `backend/.env.example` and `frontend/.env.example` covering every required variable with inline comments. Note: local dev uses a pre-existing PostgreSQL 15 installation on port 5432 (the `bookrough` role and both databases were created manually via psql); Docker Compose is the documented path for fresh setups.
-How to view & test: `docker compose up -d` (or use existing local Postgres), then `cp backend/.env.example backend/.env` and `cp frontend/.env.example frontend/.env` and fill in secrets. Postgres should be reachable at `localhost:5432`.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 0.2 — Backend Express bootstrap  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/backend-bootstrap
 
 Goal: Express server boots, exposes `GET /api/health`, has the central error middleware and Pino logger wired in.
@@ -64,13 +64,13 @@ Tasks:
 - [x] Backend:  `src/routes/health.ts` returning `{ status: "ok" }`.
 - [x] Tests:    Supertest hitting `/api/health` and an intentionally-throwing test route to prove the error middleware shape.
 
-What I did: Switched `backend/package.json` to `"type": "module"` (ESM). Created `src/config/env.ts` (Zod env validation, crashes on missing JWT_SECRET/DATABASE_URL), `src/utils/logger.ts` (Pino, pretty in dev), `src/utils/AppError.ts`, `src/utils/response.ts` (`ok()` / `fail()` helpers), `src/middleware/errorHandler.ts` (handles AppError + ZodError + unknowns, never leaks stacks), `src/middleware/notFound.ts`, `src/routes/health.ts`, `src/routes/index.ts` (hub router), `src/db/prisma.ts` (singleton PrismaClient via pg adapter), `src/app.ts` (`createApp()` factory), `src/index.ts` (entrypoint with graceful shutdown). Added Vitest + Supertest; wrote `src/app.test.ts` covering health + error middleware envelope shape.
-How to view & test: `cd backend && npm run dev` → `curl http://localhost:4000/api/health` returns `{"status":"success","data":{"status":"ok",...}}`. `npm test` runs the Supertest suite (green).
+What I did:
+How to view & test:
 
 ---
 
 ### Step 0.3 — Frontend shell  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/frontend-bootstrap
 
 Goal: Vite app boots with React Router, Tailwind, axios client (with 401 interceptor + toast), and a root Error Boundary.
@@ -82,15 +82,15 @@ Tasks:
 - [x] Frontend: React Router with placeholder routes for `/`, `/login`, `/signup`.
 - [x] Tests:    RTL test that the Error Boundary renders fallback UI when a child throws.
 
-What I did: Replaced Vite demo content with a real app shell. Replaced `index.css` with Tailwind directives. Rewrote `App.tsx` to render `<AppRoutes />`. Updated `main.tsx` to wrap the tree in `<BrowserRouter>`, `<GoogleOAuthProvider>`, `<ErrorBoundary>`, and `<Toaster>`. Created `src/api/client.ts` (axios instance with `VITE_API_BASE_URL ?? ""` fallback + `/api` prefix, `withCredentials: true`, response interceptor that toasts on 4xx/5xx and redirects on 401 with `skipAuthRedirect` escape hatch), `src/api/types.ts` (ApiSuccess/ApiError), `src/components/ErrorBoundary.tsx` (class component with Reload button), `src/router/AppRoutes.tsx` / `RequireAuth.tsx` / `RedirectIfAuthed.tsx` (stubs, filled out in Step 1.5), `src/pages/Welcome.tsx` + `NotFound.tsx`, `src/lib/cn.ts`, `src/test/setup.ts`, and `ErrorBoundary.test.tsx`.
-How to view & test: `cd frontend && npm run dev` → open `http://localhost:5173` and see the Welcome page. `npm test` runs the RTL suite (green).
+What I did:
+How to view & test:
 
 ---
 
 ## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3, UC-17)
 
 ### Step 1.1 — Prisma users + password_resets schema  (Phase 1 — UC-1, UC-17)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/db-users-schema
 
 Goal: First migration creates the `users` and `password_resets` tables exactly per `tables.docx`.
@@ -100,13 +100,13 @@ Tasks:
 - [x] DB:       `npx prisma migrate dev --name init_users` produces a clean migration.
 - [x] Backend:  `src/db/prisma.ts` exporting a singleton PrismaClient.
 
-What I did: Rewrote `prisma/schema.prisma` with the `PreferredService` enum (SPOTIFY, APPLE_MUSIC, YOUTUBE, TIDAL, DEEZER) and `User` model (id UUID, email unique, username unique, passwordHash nullable for Google-only users, displayName, profilePictureUrl, preferredService, profileComplete boolean, createdAt) plus `PasswordReset` model (id UUID, userId FK cascade-delete, token unique, expiresAt, createdAt). Used Prisma 7's `prisma.config.ts` pattern with `pg.Pool` + `@prisma/adapter-pg` for the runtime adapter. Ran `prisma migrate dev --name init_users` against the local Postgres to produce the first migration SQL. The `bookrough` role needed `CREATEDB` privilege for the shadow database (`ALTER ROLE bookrough CREATEDB;`).
-How to view & test: `cd backend && npx prisma migrate dev` should report "Database already up to date." `npx prisma studio` opens a GUI on port 5555 showing the empty `users` and `password_resets` tables.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.2 — Email/password auth routes  (Phase 1 — UC-1, UC-2, UC-3)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/auth-email-password
 
 Goal: A user can register, log in, log out, and fetch their session via email + password.
@@ -119,13 +119,13 @@ Tasks:
 - [x] Backend:  `src/utils/jwt.ts` sign/verify helpers.
 - [x] Tests:    Supertest integration tests for each route (success + failure paths).
 
-What I did: Created `src/utils/jwt.ts` (`signSession`/`verifySession` wrappers over jsonwebtoken, 7-day lifetime), `src/utils/cookies.ts` (`setSessionCookie`/`clearSessionCookie`, HttpOnly + SameSite=Lax in dev, Secure in prod; cookie name `bookrough_session`), `src/types/express.d.ts` (module augmentation so `req.user` is typed), `src/middleware/requireAuth.ts` (reads cookie → verifies JWT → attaches `req.user` or throws AppError 401), `src/validation/auth.schema.ts` (Zod: registerSchema with email, username 3–20 chars, displayName 1–50, password ≥8 with letter+digit; loginSchema), `src/services/auth.service.ts` (bcrypt cost 12; catches P2002 → AppError 400 for duplicate email/username; `SafeUser` type omits passwordHash), `src/controllers/auth.controller.ts`, `src/routes/auth.ts` (POST /register /login /logout; GET /me). Added `src/test/db.ts` (truncates all tables in FK-safe order for `beforeEach`). Set `fileParallelism: false` in vitest.config.ts to prevent DB race conditions across test files. Integration test suite: `src/routes/auth.test.ts` (10 tests covering all happy + failure paths).
-How to view & test: `cd backend && npm test` → all tests green. Manual: `curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: application/json" -d '{"email":"a@b.com","username":"alice","displayName":"Alice","password":"pass1234","preferredService":"SPOTIFY"}'` returns 201 with the user object (no passwordHash).
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.3 — Google OAuth route  (Phase 1 — UC-1, UC-2)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/auth-google-oauth
 
 Goal: `POST /api/auth/google` accepts a Google identity token, verifies it server-side, finds-or-creates the user, returns the app JWT.
@@ -135,13 +135,13 @@ Tasks:
 - [x] Backend:  Find-or-create: existing email reuses the row (account collision handling); new user is created with `password_hash = null` and a flag indicating profile is incomplete.
 - [x] Tests:    Integration test mocking `google-auth-library` to return a fake verified payload; assert user row, cookie, and 401 on invalid token.
 
-What I did: Created `src/services/google.service.ts` (`verifyGoogleIdToken` wraps `OAuth2Client.verifyIdToken`, throws `AppError(401)` on failure — centralised so tests mock one module). Extended `auth.service.ts` with `loginOrCreateGoogleUser`: finds user by email or creates one with `passwordHash: null`, `profileComplete: false`, derived `displayName` and a generated `username` (lowercased display name + 4-digit suffix, retries on P2002 collision up to 5 times). Extended `auth.controller.ts` with `googleLogin` handler (returns `{ user, requiresOnboarding: !user.profileComplete }`), added `googleLoginSchema` to `auth.schema.ts`, and wired `POST /google` in `auth.ts`. Integration test suite: `src/routes/auth.google.test.ts` (4 tests, mocks `google.service.js` to run offline).
-How to view & test: `cd backend && npm test` → all tests green. In a real browser flow, the Google credential from `@react-oauth/google` is posted to `POST /api/auth/google` and a session cookie is set.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.4 — Forgot-password flow  (Phase 1 — UC-17)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/auth-password-reset
 
 Goal: A user can request a password reset email and set a new password via a time-limited token.
@@ -152,13 +152,13 @@ Tasks:
 - [x] Backend:  Google-only accounts silently no-op (no token row created, same generic response returned).
 - [x] Tests:    Integration tests for happy path, expired token, Google-only email, unknown email.
 
-What I did: Created `src/services/passwordReset.service.ts` (`requestReset` generates `crypto.randomBytes(32).toString("hex")` token, sets `expiresAt = now + 1h`, silently skips unknown emails and Google-only accounts; `resetWithToken` validates expiry, updates passwordHash, and deletes the token atomically in a Prisma transaction — throws `AppError(400)` on invalid/expired token). Created `src/services/email.service.ts` stub (`sendPasswordResetEmail` logs the reset URL via Pino; real provider wired here later). Extended `auth.controller.ts`, `auth.schema.ts`, and `auth.ts` routes. Integration test suite: `src/routes/auth.reset.test.ts` (8 tests covering all branches including token burning to prevent reuse and expiry validation).
-How to view & test: `cd backend && npm test` → all tests green. Manual: POST to `/api/auth/forgot` with any email always returns the same JSON. The reset link is logged to the backend console in dev.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.5 — Auth UI screens  (Phase 1 — UC-1, UC-2, UC-3, UC-17)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/auth-ui
 
 Goal: Welcome / Register / Login / Forgot Password / Create New Password screens are built and wired to the backend. Google login button works end-to-end.
@@ -169,13 +169,13 @@ Tasks:
 - [x] Frontend: `stores/authStore.ts` Zustand store (user, status: loading|authed|guest, hydrate, setUser, logout).
 - [x] Frontend: Route guards — unauthenticated users hitting protected routes are redirected to `/login`.
 
-What I did: Created `src/stores/authStore.ts` (Zustand; `hydrate()` calls `GET /api/auth/me` with `skipAuthRedirect: true` to avoid interceptor loop; `logout()` calls the API then clears state). Created `src/api/auth.ts` (typed wrappers for all auth endpoints). Created `src/types/user.ts`. Built reusable UI primitives: `src/components/ui/Button.tsx` (primary/secondary/ghost variants, loading spinner), `src/components/ui/Input.tsx` (labeled, forwardRef, red border on error), `src/components/AuthLayout.tsx` (centered card). Created `src/components/GoogleSignInButton.tsx` (wraps `@react-oauth/google`, posts credential to backend, navigates to `/onboarding` or `/dashboard`). Implemented all five screens. Wired `RequireAuth.tsx` (checks authStore; loading → spinner; guest → `/login`; incomplete profile → `/onboarding`) and `RedirectIfAuthed.tsx` (authed → `/dashboard`). Updated `AppRoutes.tsx` to wrap public routes in `<RedirectIfAuthed>` and protected routes in `<RequireAuth>`. Added `hydrate()` call in `main.tsx`. Key fix: axios baseURL falls back to `""` when `VITE_API_BASE_URL` is unset (allowing Vite dev proxy at `/api`). Fixed hydrate data path to `res.data.data.user` (the envelope nests `{ data: { user } }`).
-How to view & test: Boot both servers. Visit `http://localhost:5173` — Welcome page renders. Click "Log In" → Login page. Register a new account → redirected to Dashboard. Refresh → stays on Dashboard (session hydrated). Log out → redirected to Welcome. Visiting `/dashboard` while logged out redirects to `/login`.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.6 — Complete-Your-Profile onboarding  (Phase 1 — UC-1)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: feat/auth-google-onboarding
 
 Goal: A new Google user is forced through a profile completion screen before reaching the dashboard.
@@ -186,13 +186,13 @@ Tasks:
 - [x] Frontend: Auth guard pushes Google-created users with incomplete profiles to this screen on every navigation.
 - [x] Tests:    Integration tests for the route (success, duplicate username 400, no auth 401, invalid service 400).
 
-What I did: Backend — created `src/services/user.service.ts` (`completeOnboarding` updates username + preferredService + sets profileComplete=true, catches P2002 → AppError 400 "Username taken"), `src/validation/user.schema.ts` (`onboardingSchema` reuses the same username rules as register), `src/controllers/user.controller.ts` (`patchOnboarding` handler), `src/routes/users.ts` (`PATCH /me/onboarding` with requireAuth middleware), mounted in `routes/index.ts` at `/users`. Integration test suite: `src/routes/users.onboarding.test.ts` (4 tests). Frontend — created `src/api/users.ts` (`completeOnboarding` wrapper for the PATCH endpoint) and `src/pages/Onboarding.tsx` (username input with inline validation + preferredService select, on success calls `setUser` and navigates to `/dashboard`). Updated `AppRoutes.tsx` to add `/onboarding` route inside `<RequireAuth>`. The `RequireAuth` guard already redirects users with `profileComplete === false` to `/onboarding` automatically.
-How to view & test: Sign in with Google using a new account → redirected to `/onboarding`. Fill in username + streaming service → Submit → redirected to `/dashboard`. Attempting to navigate to `/dashboard` as an incomplete user brings you back to `/onboarding`. `cd backend && npm test` → 31 tests green across 6 files.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.7 — Phase 1 E2E coverage  (Phase 1)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: test/auth-e2e
 
 Goal: A Playwright E2E spec runs the full register → logout → login loop against a local stack.
@@ -201,8 +201,8 @@ Tasks:
 - [x] Tests:    `e2e/tests/auth.spec.ts` — register a new user, verify dashboard, log out, log back in (3 specs).
 - [x] Tests:    `e2e/utils/db.ts` — `resetDatabase()` truncates the test DB before each spec via a direct pg.Pool connection.
 
-What I did: Created an isolated `e2e/` package with `@playwright/test` as its only test dependency. `playwright.config.ts` starts the backend (pointed at `music_app_test_db`) and frontend dev servers automatically via `webServer`, so a single `npm test` in `e2e/` drives the full stack. Three specs cover: (1) register → dashboard → logout → login again; (2) guest visiting `/dashboard` is redirected to `/login`; (3) authed user visiting `/login` is bounced to `/dashboard`. The test DB is truncated before each spec using a direct pg connection. Note: the E2E suite is **not yet in CI** (added in Step 6.1); run it locally only.
-How to view & test: With Postgres running and backend `.env` set: `cd e2e && npm install && npx playwright install chromium && cp .env.example .env && npm test`. Playwright starts both servers, runs the specs, and shuts down. Full results appear in the terminal. Use `npm run test:headed` to watch the browser.
+What I did:
+How to view & test:
 
 ---
 
