@@ -76,7 +76,9 @@ Tools used to **build** the project. Nothing here ships, and nothing here is req
 
 **python-docx** - generates the `.docx` mirrors from their Markdown sources, which is how the dual-file rule (CLAUDE.md section 14.1) is actually kept. Installed outside the repository, not a project dependency. Note that neither LibreOffice nor pandoc is installed on the developer's machine, so the generated `.docx` files are verified structurally and by content, **not** by visual rendering.
 
-**Evaluated and not available:** there is no GitHub MCP connector in the registry, and no matching skill in the account. The `gh` CLI covers the need.
+**GitHub Integration connector - installed on the account, not usable from here.** The owner has it connected on claude.ai, where it works normally. It is **not exposed to Claude Code desktop sessions** and cannot be enabled from one, so every GitHub operation in this project goes through the `gh` CLI instead. This is a surface limitation, not a missing connector - worth knowing if you ever work on this repository from claude.ai in a browser rather than from the desktop app.
+
+No matching skill exists in the account either. The `gh` CLI covers the need: `gh api` reaches the full GitHub REST and GraphQL API, so nothing a connector would provide is out of reach.
 
 ### 6. Workflow & Documentation
 
