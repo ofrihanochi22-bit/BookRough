@@ -464,6 +464,14 @@ Build the whole vertical slice — migration, service, controller, route, screen
 
 Before writing tests, read back what was built and improve it: naming, duplication, error handling, missing loading states, anything that leaked through in the first pass. Confirm it conforms to §4 layering and §8 UI conventions. This is deliberately a separate stage so that tests are written against code that is already in its intended shape, rather than freezing a first draft in place.
 
+**`/code-review` is mandatory in this stage.** Since the human review of the diff was removed (§11), Stage 3 is the only quality gate standing between a feature and `main`. A self-review by the author is the weakest form of review there is — the same reasoning that produced the code approves it. `/code-review` runs a separate pass over the diff instead, which is materially better than nothing. Run it, work through the findings, and say in the PR what it surfaced and what was done about each item.
+
+**`/security-review` is mandatory for any feature touching authentication, authorisation, user input, or an external service.** In practice: all of Phase 1, the admin area (§17), the link scraper (§7), and the Phase 6 deployment work.
+
+> `/code-review ultra` runs a deeper multi-agent review in the cloud. It is **user-triggered and billed — Claude cannot launch it.** Ask the developer to run it for a change that warrants the extra depth.
+
+Neither command replaces the developer. They replace nothing that exists today; they are an addition to a stage that was otherwise unverified.
+
 ### Stage 4 — Tests
 
 Write the test suite described in §10, working from the scenario list in the feature spec. Every named good path and every named bad path gets a test. Run the full suite, get it green, and confirm the coverage threshold holds.
@@ -525,3 +533,22 @@ An admin area owned by the product owner, scheduled for **Phase 2** so that user
 ### Deliberately not decided here
 
 Exactly which settings are configurable, whether content as well as design is editable, the shape of the settings table, and what the audit trail stores — **all of that belongs to this feature's Stage 1 specification session** (§15) and lands in `docs/features/admin-panel.md` before a single migration is written. Do not design it in a general planning conversation, and do not let it grow into a CMS by accident.
+
+---
+
+## 18. 🔴 Every external dependency gets documented
+
+**The first time the project uses a new external service, connector, skill, or development tool, it is recorded — in the same commit that introduces it.** Not later, not in a cleanup pass. An undocumented dependency is one nobody knows to renew, replace, or remove.
+
+Two destinations, deliberately kept apart:
+
+| What | Where | Test for which one |
+|---|---|---|
+| Something the **running application** depends on | `docs/tech stack.md` §5 (+ `.docx`) | If it disappeared, would the deployed product break? |
+| Something that helps us **build** it | `docs/tech stack.md` §5.2 (+ `.docx`) | If it disappeared, would only our workflow get slower? |
+
+Keeping them separate matters: someone reading the stack to stand the app up needs to know that `squigly.link` is load-bearing and that `/code-review` is not.
+
+For each entry record **what it is, why it was chosen, what breaks without it, and any account, key, or cost it carries.** A bare name in a list is not documentation.
+
+The same rule applies to removal: a service that stops being used is deleted from the document, with its rejection recorded under the "deliberately not used" note if it might otherwise be reintroduced.
