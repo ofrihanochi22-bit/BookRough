@@ -8,6 +8,8 @@ The primary goal of this workflow is maintainability and traceability. Every com
 
 **Claude owns every git and GitHub operation in this project. The developer runs no git commands.**
 
+The split is by *decision* versus *execution*: the developer decides **when** a branch may be merged or deleted, and Claude carries out everything else.
+
 | Responsibility | Owner |
 |---|---|
 | Creating and switching branches | Claude |
@@ -15,15 +17,29 @@ The primary goal of this workflow is maintainability and traceability. Every com
 | Writing commit messages | Claude |
 | Pushing to the remote | Claude |
 | Opening the Pull Request and writing its description | Claude |
-| Reviewing the "Files Changed" diff | **Developer** |
-| Clicking Merge | **Developer** |
-| Deleting the merged branch | Claude |
+| Reviewing the diff before merge | Claude (Stage 3 self-review) |
+| **Deciding when to merge or delete a branch** | **Developer** |
+| Performing the merge | Claude |
+| Deleting the merged branch, locally and remotely | Claude |
+| Returning to an updated `main` | Claude |
 
-This has two consequences worth stating plainly.
+Four rules follow from this.
 
-First, **Claude must never instruct the developer to run a git command** — it must run the command itself. Work left uncommitted at the end of a step is a failure on Claude's part, not a handoff.
+**Claude never instructs the developer to run a git command.** It runs the command itself. Work left uncommitted at the end of a step is a failure on Claude's part, not a handoff.
 
-Second, **Claude must never merge.** The developer's review of the aggregate diff is the single human gate in this process, and it is the one thing that catches what automated checks cannot: a design that is technically correct but wrong for the product. Claude does not merge, does not enable auto-merge, and never pushes directly to `main`.
+**Claude never merges on its own initiative.** An open Pull Request waits until the developer says to merge it. Auto-merge is never enabled, and nothing is ever pushed directly to `main`.
+
+**A red or pending CI check blocks the merge even when the developer has said to merge.** Once `pr.yml` exists, Claude reports the failure and fixes it rather than merging through it. This is the last automated gate in the process and it is not negotiable.
+
+**An unmerged branch is never deleted without an explicit instruction**, because the work would be lost.
+
+### 1.2. What This Arrangement Gives Up
+
+Under the original workflow the developer reviewed the "Files Changed" tab before clicking Merge, and that human read was the one gate no automated check could replace: it catches work that is technically correct but wrong for the product.
+
+That gate has been **deliberately removed** by the developer in favour of speed on a solo project. What remains is Claude's Stage 3 review pass (`CLAUDE.md` section 15) and the CI suite.
+
+The consequence is that the self-review matters **more** than it did before, not less. Treat the Stage 3 pass and the bad-path test requirements as load-bearing, because nothing downstream will catch what they miss.
 
 ### 2. Branching Strategy
 
@@ -103,13 +119,14 @@ Even as a solo developer, enforcing a strict PR process is critical for self-rev
 git push -u origin feat/bookmark-songs
 - **Open PR (Claude):** Open a Pull Request on GitHub merging feat/bookmark-songs into main, with the description template below filled in.
 - **Wait for CI:** The `pr.yml` workflow must be green — lint, typecheck, unit tests, integration tests. A red CI blocks the merge through branch protection, and the fix is Claude's responsibility.
-- **Review (Developer):** Go through the "Files Changed" tab line-by-line. Check for:
+- **Self-review (Claude):** Go through the full diff line-by-line before asking for the merge. Check for:
   - Clean, readable code.
   - No leftover debugging code (console.log, commented-out blocks).
   - Proper error handling.
   - That the feature actually matches what was agreed in its specification.
-- **Merge (Developer):** Once satisfied, **squash and merge** the PR into main. Squashing keeps one well-formed Conventional Commit per feature on main, so the history reads as a list of delivered capabilities rather than a transcript of the work.
-- **Clean Up (Claude):** After the developer confirms the merge, delete the feature branch locally and remotely, and check out an updated main.
+- **Wait (Developer decides):** The PR stays open until the developer says to merge it. Claude does not merge on its own initiative.
+- **Merge (Claude):** On the developer's word, and only with CI green, **squash and merge** into main. Squashing keeps one well-formed Conventional Commit per feature on main, so the history reads as a list of delivered capabilities rather than a transcript of the work.
+- **Clean Up (Claude):** Immediately after merging, delete the feature branch locally and remotely and check out an updated main. This does not need a second instruction.
 
 ### PR Description Template
 
@@ -118,18 +135,19 @@ Markdown
 
 ## Objective
 
-[Briefly describe what this PR accomplishes. E.g., "Implements UC-1: User Registration via Email and Google."]
+[Briefly describe what this PR accomplishes. E.g., "Implements UC-1: User Registration via Google Sign-In."]
 
 ## Changes Made
 
 - Added `users` table migration.
-- Created POST `/api/auth/register` endpoint.
-- Built React Registration screen with form validation.
+- Created POST `/api/auth/google` endpoint.
+- Built the Welcome screen and the Complete Your Profile onboarding screen.
 
 ## Testing Performed
 
-- [x] Tested successful email registration.
-- [x] Tested duplicate email error handling.
+- [x] Tested first sign-in creating a new account.
+- [x] Tested duplicate username error handling.
+- [x] Tested invalid Google token returning 401.
 - [x] Verified database row creation.
 
 ## Notes for Review

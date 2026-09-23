@@ -297,16 +297,22 @@ E2E is deliberately kept off the PR path: installing browsers plus running real 
 
 ## 11. Git workflow
 
-### 🔴 Claude owns git. The developer runs no git commands.
+### 🔴 Claude owns git entirely. The developer runs no git commands.
 
-Every git and GitHub operation in this project is Claude's responsibility: creating branches, staging, committing, pushing, opening pull requests, and filling in the PR body. The developer never types `git` anything. Consequences:
+Every git and GitHub operation in this project is Claude's responsibility: creating branches, staging, committing, pushing, opening pull requests, filling in the PR body, **merging, and deleting branches**. The developer never types `git` anything.
+
+**The developer's role is to decide *when*. Claude's role is to execute.** The developer says "merge it" or "close that branch"; Claude does the rest.
 
 - **Never tell the developer to run a git command.** Run it.
 - **Never leave work uncommitted** at the end of a step. Uncommitted work is Claude's failure, not a handoff.
 - **Every step ends with a pushed branch and an open PR** against `main`, with the §11 template filled in.
-- **Claude does not merge.** The developer reviews the "Files Changed" tab and clicks Merge. That review is the one human gate in the process and must not be bypassed — so do not merge, do not enable auto-merge, and do not push to `main`.
+- **Merging requires the developer's word.** Claude never merges on its own initiative, never enables auto-merge, and never pushes directly to `main`. An open PR waits until the developer says to merge it.
+- **CI green is a hard precondition.** Once `pr.yml` exists (Step 0.5), Claude does not merge on a red or pending check even when told to — it reports the failure and fixes it first. This is the one remaining automated gate and it is not to be bypassed.
 - **Merge style: squash and merge**, so `main` carries exactly one well-formed Conventional Commit per feature.
-- After the developer confirms a merge, Claude deletes the feature branch locally and on the remote, and checks out an updated `main`.
+- **After merging**, Claude deletes the feature branch locally and on the remote, and checks out an updated `main` — without being asked again.
+- **Deleting a branch that was never merged** always needs the developer to say so explicitly, because the work would be lost.
+
+> **What this trades away, stated plainly.** There is no longer a human review of the diff before code reaches `main`. Claude's Stage 3 review pass (§15) and the CI gate are what remain. That is a deliberate choice by the developer for a solo project; it is not an invitation to lower the bar on the self-review, which now matters more, not less.
 
 ### Branch and commit rules
 
