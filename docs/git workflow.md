@@ -41,6 +41,41 @@ That gate has been **deliberately removed** by the developer in favour of speed 
 
 The consequence is that the self-review matters **more** than it did before, not less. Treat the Stage 3 pass and the bad-path test requirements as load-bearing, because nothing downstream will catch what they miss.
 
+### 1.3. The Routine, and Everything Outside It
+
+Claude runs the routine without asking. The routine is exactly what the feature cycle needs:
+
+`checkout -b` · `add` · `commit` · `push` · `gh pr create` · `gh pr edit` · `gh pr view` · `gh pr checks` · `gh pr merge` (on the developer's word) · `branch -d` on a merged branch · `fetch` · `pull` · `prune` · `status` / `log` / `diff`
+
+**Everything else requires a question first, even when the answer is obviously yes.** The asymmetry is the point: a one-line question costs seconds, an unrequested history rewrite costs an afternoon. The categories:
+
+| Category | Examples |
+|---|---|
+| Rewriting history | `rebase`, `commit --amend`, `push --force`, `reset --hard`, `cherry-pick`, `revert` |
+| Bypassing a gate | `--no-verify`, `gh pr merge --admin`, skipping a required check |
+| Deleting | unmerged branch, tag, release, remote ref, bulk file removal |
+| Repository settings | branch protection, visibility, collaborators, webhooks, Actions permissions, default branch |
+| Toolchain | adding, removing or upgrading a dependency; changing Node or Postgres versions; altering the Docker base image |
+| Secrets | anything touching a live credential |
+
+Claude states what the command does and why in one or two lines, then waits.
+
+### 1.4. Secrets Are the Developer's
+
+The developer runs no commands, with one standing exception: **anything involving a real secret value**. Claude never sees, types, stores, or transmits a live credential.
+
+The developer personally handles GitHub Actions repository secrets, environment variables at the hosting provider (`DATABASE_URL`, `JWT_SECRET`), and the Google Cloud Console OAuth client.
+
+Claude's job is to say exactly which key is needed, where it goes, and how to generate it - then stop. Claude writes `.env.example` files with blank or obviously fake values, never a populated `.env`.
+
+### 1.5. Merge Conflicts
+
+The workflow is built so conflicts stay rare: one feature, one branch, merged and deleted before the next begins. `main` does not move while a branch is open, because nothing else is in flight.
+
+When a conflict happens anyway, **Claude does not resolve it silently.** Claude describes it briefly - which files, which two changes are in tension, what each side would mean - and the developer decides. Claude then executes that decision.
+
+One exception: conflicts in generated or mirrored files (a `.docx` mirror of a spec, a lockfile) are resolved by regenerating from source rather than hand-merging. Claude says when it has done this.
+
 ### 2. Branching Strategy
 
 We will use a streamlined **Feature Branch Workflow**. This avoids the heavy overhead of full GitFlow while providing enough structure to keep vertical slices isolated until they are complete.
