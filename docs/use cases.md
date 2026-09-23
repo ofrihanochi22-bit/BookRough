@@ -2,32 +2,38 @@
 
 ### UC-1: User Registration
 
-- **Description:** A new user creates an account on the platform using an Email/Password combination or Social Login (Google) and completes their onboarding by setting their music preferences.
-- **Pre-conditions:** The user does not currently have an account associated with their email or Google profile. The user has downloaded or accessed the application.
-- **Post-conditions:** A new User record is created in the database containing their id, username, and preferred Service. The user is authenticated and logged into the application.
-- **Trigger:** The user opens the app and taps or clicks the "Sign Up" button.
+- **Description:** A new user creates an account using **Google Sign-In** and completes onboarding by choosing a username, display name, and music preferences.
+- **Pre-conditions:** The user has a Google account and does not yet have a BookRough account linked to it.
+- **Post-conditions:** A new User record is created containing their id, `google_sub`, username, display name, and preferred service. **No email address is stored.** The user is authenticated and logged in.
+- **Trigger:** The user opens the app and taps "Continue with Google".
 - **Step-by-step scenario (Success):**
-- The user selects the option to sign up.
-- The system prompts the user to register via Email/Password or Social Login (Google).
-- The user provides their credentials and basic profile details, such as a display name, profile picture, and a username.
-- The system prompts the user to select their Preferred Streaming Service from the available options (Spotify, Apple Music, YouTube, Tidal, Deezer).
-- The user makes their selection and submits the registration form.
-- The system verifies the data, creates the account in the database, and logs the user in.
-- **Fail description (Alternative Scenario):** The user attempts to register with an email address that is already associated with an existing account. The system halts the registration, displays an error message stating "An account with this email already exists," and provides a link to navigate to the Login screen.
+  - The user taps "Continue with Google" on the Welcome screen.
+  - The Google popup opens and the user grants consent.
+  - The frontend receives a Google identity token and posts it to the backend.
+  - The backend verifies the token signature and audience with Google, then reads the `sub` claim. **The `email` claim is discarded and never written to the database.**
+  - No user exists for that `sub`, so the backend creates one and issues an app session JWT.
+  - The system routes the user to the "Complete Your Profile" screen to choose a username, a display name, and a Preferred Streaming Service (Spotify, Apple Music, YouTube, Tidal, Deezer).
+  - The user submits; the system saves the profile and routes them to the Communities Dashboard.
+- **Fail description (Alternative Scenario):** The user chooses a username that is already taken. The system halts the profile step and displays "That username is already taken." The account row already exists at this point, so the user stays on the onboarding screen until a valid username is supplied rather than being sent back to the start.
+
+> **Note.** Registration and login are the same button. A returning user whose `sub` is already known is simply logged in (UC-2); a new `sub` becomes a new account. There is no separate "Sign Up" path and no email/password option — see `docs/auth.md`.
 
 ### UC-2: User Login
 
-- **Description:** An existing user accesses their account using their registered credentials (Email/Password) or via Social Login (Google).
-- **Pre-conditions:** The user has already completed the registration process and currently has an inactive session (is logged out).
-- **Post-conditions:** The user's identity is verified, an active session is generated, and the user is granted access to their profile and communities.
-- **Trigger:** The user opens the app and selects the "Log In" button.
+- **Description:** An existing user accesses their account via **Google Sign-In**. This is the only login method.
+- **Pre-conditions:** The user previously registered, and is currently logged out.
+- **Post-conditions:** The user's identity is verified, a session JWT is issued as an HttpOnly cookie, and the user reaches their dashboard.
+- **Trigger:** The user opens the app and taps "Continue with Google".
 - **Step-by-step scenario (Success):**
-- The user navigates to the login screen.
-- The user selects their preferred login method: entering their Email/Password or choosing Google Social Login.
-- The system validates the provided credentials against the database.
-- The system successfully authenticates the user and generates an active session.
-- The system redirects the user to their main dashboard or community view.
-- **Fail description (Alternative Scenario):** The user enters an incorrect password for their email address. The system denies access, does not create a session, and displays an error message stating "Invalid email or password. Please try again."
+  - The user taps "Continue with Google".
+  - The Google popup opens and returns an identity token to the frontend.
+  - The frontend posts the token to the backend.
+  - The backend verifies it with Google and looks up the user by the `sub` claim.
+  - A matching user is found; the backend issues an app session JWT.
+  - The system redirects the user to their Communities Dashboard.
+- **Fail description (Alternative Scenario):** The Google token fails verification — it is expired, malformed, or was issued for a different audience. The backend returns `401`, no session is created, and the UI shows "Sign-in failed. Please try again."
+
+> **Account recovery is Google's responsibility, not ours.** Because no email address and no password are stored, a user who permanently loses access to their Google account cannot be recovered by BookRough, and support cannot identify them. This is the accepted cost of not holding user email addresses.
 
 ### UC-3: User Logout
 
@@ -40,20 +46,8 @@
 - The user clicks the "Logout" button.
 - The system prompts the user to confirm their action (optional).
 - Upon confirmation, the backend invalidates the user's session token.
-- The frontend clears any cached local user data and redirects the user to the public landing or login screen.
-- **Fail description (Alternative Scenario):** The user attempts to log out, but their session token has already expired on the server (e.g., due to prolonged inactivity). The system detects the invalid token when the logout request is made, clears the local client data anyway, and drops the user back at the login screen with a brief message stating "Session expired."
-- Description: A new user creates an account on the platform using an Email/Password combination or Social Login (Google) , and completes their onboarding by setting their music preferences.
-- Pre-conditions: The user does not currently have an account associated with their email or Google profile. The user has downloaded or accessed the application.
-- Post-conditions: A new User record is created in the database containing their id, username, and preferredService. The user is authenticated and logged into the application.
-- Trigger: The user opens the app and taps or clicks the "Sign Up" button.
-- Step-by-step scenario (Success):
-  - The user selects the option to sign up.
-  - The system prompts the user to register via Email/Password or Social Login (Google).
-  - The user provides their credentials and basic profile details, such as a display name, profile picture, and a username.
-  - The system prompts the user to select their Preferred Streaming Service from the available options (Spotify, Apple Music, YouTube, Tidal, Deezer).
-  - The user makes their selection and submits the registration form.
-  - The system verifies the data, creates the account in the database, and logs the user in.
-- Fail description (Alternative Scenario): The user attempts to register with an email address that is already associated with an existing account. The system halts the registration, displays an error message stating "An account with this email already exists," and provides a link to navigate to the Login screen.
+- The frontend clears any cached local user data and redirects the user to the public Welcome screen.
+- **Fail description (Alternative Scenario):** The user attempts to log out, but their session token has already expired on the server (e.g., due to prolonged inactivity). The system detects the invalid token when the logout request is made, clears the local client data anyway, and drops the user back at the Welcome screen with a brief message stating "Session expired."
 
 ### UC-4: User Edits Account Details
 
@@ -254,22 +248,13 @@
   - Below the average, the system lists individual rating entries, displaying the rater's username, their specific star score (1-10), their optional text comment, and the timestamp.
 - **Fail description (Alternative Scenario):** A database lag occurs while fetching the ratings array for a highly popular post. The system displays a loading skeleton or spinner for 3 seconds. If the fetch times out, the system displays a placeholder: "Could not load comments at this time. Pull to refresh."
 
-### UC-17: User Resets Password (Forgot Password)
+### UC-17: *(withdrawn)* User Resets Password
 
-- **Description:** An unauthenticated user initiates a password recovery flow to regain access to their account via an email reset link.
-- **Pre-conditions:** The user is logged out, created their account using the Email/Password method (not Google Social Login), and remembers the email address associated with their account.
-- **Post-conditions:** The user successfully establishes a new password and gains authenticated access to the application.
-- **Trigger:** The user taps the "Forgot Password?" link on the login screen.
-- **Step-by-step scenario (Success):**
-  - The user taps "Forgot Password?".
-  - The system navigates to a password recovery screen prompting for the user's registered email address.
-  - The user enters their email and taps "Send Reset Link".
-  - The backend verifies the email exists and dispatches an email containing a secure, time-sensitive reset token.
-  - The app displays a confirmation message: "If an account exists, a reset link has been sent."
-  - The user opens their email client, clicks the link, and is routed back to the app's "Create New Password" screen.
-  - The user enters and confirms a new valid password.
-  - The backend updates the user's password hash and automatically logs them in.
-- **Fail description (Alternative Scenario):** The user enters an email address that belongs to an account created exclusively via Google Social Login. The backend detects this and, to prevent confusion, sends an email to that address stating: "You previously signed in using Google. Please return to the app and select 'Continue with Google' to log in." The app UI remains on the generic "link sent" confirmation screen for security purposes.
+> **This use case has been withdrawn and is intentionally left numbered so that UC-18 keeps its identity.**
+>
+> BookRough stores no passwords and no email addresses: Google Sign-In is the only authentication method (UC-1, UC-2). There is therefore nothing to reset and no address to send a reset link to. The `password_resets` table has been removed from the schema, and the Forgot Password and Create New Password screens have been removed from the screen catalog.
+>
+> Password recovery is handled entirely by Google, outside this application.
 
 ### UC-18: User Deletes a Post (Song Recommendation)
 
@@ -287,3 +272,22 @@
   - The UI instantly removes the post from the visible feed.
 - **Fail description (Alternative Scenario):** The user's device loses network connectivity immediately after confirming the deletion. The backend request fails. The system catches the error, leaves the post visible in the feed, and displays a temporary error banner: "Could not delete post. Check your connection and try again."
 
+### UC-19: Administrator Manages the Application
+
+- **Description:** The application owner signs into an administrative area to review the user base and adjust presentation configuration without touching the database directly.
+- **Pre-conditions:** The user is authenticated and their `users.role` is `ADMIN`.
+- **Post-conditions:** The requested configuration change is persisted and takes effect for all users. The action is recorded in an audit trail.
+- **Trigger:** An administrator navigates to the admin area.
+- **Step-by-step scenario (Success):**
+  - The administrator signs in through the normal Google flow (UC-2).
+  - The system recognises the `ADMIN` role and exposes the admin area; it is invisible and inaccessible to everyone else.
+  - The administrator views the user list: username, display name, preferred service, join date, and activity counts.
+  - The administrator adjusts a presentation setting (for example a theme colour or a piece of static copy).
+  - The system saves the change, records who made it and when, and applies it for all users.
+- **Fail description (Alternative Scenario):** A non-admin user navigates directly to an admin URL or calls an admin endpoint. The backend returns `403` and the frontend shows the standard not-found page rather than confirming that an admin area exists.
+
+> **Privacy constraint — the reason this use case exists in this form.** The user list **cannot show an email address, because none is stored** (UC-1). Nothing in the admin area identifies a real person: it shows only what the user chose to display. This is a deliberate data-minimisation decision, not an oversight.
+>
+> **Honest limit:** this reduces *incidental* exposure. It is not a cryptographic guarantee — the operator runs the server and can change the code. The protection is that there is no personal data in the system to expose in the first place.
+>
+> **Scope detail is deliberately not specified here.** Exactly which settings are configurable, and what the audit trail records, are decided in this feature's specification session and written to `docs/features/admin-panel.md` before implementation begins.

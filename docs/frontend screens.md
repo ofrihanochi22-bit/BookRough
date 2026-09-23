@@ -1,21 +1,21 @@
 ### 1. Authentication & Onboarding Flow
 
-These screens handle unauthenticated users and account recovery.
-- **1.1. Welcome / Landing Screen**
-  - **Purpose:** The entry point for unauthenticated users.
-  - **Key UI:** App logo, brief value proposition, "Log In" button, "Sign Up" button, "Continue with Google" button.
-- **1.2. Registration Screen (UC-1)**
-  - **Purpose:** Account creation and initial onboarding.
-  - **Key UI:** Email/Password input fields, Display Name, Username, a live preview of the **generated avatar** (no upload control), and a mandatory dropdown/selector for **Preferred Streaming Service**.
-- **1.3. Login Screen (UC-2)**
-  - **Purpose:** Authenticating existing users.
-  - **Key UI:** Email/Password inputs, "Log In" button, "Forgot Password?" link.
-- **1.4. Forgot Password / Recovery Screen (UC-17)**
-  - **Purpose:** Requesting a password reset link.
-  - **Key UI:** Email input field, "Send Reset Link" button, confirmation state (success message).
-- **1.5. Create New Password Screen (UC-17)**
-  - **Purpose:** The destination from the email reset link.
-  - **Key UI:** "New Password" and "Confirm Password" inputs, "Save Password" button.
+Google Sign-In is the only authentication method, so this group collapsed from five screens to two. Sign-up and login are the same button.
+
+- **1.1. Welcome / Landing Screen (UC-1, UC-2)**
+  - **Purpose:** The single entry point for unauthenticated users. Handles both registration and login.
+  - **Key UI:** App logo, brief value proposition, and one **"Continue with Google"** button. Below it, a short line of copy setting expectations: that the app never asks for a password and never stores an email address.
+  - **States:** idle; signing-in (button disabled with spinner while the popup is open and the token is being verified); error ("Sign-in failed. Please try again.").
+  - **No** "Log In" / "Sign Up" split, **no** email or password fields, **no** "Forgot Password?" link.
+- **1.2. Complete Your Profile Screen (UC-1)**
+  - **Purpose:** Collect the fields Google cannot supply. Shown immediately after a first successful sign-in, and again on any later sign-in where onboarding was abandoned.
+  - **Key UI:** Username input with live availability feedback, Display Name input, a live preview of the **generated avatar** (no upload control), and a mandatory selector for **Preferred Streaming Service**.
+  - **States:** loading; validation error ("That username is already taken."); submitting.
+  - The dashboard is unreachable until this screen is completed.
+
+> **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **thirteen** screens. (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
+
+> **Administrative screens (UC-19) are not listed here yet.** They are specified in the admin panel's own feature session and written to `docs/features/admin-panel.md` before implementation. What is already fixed: they are reachable only for `users.role = 'ADMIN'`, they render the standard not-found page for everyone else, and **they cannot display an email address because none is stored.**
 
 ### 2. Main Navigation & Social Flows
 

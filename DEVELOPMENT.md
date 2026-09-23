@@ -97,7 +97,7 @@ Tasks:
 - [x] Frontend: `src/api/client.ts` axios instance + interceptor (401 → logout + redirect, 4xx/5xx → toast).
 - [x] Frontend: Toast util (react-hot-toast mounted in main.tsx).
 - [x] Frontend: Root `<ErrorBoundary>` wrapping the routed tree.
-- [x] Frontend: React Router with placeholder routes for `/`, `/login`, `/signup`.
+- [ ] Frontend: React Router with placeholder routes for `/` (Welcome) and `/onboarding`. **No `/login` or `/signup`** — sign-in is a single button on Welcome (CLAUDE.md §5).
 - [x] Tests:    RTL test that the Error Boundary renders fallback UI when a child throws.
 
 What I did:
@@ -143,87 +143,80 @@ How to view & test:
 
 ---
 
-## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3, UC-17)
+## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3)
 
-### Step 1.1 — Prisma users + password_resets schema  (Phase 1 — UC-1, UC-17)
+> **Scope shrank.** Email/password auth and password recovery were dropped in favour of Google Sign-In only, and user email addresses are no longer stored at all (CLAUDE.md §5). Former steps 1.2 (email/password routes) and 1.4 (forgot-password flow) are **withdrawn**; UC-17 is withdrawn with them.
+
+### Step 1.1 — Prisma users schema  (Phase 1 — UC-1)
 Status: ☐ Not started
 Branch: feat/db-users-schema
+Spec: docs/features/users-schema.md
 
-Goal: First migration creates the `users` and `password_resets` tables exactly per `tables.docx`.
+Goal: First migration creates the `users` table exactly per `docs/tables.md`.
 
 Tasks:
-- [x] DB:       `prisma/schema.prisma` — `User` and `PasswordReset` models with all fields, enums (`PreferredService`), constraints from `tables.docx`.
-- [x] DB:       `npx prisma migrate dev --name init_users` produces a clean migration.
-- [x] Backend:  `src/db/prisma.ts` exporting a singleton PrismaClient.
+- [ ] Spec:     docs/features/users-schema.md written and approved
+- [ ] DB:       `prisma/schema.prisma` — `User` model with `google_sub` (unique), `username` (unique), `display_name`, `profile_picture_url` (nullable), `preferred_service` enum, `role` enum (`USER`/`ADMIN`, default `USER`), `created_at`.
+- [ ] DB:       **No `email` column and no `password_hash` column** — this is deliberate, see CLAUDE.md §5.
+- [ ] DB:       `npx prisma migrate dev --name init_users` produces a clean migration.
+- [ ] Backend:  `src/db/prisma.ts` exporting a singleton PrismaClient.
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    migration applies cleanly to an empty `music_app_test_db`; unique constraints on `google_sub` and `username` both reject duplicates.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 1.2 — Email/password auth routes  (Phase 1 — UC-1, UC-2, UC-3)
-Status: ☐ Not started
-Branch: feat/auth-email-password
+### Step 1.2 — *(withdrawn)* Email/password auth routes
 
-Goal: A user can register, log in, log out, and fetch their session via email + password.
+> Withdrawn. Google Sign-In is the only authentication method (CLAUDE.md §5). There are no registration, login, or password endpoints to build. The step number is retained rather than reused so that references in git history stay meaningful.
+
+---
+
+### Step 1.3 — Google Sign-In  (Phase 1 — UC-1, UC-2, UC-3)
+Status: ☐ Not started
+Branch: feat/auth-google
+Spec: docs/features/google-auth.md
+
+Goal: A user can sign in with Google, receive a session cookie, fetch their session, and sign out. This is the whole of authentication.
 
 Tasks:
-- [x] Backend:  `POST /api/auth/register` (Zod validation, bcrypt hash, conflict → 400 "Email already exists").
-- [x] Backend:  `POST /api/auth/login` (verify hash, issue JWT in HttpOnly cookie).
-- [x] Backend:  `POST /api/auth/logout` (clear cookie).
-- [x] Backend:  `GET /api/auth/me` (auth middleware that reads cookie, returns current user).
-- [x] Backend:  `src/utils/jwt.ts` sign/verify helpers.
-- [x] Tests:    Supertest integration tests for each route (success + failure paths).
+- [ ] Spec:     docs/features/google-auth.md written and approved
+- [ ] Backend:  `POST /api/auth/google` — verify the identity token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`), read `sub` and `picture`, **discard the `email` claim**, upsert by `google_sub`, issue the app JWT.
+- [ ] Backend:  `POST /api/auth/logout` (clear cookie) and `GET /api/auth/me` (auth middleware reads the cookie).
+- [ ] Backend:  `src/utils/jwt.ts` sign/verify helpers; `toPublicUser` serialiser — **never return a raw Prisma user**.
+- [ ] Backend:  Response carries `needsOnboarding` so the frontend can route to Complete Your Profile.
+- [ ] Review:   confirm no code path reads, logs, or returns `payload.email`.
+- [ ] Tests:    mock `google-auth-library`. Good: new `sub` creates a user; known `sub` logs in; logout clears the cookie; `/me` returns the session user.
+- [ ] Tests:    Bad: invalid signature → 401; wrong audience → 401; expired token → 401; missing cookie on `/me` → 401.
+- [ ] Tests:    **Privacy regression test** — assert the created row has no email field populated and that no response body or log line contains the test token's email address.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 1.3 — Google OAuth route  (Phase 1 — UC-1, UC-2)
-Status: ☐ Not started
-Branch: feat/auth-google-oauth
+### Step 1.4 — *(withdrawn)* Forgot-password flow
 
-Goal: `POST /api/auth/google` accepts a Google identity token, verifies it server-side, finds-or-creates the user, returns the app JWT.
-
-Tasks:
-- [x] Backend:  `POST /api/auth/google` using `google-auth-library` `OAuth2Client.verifyIdToken`.
-- [x] Backend:  Find-or-create: existing email reuses the row (account collision handling); new user is created with `password_hash = null` and a flag indicating profile is incomplete.
-- [x] Tests:    Integration test mocking `google-auth-library` to return a fake verified payload; assert user row, cookie, and 401 on invalid token.
-
-What I did:
-How to view & test:
+> Withdrawn with UC-17. No passwords exist and no email address is stored, so there is nothing to reset and nowhere to send a link. The `password_resets` table was removed from the schema, and the mail-provider question that this step depended on is closed by deletion rather than deferred.
 
 ---
 
-### Step 1.4 — Forgot-password flow  (Phase 1 — UC-17)
+### Step 1.5 — Auth UI: Welcome screen  (Phase 1 — UC-1, UC-2)
 Status: ☐ Not started
-Branch: feat/auth-password-reset
+Branch: feat/auth-ui-welcome
+Spec: docs/features/auth-ui.md
 
-Goal: A user can request a password reset email and set a new password via a time-limited token.
+Goal: The Welcome screen signs a user in with one button and routes them correctly afterwards.
 
 Tasks:
-- [x] Backend:  `POST /api/auth/forgot` — accepts email, creates a `password_resets` row with `expires_at = now + 1h`, always responds with the same generic 200 (prevents enumeration).
-- [x] Backend:  `POST /api/auth/reset` — accepts `{ token, newPassword }`, validates expiry, updates `password_hash`, deletes used token.
-- [x] Backend:  Google-only accounts silently no-op (no token row created, same generic response returned).
-- [x] Tests:    Integration tests for happy path, expired token, Google-only email, unknown email.
-
-What I did:
-How to view & test:
-
----
-
-### Step 1.5 — Auth UI screens  (Phase 1 — UC-1, UC-2, UC-3, UC-17)
-Status: ☐ Not started
-Branch: feat/auth-ui
-
-Goal: Welcome / Register / Login / Forgot Password / Create New Password screens are built and wired to the backend. Google login button works end-to-end.
-
-Tasks:
-- [x] Frontend: `<GoogleOAuthProvider>` wrap at app root using `VITE_GOOGLE_CLIENT_ID`.
-- [x] Frontend: `pages/Welcome.tsx`, `Login.tsx`, `Register.tsx`, `ForgotPassword.tsx`, `CreateNewPassword.tsx`.
-- [x] Frontend: `stores/authStore.ts` Zustand store (user, status: loading|authed|guest, hydrate, setUser, logout).
-- [x] Frontend: Route guards — unauthenticated users hitting protected routes are redirected to `/login`.
+- [ ] Spec:     docs/features/auth-ui.md written and approved
+- [ ] Frontend: `pages/Welcome.tsx` — logo, value proposition, a single `<GoogleLogin>` button, and a line of copy stating that the app never asks for a password and never stores an email address.
+- [ ] Frontend: `stores/auth.ts` Zustand store; route to Complete Your Profile when `needsOnboarding`, otherwise to the dashboard.
+- [ ] Frontend: Signing-in state (button disabled + spinner) and error state.
+- [ ] Review:   verify at 375px width first (CLAUDE.md §8).
+- [ ] Tests:    RTL — renders the button; shows the signing-in state; shows the error state on a rejected sign-in; routes on each of the two success shapes.
 
 What I did:
 How to view & test:
@@ -232,15 +225,19 @@ How to view & test:
 
 ### Step 1.6 — Complete-Your-Profile onboarding  (Phase 1 — UC-1)
 Status: ☐ Not started
-Branch: feat/auth-google-onboarding
+Branch: feat/onboarding-profile
+Spec: docs/features/onboarding.md
 
-Goal: A new Google user is forced through a profile completion screen before reaching the dashboard.
+Goal: A new user sets username, display name, and preferred service before the dashboard becomes reachable.
 
 Tasks:
-- [x] Backend:  `PATCH /api/users/me/onboarding` — accepts `{ username, preferredService }`, marks the user as complete.
-- [x] Frontend: `pages/Onboarding.tsx` with username + `preferredService` selector.
-- [x] Frontend: Auth guard pushes Google-created users with incomplete profiles to this screen on every navigation.
-- [x] Tests:    Integration tests for the route (success, duplicate username 400, no auth 401, invalid service 400).
+- [ ] Spec:     docs/features/onboarding.md written and approved
+- [ ] Backend:  `PATCH /api/users/me` — Zod validation; `P2002` on username → friendly `AppError`.
+- [ ] Frontend: `pages/CompleteProfile.tsx` — username with live availability feedback, display name, generated-avatar preview (no upload), preferred-service selector.
+- [ ] Frontend: Route guard — a user with `needsOnboarding` cannot reach the dashboard.
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    Good: profile saves and the guard releases. Bad: duplicate username → inline error; missing preferred service → 422; unauthenticated → 401.
+- [ ] Tests:    Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
 
 What I did:
 How to view & test:
@@ -249,20 +246,22 @@ How to view & test:
 
 ### Step 1.7 — Phase 1 E2E coverage  (Phase 1)
 Status: ☐ Not started
-Branch: test/auth-e2e
+Branch: test/auth-flow-e2e
 
-Goal: A Playwright E2E spec runs the full register → logout → login loop against a local stack.
+Goal: Playwright covers sign-in through onboarding to the dashboard.
 
 Tasks:
-- [x] Tests:    `e2e/tests/auth.spec.ts` — register a new user, verify dashboard, log out, log back in (3 specs).
-- [x] Tests:    `e2e/utils/db.ts` — `resetDatabase()` truncates the test DB before each spec via a direct pg.Pool connection.
+- [ ] Tests:    E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → dashboard; second sign-in → straight to dashboard; logout returns to Welcome.
+- [ ] Tests:    Document how the Google popup is stubbed so the suite never depends on a live Google session.
 
 What I did:
 How to view & test:
 
 ---
 
-## Phase 2 — Core Social Structures (UC-4, UC-9, UC-10, UC-14, UC-15)
+## Phase 2 — Core Social Structures (UC-4, UC-9, UC-10, UC-14, UC-15, UC-19)
+
+> Phase 2 now also carries the **administrative area** (Steps 2.8, 2.9). It was pulled forward from a later phase so that users and communities can be managed while the app is being trialled with real friends.
 
 ### Step 2.1 — Communities schema  (Phase 2 — UC-9)
 Status: ☐ Not started
@@ -372,6 +371,49 @@ Goal: All Phase 2 routes have integration tests; create-community form has RTL c
 Tasks:
 - [ ] Tests:    Backfill any missing integration tests from steps 2.2–2.4.
 - [ ] Tests:    Run `npm test` clean across both apps.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 2.8 — Admin area: user list  (Phase 2 — UC-19)
+Status: ☐ Not started
+Branch: feat/admin-user-list
+Spec: docs/features/admin-panel.md
+
+Goal: The owner can sign in and review the user base. Nobody else can reach the area, or tell that it exists.
+
+> **Stage 1 must come first and must settle scope.** This is the step most likely to sprawl into a CMS. Write `docs/features/admin-panel.md` and get it approved before any code.
+
+Tasks:
+- [ ] Spec:     docs/features/admin-panel.md written and approved — settings scope, audit-trail contents, settings-table shape
+- [ ] DB:       Settings table per the approved spec (shape deliberately not fixed in advance).
+- [ ] Backend:  `requireAdmin` middleware on `users.role = 'ADMIN'`, enforced server-side on every admin route.
+- [ ] Backend:  `GET /api/admin/users` — username, display name, preferred service, join date, activity counts. **No email: none is stored** (CLAUDE.md §5).
+- [ ] Frontend: Admin user list, reachable only for admins; nav entry hidden for everyone else.
+- [ ] Review:   confirm the admin response is built through an explicit serialiser, not a raw Prisma object.
+- [ ] Tests:    Good: an admin lists users. Bad: a normal user gets `403`; an unauthenticated request gets `401`; the frontend renders not-found rather than revealing the area.
+- [ ] Tests:    **Privacy test** — assert no admin response contains an email-shaped string.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 2.9 — Admin area: presentation settings  (Phase 2 — UC-19)
+Status: ☐ Not started
+Branch: feat/admin-settings
+Spec: docs/features/admin-panel.md
+
+Goal: The owner can change presentation configuration and have it take effect for everyone, with a record of who changed what.
+
+Tasks:
+- [ ] Backend:  `GET` / `PATCH` settings endpoints, admin-gated, Zod-validated against the approved allowed-settings list.
+- [ ] Backend:  Audit record on every change: actor, setting, old value, new value, timestamp.
+- [ ] Frontend: Settings form; changes reflected for all users.
+- [ ] Review:   confirm an unknown or unlisted setting key is rejected rather than silently stored.
+- [ ] Tests:    Good: a setting changes and persists; the audit row is written. Bad: non-admin `403`; unknown key `422`; out-of-range value `422`.
 
 What I did:
 How to view & test:

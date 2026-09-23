@@ -23,8 +23,7 @@ The API layer that handles business logic, database interactions, and authentica
 - **TypeScript:** To share data types (like your Post or User interfaces) between your backend and frontend.
 - **Playwright:** The automation library used headlessly on the server to scrape squigly.link and generate universal music links.
 - **jsonwebtoken(JWT):** The library used to generate and verify the secure session tokens that keep users logged in.
-- **bcrypt:** A cryptographic library used to securely hash and salt user passwords before storing them in the database.
-- **google-auth-library:** Google's official Node.js library used to cryptographically verify the identity tokens sent from your React frontend.
+- **google-auth-library:** Google's official Node.js library used to cryptographically verify the identity tokens sent from your React frontend. This is the **only** authentication mechanism — `bcrypt` and password hashing have been removed from the stack, because no passwords exist.
 - **Prisma ORM:** A modern Object-Relational Mapper. It reads your database schema and generates highly type-safe database clients, which pairs perfectly with a structured development workflow. Prisma is also what keeps the deployment provider-agnostic: moving the database means changing `DATABASE_URL`, nothing more.
 - **Zod:** Runtime validation of every request body and parameter at the controller boundary, with the inferred TypeScript types reused downstream.
 - **Pino:** Structured JSON logging with levels and context.

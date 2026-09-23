@@ -24,10 +24,10 @@ These are settled decisions, not options. The full reference is in `docs/tech st
 
 ### 4.1. User Management
 
-- **Sign Up & Login:** Registration via Email/Password or Social Login (Google).
+- **Sign Up & Login:** **Google Sign-In only.** There is no email/password option. The account key is the Google `sub` claim; **the email address is deliberately never stored** (see `docs/tables.md` and `docs/auth.md`). Sign-up and login are the same action — an unknown `sub` creates an account, a known one logs in.
 - **Preferences:** During onboarding (and in settings), the user selects their **Preferred Streaming Service** (Spotify, Apple Music, YouTube, Tidal, Deezer). This selection determines which link format they see.
 - **User Profile:** Profile picture, display name, and rating history.
-- **Profile pictures are generated, not uploaded.** The avatar is the user's initials over a colour derived deterministically from their id, so the same user always renders identically. Users who sign in with Google keep the picture Google provides. **There is no image upload anywhere in the product** — no upload endpoint, no storage bucket, no image processing. The schema reserves an `avatar_url` column so real uploads remain possible later without a migration.
+- **Profile pictures are generated, not uploaded.** The avatar is the user's initials over a colour derived deterministically from their id, so the same user always renders identically. Users who sign in with Google keep the picture Google provides. **There is no image upload anywhere in the product** — no upload endpoint, no storage bucket, no image processing. The schema reserves the nullable `profile_picture_url` column so real uploads remain possible later without a migration.
 
 ### 4.2. Communities
 
@@ -66,7 +66,8 @@ These are settled decisions, not options. The full reference is in `docs/tech st
 - **UX/UI:** Clean interface focused on Album Art and song details. **Mobile-First approach** is crucial as most music consumption happens on mobile devices. Layouts are designed at 375px width first and expand upward.
 - **Language:** The interface is **English only**. There is no internationalisation layer and no RTL support.
 - **Availability & install.** The product ships as a deployed website that is also an **installable PWA**, launchable full-screen from an iPhone home screen, with offline reading of already-loaded content. Write actions require connectivity. See `docs/deployment.md`.
-- **Security:** Passwords are hashed with bcrypt and never logged. Session tokens are carried in `HttpOnly`, `Secure` cookies. No secret is ever committed to the repository.
+- **Privacy by minimisation.** No user email addresses and no passwords are stored. The administrative area (UC-19) therefore cannot display personal data, because none exists in the system. The accepted cost: the product can never email a user, and an account whose Google login is lost cannot be recovered.
+- **Security:** Session tokens are carried in `HttpOnly`, `Secure` cookies. No secret is ever committed to the repository.
 
 ### 6. High-Level Data Model
 

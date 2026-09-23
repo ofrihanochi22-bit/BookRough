@@ -6,13 +6,24 @@ Below is the detailed breakdown of each table, including column types and constr
 
 Stores the core authentication and profile data.
 - **id** (UUID, Primary Key): Unique identifier for the user.
-- **email** (VARCHAR, Unique, Not Null): User's email address.
+- **google_sub** (VARCHAR, Unique, Not Null): The `sub` claim from the Google identity token. **This is the account key.** It is stable for the lifetime of the Google account and is opaque — it identifies the account to Google, not a person to us.
 - **username** (VARCHAR, Unique, Not Null): For @mentions and searching.
-- **password_hash** (VARCHAR, Nullable): Hashed password. (Nullable because Google Social Login users won't have a password).
 - **display_name** (VARCHAR, Not Null): The name shown on their profile.
-- **profile_picture_url** (VARCHAR, Nullable): Link to their hosted avatar.
+- **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google. Null for users who have no Google picture; the UI then falls back to a generated avatar.
 - **preferred_service** (ENUM, Not Null): e.g., 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Defaults to a specific service.
+- **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
 - **created_at** (TIMESTAMP, Default Current Time).
+
+> **🔴 There is deliberately no `email` column and no `password_hash` column.**
+>
+> Google Sign-In is the only authentication method, so no password exists to hash. The `email` claim returned in the Google identity token is **read for verification and then discarded** — it is never written to the database, never logged, and never exposed through any endpoint including the admin area (UC-19).
+>
+> This is a data-minimisation decision: the operator should not hold user email addresses. The consequences are accepted knowingly:
+> - The application can never send email to a user.
+> - A user who loses access to their Google account cannot be recovered, and support cannot identify them.
+> - Account linking across providers is moot, because there is only one provider.
+>
+> Do not add an email column back without an explicit new decision recorded here and in `docs/auth.md`.
 
 ### 2. communities Table
 
@@ -77,12 +88,8 @@ Powers the "Listen Later" queue (UC-12).
 - **created_at** (TIMESTAMP, Default Current Time).
 - (Composite Primary Key: user_id, post_id).
 
-### 8. password_resets Table
-
-Handles the temporary tokens for account recovery (UC-17).
-- **id** (UUID, Primary Key).
-- **user_id** (UUID, Foreign Key referencing users(id)).
-- **token** (VARCHAR, Unique, Not Null): The secure token sent to the email.
-- **expires_at** (TIMESTAMP, Not Null): Time when the link becomes invalid (usually 1 hour from creation).
-- **created_at** (TIMESTAMP, Default Current Time).
-
+> **Table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
+>
+> **The schema is seven tables:** `users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`.
+>
+> The administrative area (UC-19) will need a settings table for presentation configuration. It is **not defined here** — its shape is decided in that feature's specification session and written to `docs/features/admin-panel.md` before any migration is written.

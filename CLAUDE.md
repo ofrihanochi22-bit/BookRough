@@ -32,8 +32,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - Node.js + Express + TypeScript
 - Prisma ORM on PostgreSQL
 - `jsonwebtoken` for app session tokens (HttpOnly cookie)
-- `bcrypt` for password hashing
-- `google-auth-library` for verifying Google identity tokens server-side
+- `google-auth-library` for verifying Google identity tokens server-side — the only auth mechanism; `bcrypt` has been removed from the stack because no passwords exist (§5)
 - `playwright` (headless Chromium) for the link-conversion scraper
 - `p-limit` to cap concurrent Chromium instances — see §7
 - Pino for structured logging
@@ -62,6 +61,8 @@ This file is the working contract between the developer and Claude. Read it befo
 - **MongoDB.** The data is relational. PostgreSQL + Prisma, full stop.
 - **i18n / RTL.** The UI is English-only — see §8.
 - **User image uploads.** Generated avatars only — see §8.
+- **Email/password login, and any second identity provider.** Google Sign-In only — see §5. `bcrypt` and `password_resets` are gone.
+- **Storing user email addresses.** Deliberate data minimisation — see §5. Do not add an email column back without a new recorded decision.
 
 ---
 
@@ -139,7 +140,7 @@ Every JSON response uses one of these two shapes:
 ### Frontend conventions
 
 - One axios instance with an interceptor that:
-  - On `401`: clears the auth store and redirects to `/login`.
+  - On `401`: clears the auth store and redirects to `/` (the Welcome screen). There is no `/login` route — sign-in lives on Welcome (§5, §8).
   - On any `4xx`/`5xx`: shows a toast with the backend's `message`.
 - Wrap the routed app in a React Error Boundary so a component crash shows a localized fallback instead of a white screen.
 
@@ -154,23 +155,44 @@ Every JSON response uses one of these two shapes:
 
 ## 5. Authentication conventions
 
-- Dual login: **email + bcrypt password** OR **Google OAuth 2.0**.
-- Both flows end the same way: backend issues a unified app JWT, set as an `HttpOnly`, `Secure` cookie named `token`.
-- Google flow:
+Full detail in [docs/auth.md](docs/auth.md) (companion `docs/auth.docx`).
+
+- **Google Sign-In is the only authentication method.** No email/password login, no password hashing, no password recovery. Sign-up and login are the same button.
+- The account key is the Google **`sub` claim**, stored as `users.google_sub` (unique). Not the email.
+- Flow:
   1. Frontend uses `@react-oauth/google` `<GoogleLogin>` to obtain a Google identity token.
   2. Frontend `POST`s the token to `/api/auth/google`.
   3. Backend verifies the token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`).
-  4. Backend looks up the user by email, creates one if missing (`password_hash = null`), and issues the app JWT.
-  5. New Google users are redirected to a **Complete Your Profile** screen to set `username` and `preferred_service` before reaching the dashboard.
-- Account collision handling: if a Google user's email matches an existing email/password account, the two are linked silently — same row, just a new login method.
+  4. Backend reads `sub` and `picture`, looks up the user by `google_sub`, and creates a row if none exists.
+  5. Backend issues the app JWT as an `HttpOnly`, `Secure` cookie named `token`, plus `needsOnboarding`.
+  6. Users needing onboarding are routed to **Complete Your Profile** to set `username` and `preferred_service` before the dashboard is reachable.
+- **Account collision cannot occur.** One provider, one unique key, no merge logic.
+
+### 🔴 The email address is never stored
+
+The Google identity token carries an `email` claim. **Read it for verification, then discard it.** It is never written to the database, never logged, and never returned by any endpoint — including the admin area (§17).
+
+This is a deliberate data-minimisation decision by the product owner. Accepted consequences:
+
+- The application can **never send email** to a user.
+- A user who loses their Google account **cannot be recovered**, and support cannot identify them.
+- There is no address to leak, so a database breach exposes no personal contact data.
+
+**Honest limit:** this reduces *incidental* exposure and removes a class of breach. It is **not** a cryptographic guarantee against the operator, who runs the server and can change the code. The protection is that the data does not exist.
+
+**Enforcement rule:** never return a raw Prisma user object. Every endpoint serialises through an explicit `toPublicUser` mapper, field by field, so a column added later cannot leak by accident.
 
 ---
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). Eight tables in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Seven tables** in total:
 
-`users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`, `password_resets`.
+`users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`.
+
+- `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
+- `users` has **no `email` and no `password_hash`**. The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
+- The admin area will need a settings table. It is **not designed yet** — that happens in its own feature session (§15) and lands in `docs/features/admin-panel.md` before any migration is written.
 
 Always create migrations via `npx prisma migrate dev --name <descriptive-name>`. Never edit a migration after it has been applied; create a new one.
 
@@ -200,12 +222,14 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). Thirteen screens, four groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Thirteen screens**, four groups:
 
-- **Auth & Onboarding**: Welcome, Registration, Login, Forgot Password, Create New Password.
+- **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
 - **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback.
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
+
+Registration, Login, Forgot Password, and Create New Password screens were **withdrawn** when email/password auth was dropped (§5). Admin screens (§17) are not in the catalog yet — they are specified in that feature's own session.
 
 ### UI conventions
 
@@ -219,7 +243,10 @@ The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.
 
 ## 9. Use cases
 
-The full UC list (UC-1 through UC-18) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
+The full UC list (UC-1 through UC-19) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
+
+- **UC-17 is withdrawn** (password reset). Its number is kept, not reused, so UC-18 keeps its identity.
+- **UC-19 is new**: the administrative area — see §17.
 
 ---
 
@@ -331,7 +358,7 @@ Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in
 > **After every development step is finished, edit `DEVELOPMENT.md` and fill in:**
 >
 > - **What I did** — a concrete summary of the files added or changed and the behavior delivered. Reference the UC number(s) covered.
-> - **How to view & test** — the exact shell commands to run (e.g. `cd backend && npm run dev`, `cd frontend && npm run dev`), the URLs to open (e.g. `http://localhost:5173/login`), any seed data or sample inputs needed (e.g. "paste this Spotify link: …"), and the manual click-through to verify the change end-to-end. Include the test commands that cover the new code (e.g. `npm test -- auth.service`).
+> - **How to view & test** — the exact shell commands to run (e.g. `cd backend && npm run dev`, `cd frontend && npm run dev`), the URLs to open (e.g. `http://localhost:5173/`), any seed data or sample inputs needed (e.g. "paste this Spotify link: …"), and the manual click-through to verify the change end-to-end. Include the test commands that cover the new code (e.g. `npm test -- auth.service`).
 >
 > **This update happens in the same commit / PR as the step itself.** A step is not "done" until DEVELOPMENT.md reflects what was built and how to confirm it works. Treat the README-style update as part of the deliverable, not paperwork.
 
@@ -439,3 +466,21 @@ The PWA is a product requirement, not a nice-to-have, because the intended every
 - A **version-update flow**: when a new service worker is waiting, prompt the user to reload. Never let a stale shell sit indefinitely against a newer API.
 
 > ⚠️ Service workers are the single most common source of "why am I seeing the old version" confusion. Register the service worker **only in production builds**, never in the Vite dev server, and always test a PWA change against a production build.
+
+---
+
+## 17. Administrative area (UC-19)
+
+An admin area owned by the product owner, scheduled for **Phase 2** so that users and communities can be managed while the app is being trialled with real friends.
+
+### Fixed decisions
+
+- **Gated on `users.role = 'ADMIN'`.** The role is set **directly in the database** — there is no endpoint that grants admin, therefore no endpoint to abuse.
+- **Authorisation is server-side on every admin endpoint.** Hiding the nav entry in the frontend is presentation, not security.
+- A non-admin hitting an admin route gets `403`, and the frontend renders the standard not-found page rather than confirming the area exists.
+- **The user list cannot show an email address, because none is stored** (§5). It shows username, display name, preferred service, join date, and activity counts — nothing that identifies a real person. This constraint is the reason the auth design looks the way it does.
+- Every configuration change is recorded with who made it and when.
+
+### Deliberately not decided here
+
+Exactly which settings are configurable, whether content as well as design is editable, the shape of the settings table, and what the audit trail stores — **all of that belongs to this feature's Stage 1 specification session** (§15) and lands in `docs/features/admin-panel.md` before a single migration is written. Do not design it in a general planning conversation, and do not let it grow into a CMS by accident.
