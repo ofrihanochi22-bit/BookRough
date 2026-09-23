@@ -9,6 +9,21 @@ This file is the live progress log for BookRough. The conventions, tech stack, a
 - **After completing a step**, fill in the `What I did` and `How to view & test` sections of that step in the same commit. This is mandated by [CLAUDE.md §13](CLAUDE.md#13--mandatory--update-developmentmd-after-every-step).
 - Status legend: `☐ Not started` · `🟡 In progress` · `✅ Done`.
 
+### Every step runs as a four-stage feature session
+
+Defined in full in [CLAUDE.md §15](CLAUDE.md). No step begins at the code.
+
+| Stage | Output | Gate |
+|---|---|---|
+| **1. Specification** | `docs/features/<name>.md` from `docs/features/_TEMPLATE.md` | **Developer approves before Stage 2** |
+| **2. Implementation** | The whole vertical slice, DB → API → UI | — |
+| **3. Review & improvement** | Naming, duplication, error handling, missing states — fixed *before* tests exist | — |
+| **4. Tests** | Every good path and every bad path named in the spec | Suite green, coverage ≥ 80% |
+
+Only then: update this file, commit, push, open the PR. **Claude runs every git command; the developer reviews the diff and clicks Merge.**
+
+One step at a time — do not begin the next step's specification while the previous PR is unmerged.
+
 ---
 
 ## Per-step template
@@ -17,14 +32,17 @@ This file is the live progress log for BookRough. The conventions, tech stack, a
 ### Step N — <title>  (Phase X — UC-?)
 Status: ☐ Not started
 Branch: feat/<kebab-name>
+Spec: docs/features/<name>.md
 
 Goal: <one sentence>
 
 Tasks:
+- [ ] Spec:     docs/features/<name>.md written and approved
 - [ ] DB:       …
 - [ ] Backend:  …
 - [ ] Frontend: …
-- [ ] Tests:    …
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    good paths + bad paths per the spec's scenario list
 
 What I did: <FILL IN ON COMPLETION>
 How to view & test: <FILL IN ON COMPLETION — exact commands, URLs, manual steps, test commands>
@@ -35,7 +53,7 @@ How to view & test: <FILL IN ON COMPLETION — exact commands, URLs, manual step
 ## Phase 0 — Local environment & shared infra
 
 ### Step 0.1 — Local Postgres + env files  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/local-env-setup
 
 Goal: A new contributor can start Postgres locally and boot both apps with copied `.env` files.
@@ -46,13 +64,13 @@ Tasks:
 - [x] Frontend: `frontend/.env.example` with `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`.
 - [x] Docs:     README section "Local setup" with the four-line bring-up commands.
 
-What I did: Created `docker-compose.yml` (postgres:16-alpine, port 5432, named volume `bookrough_pg_data`) and `infra/postgres-init/01-create-test-db.sql` which creates the `music_app_test_db` database on first boot. Added `backend/.env.example` and `frontend/.env.example` covering every required variable with inline comments. Note: local dev uses a pre-existing PostgreSQL 15 installation on port 5432 (the `bookrough` role and both databases were created manually via psql); Docker Compose is the documented path for fresh setups.
-How to view & test: `docker compose up -d` (or use existing local Postgres), then `cp backend/.env.example backend/.env` and `cp frontend/.env.example frontend/.env` and fill in secrets. Postgres should be reachable at `localhost:5432`.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 0.2 — Backend Express bootstrap  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/backend-bootstrap
 
 Goal: Express server boots, exposes `GET /api/health`, has the central error middleware and Pino logger wired in.
@@ -64,13 +82,13 @@ Tasks:
 - [x] Backend:  `src/routes/health.ts` returning `{ status: "ok" }`.
 - [x] Tests:    Supertest hitting `/api/health` and an intentionally-throwing test route to prove the error middleware shape.
 
-What I did: Switched `backend/package.json` to `"type": "module"` (ESM). Created `src/config/env.ts` (Zod env validation, crashes on missing JWT_SECRET/DATABASE_URL), `src/utils/logger.ts` (Pino, pretty in dev), `src/utils/AppError.ts`, `src/utils/response.ts` (`ok()` / `fail()` helpers), `src/middleware/errorHandler.ts` (handles AppError + ZodError + unknowns, never leaks stacks), `src/middleware/notFound.ts`, `src/routes/health.ts`, `src/routes/index.ts` (hub router), `src/db/prisma.ts` (singleton PrismaClient via pg adapter), `src/app.ts` (`createApp()` factory), `src/index.ts` (entrypoint with graceful shutdown). Added Vitest + Supertest; wrote `src/app.test.ts` covering health + error middleware envelope shape.
-How to view & test: `cd backend && npm run dev` → `curl http://localhost:4000/api/health` returns `{"status":"success","data":{"status":"ok",...}}`. `npm test` runs the Supertest suite (green).
+What I did:
+How to view & test:
 
 ---
 
 ### Step 0.3 — Frontend shell  (Phase 0)
-Status: ✅ Done
+Status: ☐ Not started
 Branch: chore/frontend-bootstrap
 
 Goal: Vite app boots with React Router, Tailwind, axios client (with 401 interceptor + toast), and a root Error Boundary.
@@ -79,134 +97,171 @@ Tasks:
 - [x] Frontend: `src/api/client.ts` axios instance + interceptor (401 → logout + redirect, 4xx/5xx → toast).
 - [x] Frontend: Toast util (react-hot-toast mounted in main.tsx).
 - [x] Frontend: Root `<ErrorBoundary>` wrapping the routed tree.
-- [x] Frontend: React Router with placeholder routes for `/`, `/login`, `/signup`.
+- [ ] Frontend: React Router with placeholder routes for `/` (Welcome) and `/onboarding`. **No `/login` or `/signup`** — sign-in is a single button on Welcome (CLAUDE.md §5).
 - [x] Tests:    RTL test that the Error Boundary renders fallback UI when a child throws.
 
-What I did: Replaced Vite demo content with a real app shell. Replaced `index.css` with Tailwind directives. Rewrote `App.tsx` to render `<AppRoutes />`. Updated `main.tsx` to wrap the tree in `<BrowserRouter>`, `<GoogleOAuthProvider>`, `<ErrorBoundary>`, and `<Toaster>`. Created `src/api/client.ts` (axios instance with `VITE_API_BASE_URL ?? ""` fallback + `/api` prefix, `withCredentials: true`, response interceptor that toasts on 4xx/5xx and redirects on 401 with `skipAuthRedirect` escape hatch), `src/api/types.ts` (ApiSuccess/ApiError), `src/components/ErrorBoundary.tsx` (class component with Reload button), `src/router/AppRoutes.tsx` / `RequireAuth.tsx` / `RedirectIfAuthed.tsx` (stubs, filled out in Step 1.5), `src/pages/Welcome.tsx` + `NotFound.tsx`, `src/lib/cn.ts`, `src/test/setup.ts`, and `ErrorBoundary.test.tsx`.
-How to view & test: `cd frontend && npm run dev` → open `http://localhost:5173` and see the Welcome page. `npm test` runs the RTL suite (green).
+What I did:
+How to view & test:
 
 ---
 
-## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3, UC-17)
+### Step 0.4 — Code quality tooling  (Phase 0)
+Status: ☐ Not started
+Branch: chore/code-quality-tooling
 
-### Step 1.1 — Prisma users + password_resets schema  (Phase 1 — UC-1, UC-17)
-Status: ✅ Done
+Goal: Conventions are enforced by tooling, not by memory — lint, format, and commit messages are checked automatically before anything reaches the remote.
+
+Tasks:
+- [ ] Infra:    Root ESLint config shared by both packages; `npm run lint` at the root.
+- [ ] Infra:    Prettier config + `.prettierignore`; formatting is never a review comment.
+- [ ] Infra:    Husky installed; `pre-commit` hook runs `lint-staged` over staged files only.
+- [ ] Infra:    `commitlint` + `@commitlint/config-conventional`; `commit-msg` hook rejects non-Conventional messages.
+- [ ] Docs:     README note that `--no-verify` is not permitted.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 0.5 — GitHub Actions CI + branch protection  (Phase 0)
+Status: ☐ Not started
+Branch: chore/github-actions-ci
+
+Goal: The merge gate exists **before** the first feature PR, not after. A red check blocks merge on `main`.
+
+> Deliberately placed in Phase 0 rather than Phase 6. CI that arrives after twenty merged PRs has failed at its job — it must gate the first one.
+
+Tasks:
+- [ ] Infra:    `.github/workflows/pr.yml` — parallel jobs: `lint`, `typecheck`, `test:unit` (with coverage threshold), `test:integration` (against a `postgres:16` service container).
+- [ ] Infra:    `.github/workflows/main.yml` — everything in `pr.yml` plus `test:e2e`, on push to `main` and on a nightly schedule.
+- [ ] Infra:    Vitest coverage configured with the 80% line floor and documented exclusions.
+- [ ] Infra:    Branch protection on `main`: no direct pushes, PR required, `pr.yml` checks required, squash-merge only.
+- [ ] Tests:    Prove the gate works by opening a throwaway PR with a deliberately failing test and confirming merge is blocked.
+
+What I did:
+How to view & test:
+
+---
+
+## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3)
+
+> **Scope shrank.** Email/password auth and password recovery were dropped in favour of Google Sign-In only, and user email addresses are no longer stored at all (CLAUDE.md §5). Former steps 1.2 (email/password routes) and 1.4 (forgot-password flow) are **withdrawn**; UC-17 is withdrawn with them.
+
+### Step 1.1 — Prisma users schema  (Phase 1 — UC-1)
+Status: ☐ Not started
 Branch: feat/db-users-schema
+Spec: docs/features/users-schema.md
 
-Goal: First migration creates the `users` and `password_resets` tables exactly per `tables.docx`.
+Goal: First migration creates the `users` table exactly per `docs/tables.md`.
 
 Tasks:
-- [x] DB:       `prisma/schema.prisma` — `User` and `PasswordReset` models with all fields, enums (`PreferredService`), constraints from `tables.docx`.
-- [x] DB:       `npx prisma migrate dev --name init_users` produces a clean migration.
-- [x] Backend:  `src/db/prisma.ts` exporting a singleton PrismaClient.
+- [ ] Spec:     docs/features/users-schema.md written and approved
+- [ ] DB:       `prisma/schema.prisma` — `User` model with `google_sub` (unique), `username` (unique), `display_name`, `profile_picture_url` (nullable), `preferred_service` enum, `role` enum (`USER`/`ADMIN`, default `USER`), `created_at`.
+- [ ] DB:       **No `email` column and no `password_hash` column** — this is deliberate, see CLAUDE.md §5.
+- [ ] DB:       `npx prisma migrate dev --name init_users` produces a clean migration.
+- [ ] Backend:  `src/db/prisma.ts` exporting a singleton PrismaClient.
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    migration applies cleanly to an empty `music_app_test_db`; unique constraints on `google_sub` and `username` both reject duplicates.
 
-What I did: Rewrote `prisma/schema.prisma` with the `PreferredService` enum (SPOTIFY, APPLE_MUSIC, YOUTUBE, TIDAL, DEEZER) and `User` model (id UUID, email unique, username unique, passwordHash nullable for Google-only users, displayName, profilePictureUrl, preferredService, profileComplete boolean, createdAt) plus `PasswordReset` model (id UUID, userId FK cascade-delete, token unique, expiresAt, createdAt). Used Prisma 7's `prisma.config.ts` pattern with `pg.Pool` + `@prisma/adapter-pg` for the runtime adapter. Ran `prisma migrate dev --name init_users` against the local Postgres to produce the first migration SQL. The `bookrough` role needed `CREATEDB` privilege for the shadow database (`ALTER ROLE bookrough CREATEDB;`).
-How to view & test: `cd backend && npx prisma migrate dev` should report "Database already up to date." `npx prisma studio` opens a GUI on port 5555 showing the empty `users` and `password_resets` tables.
+What I did:
+How to view & test:
 
 ---
 
-### Step 1.2 — Email/password auth routes  (Phase 1 — UC-1, UC-2, UC-3)
-Status: ✅ Done
-Branch: feat/auth-email-password
+### Step 1.2 — *(withdrawn)* Email/password auth routes
 
-Goal: A user can register, log in, log out, and fetch their session via email + password.
-
-Tasks:
-- [x] Backend:  `POST /api/auth/register` (Zod validation, bcrypt hash, conflict → 400 "Email already exists").
-- [x] Backend:  `POST /api/auth/login` (verify hash, issue JWT in HttpOnly cookie).
-- [x] Backend:  `POST /api/auth/logout` (clear cookie).
-- [x] Backend:  `GET /api/auth/me` (auth middleware that reads cookie, returns current user).
-- [x] Backend:  `src/utils/jwt.ts` sign/verify helpers.
-- [x] Tests:    Supertest integration tests for each route (success + failure paths).
-
-What I did: Created `src/utils/jwt.ts` (`signSession`/`verifySession` wrappers over jsonwebtoken, 7-day lifetime), `src/utils/cookies.ts` (`setSessionCookie`/`clearSessionCookie`, HttpOnly + SameSite=Lax in dev, Secure in prod; cookie name `bookrough_session`), `src/types/express.d.ts` (module augmentation so `req.user` is typed), `src/middleware/requireAuth.ts` (reads cookie → verifies JWT → attaches `req.user` or throws AppError 401), `src/validation/auth.schema.ts` (Zod: registerSchema with email, username 3–20 chars, displayName 1–50, password ≥8 with letter+digit; loginSchema), `src/services/auth.service.ts` (bcrypt cost 12; catches P2002 → AppError 400 for duplicate email/username; `SafeUser` type omits passwordHash), `src/controllers/auth.controller.ts`, `src/routes/auth.ts` (POST /register /login /logout; GET /me). Added `src/test/db.ts` (truncates all tables in FK-safe order for `beforeEach`). Set `fileParallelism: false` in vitest.config.ts to prevent DB race conditions across test files. Integration test suite: `src/routes/auth.test.ts` (10 tests covering all happy + failure paths).
-How to view & test: `cd backend && npm test` → all tests green. Manual: `curl -X POST http://localhost:4000/api/auth/register -H "Content-Type: application/json" -d '{"email":"a@b.com","username":"alice","displayName":"Alice","password":"pass1234","preferredService":"SPOTIFY"}'` returns 201 with the user object (no passwordHash).
+> Withdrawn. Google Sign-In is the only authentication method (CLAUDE.md §5). There are no registration, login, or password endpoints to build. The step number is retained rather than reused so that references in git history stay meaningful.
 
 ---
 
-### Step 1.3 — Google OAuth route  (Phase 1 — UC-1, UC-2)
-Status: ✅ Done
-Branch: feat/auth-google-oauth
+### Step 1.3 — Google Sign-In  (Phase 1 — UC-1, UC-2, UC-3)
+Status: ☐ Not started
+Branch: feat/auth-google
+Spec: docs/features/google-auth.md
 
-Goal: `POST /api/auth/google` accepts a Google identity token, verifies it server-side, finds-or-creates the user, returns the app JWT.
+Goal: A user can sign in with Google, receive a session cookie, fetch their session, and sign out. This is the whole of authentication.
 
 Tasks:
-- [x] Backend:  `POST /api/auth/google` using `google-auth-library` `OAuth2Client.verifyIdToken`.
-- [x] Backend:  Find-or-create: existing email reuses the row (account collision handling); new user is created with `password_hash = null` and a flag indicating profile is incomplete.
-- [x] Tests:    Integration test mocking `google-auth-library` to return a fake verified payload; assert user row, cookie, and 401 on invalid token.
+- [ ] Spec:     docs/features/google-auth.md written and approved
+- [ ] Backend:  `POST /api/auth/google` — verify the identity token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`), read `sub` and `picture`, **discard the `email` claim**, upsert by `google_sub`, issue the app JWT.
+- [ ] Backend:  `POST /api/auth/logout` (clear cookie) and `GET /api/auth/me` (auth middleware reads the cookie).
+- [ ] Backend:  `src/utils/jwt.ts` sign/verify helpers; `toPublicUser` serialiser — **never return a raw Prisma user**.
+- [ ] Backend:  Response carries `needsOnboarding` so the frontend can route to Complete Your Profile.
+- [ ] Review:   confirm no code path reads, logs, or returns `payload.email`.
+- [ ] Tests:    mock `google-auth-library`. Good: new `sub` creates a user; known `sub` logs in; logout clears the cookie; `/me` returns the session user.
+- [ ] Tests:    Bad: invalid signature → 401; wrong audience → 401; expired token → 401; missing cookie on `/me` → 401.
+- [ ] Tests:    **Privacy regression test** — assert the created row has no email field populated and that no response body or log line contains the test token's email address.
 
-What I did: Created `src/services/google.service.ts` (`verifyGoogleIdToken` wraps `OAuth2Client.verifyIdToken`, throws `AppError(401)` on failure — centralised so tests mock one module). Extended `auth.service.ts` with `loginOrCreateGoogleUser`: finds user by email or creates one with `passwordHash: null`, `profileComplete: false`, derived `displayName` and a generated `username` (lowercased display name + 4-digit suffix, retries on P2002 collision up to 5 times). Extended `auth.controller.ts` with `googleLogin` handler (returns `{ user, requiresOnboarding: !user.profileComplete }`), added `googleLoginSchema` to `auth.schema.ts`, and wired `POST /google` in `auth.ts`. Integration test suite: `src/routes/auth.google.test.ts` (4 tests, mocks `google.service.js` to run offline).
-How to view & test: `cd backend && npm test` → all tests green. In a real browser flow, the Google credential from `@react-oauth/google` is posted to `POST /api/auth/google` and a session cookie is set.
+What I did:
+How to view & test:
 
 ---
 
-### Step 1.4 — Forgot-password flow  (Phase 1 — UC-17)
-Status: ✅ Done
-Branch: feat/auth-password-reset
+### Step 1.4 — *(withdrawn)* Forgot-password flow
 
-Goal: A user can request a password reset email and set a new password via a time-limited token.
-
-Tasks:
-- [x] Backend:  `POST /api/auth/forgot` — accepts email, creates a `password_resets` row with `expires_at = now + 1h`, always responds with the same generic 200 (prevents enumeration).
-- [x] Backend:  `POST /api/auth/reset` — accepts `{ token, newPassword }`, validates expiry, updates `password_hash`, deletes used token.
-- [x] Backend:  Google-only accounts silently no-op (no token row created, same generic response returned).
-- [x] Tests:    Integration tests for happy path, expired token, Google-only email, unknown email.
-
-What I did: Created `src/services/passwordReset.service.ts` (`requestReset` generates `crypto.randomBytes(32).toString("hex")` token, sets `expiresAt = now + 1h`, silently skips unknown emails and Google-only accounts; `resetWithToken` validates expiry, updates passwordHash, and deletes the token atomically in a Prisma transaction — throws `AppError(400)` on invalid/expired token). Created `src/services/email.service.ts` stub (`sendPasswordResetEmail` logs the reset URL via Pino; real provider wired here later). Extended `auth.controller.ts`, `auth.schema.ts`, and `auth.ts` routes. Integration test suite: `src/routes/auth.reset.test.ts` (8 tests covering all branches including token burning to prevent reuse and expiry validation).
-How to view & test: `cd backend && npm test` → all tests green. Manual: POST to `/api/auth/forgot` with any email always returns the same JSON. The reset link is logged to the backend console in dev.
+> Withdrawn with UC-17. No passwords exist and no email address is stored, so there is nothing to reset and nowhere to send a link. The `password_resets` table was removed from the schema, and the mail-provider question that this step depended on is closed by deletion rather than deferred.
 
 ---
 
-### Step 1.5 — Auth UI screens  (Phase 1 — UC-1, UC-2, UC-3, UC-17)
-Status: ✅ Done
-Branch: feat/auth-ui
+### Step 1.5 — Auth UI: Welcome screen  (Phase 1 — UC-1, UC-2)
+Status: ☐ Not started
+Branch: feat/auth-ui-welcome
+Spec: docs/features/auth-ui.md
 
-Goal: Welcome / Register / Login / Forgot Password / Create New Password screens are built and wired to the backend. Google login button works end-to-end.
+Goal: The Welcome screen signs a user in with one button and routes them correctly afterwards.
 
 Tasks:
-- [x] Frontend: `<GoogleOAuthProvider>` wrap at app root using `VITE_GOOGLE_CLIENT_ID`.
-- [x] Frontend: `pages/Welcome.tsx`, `Login.tsx`, `Register.tsx`, `ForgotPassword.tsx`, `CreateNewPassword.tsx`.
-- [x] Frontend: `stores/authStore.ts` Zustand store (user, status: loading|authed|guest, hydrate, setUser, logout).
-- [x] Frontend: Route guards — unauthenticated users hitting protected routes are redirected to `/login`.
+- [ ] Spec:     docs/features/auth-ui.md written and approved
+- [ ] Frontend: `pages/Welcome.tsx` — logo, value proposition, a single `<GoogleLogin>` button, and a line of copy stating that the app never asks for a password and never stores an email address.
+- [ ] Frontend: `stores/auth.ts` Zustand store; route to Complete Your Profile when `needsOnboarding`, otherwise to the dashboard.
+- [ ] Frontend: Signing-in state (button disabled + spinner) and error state.
+- [ ] Review:   verify at 375px width first (CLAUDE.md §8).
+- [ ] Tests:    RTL — renders the button; shows the signing-in state; shows the error state on a rejected sign-in; routes on each of the two success shapes.
 
-What I did: Created `src/stores/authStore.ts` (Zustand; `hydrate()` calls `GET /api/auth/me` with `skipAuthRedirect: true` to avoid interceptor loop; `logout()` calls the API then clears state). Created `src/api/auth.ts` (typed wrappers for all auth endpoints). Created `src/types/user.ts`. Built reusable UI primitives: `src/components/ui/Button.tsx` (primary/secondary/ghost variants, loading spinner), `src/components/ui/Input.tsx` (labeled, forwardRef, red border on error), `src/components/AuthLayout.tsx` (centered card). Created `src/components/GoogleSignInButton.tsx` (wraps `@react-oauth/google`, posts credential to backend, navigates to `/onboarding` or `/dashboard`). Implemented all five screens. Wired `RequireAuth.tsx` (checks authStore; loading → spinner; guest → `/login`; incomplete profile → `/onboarding`) and `RedirectIfAuthed.tsx` (authed → `/dashboard`). Updated `AppRoutes.tsx` to wrap public routes in `<RedirectIfAuthed>` and protected routes in `<RequireAuth>`. Added `hydrate()` call in `main.tsx`. Key fix: axios baseURL falls back to `""` when `VITE_API_BASE_URL` is unset (allowing Vite dev proxy at `/api`). Fixed hydrate data path to `res.data.data.user` (the envelope nests `{ data: { user } }`).
-How to view & test: Boot both servers. Visit `http://localhost:5173` — Welcome page renders. Click "Log In" → Login page. Register a new account → redirected to Dashboard. Refresh → stays on Dashboard (session hydrated). Log out → redirected to Welcome. Visiting `/dashboard` while logged out redirects to `/login`.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.6 — Complete-Your-Profile onboarding  (Phase 1 — UC-1)
-Status: ✅ Done
-Branch: feat/auth-google-onboarding
+Status: ☐ Not started
+Branch: feat/onboarding-profile
+Spec: docs/features/onboarding.md
 
-Goal: A new Google user is forced through a profile completion screen before reaching the dashboard.
+Goal: A new user sets username, display name, and preferred service before the dashboard becomes reachable.
 
 Tasks:
-- [x] Backend:  `PATCH /api/users/me/onboarding` — accepts `{ username, preferredService }`, marks the user as complete.
-- [x] Frontend: `pages/Onboarding.tsx` with username + `preferredService` selector.
-- [x] Frontend: Auth guard pushes Google-created users with incomplete profiles to this screen on every navigation.
-- [x] Tests:    Integration tests for the route (success, duplicate username 400, no auth 401, invalid service 400).
+- [ ] Spec:     docs/features/onboarding.md written and approved
+- [ ] Backend:  `PATCH /api/users/me` — Zod validation; `P2002` on username → friendly `AppError`.
+- [ ] Frontend: `pages/CompleteProfile.tsx` — username with live availability feedback, display name, generated-avatar preview (no upload), preferred-service selector.
+- [ ] Frontend: Route guard — a user with `needsOnboarding` cannot reach the dashboard.
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    Good: profile saves and the guard releases. Bad: duplicate username → inline error; missing preferred service → 422; unauthenticated → 401.
+- [ ] Tests:    Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
 
-What I did: Backend — created `src/services/user.service.ts` (`completeOnboarding` updates username + preferredService + sets profileComplete=true, catches P2002 → AppError 400 "Username taken"), `src/validation/user.schema.ts` (`onboardingSchema` reuses the same username rules as register), `src/controllers/user.controller.ts` (`patchOnboarding` handler), `src/routes/users.ts` (`PATCH /me/onboarding` with requireAuth middleware), mounted in `routes/index.ts` at `/users`. Integration test suite: `src/routes/users.onboarding.test.ts` (4 tests). Frontend — created `src/api/users.ts` (`completeOnboarding` wrapper for the PATCH endpoint) and `src/pages/Onboarding.tsx` (username input with inline validation + preferredService select, on success calls `setUser` and navigates to `/dashboard`). Updated `AppRoutes.tsx` to add `/onboarding` route inside `<RequireAuth>`. The `RequireAuth` guard already redirects users with `profileComplete === false` to `/onboarding` automatically.
-How to view & test: Sign in with Google using a new account → redirected to `/onboarding`. Fill in username + streaming service → Submit → redirected to `/dashboard`. Attempting to navigate to `/dashboard` as an incomplete user brings you back to `/onboarding`. `cd backend && npm test` → 31 tests green across 6 files.
+What I did:
+How to view & test:
 
 ---
 
 ### Step 1.7 — Phase 1 E2E coverage  (Phase 1)
-Status: ✅ Done
-Branch: test/auth-e2e
+Status: ☐ Not started
+Branch: test/auth-flow-e2e
 
-Goal: A Playwright E2E spec runs the full register → logout → login loop against a local stack.
+Goal: Playwright covers sign-in through onboarding to the dashboard.
 
 Tasks:
-- [x] Tests:    `e2e/tests/auth.spec.ts` — register a new user, verify dashboard, log out, log back in (3 specs).
-- [x] Tests:    `e2e/utils/db.ts` — `resetDatabase()` truncates the test DB before each spec via a direct pg.Pool connection.
+- [ ] Tests:    E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → dashboard; second sign-in → straight to dashboard; logout returns to Welcome.
+- [ ] Tests:    Document how the Google popup is stubbed so the suite never depends on a live Google session.
 
-What I did: Created an isolated `e2e/` package with `@playwright/test` as its only test dependency. `playwright.config.ts` starts the backend (pointed at `music_app_test_db`) and frontend dev servers automatically via `webServer`, so a single `npm test` in `e2e/` drives the full stack. Three specs cover: (1) register → dashboard → logout → login again; (2) guest visiting `/dashboard` is redirected to `/login`; (3) authed user visiting `/login` is bounced to `/dashboard`. The test DB is truncated before each spec using a direct pg connection. Note: the E2E suite is **not yet in CI** (added in Step 6.1); run it locally only.
-How to view & test: With Postgres running and backend `.env` set: `cd e2e && npm install && npx playwright install chromium && cp .env.example .env && npm test`. Playwright starts both servers, runs the specs, and shuts down. Full results appear in the terminal. Use `npm run test:headed` to watch the browser.
+What I did:
+How to view & test:
 
 ---
 
-## Phase 2 — Core Social Structures (UC-4, UC-9, UC-10, UC-14, UC-15)
+## Phase 2 — Core Social Structures (UC-4, UC-9, UC-10, UC-14, UC-15, UC-19)
+
+> Phase 2 now also carries the **administrative area** (Steps 2.8, 2.9). It was pulled forward from a later phase so that users and communities can be managed while the app is being trialled with real friends.
 
 ### Step 2.1 — Communities schema  (Phase 2 — UC-9)
 Status: ☐ Not started
@@ -264,7 +319,7 @@ Goal: Users can update display name, avatar, and preferred streaming service.
 
 Tasks:
 - [ ] Backend:  `PATCH /api/users/me` with image-size validation (≤5 MB, supported MIME types per UC-4 fail path).
-- [ ] Backend:  Avatar upload strategy decided and documented (e.g. local disk in dev, signed S3 URL noted as TODO).
+- [ ] Frontend: Generated avatar component — initials over a colour derived deterministically from the entity id. **No upload endpoint, no storage bucket** (CLAUDE.md §8); Google users keep the `picture` URL Google supplies.
 - [ ] Tests:    Integration tests for happy path + oversized image rejection.
 
 What I did:
@@ -322,6 +377,49 @@ How to view & test:
 
 ---
 
+### Step 2.8 — Admin area: user list  (Phase 2 — UC-19)
+Status: ☐ Not started
+Branch: feat/admin-user-list
+Spec: docs/features/admin-panel.md
+
+Goal: The owner can sign in and review the user base. Nobody else can reach the area, or tell that it exists.
+
+> **Stage 1 must come first and must settle scope.** This is the step most likely to sprawl into a CMS. Write `docs/features/admin-panel.md` and get it approved before any code.
+
+Tasks:
+- [ ] Spec:     docs/features/admin-panel.md written and approved — settings scope, audit-trail contents, settings-table shape
+- [ ] DB:       Settings table per the approved spec (shape deliberately not fixed in advance).
+- [ ] Backend:  `requireAdmin` middleware on `users.role = 'ADMIN'`, enforced server-side on every admin route.
+- [ ] Backend:  `GET /api/admin/users` — username, display name, preferred service, join date, activity counts. **No email: none is stored** (CLAUDE.md §5).
+- [ ] Frontend: Admin user list, reachable only for admins; nav entry hidden for everyone else.
+- [ ] Review:   confirm the admin response is built through an explicit serialiser, not a raw Prisma object.
+- [ ] Tests:    Good: an admin lists users. Bad: a normal user gets `403`; an unauthenticated request gets `401`; the frontend renders not-found rather than revealing the area.
+- [ ] Tests:    **Privacy test** — assert no admin response contains an email-shaped string.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 2.9 — Admin area: presentation settings  (Phase 2 — UC-19)
+Status: ☐ Not started
+Branch: feat/admin-settings
+Spec: docs/features/admin-panel.md
+
+Goal: The owner can change presentation configuration and have it take effect for everyone, with a record of who changed what.
+
+Tasks:
+- [ ] Backend:  `GET` / `PATCH` settings endpoints, admin-gated, Zod-validated against the approved allowed-settings list.
+- [ ] Backend:  Audit record on every change: actor, setting, old value, new value, timestamp.
+- [ ] Frontend: Settings form; changes reflected for all users.
+- [ ] Review:   confirm an unknown or unlisted setting key is rejected rather than silently stored.
+- [ ] Tests:    Good: a setting changes and persists; the audit row is written. Bad: non-admin `403`; unknown key `422`; out-of-range value `422`.
+
+What I did:
+How to view & test:
+
+---
+
 ## Phase 3 — The Magic Feature (UC-11, UC-18 + Playwright)
 
 ### Step 3.1 — Posts schema  (Phase 3 — UC-11)
@@ -348,8 +446,13 @@ Goal: `services/linkScraper.service.ts` returns `UniversalLinks` for a given sou
 Tasks:
 - [ ] Backend:  `npm install playwright` + `npx playwright install chromium`.
 - [ ] Backend:  Implement `generateUniversalLinks(sourceUrl)` per `link converter implementation guide.docx`: launch flags, resource blocking, 8s `waitForSelector`, browser cleanup in `finally`.
+- [ ] Backend:  Wrap the scrape in `p-limit(2)` — a hard cap on concurrent Chromium instances. Mandatory, not a later optimisation: the deployment target is memory-constrained.
+- [ ] Backend:  Enforce an overall 12-second ceiling on the operation, above the 8s `waitForSelector`.
+- [ ] Backend:  Log through Pino, never `console.*`. Never log raw scraped HTML at INFO.
 - [ ] Backend:  Document the **TODO** about replacing placeholder selectors with real squigly.link selectors after manual DevTools inspection.
 - [ ] Tests:    Unit test with Playwright mocked at module level — the function returns the mapped object given a fake `page.evaluate` result.
+- [ ] Tests:    **Failure path** — when the scrape throws, the caller still saves the post with `conversion_pending` and returns success, not an error.
+- [ ] Tests:    **Concurrency** — a burst of simultaneous calls never exceeds two in flight.
 
 What I did:
 How to view & test:
@@ -411,7 +514,8 @@ Goal: The Community Feed renders posts with cover art, paste-link input, and a p
 Tasks:
 - [ ] Frontend: `pages/CommunityFeed.tsx` with paste-link input, optional comment, submit.
 - [ ] Frontend: `components/PostCard.tsx` showing cover art, title, artist, the link routed to the **viewer's** preferred service, a bookmark icon stub (active in Phase 4), and the author context menu.
-- [ ] Frontend: Loading state while the scraper runs ("Converting link…") + graceful error toast.
+- [ ] Frontend: **Blocking submit** — spinner with explanatory copy ("Finding this track on other services…") for the full 3–8s conversion. The post is born complete; no optimistic insert, no polling (CLAUDE.md §7).
+- [ ] Frontend: Conversion-failed state — the post renders with the original link and a quiet "other services unavailable" note. Never an error dialog, never a lost draft.
 - [ ] Tests:    RTL on PostCard: author sees Delete, non-author does not.
 
 What I did:
@@ -583,46 +687,103 @@ How to view & test:
 
 ---
 
-## Phase 6 — Hardening
+## Phase 6 — Shipping It
 
-### Step 6.1 — GitHub Actions CI  (Phase 6)
+> Feature-complete is not shipped. This phase turns a working local application into something a friend group can actually use, on a phone.
+>
+> CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
+
+### Step 6.1 — PWA: installable  (Phase 6)
 Status: ☐ Not started
-Branch: chore/github-actions-ci
+Branch: feat/pwa-installable
+Spec: docs/features/pwa-installable.md
 
-Goal: Every PR runs lint, typecheck, and tests for both apps; merge blocked on red.
+Goal: The site installs to an iPhone home screen from Safari and launches full-screen with no browser chrome.
 
 Tasks:
-- [ ] Infra:    `.github/workflows/ci.yml` with two jobs (backend, frontend), Postgres service for backend integration tests.
-- [ ] Infra:    Branch protection rule on `main` requiring the CI check.
+- [ ] Frontend: `vite-plugin-pwa` installed and configured.
+- [ ] Frontend: `manifest.webmanifest` — name, short_name, start_url, `display: standalone`, theme and background colours.
+- [ ] Frontend: Full icon set — 192px, 512px, 512px maskable, plus the iOS `apple-touch-icon` sizes.
+- [ ] Frontend: iOS-specific meta tags (Safari does not read everything from the manifest).
+- [ ] Tests:    Manual — install on a real iPhone from Safari and launch from the home screen. A Lighthouse score is not sufficient evidence.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 6.2 — Production docker-compose  (Phase 6)
+### Step 6.2 — PWA: offline support  (Phase 6)
 Status: ☐ Not started
-Branch: chore/prod-compose
+Branch: feat/pwa-offline
+Spec: docs/features/pwa-offline.md
 
-Goal: A `docker-compose.prod.yml` brings up backend (Playwright image) + Postgres + a static frontend container.
+Goal: With no connection, the app opens and previously loaded content is readable. Write actions are clearly blocked rather than failing silently.
+
+> ⚠️ Register the service worker **only in production builds**. A service worker against the Vite dev server serves stale assets and produces hours of phantom debugging. Verify every change with `npm run build && npm run preview`.
 
 Tasks:
-- [ ] Infra:    Compose file + sample `.env.prod.example`.
-- [ ] Infra:    Document the bring-up sequence in the README.
+- [ ] Frontend: Workbox precache of the app shell — HTML, JS, CSS, fonts, icons.
+- [ ] Frontend: Runtime cache (stale-while-revalidate) for feed responses and album art. **Never cache auth endpoints or mutations.**
+- [ ] Frontend: Designed offline fallback page, not the browser error screen.
+- [ ] Frontend: Offline state on post / rate / bookmark controls — explicit "you're offline", nothing queued invisibly.
+- [ ] Frontend: Service-worker update prompt when a new version is waiting.
+- [ ] Tests:    Airplane-mode pass: feed readable, write actions blocked with a clear message.
+- [ ] Tests:    Deploy a second build and confirm the update prompt appears.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 6.3 — README polish + deployment notes  (Phase 6)
+### Step 6.3 — Hosting decision + production deploy  (Phase 6)
+Status: ☐ Not started
+Branch: chore/production-deploy
+
+Goal: A public HTTPS URL, with the provider chosen against free-tier terms that are current at this moment — not the ones assumed months earlier.
+
+Tasks:
+- [ ] Docs:     Verify each candidate's **current** free-tier terms (memory ceiling, idle spin-down, free-database lifetime) and record the decision and its date in `docs/deployment.md` §3.
+- [ ] Infra:    Provision production Postgres; set `DATABASE_URL`; run Prisma migrations against it.
+- [ ] Infra:    Generate an independent production `JWT_SECRET`. It must not match any development value.
+- [ ] Infra:    Add the production origin to the Google OAuth client's authorised origins and redirect URIs.
+- [ ] Infra:    Deploy the backend from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
+- [ ] Infra:    Build and deploy the frontend with the production `VITE_API_BASE_URL`.
+- [ ] Infra:    CORS locked to the exact production frontend origin — not a wildcard.
+- [ ] Tests:    Verify the auth cookie is `HttpOnly`, `Secure`, and correctly `SameSite` for the final origin layout.
+- [ ] Tests:    **Verify link conversion end-to-end in production.** This is the step most likely to fail — Chromium's memory footprint on a small instance is not reproducible locally. If it fails, lower the `p-limit` cap to 1 before anything more elaborate.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 6.4 — Production hardening  (Phase 6)
+Status: ☐ Not started
+Branch: chore/production-hardening
+
+Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.
+
+Tasks:
+- [ ] Backend:  Rate limiting on auth endpoints (login, register, password reset) and on post creation.
+- [ ] Backend:  Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
+- [ ] Backend:  Audit logs for leaked secrets or PII before they go anywhere persistent.
+- [ ] Infra:    Confirm no secret is committed anywhere in the repository history.
+- [ ] Infra:    Nightly E2E workflow is running and its failures are visible.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 6.5 — README polish + deployment notes  (Phase 6)
 Status: ☐ Not started
 Branch: docs/readme-deploy
 
-Goal: README explains what BookRough is, how to develop locally, and how to deploy.
+Goal: README explains what BookRough is, how to develop locally, how to test, and how it is deployed.
 
 Tasks:
-- [ ] Docs:     Rewrite README sections: Overview, Local dev, Tests, Deployment, Contributing (links back to CLAUDE.md).
+- [ ] Docs:     Rewrite README sections: Overview, Local dev, Tests, PWA, Deployment, Contributing (links back to CLAUDE.md).
+- [ ] Docs:     Confirm `docs/deployment.md` and its `.docx` companion reflect what was actually deployed, per the dual-file rule in CLAUDE.md §14.1.
 
 What I did:
 How to view & test:
