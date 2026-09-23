@@ -46,7 +46,7 @@ The safety net to ensure your vertical slices remain functional as the app grows
 
 ### 5. Third-Party Services & APIs
 
-External platforms your app relies on to function.
+External platforms **the running application** depends on. The test for this section: if it disappeared, the deployed product would break. Tools that only help us build are in section 5.2, kept separate on purpose.
 - **Google Cloud Console:** The dashboard where you register your application to obtain the OAuth 2.0 Client ID required for Google Social Login. Remember that the production origin must be added to the authorised origins and redirect URIs at deploy time — a step that is easy to forget and produces a confusing failure.
 - **squigly.link:** The external website your Playwright service will navigate to and scrape for music platform conversions. **This is the project's single largest external risk**: it is an unversioned dependency with no contract, and a layout change on their side breaks the core feature. The mitigations are the graceful-failure path (the post is saved regardless) and keeping the scraper's selectors isolated in one service file so a break is a small, local fix.
 
@@ -59,6 +59,26 @@ Enforced mechanically, so that conventions do not depend on discipline.
 - **Prettier:** Deterministic formatting, so formatting never appears in a code review.
 - **Husky + lint-staged:** A pre-commit hook that lints and formats only the staged files, keeping commits fast.
 - **commitlint (`@commitlint/config-conventional`):** A commit-msg hook that rejects any message which is not a valid Conventional Commit. This turns the convention in `docs/git workflow.md` from a rule someone must remember into one the tooling guarantees. Bypassing it with `--no-verify` is not permitted.
+
+### 5.2. Development Tooling & Assistants
+
+Tools used to **build** the project. Nothing here ships, and nothing here is required to run the application - if any of it vanished, only our workflow would get slower. Listed because CLAUDE.md section 18 requires every external dependency to be written down.
+
+**GitHub CLI (`gh`)** - every GitHub operation runs through it: opening pull requests, reading CI status, merging. Authenticated once against the owner's account; the permission rules that let Claude use it live in `.claude/settings.local.json`, which is gitignored and stays on the developer's machine.
+
+**`/code-review`** - a separate review pass over the diff, run by Claude. **Mandatory in Stage 3 of every feature** (CLAUDE.md section 15). This exists because human review of the diff before `main` was deliberately removed; a self-review by the author is the weakest possible check, and a distinct pass over the same diff is materially better. `/code-review ultra` runs a deeper multi-agent review in the cloud but is **user-triggered and billed - Claude cannot launch it.**
+
+**`/security-review`** - security review of the pending changes on a branch. **Mandatory for any feature touching authentication, authorisation, user input, or an external service**: all of Phase 1, the admin area, the link scraper, and the Phase 6 deployment work.
+
+**`/simplify`** - reuse, simplification and efficiency cleanups. Quality only; it does not hunt for bugs. Optional, useful when a slice grew messier than intended.
+
+**Desktop app CI monitoring** - watches the open pull request and wakes the session on CI failures, merge conflicts, and review comments, instead of polling. This is what makes the "conflicts come to us" rule in `docs/git workflow.md` section 1.5 practical rather than aspirational. Enabled per pull request, with the developer's approval.
+
+**python-docx** - generates the `.docx` mirrors from their Markdown sources, which is how the dual-file rule (CLAUDE.md section 14.1) is actually kept. Installed outside the repository, not a project dependency. Note that neither LibreOffice nor pandoc is installed on the developer's machine, so the generated `.docx` files are verified structurally and by content, **not** by visual rendering.
+
+**GitHub Integration connector - installed on the account, not usable from here.** The owner has it connected on claude.ai, where it works normally. It is **not exposed to Claude Code desktop sessions** and cannot be enabled from one, so every GitHub operation in this project goes through the `gh` CLI instead. This is a surface limitation, not a missing connector - worth knowing if you ever work on this repository from claude.ai in a browser rather than from the desktop app.
+
+No matching skill exists in the account either. The `gh` CLI covers the need: `gh api` reaches the full GitHub REST and GraphQL API, so nothing a connector would provide is out of reach.
 
 ### 6. Workflow & Documentation
 
