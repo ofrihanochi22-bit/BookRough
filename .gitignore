@@ -34,3 +34,6 @@ Thumbs.db
 
 # Local Claude Code settings (keep shared settings.json, ignore per-user local overrides)
 .claude/settings.local.json
+
+# Claude Code local worktrees (scratch, never shared)
+.claude/worktrees/

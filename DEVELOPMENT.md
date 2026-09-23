@@ -9,6 +9,21 @@ This file is the live progress log for BookRough. The conventions, tech stack, a
 - **After completing a step**, fill in the `What I did` and `How to view & test` sections of that step in the same commit. This is mandated by [CLAUDE.md §13](CLAUDE.md#13--mandatory--update-developmentmd-after-every-step).
 - Status legend: `☐ Not started` · `🟡 In progress` · `✅ Done`.
 
+### Every step runs as a four-stage feature session
+
+Defined in full in [CLAUDE.md §15](CLAUDE.md). No step begins at the code.
+
+| Stage | Output | Gate |
+|---|---|---|
+| **1. Specification** | `docs/features/<name>.md` from `docs/features/_TEMPLATE.md` | **Developer approves before Stage 2** |
+| **2. Implementation** | The whole vertical slice, DB → API → UI | — |
+| **3. Review & improvement** | Naming, duplication, error handling, missing states — fixed *before* tests exist | — |
+| **4. Tests** | Every good path and every bad path named in the spec | Suite green, coverage ≥ 80% |
+
+Only then: update this file, commit, push, open the PR. **Claude runs every git command; the developer reviews the diff and clicks Merge.**
+
+One step at a time — do not begin the next step's specification while the previous PR is unmerged.
+
 ---
 
 ## Per-step template
@@ -17,14 +32,17 @@ This file is the live progress log for BookRough. The conventions, tech stack, a
 ### Step N — <title>  (Phase X — UC-?)
 Status: ☐ Not started
 Branch: feat/<kebab-name>
+Spec: docs/features/<name>.md
 
 Goal: <one sentence>
 
 Tasks:
+- [ ] Spec:     docs/features/<name>.md written and approved
 - [ ] DB:       …
 - [ ] Backend:  …
 - [ ] Frontend: …
-- [ ] Tests:    …
+- [ ] Review:   improvement pass done before tests written
+- [ ] Tests:    good paths + bad paths per the spec's scenario list
 
 What I did: <FILL IN ON COMPLETION>
 How to view & test: <FILL IN ON COMPLETION — exact commands, URLs, manual steps, test commands>
@@ -81,6 +99,44 @@ Tasks:
 - [x] Frontend: Root `<ErrorBoundary>` wrapping the routed tree.
 - [x] Frontend: React Router with placeholder routes for `/`, `/login`, `/signup`.
 - [x] Tests:    RTL test that the Error Boundary renders fallback UI when a child throws.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 0.4 — Code quality tooling  (Phase 0)
+Status: ☐ Not started
+Branch: chore/code-quality-tooling
+
+Goal: Conventions are enforced by tooling, not by memory — lint, format, and commit messages are checked automatically before anything reaches the remote.
+
+Tasks:
+- [ ] Infra:    Root ESLint config shared by both packages; `npm run lint` at the root.
+- [ ] Infra:    Prettier config + `.prettierignore`; formatting is never a review comment.
+- [ ] Infra:    Husky installed; `pre-commit` hook runs `lint-staged` over staged files only.
+- [ ] Infra:    `commitlint` + `@commitlint/config-conventional`; `commit-msg` hook rejects non-Conventional messages.
+- [ ] Docs:     README note that `--no-verify` is not permitted.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 0.5 — GitHub Actions CI + branch protection  (Phase 0)
+Status: ☐ Not started
+Branch: chore/github-actions-ci
+
+Goal: The merge gate exists **before** the first feature PR, not after. A red check blocks merge on `main`.
+
+> Deliberately placed in Phase 0 rather than Phase 6. CI that arrives after twenty merged PRs has failed at its job — it must gate the first one.
+
+Tasks:
+- [ ] Infra:    `.github/workflows/pr.yml` — parallel jobs: `lint`, `typecheck`, `test:unit` (with coverage threshold), `test:integration` (against a `postgres:16` service container).
+- [ ] Infra:    `.github/workflows/main.yml` — everything in `pr.yml` plus `test:e2e`, on push to `main` and on a nightly schedule.
+- [ ] Infra:    Vitest coverage configured with the 80% line floor and documented exclusions.
+- [ ] Infra:    Branch protection on `main`: no direct pushes, PR required, `pr.yml` checks required, squash-merge only.
+- [ ] Tests:    Prove the gate works by opening a throwaway PR with a deliberately failing test and confirming merge is blocked.
 
 What I did:
 How to view & test:
@@ -264,7 +320,7 @@ Goal: Users can update display name, avatar, and preferred streaming service.
 
 Tasks:
 - [ ] Backend:  `PATCH /api/users/me` with image-size validation (≤5 MB, supported MIME types per UC-4 fail path).
-- [ ] Backend:  Avatar upload strategy decided and documented (e.g. local disk in dev, signed S3 URL noted as TODO).
+- [ ] Frontend: Generated avatar component — initials over a colour derived deterministically from the entity id. **No upload endpoint, no storage bucket** (CLAUDE.md §8); Google users keep the `picture` URL Google supplies.
 - [ ] Tests:    Integration tests for happy path + oversized image rejection.
 
 What I did:
@@ -348,8 +404,13 @@ Goal: `services/linkScraper.service.ts` returns `UniversalLinks` for a given sou
 Tasks:
 - [ ] Backend:  `npm install playwright` + `npx playwright install chromium`.
 - [ ] Backend:  Implement `generateUniversalLinks(sourceUrl)` per `link converter implementation guide.docx`: launch flags, resource blocking, 8s `waitForSelector`, browser cleanup in `finally`.
+- [ ] Backend:  Wrap the scrape in `p-limit(2)` — a hard cap on concurrent Chromium instances. Mandatory, not a later optimisation: the deployment target is memory-constrained.
+- [ ] Backend:  Enforce an overall 12-second ceiling on the operation, above the 8s `waitForSelector`.
+- [ ] Backend:  Log through Pino, never `console.*`. Never log raw scraped HTML at INFO.
 - [ ] Backend:  Document the **TODO** about replacing placeholder selectors with real squigly.link selectors after manual DevTools inspection.
 - [ ] Tests:    Unit test with Playwright mocked at module level — the function returns the mapped object given a fake `page.evaluate` result.
+- [ ] Tests:    **Failure path** — when the scrape throws, the caller still saves the post with `conversion_pending` and returns success, not an error.
+- [ ] Tests:    **Concurrency** — a burst of simultaneous calls never exceeds two in flight.
 
 What I did:
 How to view & test:
@@ -411,7 +472,8 @@ Goal: The Community Feed renders posts with cover art, paste-link input, and a p
 Tasks:
 - [ ] Frontend: `pages/CommunityFeed.tsx` with paste-link input, optional comment, submit.
 - [ ] Frontend: `components/PostCard.tsx` showing cover art, title, artist, the link routed to the **viewer's** preferred service, a bookmark icon stub (active in Phase 4), and the author context menu.
-- [ ] Frontend: Loading state while the scraper runs ("Converting link…") + graceful error toast.
+- [ ] Frontend: **Blocking submit** — spinner with explanatory copy ("Finding this track on other services…") for the full 3–8s conversion. The post is born complete; no optimistic insert, no polling (CLAUDE.md §7).
+- [ ] Frontend: Conversion-failed state — the post renders with the original link and a quiet "other services unavailable" note. Never an error dialog, never a lost draft.
 - [ ] Tests:    RTL on PostCard: author sees Delete, non-author does not.
 
 What I did:
@@ -583,46 +645,103 @@ How to view & test:
 
 ---
 
-## Phase 6 — Hardening
+## Phase 6 — Shipping It
 
-### Step 6.1 — GitHub Actions CI  (Phase 6)
+> Feature-complete is not shipped. This phase turns a working local application into something a friend group can actually use, on a phone.
+>
+> CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
+
+### Step 6.1 — PWA: installable  (Phase 6)
 Status: ☐ Not started
-Branch: chore/github-actions-ci
+Branch: feat/pwa-installable
+Spec: docs/features/pwa-installable.md
 
-Goal: Every PR runs lint, typecheck, and tests for both apps; merge blocked on red.
+Goal: The site installs to an iPhone home screen from Safari and launches full-screen with no browser chrome.
 
 Tasks:
-- [ ] Infra:    `.github/workflows/ci.yml` with two jobs (backend, frontend), Postgres service for backend integration tests.
-- [ ] Infra:    Branch protection rule on `main` requiring the CI check.
+- [ ] Frontend: `vite-plugin-pwa` installed and configured.
+- [ ] Frontend: `manifest.webmanifest` — name, short_name, start_url, `display: standalone`, theme and background colours.
+- [ ] Frontend: Full icon set — 192px, 512px, 512px maskable, plus the iOS `apple-touch-icon` sizes.
+- [ ] Frontend: iOS-specific meta tags (Safari does not read everything from the manifest).
+- [ ] Tests:    Manual — install on a real iPhone from Safari and launch from the home screen. A Lighthouse score is not sufficient evidence.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 6.2 — Production docker-compose  (Phase 6)
+### Step 6.2 — PWA: offline support  (Phase 6)
 Status: ☐ Not started
-Branch: chore/prod-compose
+Branch: feat/pwa-offline
+Spec: docs/features/pwa-offline.md
 
-Goal: A `docker-compose.prod.yml` brings up backend (Playwright image) + Postgres + a static frontend container.
+Goal: With no connection, the app opens and previously loaded content is readable. Write actions are clearly blocked rather than failing silently.
+
+> ⚠️ Register the service worker **only in production builds**. A service worker against the Vite dev server serves stale assets and produces hours of phantom debugging. Verify every change with `npm run build && npm run preview`.
 
 Tasks:
-- [ ] Infra:    Compose file + sample `.env.prod.example`.
-- [ ] Infra:    Document the bring-up sequence in the README.
+- [ ] Frontend: Workbox precache of the app shell — HTML, JS, CSS, fonts, icons.
+- [ ] Frontend: Runtime cache (stale-while-revalidate) for feed responses and album art. **Never cache auth endpoints or mutations.**
+- [ ] Frontend: Designed offline fallback page, not the browser error screen.
+- [ ] Frontend: Offline state on post / rate / bookmark controls — explicit "you're offline", nothing queued invisibly.
+- [ ] Frontend: Service-worker update prompt when a new version is waiting.
+- [ ] Tests:    Airplane-mode pass: feed readable, write actions blocked with a clear message.
+- [ ] Tests:    Deploy a second build and confirm the update prompt appears.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 6.3 — README polish + deployment notes  (Phase 6)
+### Step 6.3 — Hosting decision + production deploy  (Phase 6)
+Status: ☐ Not started
+Branch: chore/production-deploy
+
+Goal: A public HTTPS URL, with the provider chosen against free-tier terms that are current at this moment — not the ones assumed months earlier.
+
+Tasks:
+- [ ] Docs:     Verify each candidate's **current** free-tier terms (memory ceiling, idle spin-down, free-database lifetime) and record the decision and its date in `docs/deployment.md` §3.
+- [ ] Infra:    Provision production Postgres; set `DATABASE_URL`; run Prisma migrations against it.
+- [ ] Infra:    Generate an independent production `JWT_SECRET`. It must not match any development value.
+- [ ] Infra:    Add the production origin to the Google OAuth client's authorised origins and redirect URIs.
+- [ ] Infra:    Deploy the backend from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
+- [ ] Infra:    Build and deploy the frontend with the production `VITE_API_BASE_URL`.
+- [ ] Infra:    CORS locked to the exact production frontend origin — not a wildcard.
+- [ ] Tests:    Verify the auth cookie is `HttpOnly`, `Secure`, and correctly `SameSite` for the final origin layout.
+- [ ] Tests:    **Verify link conversion end-to-end in production.** This is the step most likely to fail — Chromium's memory footprint on a small instance is not reproducible locally. If it fails, lower the `p-limit` cap to 1 before anything more elaborate.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 6.4 — Production hardening  (Phase 6)
+Status: ☐ Not started
+Branch: chore/production-hardening
+
+Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.
+
+Tasks:
+- [ ] Backend:  Rate limiting on auth endpoints (login, register, password reset) and on post creation.
+- [ ] Backend:  Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
+- [ ] Backend:  Audit logs for leaked secrets or PII before they go anywhere persistent.
+- [ ] Infra:    Confirm no secret is committed anywhere in the repository history.
+- [ ] Infra:    Nightly E2E workflow is running and its failures are visible.
+
+What I did:
+How to view & test:
+
+---
+
+### Step 6.5 — README polish + deployment notes  (Phase 6)
 Status: ☐ Not started
 Branch: docs/readme-deploy
 
-Goal: README explains what BookRough is, how to develop locally, and how to deploy.
+Goal: README explains what BookRough is, how to develop locally, how to test, and how it is deployed.
 
 Tasks:
-- [ ] Docs:     Rewrite README sections: Overview, Local dev, Tests, Deployment, Contributing (links back to CLAUDE.md).
+- [ ] Docs:     Rewrite README sections: Overview, Local dev, Tests, PWA, Deployment, Contributing (links back to CLAUDE.md).
+- [ ] Docs:     Confirm `docs/deployment.md` and its `.docx` companion reflect what was actually deployed, per the dual-file rule in CLAUDE.md §14.1.
 
 What I did:
 How to view & test:

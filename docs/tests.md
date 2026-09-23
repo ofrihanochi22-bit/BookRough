@@ -72,7 +72,68 @@ Integration tests must **never** run against your production or local developmen
 When writing unit or integration tests, **do not make actual network requests to third-party services.** * If testing the Google OAuth flow, mock the google-auth-library to return a fake verified token.
 - If testing the route that uses your Playwright scraper, mock the generateUniversalLinks service so it instantly returns fake links instead of actually booting up a headless browser during the test. (Save the real browser interaction for your E2E tests).
 
-### 3.5. Continuous Integration (CI) Rule
+### 3.5. Test Both the Good Path and the Bad Path
 
-If you push code to GitHub and the tests fail, the PR cannot be merged. You can enforce this by setting up a simple GitHub Actions workflow file that runs npm run test every time you open a Pull Request.
+This is the convention that matters most in this project, and the one most often skipped.
+
+For every unit of behaviour, the happy path is the **cheapest** test to write and the **least** informative. Production breaks on the paths nobody exercised: the malformed payload, the expired token, the resource deleted between load and click, the third-party service that timed out.
+
+The rule: **every scenario named in the feature specification gets a test, and the failure scenarios are named explicitly, one by one.** A feature specification that lists "handles errors" has not specified anything. It must list *which* errors, *what triggers* each, and *what the user sees*.
+
+A pull request containing only happy-path tests is sent back for revision, regardless of its coverage percentage.
+
+### 3.6. Coverage Threshold
+
+- **80% line coverage is enforced in CI** via the Vitest coverage reporter (v8 provider). Falling below it fails the build and blocks the merge.
+- The threshold is a **floor that catches untested branches, not a target to be gamed**. Never write an assertion-free test whose only purpose is to execute a line and lift the number. Such a test is worse than no test: it consumes maintenance effort and provides false confidence.
+- Files genuinely not worth testing — the generated Prisma client, configuration barrels, `main.tsx` — are excluded in the Vitest config, each with a comment explaining why. Excluding a file is honest; padding it is not.
+
+### 4. Continuous Integration & Delivery
+
+CI is enforced through two GitHub Actions workflows. The split exists because different test layers have very different costs, and a pull-request pipeline that takes ten minutes stops being used.
+
+### 4.1. `pr.yml` — gates every Pull Request
+
+Triggered on every pull request targeting `main`. **All four jobs must pass before the PR can be merged**, enforced through a GitHub branch protection rule on `main`, not merely by convention.
+
+| Job | Command | Purpose |
+|---|---|---|
+| `lint` | `npm run lint` | ESLint across both packages |
+| `typecheck` | `tsc --noEmit` | Type errors caught before runtime |
+| `test:unit` | `vitest run --coverage` | Unit tests, both packages, with the 80% floor applied |
+| `test:integration` | `vitest run --config integration` | Supertest against a `postgres:16` service container running `music_app_test_db`, freshly migrated |
+
+Jobs run in parallel. Target wall-clock for the whole workflow is **under roughly three minutes**, so the feedback loop stays fast enough to actually use.
+
+### 4.2. `main.yml` — runs after merge and nightly
+
+Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.yml`, plus:
+
+| Job | Command | Purpose |
+|---|---|---|
+| `test:e2e` | `playwright test` | The full end-to-end suite against a built frontend and a live backend |
+
+**Why E2E is deliberately kept off the pull-request path:** installing browser binaries and driving real user flows costs several minutes, and E2E is by a wide margin the flakiest layer. A flaky test that blocks every merge gets ignored or disabled, which is worse than having no test. Catching a regression at merge time rather than at PR time is the accepted trade-off, and it is the standard arrangement in the industry for exactly this reason.
+
+The nightly run exists because the scraper depends on a live external site. A layout change at squigly.link can break the core feature without a single line of our code changing, and the nightly E2E run is what discovers it.
+
+**A red `main` or a red nightly run takes priority over starting the next feature.** A broken main branch that is allowed to stay broken defeats the entire purpose of the gate.
+
+### 4.3. Continuous Delivery
+
+Deployment is **not** automated from CI at this stage. `main` is kept deployable at all times, and the deploy itself is triggered deliberately. The hosting provider and the eventual deploy mechanism are a Phase 6 decision — see `docs/deployment.md` §3.
+
+### 5. Definition of Done for a Feature
+
+A feature is Done only when **all** of the following hold:
+
+- Unit tests cover every service function's success case and every error branch it can throw.
+- Integration tests cover every new endpoint's success case plus `400`/`422`, `401`, `403`, and `404` as applicable.
+- Component tests cover every new interactive screen: renders, validates, shows its error state.
+- E2E tests cover the feature only if it forms part of a golden user loop. Do not duplicate at the E2E layer what an integration test already proves.
+- Every scenario listed in the feature specification has a corresponding test.
+- The full suite passes and coverage is at or above the threshold.
+- `DEVELOPMENT.md` has been updated with what was built and how to verify it.
+
+Tests are never deferred to a follow-up pull request. A feature merged without its tests is not a delivered feature; it is a liability that someone has agreed to pay for later.
 

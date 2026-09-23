@@ -8,6 +8,13 @@ This file is the working contract between the developer and Claude. Read it befo
 
 **BookRough** is a social platform that lets friend groups share, rate, and discuss music recommendations across different streaming services. The "magic" feature is automatic universal-link conversion: a user pastes a Spotify link, and a friend on Apple Music sees an Apple Music link in the same post. Conversion is performed server-side via a Playwright headless browser scraping `squigly.link`.
 
+**Audience and delivery target.** This is a portfolio / learning project that is also intended for genuine use by a small group of friends. It therefore has to end up as a real, deployed website that works in two forms:
+
+1. A desktop browser experience.
+2. An **installable PWA** — added to the iPhone home screen from Safari and launched full-screen, with no browser chrome.
+
+"It works on my machine" is not the finish line. Every decision should keep a real deployment reachable.
+
 ---
 
 ## 2. Tech stack
@@ -19,6 +26,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `@react-oauth/google` for the Google login popup
 - React Router for routing
 - Axios for HTTP
+- `vite-plugin-pwa` (Workbox under the hood) for the installable, offline-capable PWA — see §16
 
 **Backend** (`backend/`)
 - Node.js + Express + TypeScript
@@ -27,6 +35,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `bcrypt` for password hashing
 - `google-auth-library` for verifying Google identity tokens server-side
 - `playwright` (headless Chromium) for the link-conversion scraper
+- `p-limit` to cap concurrent Chromium instances — see §7
 - Pino for structured logging
 - Zod for request validation
 
@@ -39,9 +48,20 @@ This file is the working contract between the developer and Claude. Read it befo
 - Supertest for backend integration tests
 - Playwright for E2E
 
+**Code quality (repo root)**
+- ESLint + Prettier, shared config across both packages
+- Husky + `lint-staged` — pre-commit hook runs lint and format on staged files only
+- `commitlint` with `@commitlint/config-conventional` — a commit-msg hook rejects any message that is not a valid Conventional Commit, so §11 is enforced mechanically rather than by discipline
+
 **Infra**
 - Docker (backend image is based on `mcr.microsoft.com/playwright` so Chromium dependencies are available)
-- GitHub Actions for CI
+- GitHub Actions for CI — see §10 for exactly what gates a merge
+
+**Explicitly rejected alternatives** (do not reintroduce without a new decision):
+- **Odesli / Songlink API** for link conversion. The service has been degraded for months and does not return links for most platforms. `squigly.link` + Playwright is the chosen path. (`docs/general.md` originally suggested Odesli; that has been corrected.)
+- **MongoDB.** The data is relational. PostgreSQL + Prisma, full stop.
+- **i18n / RTL.** The UI is English-only — see §8.
+- **User image uploads.** Generated avatars only — see §8.
 
 ---
 
@@ -67,9 +87,17 @@ This file is the working contract between the developer and Claude. Read it befo
 │   │   ├── stores/         ← Zustand stores
 │   │   ├── api/            ← axios client + per-resource API modules
 │   │   └── App.tsx
+│   ├── public/             ← PWA manifest + icon set (see §16)
 │   ├── index.html
 │   └── vite.config.ts
-├── docs/                   ← spec documents; each spec is a .docx + a parallel .md (see §14)
+├── docs/
+│   ├── <spec>.docx         ← foundational specs: .docx + parallel .md (see §14.1)
+│   ├── <spec>.md
+│   └── features/           ← per-feature specs, Markdown only (see §14.2, §15)
+│       ├── _TEMPLATE.md
+│       └── <feature>.md
+├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E) — see §10
+├── .husky/                 ← pre-commit (lint-staged) + commit-msg (commitlint)
 ├── CLAUDE.md               ← you are here
 ├── DEVELOPMENT.md          ← step-by-step roadmap (UPDATE THIS)
 └── README.md
@@ -156,7 +184,17 @@ Always create migrations via `npx prisma migrate dev --name <descriptive-name>`.
 - `page.waitForSelector` timeout = **8 seconds**, not the default 30.
 - Browser is closed in a `finally` block — always.
 - **Fail gracefully**: if scraping throws, save the post with `original_url` only and a `conversion_pending` flag. Don't drop the user's content.
+- **Concurrency cap**: wrap the scrape in `p-limit(2)`. Each Chromium instance costs real memory, and the deployment target is a small/free tier. Two simultaneous posts is the ceiling; the third waits.
 - Production runs inside the `mcr.microsoft.com/playwright` Docker base image (Chromium system deps preinstalled).
+
+### Latency budget and posting UX
+
+Scraping a live site in a headless browser takes **3–8 seconds**. That is inherent to the approach and cannot be optimised away.
+
+- The original PRD non-functional requirement of "conversion under 2 seconds" was **written for the Odesli API and is void**. The replacement budget is: **p95 under 10 seconds end-to-end, hard ceiling 12 seconds** before the request is abandoned and the post is saved as `conversion_pending`.
+- **The posting flow is synchronous and blocking.** The user presses Submit, sees a spinner with progress copy, and the post is born complete. We are not doing optimistic insert + background job + polling; the extra machinery is not worth it at this scale.
+- Because the wait is long and visible, the spinner is a designed state, not a default one: show what is happening ("Finding this track on other services…"), and never leave the button in an ambiguous state.
+- If the ceiling is hit, the post still saves. The user sees the post with their original link and a quiet "other services unavailable" note — not an error dialog, and never a lost draft.
 
 ---
 
@@ -169,7 +207,13 @@ The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback.
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
 
-Mobile-first layouts; Tailwind responsive utilities.
+### UI conventions
+
+- **Language: English only.** All UI copy, labels, errors, and empty states are in English. There is **no i18n layer and no RTL support** — do not add `react-i18next`, do not add `dir` switching, do not write translation keys. A hardcoded English string is the correct implementation.
+- **Mobile-first.** Write the base Tailwind classes for a phone viewport and add `sm:` / `md:` / `lg:` upward. The primary target device is an iPhone running the installed PWA; the desktop browser is the secondary layout. Verify at 375px width before anything else.
+- **Touch targets** are at least 44×44px, because the primary surface is a phone.
+- **No image uploads.** Profile pictures and community cover images are **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. The only exception is Google sign-in, where the `picture` URL returned by Google is stored and displayed as-is. The schema keeps an `avatar_url` column so real uploads remain possible later without a migration, but no upload endpoint, storage bucket, or image-processing dependency is in scope.
+- **Loading is a designed state.** Every screen that waits on the network has an explicit skeleton or spinner, not a blank area. This matters most on the post-submit flow (§7), where the wait is genuinely several seconds.
 
 ---
 
@@ -185,12 +229,59 @@ The full UC list (UC-1 through UC-18) is in [docs/use cases.md](<docs/use cases.
 - **AAA pattern**: every test reads as Arrange → Act → Assert.
 - **Test database**: integration tests run against `music_app_test_db`, wiped and migrated before each suite. Never against the dev DB.
 - **Mock external boundaries** in unit/integration: mock `google-auth-library`, mock the Playwright scraper. Save real browser interaction for E2E.
-- **CI gate**: `npm test` must pass on every PR. A red CI blocks merge.
 - Pyramid: many unit tests, fewer integration tests, a small handful of E2E tests covering the golden user loops (register → login → create community → post link → rate).
+
+### What a feature must cover before it is Done
+
+A feature is not finished when it works. It is finished when the following exist, each exercising **both the happy path and the failure paths**:
+
+| Layer | Tool | Required coverage |
+|---|---|---|
+| Unit | Vitest | Every service function: the success case **and** every `AppError` branch it can throw. |
+| Integration | Supertest | Every new endpoint: success, `400`/`422` invalid payload, `401` unauthenticated, `403` wrong permissions, `404` missing resource. |
+| Component | Vitest + RTL | Every new interactive screen or form: renders, validates, and shows the error state. |
+| E2E | Playwright | Golden loops only. Do not write an E2E test for something an integration test already proves. |
+
+Bad-path tests are not optional padding — for this project they are the point. A PR with only happy-path tests gets sent back.
+
+### Coverage threshold
+
+- **80% line coverage is enforced in CI** via the Vitest coverage reporter, and a drop below it fails the build and blocks the merge.
+- The threshold is a floor to catch untested branches, **not a target to game**. Never write an assertion-free test that merely executes a line to lift the number. If a file is genuinely not worth testing (generated Prisma client, config barrels, `main.tsx`), exclude it in the Vitest config with a comment explaining why — do not pad it with fake tests.
+
+### CI gates (GitHub Actions)
+
+Two workflows:
+
+**`pr.yml` — runs on every pull request. All four jobs must be green to merge:**
+1. `lint` — ESLint across both packages.
+2. `typecheck` — `tsc --noEmit` across both packages.
+3. `test:unit` — Vitest unit tests, both packages, with the coverage threshold applied.
+4. `test:integration` — Supertest against a `postgres:16` service container running `music_app_test_db`.
+
+Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feedback loop stays usable.
+
+**`main.yml` — runs on push to `main` and on a nightly schedule:**
+- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend.
+
+E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
 
 ---
 
 ## 11. Git workflow
+
+### 🔴 Claude owns git. The developer runs no git commands.
+
+Every git and GitHub operation in this project is Claude's responsibility: creating branches, staging, committing, pushing, opening pull requests, and filling in the PR body. The developer never types `git` anything. Consequences:
+
+- **Never tell the developer to run a git command.** Run it.
+- **Never leave work uncommitted** at the end of a step. Uncommitted work is Claude's failure, not a handoff.
+- **Every step ends with a pushed branch and an open PR** against `main`, with the §11 template filled in.
+- **Claude does not merge.** The developer reviews the "Files Changed" tab and clicks Merge. That review is the one human gate in the process and must not be bypassed — so do not merge, do not enable auto-merge, and do not push to `main`.
+- **Merge style: squash and merge**, so `main` carries exactly one well-formed Conventional Commit per feature.
+- After the developer confirms a merge, Claude deletes the feature branch locally and on the remote, and checks out an updated `main`.
+
+### Branch and commit rules
 
 - **Never commit directly to `main`.** All changes go through a feature branch and a PR.
 - Branch prefixes: `feat/`, `fix/`, `refactor/`, `docs/`, `chore/`. Use kebab-case names: `feat/google-oauth`, `fix/scraper-timeout`.
@@ -199,6 +290,7 @@ The full UC list (UC-1 through UC-18) is in [docs/use cases.md](<docs/use cases.
   - `fix(scraper): add timeout handling for dom loading`
   - `chore: configure dockerfile for node backend`
   - Banned: `WIP`, `fixed a bug`, `added login`.
+  - This is enforced by a `commitlint` commit-msg hook, not by memory. If a commit is rejected, fix the message — never bypass the hook with `--no-verify`.
 - **PR description template**:
   ```
   ## Objective
@@ -249,13 +341,101 @@ If the step is partial (e.g. the backend half landed but the UI is still in flig
 
 ## 14. Spec documents (`docs/`) — dual-file rule
 
-All specification documents live in `docs/`. Each spec exists as **two parallel files that must stay in sync**:
+`docs/` holds two different kinds of document, governed by two different rules.
+
+### 14.1. Foundational specs — dual-file, `.docx` + `.md`
+
+These are the long-lived documents that describe the system as a whole. Each exists as **two parallel files that must stay in sync**:
 
 - `docs/<name>.docx` — the formatted document (open in Word / a docx viewer).
 - `docs/<name>.md` — a plain-Markdown mirror of the same content, for fast reading and diffing (this is the version Claude reads by default).
 
-Both files are in **English**. The full set: `general`, `auth`, `tables`, `use cases`, `frontend screens`, `tech stack`, `system architecture conventions`, `git workflow`, `tests`, `development strategy`, `link converter implementation guide`.
-
-> **🔴 MANDATORY — edit both files together.** Any change to a spec must be applied to **both** the `.docx` and the `.md` of that document, in the same commit. Never let the two drift. If you only have time to update one, the spec change is not done.
+> **🔴 MANDATORY — edit both files together.** Any change to a foundational spec must be applied to **both** the `.docx` and the `.md` of that document, in the same commit. Never let the two drift. If you only have time to update one, the spec change is not done.
 
 The `.md` files were generated from the `.docx` originals; if you spot a conversion artifact in a `.md`, fix it against the `.docx` (which is authoritative for wording).
+
+**The dual-file rule applies to exactly these twelve documents and to nothing else:**
+
+`general`, `auth`, `tables`, `use cases`, `frontend screens`, `tech stack`, `system architecture conventions`, `git workflow`, `tests`, `development strategy`, `link converter implementation guide`, `deployment`.
+
+### 14.2. Feature specs — `docs/features/<feature-name>.md`, Markdown only
+
+The output of each feature specification session (§15) is a **single Markdown file** under `docs/features/`. **Do not create a `.docx` companion for a feature spec.** Keeping a binary mirror in sync per feature would produce unreadable diffs in the very PRs that most need review, for no benefit.
+
+Use `docs/features/_TEMPLATE.md` as the starting point. Feature specs are living documents: if implementation reveals that the spec was wrong, fix the spec in the same PR rather than letting the code and the document disagree.
+
+All documents in `docs/`, both kinds, are written in **English**.
+
+---
+
+## 15. How we work together — the feature session
+
+Development proceeds **one feature at a time**. A feature is a vertically sliced, user-visible capability drawn from `DEVELOPMENT.md`. Each feature moves through four stages, in order, and **Claude does not start a stage before the previous one is genuinely finished**.
+
+### Stage 1 — Specification session (conversation, no code)
+
+Claude and the developer talk the feature through before anything is written. Claude asks about ambiguities, surfaces contradictions with existing specs, and proposes concrete options with trade-offs rather than open-ended questions.
+
+The stage ends when Claude writes `docs/features/<feature-name>.md` covering:
+
+- The UC number(s) this feature satisfies.
+- What is in scope and, explicitly, what is **out** of scope.
+- Schema changes (new tables, new columns, new migrations).
+- API endpoints: method, path, request shape, response shape, every error code.
+- Screens and components touched, including their loading, empty, and error states.
+- Edge cases and failure modes.
+- The scenario list Stage 4 will turn into tests — good paths and bad paths named individually.
+
+**This document is approved by the developer before Stage 2 begins.** This is the approval gate; do not carry it over to a "plan" restated at implementation time.
+
+### Stage 2 — Implementation
+
+Build the whole vertical slice — migration, service, controller, route, screen — in one pass, following the spec. No test-writing yet beyond what is needed to make something run. If implementation reveals the spec was wrong, say so and amend the spec; do not silently diverge from it.
+
+### Stage 3 — Review and improvement
+
+Before writing tests, read back what was built and improve it: naming, duplication, error handling, missing loading states, anything that leaked through in the first pass. Confirm it conforms to §4 layering and §8 UI conventions. This is deliberately a separate stage so that tests are written against code that is already in its intended shape, rather than freezing a first draft in place.
+
+### Stage 4 — Tests
+
+Write the test suite described in §10, working from the scenario list in the feature spec. Every named good path and every named bad path gets a test. Run the full suite, get it green, and confirm the coverage threshold holds.
+
+### Closing the feature
+
+Only after Stage 4 is green:
+
+1. Update `DEVELOPMENT.md` per §13 — this is mandatory and is part of the same commit.
+2. Commit, push, and open the PR (§11).
+3. Report to the developer: what was built, what the tests cover, anything left as debt.
+
+### Rules that hold across all four stages
+
+- **One feature at a time.** Do not start the next feature's spec session while the current PR is open and unmerged.
+- **Never skip Stage 1.** "This one is small" is exactly when the spec session is cheapest and the misunderstanding is most likely.
+- **Tests are never deferred to a later PR.** A feature without its tests is not a feature, it is a liability.
+- Feature-level product questions belong in Stage 1 of that feature, not in general planning conversations. Do not ask the developer to decide the details of a feature that is not currently being specified.
+
+---
+
+## 16. Deployment & PWA
+
+The full specification is in [docs/deployment.md](docs/deployment.md) (companion `docs/deployment.docx`). Summary of the binding decisions:
+
+### Deployment
+
+- The target is a **real, publicly reachable deployment**, on the simplest option available, with a strong preference for free tiers.
+- **The specific provider is deliberately not chosen yet — it is a Phase 6 decision.** Free-tier terms change often, so the candidates are compared and the final call is made when Phase 6 is actually reached, against the terms in force at that time.
+- Until then, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit.
+- The hard constraint that drives the eventual choice: the backend runs headless Chromium, which needs meaningfully more memory than a plain Node service, and free tiers are tight. §7's `p-limit(2)` cap exists for this reason.
+
+### PWA — full, including offline
+
+The PWA is a product requirement, not a nice-to-have, because the intended everyday surface is an iPhone home-screen app. Scope:
+
+- `manifest.webmanifest` with `display: standalone`, theme and background colours, and a complete icon set including the iOS `apple-touch-icon` sizes.
+- iOS-specific meta tags, since Safari does not honour the manifest for everything.
+- A **service worker via `vite-plugin-pwa`**: precache the app shell, runtime-cache the feed and album art, and serve a designed offline fallback page rather than the browser's error.
+- **Offline read is supported; offline write is not.** A user with no connection can open the app and read a previously loaded feed and their own lists. Posting, rating, and bookmarking require connectivity and must show a clear "you're offline" state rather than failing silently or queueing invisibly.
+- A **version-update flow**: when a new service worker is waiting, prompt the user to reload. Never let a stale shell sit indefinitely against a newer API.
+
+> ⚠️ Service workers are the single most common source of "why am I seeing the old version" confusion. Register the service worker **only in production builds**, never in the Vite dev server, and always test a PWA change against a production build.

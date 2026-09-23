@@ -4,6 +4,27 @@
 
 The primary goal of this workflow is maintainability and traceability. Every commit should tell a clear story of what changed and why, and the main branch must always remain in a stable, deployable state.
 
+### 1.1. Division of Responsibility
+
+**Claude owns every git and GitHub operation in this project. The developer runs no git commands.**
+
+| Responsibility | Owner |
+|---|---|
+| Creating and switching branches | Claude |
+| Staging and committing | Claude |
+| Writing commit messages | Claude |
+| Pushing to the remote | Claude |
+| Opening the Pull Request and writing its description | Claude |
+| Reviewing the "Files Changed" diff | **Developer** |
+| Clicking Merge | **Developer** |
+| Deleting the merged branch | Claude |
+
+This has two consequences worth stating plainly.
+
+First, **Claude must never instruct the developer to run a git command** — it must run the command itself. Work left uncommitted at the end of a step is a failure on Claude's part, not a handoff.
+
+Second, **Claude must never merge.** The developer's review of the aggregate diff is the single human gate in this process, and it is the one thing that catches what automated checks cannot: a design that is technically correct but wrong for the product. Claude does not merge, does not enable auto-merge, and never pushes directly to `main`.
+
 ### 2. Branching Strategy
 
 We will use a streamlined **Feature Branch Workflow**. This avoids the heavy overhead of full GitFlow while providing enough structure to keep vertical slices isolated until they are complete.
@@ -65,22 +86,30 @@ Plaintext
 - Bad: fixed a bug
 - Bad: WIP
 
+### Enforcement
+
+This convention is not a matter of discipline. A **commitlint** commit-msg hook, installed through Husky, rejects any message that does not parse as a valid Conventional Commit. If a commit is rejected, fix the message. **Bypassing the hook with `--no-verify` is not permitted** — if the hook is wrong, fix the hook configuration in its own commit.
+
+A **pre-commit** hook additionally runs ESLint and Prettier over the staged files only, so formatting and lint violations never reach a review.
+
 ### 4. The Pull Request (PR) Workflow
 
 Even as a solo developer, enforcing a strict PR process is critical for self-review. It forces you to step back, look at the aggregate diff, and catch mistakes (like leaving console.log() statements) before they pollute the main branch.
 
 ### Step-by-Step PR Process
 
-- **Commit Often:** While working on your feat/ branch, make small, atomic commits.
-- **Push:** Push the feature branch to the remote repository.
+- **Commit Often (Claude):** While working on the feat/ branch, make small, atomic commits.
+- **Push (Claude):** Push the feature branch to the remote repository.
 git push -u origin feat/bookmark-songs
-- **Open PR:** Open a Pull Request on GitHub/GitLab merging feat/bookmark-songs into main.
-- **Self-Review:** Go through the "Files Changed" tab line-by-line. Act as your own code reviewer. Check for:
+- **Open PR (Claude):** Open a Pull Request on GitHub merging feat/bookmark-songs into main, with the description template below filled in.
+- **Wait for CI:** The `pr.yml` workflow must be green — lint, typecheck, unit tests, integration tests. A red CI blocks the merge through branch protection, and the fix is Claude's responsibility.
+- **Review (Developer):** Go through the "Files Changed" tab line-by-line. Check for:
   - Clean, readable code.
   - No leftover debugging code (console.log, commented-out blocks).
   - Proper error handling.
-- **Merge:** Once satisfied, merge the PR into main.
-- **Clean Up:** Delete the feature branch locally and remotely after merging to keep the repository clean.
+  - That the feature actually matches what was agreed in its specification.
+- **Merge (Developer):** Once satisfied, **squash and merge** the PR into main. Squashing keeps one well-formed Conventional Commit per feature on main, so the history reads as a list of delivered capabilities rather than a transcript of the work.
+- **Clean Up (Claude):** After the developer confirms the merge, delete the feature branch locally and remotely, and check out an updated main.
 
 ### PR Description Template
 
@@ -118,4 +147,30 @@ For example, when tackling **Phase 2: Core Social Structures**, your Git history
 - Push, open PR, self-review, and merge.
 - Start the next slice: git checkout -b feat/community-invite-links
 This ensures that every time you merge to main, you are delivering a complete, functional slice of the application spanning from the database up to the user interface.
+
+**One slice at a time.** Do not open a second feature branch while the previous Pull Request is still unmerged. Parallel slices in a one-developer project produce merge conflicts and half-finished work with no corresponding gain in throughput.
+
+### 6. Branch Protection
+
+`main` is protected on GitHub with the following rules, so the workflow above is enforced by the platform rather than by memory:
+
+- Direct pushes to `main` are blocked.
+- A Pull Request is required to merge.
+- The `pr.yml` status checks — lint, typecheck, unit, integration — must pass before merging.
+- The branch must be up to date with `main` before merging.
+- Squash-and-merge is the only permitted merge method.
+
+### 7. Relationship to the Feature Session
+
+The Git workflow is the final stage of the four-stage feature session defined in `CLAUDE.md` §15: specification, implementation, review and improvement, tests. **A branch is not pushed and a Pull Request is not opened until all four stages are complete and the test suite is green.**
+
+Concretely, the commit sequence on a feature branch will usually look like:
+
+- `feat(db): add bookmarks table and migration`
+- `feat(api): add bookmark create and delete endpoints`
+- `feat(ui): build my list screen with bookmark toggle`
+- `test(bookmarks): cover service, endpoints, and component states`
+- `docs: record bookmarks feature in DEVELOPMENT.md`
+
+These are then squashed into a single commit on `main` at merge time.
 

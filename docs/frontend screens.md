@@ -6,7 +6,7 @@ These screens handle unauthenticated users and account recovery.
   - **Key UI:** App logo, brief value proposition, "Log In" button, "Sign Up" button, "Continue with Google" button.
 - **1.2. Registration Screen (UC-1)**
   - **Purpose:** Account creation and initial onboarding.
-  - **Key UI:** Email/Password input fields, Display Name, Username, Profile Picture upload, and a mandatory dropdown/selector for **Preferred Streaming Service**.
+  - **Key UI:** Email/Password input fields, Display Name, Username, a live preview of the **generated avatar** (no upload control), and a mandatory dropdown/selector for **Preferred Streaming Service**.
 - **1.3. Login Screen (UC-2)**
   - **Purpose:** Authenticating existing users.
   - **Key UI:** Email/Password inputs, "Log In" button, "Forgot Password?" link.
@@ -44,7 +44,7 @@ These are the most heavily trafficked screens where the primary value exchange h
     - Context menu on own posts to "Delete Post".
 - **3.2. Create Community Screen (UC-9)**
   - **Purpose:** Setting up a new group.
-  - **Key UI:** Form for Community Name, Description, Cover Image upload, and a multi-select list of current friends to invite.
+  - **Key UI:** Form for Community Name and Description, a live preview of the **generated cover graphic** (no upload control), and a multi-select list of current friends to invite.
 - **3.3. Community Settings & Members Screen (UC-10, UC-14, UC-15)**
   - **Purpose:** Managing the group's roster and individual participation.
   - **Key UI:** List of current members. For Admins: "Generate Invite Link" button, "Remove User" actions next to member names. For all members: "Leave Community" button.
@@ -63,5 +63,16 @@ Screens dedicated to individual user actions and backlog management.
   - **Key UI:** 1-10 Star selection mechanism (slider or interactive stars), optional text input for a review, and a "Submit Rating" button.
 - **4.3. My Profile / Settings Screen (UC-3, UC-4)**
   - **Purpose:** Managing personal account details and app preferences.
-  - **Key UI:** Edit mode for Profile Picture, Display Name, and Preferred Streaming Service. A highly visible "Log Out" button.
+  - **Key UI:** Edit mode for Display Name and Preferred Streaming Service, with the generated avatar shown read-only. A highly visible "Log Out" button.
+
+### 5. Cross-Cutting UI Conventions
+
+These apply to every screen above and are not restated per screen.
+
+- **Language: English only.** All copy, labels, errors, and empty states are in English. There is no internationalisation layer and no RTL support.
+- **Mobile-first.** Every layout is designed at 375px width first and expanded upward with Tailwind's `sm:` / `md:` / `lg:` prefixes. The primary surface is an iPhone running the installed PWA; the desktop browser is secondary. Touch targets are at least 44x44px.
+- **No image uploads.** Avatars and community covers are generated from initials and a colour derived deterministically from the entity id. Google users keep the picture Google supplies. No screen contains an upload control.
+- **Three states, always.** Every screen that waits on the network defines a loading state (skeleton or spinner), an empty state, and an error state. A blank area is not a loading state.
+- **The posting flow blocks.** Link conversion takes 3-8 seconds and the submit button blocks for its duration behind a spinner with explanatory copy. This is a designed wait, not an accident.
+- **Offline.** Installed as a PWA, previously loaded content stays readable without a connection. Write actions (post, rate, bookmark) show an explicit "you're offline" state rather than failing silently or queueing invisibly. See `docs/deployment.md` §6.
 

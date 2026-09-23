@@ -64,12 +64,14 @@
 - **Step-by-step scenario (Success):**
   - The user navigates to their profile screen and selects "Edit Profile".
   - The user changes their Preferred Streaming Service from Spotify to Apple Music.
-  - The user uploads a new profile picture.
+  - The user's avatar is regenerated automatically from their display name; there is nothing to upload.
   - The user clicks the "Save Changes" button.
-  - The system validates the inputs (e.g., checks image file size).
+  - The system validates the inputs (display name length, username uniqueness, a recognised streaming service).
   - The backend updates the User record in the database.
   - The system displays a "Profile updated successfully" toast notification and returns the user to their refreshed profile view.
-- **Fail description (Alternative Scenario):** The user attempts to upload a profile picture that exceeds the maximum allowed file size (e.g., larger than 5MB) or is in an unsupported format. The system prevents the save action and displays an inline error message: "File too large. Please upload an image smaller than 5MB."
+- **Fail description (Alternative Scenario):** The user attempts to save a username that is already taken by another account. The system prevents the save action and displays an inline error message: "That username is already taken."
+
+> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users who signed in with Google keep the picture Google supplies. There is no upload control anywhere in the product; see `docs/general.md` §4.1.
 
 ### UC-5: User Searches Other Users
 
@@ -137,7 +139,7 @@
 - **Step-by-step scenario (Success):**
   - The user taps the "Create Community" button.
   - The system presents a creation form.
-  - The user inputs the Community Name, Description, and uploads a Cover Image.
+  - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
   - The system presents the user's friends list, allowing them to select friends to invite.
   - The user submits the form.
   - The backend creates the Community, assigns the creator as Admin, and generates unique invite links for the selected friends.

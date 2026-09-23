@@ -2,6 +2,21 @@
 
 By slicing vertically, you can organize your sprints logically. Here is a battle-tested order of operations for your specific app:
 
+### How Each Feature Is Built
+
+Within every phase below, work proceeds **one feature at a time** through four stages, defined in full in `CLAUDE.md` §15:
+
+1. **Specification session** — a conversation, no code. Produces `docs/features/<name>.md`, which the developer approves before anything is implemented.
+2. **Implementation** — the whole vertical slice, database through user interface, in one pass.
+3. **Review and improvement** — read back what was built and fix naming, duplication, error handling, and missing states *before* tests are written, so tests are not written against a first draft.
+4. **Tests** — the suite described in `docs/tests.md`, covering every good path and every bad path named in the specification.
+
+Only after stage four is green does the feature get committed, pushed, and opened as a Pull Request. Do not begin the next feature's specification while the previous Pull Request is still open.
+
+### Phase 0: Local Environment & Shared Infrastructure
+
+Before any use case is implemented: local PostgreSQL via Docker Compose, environment files, the Express bootstrap with its error middleware and logger, the Vite frontend shell with its axios client and error boundary, and the code-quality tooling (ESLint, Prettier, Husky, commitlint). This phase produces no user-visible behaviour and is the only phase for which that is acceptable.
+
 ### Phase 1: The Foundation & Identity (Use Cases 1, 2, 3, 17)
 
 Do not build anything else until a user can securely log in and log out.
@@ -41,4 +56,13 @@ Polish the remaining social discovery features.
 - **Backend:** Build the routes for global user search and managing friend requests.
 - **Frontend:** Build the Global Search bar, the "Add Friend" actions on public profiles, and the dedicated Friends management tab.
 - **Result:** A fully functional, feature-complete application.
+
+### Phase 6: Shipping It
+
+Feature-complete is not shipped. This phase turns a working local application into something a friend group can actually use.
+- **CI:** Finalise the two GitHub Actions workflows and turn on branch protection on `main`, so the gates described in `docs/tests.md` §4 are enforced by the platform.
+- **PWA:** Manifest, full icon set including the iOS sizes, service worker with app-shell precaching and an offline fallback, and the version-update prompt. Verify by installing on a real iPhone from Safari — not by trusting a Lighthouse score.
+- **Hosting:** Make the provider decision that was deliberately deferred, against the free-tier terms in force at that moment. Work through the deployment checklist in `docs/deployment.md` §7.
+- **Production hardening:** Rate limiting on the auth and posting endpoints, CORS locked to the production origin rather than a wildcard, secrets configured at the provider, and a verified end-to-end link conversion in production — the step most likely to fail, because Chromium's memory footprint on a small instance is not reproducible locally.
+- **Result:** A public URL that works in a desktop browser and installs as a full-screen app on a phone.
 
