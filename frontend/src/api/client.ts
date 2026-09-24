@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios';
+import axios, { type AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 /** Shape of every error body the backend produces (CLAUDE.md §4). */

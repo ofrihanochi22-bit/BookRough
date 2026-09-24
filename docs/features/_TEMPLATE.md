@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-| | |
-|---|---|
-| **Use cases** | UC-? |
-| **Phase** | ? |
-| **Branch** | `feat/<kebab-name>` |
-| **Status** | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+|               |                                                                    |
+| ------------- | ------------------------------------------------------------------ |
+| **Use cases** | UC-?                                                               |
+| **Phase**     | ?                                                                  |
+| **Branch**    | `feat/<kebab-name>`                                                |
+| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
 
 ---
 
@@ -92,5 +92,5 @@ Anything unresolved at approval time, and who decides it. Empty at approval mean
 Filled in as implementation proceeds. Record any place where reality forced a change to this spec, and why — so the document and the code never disagree.
 
 | Date | Decision | Reason |
-|---|---|---|
-| | | |
+| ---- | -------- | ------ |
+|      |          |        |

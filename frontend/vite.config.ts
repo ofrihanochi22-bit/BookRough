@@ -27,8 +27,12 @@ export default defineConfig({
         'src/**/*.test.{ts,tsx}',
         'src/test/**',
       ],
-      // The 80% floor (CLAUDE.md §10) is switched on in Step 0.5, together with
-      // the CI job that enforces it.
+      // The frontend has a single suite, so the floor (CLAUDE.md §10) applies
+      // directly here. The backend needs a separate merged-coverage config for
+      // the same guarantee — see backend/vitest.coverage.config.ts.
+      thresholds: {
+        lines: 80,
+      },
     },
   },
 });

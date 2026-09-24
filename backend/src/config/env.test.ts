@@ -59,11 +59,7 @@ describe('parseEnv', () => {
 
   it('names every offending variable at once, not just the first', () => {
     // Arrange
-    const {
-      DATABASE_URL: _url,
-      GOOGLE_CLIENT_ID: _clientId,
-      ...missingTwo
-    } = validEnv;
+    const { DATABASE_URL: _url, GOOGLE_CLIENT_ID: _clientId, ...missingTwo } = validEnv;
 
     // Act
     let message = '';

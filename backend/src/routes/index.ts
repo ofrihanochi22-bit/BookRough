@@ -20,4 +20,13 @@ if (isTest) {
   apiRouter.get('/__boom', () => {
     throw new AppError('Intentional test failure', 418);
   });
+
+  /**
+   * The other half: something we did not raise on purpose. A real one would be
+   * a Prisma error carrying a query, a connection string or a column name, and
+   * the handler must flatten it to a generic 500 rather than pass it on.
+   */
+  apiRouter.get('/__boom-raw', () => {
+    throw new Error('connect ECONNREFUSED 10.0.0.7:5432 — user=admin password=hunter2');
+  });
 }

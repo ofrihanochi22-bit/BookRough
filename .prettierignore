@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+package-lock.json
+
+# Generated from their Markdown sources; never hand-formatted.
+docs/*.docx
+
+# The twelve foundational specs are plain-Markdown mirrors of their .docx twins
+# and must stay in sync with them (CLAUDE.md §14.1). Letting Prettier reflow
+# their tables would make the two files differ for no reason at all.
+# Feature specs under docs/features/ have no .docx twin and are formatted.
+docs/*.md
+
+# Prisma has its own formatter: `npx prisma format`.
+*.prisma

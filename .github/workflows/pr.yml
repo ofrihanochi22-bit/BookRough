@@ -1,0 +1,22 @@
+name: PR
+
+# The merge gate (CLAUDE.md §10, docs/tests.md §4.1). Every check must pass
+# before a pull request can be merged, enforced by branch protection on main and
+# not merely by convention.
+#
+# E2E is deliberately absent: installing browsers and driving real flows costs
+# several minutes, and it is by far the flakiest layer. It runs in main.yml
+# instead. Target wall-clock for this workflow is under ~3 minutes.
+
+on:
+  pull_request:
+    branches: [main]
+
+# A new push to the same PR cancels the previous run.
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml

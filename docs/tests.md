@@ -84,7 +84,7 @@ A pull request containing only happy-path tests is sent back for revision, regar
 
 ### 3.6. Coverage Threshold
 
-- **80% line coverage is enforced in CI** via the Vitest coverage reporter (v8 provider). Falling below it fails the build and blocks the merge.
+- **80% line coverage is enforced in CI** via the Vitest coverage reporter (v8 provider). Falling below it fails the build and blocks the merge. It is measured over *every* suite that exercises a package, not one of them — see §4.1.
 - The threshold is a **floor that catches untested branches, not a target to be gamed**. Never write an assertion-free test whose only purpose is to execute a line and lift the number. Such a test is worse than no test: it consumes maintenance effort and provides false confidence.
 - Files genuinely not worth testing — the generated Prisma client, configuration barrels, `main.tsx` — are excluded in the Vitest config, each with a comment explaining why. Excluding a file is honest; padding it is not.
 
@@ -100,10 +100,12 @@ Triggered on every pull request targeting `main`. **All four jobs must pass befo
 |---|---|---|
 | `lint` | `npm run lint` | ESLint across both packages |
 | `typecheck` | `tsc --noEmit` | Type errors caught before runtime |
-| `test:unit` | `vitest run --coverage` | Unit tests, both packages, with the 80% floor applied |
-| `test:integration` | `vitest run --config integration` | Supertest against a `postgres:16` service container running `music_app_test_db`, freshly migrated |
+| `test:unit` | `npm run test:unit` | Unit tests, both packages. The frontend's 80% floor is applied here, because the frontend has a single suite |
+| `test:integration` | `npm run test:integration` + `npm run test:coverage` | Supertest against a `postgres:16` service container running `music_app_test_db`, freshly migrated — followed by the backend's 80% floor, measured over both backend suites together |
 
 Jobs run in parallel. Target wall-clock for the whole workflow is **under roughly three minutes**, so the feedback loop stays fast enough to actually use.
+
+**Why the backend's floor is measured in the integration job rather than the unit job.** The backend's two suites run separately and deliberately so: they have very different costs, and only one of them needs a database. But coverage measured over one suite alone misrepresents the other — `app.ts`, the middleware and the route files are fully exercised by Supertest and report 0% under the unit config. A floor applied to that number would fail the build on correct code, and the tempting way out, excluding those files, is precisely the gaming §3.6 forbids. So the gate runs both suites in one pass, in the job that already has Postgres, through `backend/vitest.coverage.config.ts`. The frontend has one suite and needs none of this.
 
 ### 4.2. `main.yml` — runs after merge and nightly
 
