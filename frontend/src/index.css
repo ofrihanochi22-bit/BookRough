@@ -1,0 +1,22 @@
+@import 'tailwindcss';
+
+/* Design tokens. Kept few on purpose — the palette grows when real screens
+   arrive (Steps 1.5 onward), not before. */
+@theme {
+  --color-ink: #0f172a;
+  --color-paper: #f8fafc;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  /* Respects the iPhone safe area when the PWA runs full-screen (Phase 6). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
