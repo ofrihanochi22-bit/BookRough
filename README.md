@@ -8,15 +8,15 @@ Users paste a Spotify link → friends on Apple Music, YouTube, or Tidal see a l
 
 ## Tech stack
 
-| Layer | Tools |
-|---|---|
-| Frontend | React 19 + Vite + TypeScript + Tailwind CSS + Zustand + React Router v7 |
-| Backend | Node.js + Express 5 + TypeScript + Prisma ORM |
-| Database | PostgreSQL 16 |
-| Auth | JWT (HttpOnly cookie) + Google OAuth 2.0 |
-| Link conversion | Playwright (headless Chromium) scraping squigly.link |
-| Tests | Vitest + React Testing Library + Supertest + Playwright E2E |
-| CI/CD | GitHub Actions + Docker |
+| Layer           | Tools                                                                   |
+| --------------- | ----------------------------------------------------------------------- |
+| Frontend        | React 19 + Vite + TypeScript + Tailwind CSS + Zustand + React Router v7 |
+| Backend         | Node.js + Express 5 + TypeScript + Prisma ORM                           |
+| Database        | PostgreSQL 16                                                           |
+| Auth            | JWT (HttpOnly cookie) + Google OAuth 2.0                                |
+| Link conversion | Playwright (headless Chromium) scraping squigly.link                    |
+| Tests           | Vitest + React Testing Library + Supertest + Playwright E2E             |
+| CI/CD           | GitHub Actions + Docker                                                 |
 
 ---
 
@@ -35,6 +35,7 @@ docker compose up -d
 ```
 
 This starts PostgreSQL 16 on `localhost:5432` with two databases:
+
 - `music_app_dev` — used while developing
 - `music_app_test_db` — used by integration tests, so they never touch the dev data
 
@@ -51,6 +52,7 @@ cp frontend/.env.example frontend/.env
 ```
 
 Edit both `.env` files:
+
 - Set a strong random `JWT_SECRET` (`node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`)
 - Fill in your `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`
 
@@ -110,7 +112,47 @@ Frontend unit and component tests:
 npm test --prefix frontend
 ```
 
-End-to-end tests do not exist yet — the `e2e/` package arrives in Step 0.5 and its first spec in Step 1.7.
+End-to-end tests:
+
+```bash
+npm install --prefix e2e
+```
+
+```bash
+npx --prefix e2e playwright install chromium
+```
+
+```bash
+npm test --prefix e2e
+```
+
+The suite has no specs yet — the first one arrives in Step 1.7 — so it passes with nothing to run. It points at `E2E_BASE_URL`, defaulting to `http://localhost:5173`; start both dev servers first.
+
+---
+
+## Code quality
+
+Conventions are enforced by tooling, not by memory. Installing the root package installs the hooks:
+
+```bash
+npm install
+```
+
+- **Pre-commit** runs ESLint and Prettier over the staged files only.
+- **commit-msg** rejects any message that is not a valid [Conventional Commit](https://www.conventionalcommits.org/) — for example `feat(auth): verify google identity token`.
+- **Every pull request** must pass `lint`, `typecheck`, `test:unit` and `test:integration` on GitHub Actions before it can be merged.
+
+> **`--no-verify` is not permitted.** The hooks exist precisely for the moment when skipping them feels justified. If a hook rejects your commit, fix what it found or fix the message — do not bypass it (CLAUDE.md §11).
+
+To run the checks by hand:
+
+```bash
+npm run lint
+```
+
+```bash
+npm run format
+```
 
 ---
 

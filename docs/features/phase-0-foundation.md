@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-| | |
-|---|---|
-| **Use cases** | None — Phase 0 predates the UC-numbered features. It is the ground they are built on. |
-| **Phase** | 0 (Steps 0.1 – 0.5) |
-| **Branch** | `chore/phase-0-skeleton` (Steps 0.1–0.3), then `chore/phase-0-tooling-ci` (Steps 0.4–0.5) |
-| **Status** | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+|               |                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| **Use cases** | None — Phase 0 predates the UC-numbered features. It is the ground they are built on.     |
+| **Phase**     | 0 (Steps 0.1 – 0.5)                                                                       |
+| **Branch**    | `chore/phase-0-skeleton` (Steps 0.1–0.3), then `chore/phase-0-tooling-ci` (Steps 0.4–0.5) |
+| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
 
 ---
 
@@ -48,7 +48,7 @@ Nothing in this phase is visible to an end user. Its deliverable is that the nex
 - **Any authentication.** No JWT helpers, no auth middleware, no `google-auth-library`, no cookie issuing. `JWT_SECRET` appears in `.env.example` as a blank placeholder only. All of it is Step 1.3.
 - **The Welcome and Complete-Your-Profile screens.** Step 0.3 creates the two routes as placeholder components rendering a heading and nothing else. The real screens are Steps 1.5 and 1.6.
 - **The Zustand auth store.** The axios 401 interceptor is specified now but calls a single narrow function (`onUnauthorized`) that Step 1.5 wires to the store. Phase 0's implementation of that function redirects to `/` and does nothing else.
-- **Playwright, the scraper, and the backend `Dockerfile`.** The scraper is Phase 3; the production Docker image is Phase 6. `docker-compose.yml` here runs *only* Postgres, for local development. It is not a deployment artifact.
+- **Playwright, the scraper, and the backend `Dockerfile`.** The scraper is Phase 3; the production Docker image is Phase 6. `docker-compose.yml` here runs _only_ Postgres, for local development. It is not a deployment artifact.
 - **PWA anything** — no `vite-plugin-pwa`, no manifest, no service worker, no icons. Phase 6, Steps 6.1 and 6.2. Registering a service worker this early would poison every subsequent debugging session (CLAUDE.md §16).
 - **Actual E2E tests.** The `e2e/` package is created with its Playwright config and zero specs, so `main.yml` has a real target. The first spec is written at Step 1.7.
 - **The hosting provider.** Deliberately undecided until Phase 6 (CLAUDE.md §16).
@@ -94,11 +94,11 @@ This exists to prove the error middleware's output shape in an integration test 
 
 No screen from `docs/frontend screens.md` is implemented in this phase. What is created:
 
-| Route | Component | Content |
-|---|---|---|
-| `/` | `pages/Welcome.tsx` | Placeholder: the app name and one line of body text. Step 1.5 replaces the body. |
-| `/onboarding` | `pages/CompleteProfile.tsx` | Placeholder heading only. Step 1.6 replaces it. |
-| `*` | `pages/NotFound.tsx` | "This page doesn't exist." plus a link home. Doubles as the 403 surface for the admin area later (CLAUDE.md §17). |
+| Route         | Component                   | Content                                                                                                           |
+| ------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `/`           | `pages/Welcome.tsx`         | Placeholder: the app name and one line of body text. Step 1.5 replaces the body.                                  |
+| `/onboarding` | `pages/CompleteProfile.tsx` | Placeholder heading only. Step 1.6 replaces it.                                                                   |
+| `*`           | `pages/NotFound.tsx`        | "This page doesn't exist." plus a link home. Doubles as the 403 surface for the admin area later (CLAUDE.md §17). |
 
 There is **no `/login` and no `/signup` route**, now or ever — sign-in is a single button on Welcome (CLAUDE.md §5).
 
@@ -112,19 +112,19 @@ There is **no `/login` and no `/signup` route**, now or ever — sign-in is a si
 
 ## 6. Edge cases & failure modes
 
-| Situation | Behaviour |
-|---|---|
-| Postgres is not running when the backend starts | The backend starts anyway and `/api/health` returns 200. Nothing connects to the database in Phase 0. |
-| A required environment variable is missing | `src/config/env.ts` validates `process.env` with Zod at import time and **exits with a non-zero code and a readable message naming the variable**. Failing at boot beats failing at the first request. |
-| `.env` does not exist at all | Same path: the Zod parse fails, the message names the missing keys and points at `.env.example`. |
-| Port 4000 or 5173 already in use | Left to the underlying tool's error. Not worth wrapping. |
-| The API is unreachable from the frontend | The axios interceptor catches the network error and toasts "Can't reach the server." — a request with no `error.response` is not a 4xx/5xx and must not crash the interceptor. |
-| A `401` arrives | Interceptor calls `onUnauthorized()` and redirects to `/`. In Phase 0 that function only redirects; Step 1.5 adds the store clear. |
-| A React component throws during render | The Error Boundary renders its fallback. The error is logged to the console in development only. |
-| A commit message violates Conventional Commits | The `commit-msg` hook rejects it. The fix is a corrected message — never `--no-verify` (CLAUDE.md §11). |
-| Lint fails on a staged file | The `pre-commit` hook fails and the commit does not happen. |
-| CI is red on a pull request | Branch protection refuses the merge. Claude does not merge a red check even if told to (CLAUDE.md §11). |
-| Docker Desktop is not running | `docker compose up -d` fails with a daemon error. Noted in the README prerequisites — the developer starts Docker Desktop first. |
+| Situation                                       | Behaviour                                                                                                                                                                                              |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Postgres is not running when the backend starts | The backend starts anyway and `/api/health` returns 200. Nothing connects to the database in Phase 0.                                                                                                  |
+| A required environment variable is missing      | `src/config/env.ts` validates `process.env` with Zod at import time and **exits with a non-zero code and a readable message naming the variable**. Failing at boot beats failing at the first request. |
+| `.env` does not exist at all                    | Same path: the Zod parse fails, the message names the missing keys and points at `.env.example`.                                                                                                       |
+| Port 4000 or 5173 already in use                | Left to the underlying tool's error. Not worth wrapping.                                                                                                                                               |
+| The API is unreachable from the frontend        | The axios interceptor catches the network error and toasts "Can't reach the server." — a request with no `error.response` is not a 4xx/5xx and must not crash the interceptor.                         |
+| A `401` arrives                                 | Interceptor calls `onUnauthorized()` and redirects to `/`. In Phase 0 that function only redirects; Step 1.5 adds the store clear.                                                                     |
+| A React component throws during render          | The Error Boundary renders its fallback. The error is logged to the console in development only.                                                                                                       |
+| A commit message violates Conventional Commits  | The `commit-msg` hook rejects it. The fix is a corrected message — never `--no-verify` (CLAUDE.md §11).                                                                                                |
+| Lint fails on a staged file                     | The `pre-commit` hook fails and the commit does not happen.                                                                                                                                            |
+| CI is red on a pull request                     | Branch protection refuses the merge. Claude does not merge a red check even if told to (CLAUDE.md §11).                                                                                                |
+| Docker Desktop is not running                   | `docker compose up -d` fails with a daemon error. Noted in the README prerequisites — the developer starts Docker Desktop first.                                                                       |
 
 ## 7. Test scenarios
 
@@ -174,14 +174,14 @@ Empty. The nine questions raised at the start of this session were answered by t
 
 ## 9. Decisions log
 
-| Date | Decision | Reason |
-|---|---|---|
-| 2026-09-24 | One combined spec for all five Phase 0 steps | No product decisions in the phase; the infrastructure choices need to agree with each other, which is easier to check in one document than across five. |
+| Date       | Decision                                                                                         | Reason                                                                                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-09-24 | One combined spec for all five Phase 0 steps                                                     | No product decisions in the phase; the infrastructure choices need to agree with each other, which is easier to check in one document than across five.                                                                                          |
 | 2026-09-24 | Two pull requests: `chore/phase-0-skeleton` (0.1–0.3), then `chore/phase-0-tooling-ci` (0.4–0.5) | Five PRs means five stop points for a phase with nothing visible in it. Splitting after 0.3 matters because 0.4 and 0.5 change the rules for every commit that follows them — the skeleton should be in place before the hooks start judging it. |
-| 2026-09-24 | PRs for the skeleton merge without a CI gate | `pr.yml` does not exist until 0.5. Unavoidable and accepted by the developer; §11's gate rule is conditional on the workflow existing. |
-| 2026-09-24 | Test database is `music_app_test_db` | Matches CLAUDE.md §10 and `docs/tests.md` §3.3. The current README's `music_app_test` is the odd one out and gets corrected. Dev database is `music_app_dev`. |
-| 2026-09-24 | Node 24 LTS, not 22 | The developer's machine runs v24.11.0. CI should match the machine that writes the code; pinned via `.nvmrc` and `engines`. |
-| 2026-09-24 | No npm workspaces | A root `package.json` carries the quality tooling only; `backend/` and `frontend/` install independently, as the README already describes. Avoids hoisting surprises with Prisma's generated client and Playwright's browser binaries. |
-| 2026-09-24 | `e2e/` lives at the repository root as its own package | Matches the deleted implementation's layout and keeps Playwright's browser download out of the two shipping packages. CLAUDE.md §3's tree gets an `e2e/` entry. |
-| 2026-09-24 | Branch protection configured by Claude via `gh api` | `gh` is authenticated as the repository owner with `repo` and `workflow` scopes, and the repository is public, so protection rules are available. If the API refuses, the developer sets it in the GitHub UI instead. |
-| 2026-09-24 | Health check does not touch the database | Conflating "API is up" with "its dependency is up" makes a deploy platform restart a healthy container over a transient database blip. |
+| 2026-09-24 | PRs for the skeleton merge without a CI gate                                                     | `pr.yml` does not exist until 0.5. Unavoidable and accepted by the developer; §11's gate rule is conditional on the workflow existing.                                                                                                           |
+| 2026-09-24 | Test database is `music_app_test_db`                                                             | Matches CLAUDE.md §10 and `docs/tests.md` §3.3. The current README's `music_app_test` is the odd one out and gets corrected. Dev database is `music_app_dev`.                                                                                    |
+| 2026-09-24 | Node 24 LTS, not 22                                                                              | The developer's machine runs v24.11.0. CI should match the machine that writes the code; pinned via `.nvmrc` and `engines`.                                                                                                                      |
+| 2026-09-24 | No npm workspaces                                                                                | A root `package.json` carries the quality tooling only; `backend/` and `frontend/` install independently, as the README already describes. Avoids hoisting surprises with Prisma's generated client and Playwright's browser binaries.           |
+| 2026-09-24 | `e2e/` lives at the repository root as its own package                                           | Matches the deleted implementation's layout and keeps Playwright's browser download out of the two shipping packages. CLAUDE.md §3's tree gets an `e2e/` entry.                                                                                  |
+| 2026-09-24 | Branch protection configured by Claude via `gh api`                                              | `gh` is authenticated as the repository owner with `repo` and `workflow` scopes, and the repository is public, so protection rules are available. If the API refuses, the developer sets it in the GitHub UI instead.                            |
+| 2026-09-24 | Health check does not touch the database                                                         | Conflating "API is up" with "its dependency is up" makes a deploy platform restart a healthy container over a transient database blip.                                                                                                           |

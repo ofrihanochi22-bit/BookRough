@@ -20,6 +20,7 @@ This file is the working contract between the developer and Claude. Read it befo
 ## 2. Tech stack
 
 **Frontend** (`frontend/`)
+
 - React + Vite + TypeScript
 - Tailwind CSS for styling
 - Zustand for global state (auth session, preferred streaming service)
@@ -29,6 +30,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `vite-plugin-pwa` (Workbox under the hood) for the installable, offline-capable PWA — see §16
 
 **Backend** (`backend/`)
+
 - Node.js + Express + TypeScript
 - Prisma ORM on PostgreSQL
 - `jsonwebtoken` for app session tokens (HttpOnly cookie)
@@ -39,24 +41,29 @@ This file is the working contract between the developer and Claude. Read it befo
 - Zod for request validation
 
 **Database**
+
 - PostgreSQL (single instance, separate `music_app_test_db` for integration tests)
 
 **Tests**
+
 - Vitest as test runner
 - React Testing Library for components
 - Supertest for backend integration tests
 - Playwright for E2E
 
 **Code quality (repo root)**
+
 - ESLint + Prettier, shared config across both packages
 - Husky + `lint-staged` — pre-commit hook runs lint and format on staged files only
 - `commitlint` with `@commitlint/config-conventional` — a commit-msg hook rejects any message that is not a valid Conventional Commit, so §11 is enforced mechanically rather than by discipline
 
 **Infra**
+
 - Docker (backend image is based on `mcr.microsoft.com/playwright` so Chromium dependencies are available)
 - GitHub Actions for CI — see §10 for exactly what gates a merge
 
 **Explicitly rejected alternatives** (do not reintroduce without a new decision):
+
 - **Odesli / Songlink API** for link conversion. The service has been degraded for months and does not return links for most platforms. `squigly.link` + Playwright is the chosen path. (`docs/general.md` originally suggested Odesli; that has been corrected.)
 - **MongoDB.** The data is relational. PostgreSQL + Prisma, full stop.
 - **i18n / RTL.** The UI is English-only — see §8.
@@ -91,6 +98,7 @@ This file is the working contract between the developer and Claude. Read it befo
 │   ├── public/             ← PWA manifest + icon set (see §16)
 │   ├── index.html
 │   └── vite.config.ts
+├── e2e/                    ← Playwright end-to-end suite, its own package (§10)
 ├── docs/
 │   ├── <spec>.docx         ← foundational specs: .docx + parallel .md (see §14.1)
 │   ├── <spec>.md
@@ -99,6 +107,8 @@ This file is the working contract between the developer and Claude. Read it befo
 │       └── <feature>.md
 ├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E) — see §10
 ├── .husky/                 ← pre-commit (lint-staged) + commit-msg (commitlint)
+├── docker-compose.yml      ← local Postgres only; never a deployment artifact
+├── package.json            ← root: quality tooling only, not an npm workspace
 ├── CLAUDE.md               ← you are here
 ├── DEVELOPMENT.md          ← step-by-step roadmap (UPDATE THIS)
 └── README.md
@@ -178,7 +188,7 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 - A user who loses their Google account **cannot be recovered**, and support cannot identify them.
 - There is no address to leak, so a database breach exposes no personal contact data.
 
-**Honest limit:** this reduces *incidental* exposure and removes a class of breach. It is **not** a cryptographic guarantee against the operator, who runs the server and can change the code. The protection is that the data does not exist.
+**Honest limit:** this reduces _incidental_ exposure and removes a class of breach. It is **not** a cryptographic guarantee against the operator, who runs the server and can change the code. The protection is that the data does not exist.
 
 **Enforcement rule:** never return a raw Prisma user object. Every endpoint serialises through an explicit `toPublicUser` mapper, field by field, so a column added later cannot leak by accident.
 
@@ -262,18 +272,18 @@ The full UC list (UC-1 through UC-19) is in [docs/use cases.md](<docs/use cases.
 
 A feature is not finished when it works. It is finished when the following exist, each exercising **both the happy path and the failure paths**:
 
-| Layer | Tool | Required coverage |
-|---|---|---|
-| Unit | Vitest | Every service function: the success case **and** every `AppError` branch it can throw. |
-| Integration | Supertest | Every new endpoint: success, `400`/`422` invalid payload, `401` unauthenticated, `403` wrong permissions, `404` missing resource. |
-| Component | Vitest + RTL | Every new interactive screen or form: renders, validates, and shows the error state. |
-| E2E | Playwright | Golden loops only. Do not write an E2E test for something an integration test already proves. |
+| Layer       | Tool         | Required coverage                                                                                                                 |
+| ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Unit        | Vitest       | Every service function: the success case **and** every `AppError` branch it can throw.                                            |
+| Integration | Supertest    | Every new endpoint: success, `400`/`422` invalid payload, `401` unauthenticated, `403` wrong permissions, `404` missing resource. |
+| Component   | Vitest + RTL | Every new interactive screen or form: renders, validates, and shows the error state.                                              |
+| E2E         | Playwright   | Golden loops only. Do not write an E2E test for something an integration test already proves.                                     |
 
 Bad-path tests are not optional padding — for this project they are the point. A PR with only happy-path tests gets sent back.
 
 ### Coverage threshold
 
-- **80% line coverage is enforced in CI** via the Vitest coverage reporter, and a drop below it fails the build and blocks the merge.
+- **80% line coverage is enforced in CI** via the Vitest coverage reporter, and a drop below it fails the build and blocks the merge. It is measured over **every suite that exercises a package**, not one of them: the backend's floor runs both its unit and integration suites in a single pass (`backend/vitest.coverage.config.ts`), because measuring either alone reports 0% for files the other covers. Full reasoning in `docs/tests.md` §4.1.
 - The threshold is a floor to catch untested branches, **not a target to game**. Never write an assertion-free test that merely executes a line to lift the number. If a file is genuinely not worth testing (generated Prisma client, config barrels, `main.tsx`), exclude it in the Vitest config with a comment explaining why — do not pad it with fake tests.
 
 ### CI gates (GitHub Actions)
@@ -281,14 +291,16 @@ Bad-path tests are not optional padding — for this project they are the point.
 Two workflows:
 
 **`pr.yml` — runs on every pull request. All four jobs must be green to merge:**
+
 1. `lint` — ESLint across both packages.
 2. `typecheck` — `tsc --noEmit` across both packages.
-3. `test:unit` — Vitest unit tests, both packages, with the coverage threshold applied.
-4. `test:integration` — Supertest against a `postgres:16` service container running `music_app_test_db`.
+3. `test:unit` — Vitest unit tests, both packages. The frontend's coverage threshold is applied here.
+4. `test:integration` — Supertest against a `postgres:16` service container running `music_app_test_db`, then the backend's coverage threshold over both of its suites.
 
 Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feedback loop stays usable.
 
 **`main.yml` — runs on push to `main` and on a nightly schedule:**
+
 - Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend.
 
 E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
@@ -301,7 +313,7 @@ E2E is deliberately kept off the PR path: installing browsers plus running real 
 
 Every git and GitHub operation in this project is Claude's responsibility: creating branches, staging, committing, pushing, opening pull requests, filling in the PR body, **merging, and deleting branches**. The developer never types `git` anything.
 
-**The developer's role is to decide *when*. Claude's role is to execute.** The developer says "merge it" or "close that branch"; Claude does the rest.
+**The developer's role is to decide _when_. Claude's role is to execute.** The developer says "merge it" or "close that branch"; Claude does the rest.
 
 - **Never tell the developer to run a git command.** Run it.
 - **Never leave work uncommitted** at the end of a step. Uncommitted work is Claude's failure, not a handoff.
@@ -542,10 +554,10 @@ Exactly which settings are configurable, whether content as well as design is ed
 
 Two destinations, deliberately kept apart:
 
-| What | Where | Test for which one |
-|---|---|---|
-| Something the **running application** depends on | `docs/tech stack.md` §5 (+ `.docx`) | If it disappeared, would the deployed product break? |
-| Something that helps us **build** it | `docs/tech stack.md` §5.2 (+ `.docx`) | If it disappeared, would only our workflow get slower? |
+| What                                             | Where                                 | Test for which one                                     |
+| ------------------------------------------------ | ------------------------------------- | ------------------------------------------------------ |
+| Something the **running application** depends on | `docs/tech stack.md` §5 (+ `.docx`)   | If it disappeared, would the deployed product break?   |
+| Something that helps us **build** it             | `docs/tech stack.md` §5.2 (+ `.docx`) | If it disappeared, would only our workflow get slower? |
 
 Keeping them separate matters: someone reading the stack to stand the app up needs to know that `squigly.link` is load-bearing and that `/code-review` is not.
 

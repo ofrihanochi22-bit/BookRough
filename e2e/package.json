@@ -1,0 +1,19 @@
+{
+  "name": "bookrough-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end suite. Separate package so Playwright's browser binaries never land in the two shipping packages.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "playwright test --pass-with-no-tests",
+    "test:headed": "playwright test --headed --pass-with-no-tests",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "wait-on": "^8.0.1"
+  }
+}
