@@ -1,0 +1,17 @@
+// Phase 0 deliberately defines no models.
+//
+// The `users` table — and with it the first migration — is Step 1.1, which has
+// its own specification (docs/features/users-schema.md). What exists here is
+// only the wiring, so that step adds a model and nothing else.
+//
+// Reminder for whoever writes that model: `users` has no `email` column and no
+// `password_hash` column. Both omissions are deliberate (CLAUDE.md §5).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

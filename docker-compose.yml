@@ -1,0 +1,27 @@
+# Local development database only.
+# This file is NOT a deployment artifact — production runs the backend from its own
+# Dockerfile against a managed Postgres (CLAUDE.md §16, docs/deployment.md §3).
+services:
+  postgres:
+    image: postgres:16
+    container_name: bookrough-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: bookrough
+      POSTGRES_PASSWORD: bookrough
+      POSTGRES_DB: music_app_dev
+    volumes:
+      - bookrough-pgdata:/var/lib/postgresql/data
+      # Runs once, on an empty data volume, to add the integration-test database
+      # alongside the dev one (docs/tests.md §3.3 — tests never touch dev data).
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bookrough -d music_app_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bookrough-pgdata:

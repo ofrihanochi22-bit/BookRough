@@ -24,9 +24,9 @@ Users paste a Spotify link → friends on Apple Music, YouTube, or Tidal see a l
 
 ### Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for Postgres)
-- Node.js ≥ 20
-- A Google Cloud OAuth Client ID ([guide](https://developers.google.com/identity/protocols/oauth2))
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/), **running** — Postgres lives in it
+- Node.js ≥ 24 (see `.nvmrc`)
+- A Google Cloud OAuth Client ID ([guide](https://developers.google.com/identity/protocols/oauth2)) — not needed until Step 1.3
 
 ### 1. Start the database
 
@@ -34,9 +34,11 @@ Users paste a Spotify link → friends on Apple Music, YouTube, or Tidal see a l
 docker compose up -d
 ```
 
-This starts PostgreSQL on `localhost:5432` with two databases:
+This starts PostgreSQL 16 on `localhost:5432` with two databases:
 - `music_app_dev` — used while developing
-- `music_app_test` — used by integration tests (never touch the dev data)
+- `music_app_test_db` — used by integration tests, so they never touch the dev data
+
+Both are created the first time the data volume is initialised. To rebuild them from scratch: `docker compose down -v && docker compose up -d`.
 
 ### 2. Configure environment variables
 
@@ -49,12 +51,16 @@ Edit both `.env` files:
 - Set a strong random `JWT_SECRET` (`node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`)
 - Fill in your `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`
 
-### 3. Install dependencies and run migrations
+Neither is read by any code yet — authentication arrives in Step 1.3 — but the backend validates its whole environment at boot and refuses to start with a variable missing, so fill them in now.
+
+### 3. Install dependencies
 
 ```bash
-cd backend && npm install && npm run prisma:migrate
+cd backend && npm install
 cd ../frontend && npm install
 ```
+
+There are no database migrations yet: the schema is Step 1.1.
 
 ### 4. Start the dev servers
 
@@ -68,35 +74,28 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173).
+Open [http://localhost:5173](http://localhost:5173). The API answers at [http://localhost:4000/api/health](http://localhost:4000/api/health).
 
 ---
 
 ## Running tests
 
 ```bash
-# Backend unit + integration tests
-cd backend && npm test
-
-# Frontend component tests
-cd frontend && npm test
-
-# End-to-end tests (requires both dev servers + Postgres running)
-cd e2e && npm test
+# Backend unit tests, with coverage
+cd backend && npm run test:unit
 ```
-
----
-
-## E2E tests
 
 ```bash
-cd e2e
-npm install
-npx playwright install chromium
-npm test
+# Backend integration tests (Supertest)
+cd backend && npm run test:integration
 ```
 
-> E2E specs point at `http://localhost:5173`. Start both dev servers before running them.
+```bash
+# Frontend unit + component tests
+cd frontend && npm test
+```
+
+End-to-end tests do not exist yet — the `e2e/` package arrives in Step 0.5 and its first spec in Step 1.7.
 
 ---
 

@@ -53,61 +53,154 @@ How to view & test: <FILL IN ON COMPLETION — exact commands, URLs, manual step
 ## Phase 0 — Local environment & shared infra
 
 ### Step 0.1 — Local Postgres + env files  (Phase 0)
-Status: ☐ Not started
-Branch: chore/local-env-setup
+Status: ✅ Done
+Branch: chore/phase-0-skeleton
+Spec: docs/features/phase-0-foundation.md
 
 Goal: A new contributor can start Postgres locally and boot both apps with copied `.env` files.
 
 Tasks:
 - [x] Infra:    `docker-compose.yml` at the repo root with a `postgres:16` service exposing 5432, named volume for data.
-- [x] Backend:  `backend/.env.example` with `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `PORT`, `NODE_ENV`.
+- [x] Infra:    `docker/postgres-init/01-create-test-database.sql` creates `music_app_test_db` beside `music_app_dev`.
+- [x] Backend:  `backend/.env.example` with `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `LOG_LEVEL`.
 - [x] Frontend: `frontend/.env.example` with `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`.
-- [x] Docs:     README section "Local setup" with the four-line bring-up commands.
+- [x] Docs:     README section "Local setup" with the bring-up commands; `.nvmrc` pins Node 24.
 
 What I did:
+Added `docker-compose.yml` running Postgres 16 on 5432 with a named volume and a
+healthcheck, plus an init script that creates the integration-test database
+`music_app_test_db` alongside the development database `music_app_dev` the first
+time the volume is initialised. Wrote `.env.example` for both packages with every
+variable documented and every value blank or local — no secret is committed.
+`JWT_SECRET` and `GOOGLE_CLIENT_ID` are declared now although nothing reads them
+until Step 1.3, so the environment is configured once rather than in pieces.
+Corrected the README: the test database is `music_app_test_db` (matching
+CLAUDE.md §10 and `docs/tests.md` §3.3, not the README's earlier `music_app_test`),
+Node is ≥ 24, and Docker Desktop must actually be running.
+
 How to view & test:
+```bash
+docker compose up -d
+docker compose ps                 # postgres should be "healthy"
+```
+```bash
+docker exec bookrough-postgres psql -U bookrough -l
+```
+The listing must contain both `music_app_dev` and `music_app_test_db`. To rebuild
+from scratch: `docker compose down -v && docker compose up -d`.
 
 ---
 
 ### Step 0.2 — Backend Express bootstrap  (Phase 0)
-Status: ☐ Not started
-Branch: chore/backend-bootstrap
+Status: ✅ Done
+Branch: chore/phase-0-skeleton
+Spec: docs/features/phase-0-foundation.md
 
 Goal: Express server boots, exposes `GET /api/health`, has the central error middleware and Pino logger wired in.
 
 Tasks:
-- [x] Backend:  `src/index.ts` Express bootstrap (cors, cookie-parser, json body, Pino HTTP logger).
+- [x] Backend:  `src/app.ts` builds the app (cors with credentials, cookie-parser, json body, Pino HTTP logger); `src/index.ts` binds the port and handles SIGTERM/SIGINT.
+- [x] Backend:  `src/config/env.ts` validates the whole environment with Zod at boot and exits naming the offending variable.
 - [x] Backend:  `src/utils/AppError.ts` and `src/middleware/errorHandler.ts`.
 - [x] Backend:  `src/utils/response.ts` with `success(data)` / `failure(code, message)` helpers.
-- [x] Backend:  `src/routes/health.ts` returning `{ status: "ok" }`.
-- [x] Tests:    Supertest hitting `/api/health` and an intentionally-throwing test route to prove the error middleware shape.
+- [x] Backend:  `src/routes/health.ts` returning `{ status: "ok" }`, plus `notFound` middleware for unmatched paths.
+- [x] Tests:    Supertest hitting `/api/health`, an intentionally-throwing test route, and two unmatched paths (15 unit + 6 integration assertions).
 
 What I did:
+Built the backend skeleton exactly along the Router → Controller → Service layering
+of CLAUDE.md §4, with only the layers this step needs. `createApp()` returns the
+Express app without listening, so Supertest drives it in-process; binding the port
+is `src/index.ts`'s only job. Errors have a single writer: `AppError` for anything
+raised deliberately, and a flat 500 "Something went wrong." for everything else,
+with the original logged via Pino and never sent to the client. `GET /api/health`
+deliberately does not query Postgres — a health check that conflates "the API is
+up" with "its dependency is up" makes a deploy platform restart a healthy container
+over a transient database blip. A test-only `GET /api/__boom` is mounted solely
+under `NODE_ENV=test` to prove the error envelope's shape.
+
+Writing the environment tests caught a real defect: `z.string().url()` accepts
+`localhost:5173`, which parses as the scheme `localhost`, so a misconfigured
+`CORS_ORIGIN` would have silently failed to match the browser's origin. The
+schema now requires a bare http(s) origin.
+
 How to view & test:
+```bash
+cp backend/.env.example backend/.env
+```
+Fill in `JWT_SECRET` (any 32+ characters for now) and `GOOGLE_CLIENT_ID` (any
+placeholder until Step 1.3), then:
+```bash
+cd backend && npm install && npm run dev
+```
+```bash
+curl http://localhost:4000/api/health
+```
+Expect `{"status":"success","data":{"status":"ok","uptime":…,"timestamp":…}}`.
+Then `curl http://localhost:4000/api/nope` → `{"status":"error","code":404,"message":"Route not found."}`.
+To see the boot-time environment guard, comment out `DATABASE_URL` in `.env` and
+run `npm run dev` again: it exits with the variable named.
+
+```bash
+cd backend && npm run test:unit
+```
+```bash
+cd backend && npm run test:integration
+```
 
 ---
 
 ### Step 0.3 — Frontend shell  (Phase 0)
-Status: ☐ Not started
-Branch: chore/frontend-bootstrap
+Status: ✅ Done
+Branch: chore/phase-0-skeleton
+Spec: docs/features/phase-0-foundation.md
 
 Goal: Vite app boots with React Router, Tailwind, axios client (with 401 interceptor + toast), and a root Error Boundary.
 
 Tasks:
-- [x] Frontend: `src/api/client.ts` axios instance + interceptor (401 → logout + redirect, 4xx/5xx → toast).
-- [x] Frontend: Toast util (react-hot-toast mounted in main.tsx).
+- [x] Frontend: `src/api/client.ts` axios instance + interceptor (401 → `onUnauthorized` + redirect, 4xx/5xx → toast, no response → offline toast).
+- [x] Frontend: Toast util (react-hot-toast mounted top-centre in main.tsx).
 - [x] Frontend: Root `<ErrorBoundary>` wrapping the routed tree.
-- [ ] Frontend: React Router with placeholder routes for `/` (Welcome) and `/onboarding`. **No `/login` or `/signup`** — sign-in is a single button on Welcome (CLAUDE.md §5).
-- [x] Tests:    RTL test that the Error Boundary renders fallback UI when a child throws.
+- [x] Frontend: React Router with placeholder routes for `/` (Welcome) and `/onboarding`. **No `/login` or `/signup`** — sign-in is a single button on Welcome (CLAUDE.md §5).
+- [x] Frontend: Shared `<Spinner>` so no later screen has to invent a loading state.
+- [x] Tests:    RTL tests for the Error Boundary, the Spinner, all four routes, and every interceptor branch (15 tests, 100% line coverage).
 
 What I did:
+Scaffolded Vite + React 19 + TypeScript + Tailwind 4 by hand rather than through a
+generator, so the tree contains nothing that has to be deleted later. Three
+placeholder pages — Welcome, Complete your profile, and a not-found page that will
+later double as the surface a non-admin sees on an admin route (CLAUDE.md §17).
+The axios interceptor separates the three failure shapes that are easy to conflate:
+a `401` redirects without a toast, a `4xx`/`5xx` toasts the backend's own `message`,
+and a failure with no response at all — offline, DNS, CORS, timeout — toasts a
+distinct "can't reach the server" message instead of being mistaken for a server
+error. The redirect lives behind a named `onUnauthorized()` seam, so Step 1.5 adds
+the Zustand store clear without touching the interceptor.
+
+All layout is written for 375px first and every touch target is at least 44px
+(CLAUDE.md §8). Verified in the browser at 375×812 before any wider viewport.
+
 How to view & test:
+```bash
+cp frontend/.env.example frontend/.env
+```
+```bash
+cd frontend && npm install && npm run dev
+```
+Open `http://localhost:5173/` (Welcome), `/onboarding` (Complete your profile),
+and any other path such as `/nowhere` (not-found page with a working "Go home"
+link). In DevTools, set the viewport to 375px wide and confirm nothing overflows
+horizontally.
+
+```bash
+cd frontend && npm test
+```
 
 ---
 
 ### Step 0.4 — Code quality tooling  (Phase 0)
 Status: ☐ Not started
-Branch: chore/code-quality-tooling
+Branch: chore/phase-0-tooling-ci
+Spec: docs/features/phase-0-foundation.md
 
 Goal: Conventions are enforced by tooling, not by memory — lint, format, and commit messages are checked automatically before anything reaches the remote.
 
@@ -125,7 +218,8 @@ How to view & test:
 
 ### Step 0.5 — GitHub Actions CI + branch protection  (Phase 0)
 Status: ☐ Not started
-Branch: chore/github-actions-ci
+Branch: chore/phase-0-tooling-ci
+Spec: docs/features/phase-0-foundation.md
 
 Goal: The merge gate exists **before** the first feature PR, not after. A red check blocks merge on `main`.
 
@@ -136,6 +230,8 @@ Tasks:
 - [ ] Infra:    `.github/workflows/main.yml` — everything in `pr.yml` plus `test:e2e`, on push to `main` and on a nightly schedule.
 - [ ] Infra:    Vitest coverage configured with the 80% line floor and documented exclusions.
 - [ ] Infra:    Branch protection on `main`: no direct pushes, PR required, `pr.yml` checks required, squash-merge only.
+- [ ] Infra:    `e2e/` package at the repo root — Playwright config, zero specs, so `main.yml` has a real target before Step 1.7 fills it.
+- [ ] Decide:   How the backend's 80% floor is measured, given that `app.ts`, the middleware and the routes are covered by the integration suite and not by the unit suite. Raised at the end of the Step 0.1–0.3 PR; needs the developer's call before this step is implemented.
 - [ ] Tests:    Prove the gate works by opening a throwaway PR with a deliberately failing test and confirming merge is blocked.
 
 What I did:

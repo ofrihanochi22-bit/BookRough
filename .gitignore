@@ -6,6 +6,8 @@ dist/
 build/
 out/
 .vite/
+# Written by `tsc -b` on every frontend build.
+*.tsbuildinfo
 
 # Environment / secrets (NEVER commit real env files — keep .env.example only)
 .env
