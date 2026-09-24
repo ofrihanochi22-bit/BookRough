@@ -38,12 +38,15 @@ This starts PostgreSQL 16 on `localhost:5432` with two databases:
 - `music_app_dev` — used while developing
 - `music_app_test_db` — used by integration tests, so they never touch the dev data
 
-Both are created the first time the data volume is initialised. To rebuild them from scratch: `docker compose down -v && docker compose up -d`.
+Both are created the first time the data volume is initialised. To rebuild them from scratch, run `docker compose down -v` and then `docker compose up -d`.
 
 ### 2. Configure environment variables
 
 ```bash
 cp backend/.env.example backend/.env
+```
+
+```bash
 cp frontend/.env.example frontend/.env
 ```
 
@@ -56,43 +59,55 @@ Neither is read by any code yet — authentication arrives in Step 1.3 — but t
 ### 3. Install dependencies
 
 ```bash
-cd backend && npm install
-cd ../frontend && npm install
+npm install --prefix backend
+```
+
+```bash
+npm install --prefix frontend
 ```
 
 There are no database migrations yet: the schema is Step 1.1.
 
 ### 4. Start the dev servers
 
-In two separate terminals:
+In two separate terminals. Terminal 1 — the API on port 4000:
 
 ```bash
-# Terminal 1 — API (port 4000)
-cd backend && npm run dev
+npm run dev --prefix backend
+```
 
-# Terminal 2 — Frontend (port 5173)
-cd frontend && npm run dev
+Terminal 2 — the frontend on port 5173:
+
+```bash
+npm run dev --prefix frontend
 ```
 
 Open [http://localhost:5173](http://localhost:5173). The API answers at [http://localhost:4000/api/health](http://localhost:4000/api/health).
 
 ---
 
+> Every command in this README works unchanged in PowerShell, Command Prompt, and bash. That is why they use `npm --prefix <package>` rather than `cd <package> && npm …` — `&&` is a parser error in Windows PowerShell 5.1.
+
+---
+
 ## Running tests
 
-```bash
-# Backend unit tests, with coverage
-cd backend && npm run test:unit
-```
+Backend unit tests, with coverage:
 
 ```bash
-# Backend integration tests (Supertest)
-cd backend && npm run test:integration
+npm run test:unit --prefix backend
 ```
 
+Backend integration tests (Supertest):
+
 ```bash
-# Frontend unit + component tests
-cd frontend && npm test
+npm run test:integration --prefix backend
+```
+
+Frontend unit and component tests:
+
+```bash
+npm test --prefix frontend
 ```
 
 End-to-end tests do not exist yet — the `e2e/` package arrives in Step 0.5 and its first spec in Step 1.7.

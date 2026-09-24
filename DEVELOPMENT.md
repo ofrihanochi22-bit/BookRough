@@ -81,13 +81,18 @@ Node is ≥ 24, and Docker Desktop must actually be running.
 How to view & test:
 ```bash
 docker compose up -d
-docker compose ps                 # postgres should be "healthy"
 ```
 ```bash
-docker exec bookrough-postgres psql -U bookrough -l
+docker compose ps
+```
+The container must report `healthy`. Then:
+```bash
+docker exec bookrough-postgres psql -U bookrough -d music_app_dev -c "\l"
 ```
 The listing must contain both `music_app_dev` and `music_app_test_db`. To rebuild
-from scratch: `docker compose down -v && docker compose up -d`.
+from scratch, run `docker compose down -v` and then `docker compose up -d`.
+
+Verified on 2026-09-24: container healthy, both databases present.
 
 ---
 
@@ -130,7 +135,10 @@ cp backend/.env.example backend/.env
 Fill in `JWT_SECRET` (any 32+ characters for now) and `GOOGLE_CLIENT_ID` (any
 placeholder until Step 1.3), then:
 ```bash
-cd backend && npm install && npm run dev
+npm install --prefix backend
+```
+```bash
+npm run dev --prefix backend
 ```
 ```bash
 curl http://localhost:4000/api/health
@@ -141,10 +149,10 @@ To see the boot-time environment guard, comment out `DATABASE_URL` in `.env` and
 run `npm run dev` again: it exits with the variable named.
 
 ```bash
-cd backend && npm run test:unit
+npm run test:unit --prefix backend
 ```
 ```bash
-cd backend && npm run test:integration
+npm run test:integration --prefix backend
 ```
 
 ---
@@ -184,7 +192,10 @@ How to view & test:
 cp frontend/.env.example frontend/.env
 ```
 ```bash
-cd frontend && npm install && npm run dev
+npm install --prefix frontend
+```
+```bash
+npm run dev --prefix frontend
 ```
 Open `http://localhost:5173/` (Welcome), `/onboarding` (Complete your profile),
 and any other path such as `/nowhere` (not-found page with a working "Go home"
@@ -192,7 +203,7 @@ link). In DevTools, set the viewport to 375px wide and confirm nothing overflows
 horizontally.
 
 ```bash
-cd frontend && npm test
+npm test --prefix frontend
 ```
 
 ---
