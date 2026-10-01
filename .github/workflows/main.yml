@@ -71,8 +71,9 @@ jobs:
           npm ci --prefix e2e
       - name: Apply migrations to the test database
         run: npm run prisma:deploy --prefix backend
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      # WebKit too: the mobile-safari project stands in for the iPhone PWA.
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
         working-directory: e2e
       # Both sides are built and served the way they ship, not through a dev
       # server with a file watcher. An E2E suite that passes against `vite dev`
@@ -81,8 +82,11 @@ jobs:
         run: |
           npm run build --prefix backend
           npm run build --prefix frontend
+      # The Google stand-in (docs/features/auth-flow-e2e.md): the API verifies
+      # ID tokens with the committed test key. NODE_ENV is test here; the API
+      # refuses to start with this key unless NODE_ENV=test.
       - name: Start the API
-        run: node dist/index.js &
+        run: E2E_GOOGLE_PUBLIC_KEY="$(cat ../e2e/fixtures/google-stand-in.pub)" node dist/index.js &
         working-directory: backend
       - name: Serve the built frontend
         run: npx vite preview --port 4173 &

@@ -8,7 +8,7 @@
 | **Use cases** | UC-1 (account creation, second half)                               |
 | **Phase**     | 1 — Step 1.6 of `DEVELOPMENT.md`                                   |
 | **Branch**    | `feat/onboarding-profile`                                          |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged |
 
 ---
 

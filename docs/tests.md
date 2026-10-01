@@ -71,6 +71,7 @@ Integration tests must **never** run against your production or local developmen
 
 When writing unit or integration tests, **do not make actual network requests to third-party services.** * If testing the Google OAuth flow, mock the google-auth-library to return a fake verified token.
 - If testing the route that uses your Playwright scraper, mock the generateUniversalLinks service so it instantly returns fake links instead of actually booting up a headless browser during the test. (Save the real browser interaction for your E2E tests).
+- **E2E and Google sign-in.** E2E cannot sign in with a real Google account (automation is blocked, and it would need a real password in CI). It uses a **Google stand-in** instead: Playwright replaces Google's sign-in script with a stub whose button returns an ID token signed with a throwaway key committed in `e2e/fixtures/`, and the API, started with `E2E_GOOGLE_PUBLIC_KEY`, verifies that token with the same checks it applies to Google's (signature, audience, issuer, expiry). Everything after verification is the real code path. **The API refuses to start with `E2E_GOOGLE_PUBLIC_KEY` set unless `NODE_ENV=test`**, and a unit test proves it. Detail: `docs/features/auth-flow-e2e.md`.
 
 ### 3.5. Test Both the Good Path and the Bad Path
 

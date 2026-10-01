@@ -80,4 +80,54 @@ describe('parseEnv', () => {
       /CORS_ORIGIN/,
     );
   });
+
+  it.each(['production', 'development'])(
+    'refuses the E2E Google stand-in under NODE_ENV=%s',
+    (nodeEnv) => {
+      // Arrange
+      const unsafe = {
+        ...validEnv,
+        NODE_ENV: nodeEnv,
+        E2E_GOOGLE_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----',
+      };
+
+      // Act & Assert
+      expect(() => parseEnv(unsafe)).toThrowError(
+        /E2E_GOOGLE_PUBLIC_KEY: is only allowed with NODE_ENV=test/,
+      );
+    },
+  );
+
+  it('refuses the stand-in when NODE_ENV is unset (it defaults to development)', () => {
+    // Arrange
+    const { NODE_ENV: _unset, ...withoutNodeEnv } = validEnv;
+
+    // Act & Assert
+    expect(() => parseEnv({ ...withoutNodeEnv, E2E_GOOGLE_PUBLIC_KEY: 'key' })).toThrowError(
+      /E2E_GOOGLE_PUBLIC_KEY/,
+    );
+  });
+
+  it('accepts the stand-in under NODE_ENV=test and restores escaped newlines', () => {
+    // Act
+    const parsed = parseEnv({
+      ...validEnv,
+      NODE_ENV: 'test',
+      // As a one-line env value: literal backslash-n sequences.
+      E2E_GOOGLE_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\\nabc\\n-----END PUBLIC KEY-----',
+    });
+
+    // Assert
+    expect(parsed.E2E_GOOGLE_PUBLIC_KEY).toBe(
+      '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----',
+    );
+  });
+
+  it('treats an empty stand-in key as not set, even outside test', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, NODE_ENV: 'production', E2E_GOOGLE_PUBLIC_KEY: '' });
+
+    // Assert
+    expect(parsed.E2E_GOOGLE_PUBLIC_KEY).toBeUndefined();
+  });
 });

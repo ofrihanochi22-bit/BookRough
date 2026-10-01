@@ -1,10 +1,20 @@
 import { OAuth2Client } from 'google-auth-library';
+import jwt from 'jsonwebtoken';
 
 import { env } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('googleIdentity');
+
+// Straight to stderr, not the logger: the stand-in only runs under
+// NODE_ENV=test, where the logger is silent.
+if (env.E2E_GOOGLE_PUBLIC_KEY) {
+  process.stderr.write(
+    'WARNING: E2E Google stand-in is active — ID tokens are verified with the test key, not Google.\n',
+  );
+}
+
 const client = new OAuth2Client();
 
 const SIGN_IN_FAILED = 'Google sign-in failed. Please try again.';
@@ -29,6 +39,10 @@ export interface GoogleIdentity {
  * library caches the keys, so verification does not hit the network again.
  */
 export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentity> {
+  if (env.E2E_GOOGLE_PUBLIC_KEY) {
+    return verifyWithStandIn(idToken, env.E2E_GOOGLE_PUBLIC_KEY);
+  }
+
   try {
     await client.getFederatedSignonCertsAsync();
   } catch (error) {
@@ -78,4 +92,27 @@ export function rejectionReason(error: unknown): string {
   const message = error instanceof Error ? error.message : '';
   const match = REJECTION_REASONS.find(([prefix]) => message.startsWith(prefix));
   return match ? match[1] : 'other';
+}
+
+/**
+ * E2E only (docs/features/auth-flow-e2e.md): the same checks Google's tokens
+ * get — signature, audience, issuer, expiry — against the committed test key.
+ * The env schema refuses to boot production with this key set.
+ */
+function verifyWithStandIn(idToken: string, publicKey: string): GoogleIdentity {
+  try {
+    const payload = jwt.verify(idToken, publicKey, {
+      algorithms: ['RS256'],
+      audience: env.GOOGLE_CLIENT_ID,
+      issuer: 'https://accounts.google.com',
+    });
+    if (typeof payload === 'string' || typeof payload.sub !== 'string' || payload.sub === '') {
+      throw new Error('missing sub');
+    }
+    const picture: unknown = payload.picture;
+    return { sub: payload.sub, picture: typeof picture === 'string' ? picture : null };
+  } catch (error) {
+    log.warn({ reason: (error as Error).name }, 'Rejected stand-in ID token');
+    throw new AppError(SIGN_IN_FAILED, 401);
+  }
 }
