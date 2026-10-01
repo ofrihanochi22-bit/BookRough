@@ -4,38 +4,53 @@ import { z } from 'zod';
 /**
  * Every environment variable the backend reads, in one place.
  */
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4000),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
-  // Must be a bare http(s) origin — scheme, host, optional port, nothing else.
-  // `z.string().url()` alone is not enough: it accepts "localhost:5173", which
-  // parses as the scheme "localhost", and cors() would then never match the
-  // real browser origin.
-  CORS_ORIGIN: z
-    .string()
-    .refine(
-      (value) => {
-        try {
-          const url = new URL(value);
-          return (
-            (url.protocol === 'http:' || url.protocol === 'https:') &&
-            url.hostname.length > 0 &&
-            (url.pathname === '' || url.pathname === '/') &&
-            url.search === '' &&
-            url.hash === ''
-          );
-        } catch {
-          return false;
-        }
-      },
-      { message: 'CORS_ORIGIN must be a bare http(s) origin, e.g. http://localhost:5173' },
-    )
-    .default('http://localhost:5173'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-});
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().positive().default(4000),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
+    GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+    // Must be a bare http(s) origin — scheme, host, optional port, nothing else.
+    // `z.string().url()` alone is not enough: it accepts "localhost:5173", which
+    // parses as the scheme "localhost", and cors() would then never match the
+    // real browser origin.
+    CORS_ORIGIN: z
+      .string()
+      .refine(
+        (value) => {
+          try {
+            const url = new URL(value);
+            return (
+              (url.protocol === 'http:' || url.protocol === 'https:') &&
+              url.hostname.length > 0 &&
+              (url.pathname === '' || url.pathname === '/') &&
+              url.search === '' &&
+              url.hash === ''
+            );
+          } catch {
+            return false;
+          }
+        },
+        { message: 'CORS_ORIGIN must be a bare http(s) origin, e.g. http://localhost:5173' },
+      )
+      .default('http://localhost:5173'),
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
+    // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
+    // one line. Empty means "not set".
+    E2E_GOOGLE_PUBLIC_KEY: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value.replace(/\\n/g, '\n').trim() : undefined)),
+  })
+  // The stand-in must be impossible to enable on the real server, not merely
+  // discouraged: with it, anyone holding the committed test key could sign in
+  // as anyone.
+  .refine((env) => !(env.NODE_ENV === 'production' && env.E2E_GOOGLE_PUBLIC_KEY), {
+    path: ['E2E_GOOGLE_PUBLIC_KEY'],
+    message: 'must not be set in production — it replaces Google sign-in verification',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
