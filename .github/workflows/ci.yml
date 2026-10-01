@@ -1,0 +1,132 @@
+name: ci
+
+# The four checks, defined once and called by both pr.yml and main.yml.
+#
+# They lived in both files at first, which meant a Node version bump or a new
+# job had to be made twice and would silently drift the moment one was
+# forgotten. A reusable workflow is the standard fix. The cost is that the
+# checks appear as "checks / lint" rather than "lint" — the names branch
+# protection requires are set accordingly.
+
+on:
+  workflow_call:
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install tooling and both packages
+        run: |
+          npm ci
+          npm ci --prefix backend
+          npm ci --prefix frontend
+      - name: ESLint
+        run: npm run lint
+      - name: Prettier
+        run: npm run format:check
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install both packages
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+      - name: tsc --noEmit
+        run: |
+          npm run typecheck --prefix backend
+          npm run typecheck --prefix frontend
+
+  test-unit:
+    name: test:unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install both packages
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+      # No database: unit tests touch no I/O by definition.
+      - name: Backend unit tests
+        run: npm run test:unit --prefix backend
+      # The frontend has one suite, so its 80% floor is enforced right here.
+      - name: Frontend unit and component tests, with the coverage floor
+        run: npm run test:unit --prefix frontend
+
+  test-integration:
+    name: test:integration
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bookrough
+          POSTGRES_PASSWORD: bookrough
+          POSTGRES_DB: music_app_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bookrough -d music_app_test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Test values, not secrets. The real ones live in the developer's .env and
+      # at the hosting provider (CLAUDE.md §11).
+      NODE_ENV: test
+      DATABASE_URL: postgresql://bookrough:bookrough@localhost:5432/music_app_test_db
+      JWT_SECRET: ci-only-secret-value-that-is-long-enough-to-pass-validation
+      GOOGLE_CLIENT_ID: ci-only-client-id.apps.googleusercontent.com
+      CORS_ORIGIN: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend
+        run: npm ci --prefix backend
+      # A no-op until Step 1.1 adds the first migration. Wired now so that step
+      # has nothing left to configure.
+      - name: Apply migrations to the test database
+        run: npm run prisma:deploy --prefix backend
+      - name: Integration tests
+        run: npm run test:integration --prefix backend
+      # The backend's 80% floor is measured here, over the unit and integration
+      # suites together. Measuring either alone understates the other — see
+      # backend/vitest.coverage.config.ts for why.
+      - name: Backend coverage floor
+        run: npm run test:coverage --prefix backend

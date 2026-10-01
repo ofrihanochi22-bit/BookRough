@@ -1,0 +1,101 @@
+name: main
+
+# Everything pr.yml runs, plus the Playwright E2E suite (docs/tests.md §4.2).
+#
+# The nightly schedule exists because the link converter scrapes a live external
+# site. A layout change at squigly.link can break the core feature without a
+# single line of our code changing, and this run is what discovers it.
+#
+# A red main or a red nightly takes priority over starting the next feature.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 03:00 UTC daily.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  test-e2e:
+    name: test:e2e
+    runs-on: ubuntu-latest
+    # No point booting browsers if the cheap checks already failed.
+    needs: [checks]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bookrough
+          POSTGRES_PASSWORD: bookrough
+          POSTGRES_DB: music_app_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bookrough -d music_app_test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      PORT: '4000'
+      DATABASE_URL: postgresql://bookrough:bookrough@localhost:5432/music_app_test_db
+      JWT_SECRET: ci-only-secret-value-that-is-long-enough-to-pass-validation
+      GOOGLE_CLIENT_ID: ci-only-client-id.apps.googleusercontent.com
+      # The frontend is served from the preview port, so that is the origin the
+      # API must accept.
+      CORS_ORIGIN: http://localhost:4173
+      VITE_API_BASE_URL: http://localhost:4000/api
+      VITE_GOOGLE_CLIENT_ID: ci-only-client-id.apps.googleusercontent.com
+      E2E_BASE_URL: http://localhost:4173
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Install all three packages
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+      - name: Apply migrations to the test database
+        run: npm run prisma:deploy --prefix backend
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      # Both sides are built and served the way they ship, not through a dev
+      # server with a file watcher. An E2E suite that passes against `vite dev`
+      # and fails against the built bundle is worse than no E2E.
+      - name: Build both packages
+        run: |
+          npm run build --prefix backend
+          npm run build --prefix frontend
+      - name: Start the API
+        run: node dist/index.js &
+        working-directory: backend
+      - name: Serve the built frontend
+        run: npx vite preview --port 4173 &
+        working-directory: frontend
+      - name: Wait for both to answer
+        run: npx wait-on http://localhost:4000/api/health http://localhost:4173 --timeout 60000
+        working-directory: e2e
+      - name: Playwright
+        run: npm test
+        working-directory: e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

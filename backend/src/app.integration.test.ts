@@ -42,6 +42,32 @@ describe('the central error handler', () => {
     });
   });
 
+  it('flattens an unexpected error into a generic 500', async () => {
+    // Act
+    const response = await request(app).get('/api/__boom-raw');
+
+    // Assert
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      status: 'error',
+      code: 500,
+      message: 'Something went wrong.',
+    });
+  });
+
+  it('never passes the raw error message to the client', async () => {
+    // Arrange — the thrown error carries a host, a port and a password, the way
+    // a real database failure would.
+    // Act
+    const response = await request(app).get('/api/__boom-raw');
+
+    // Assert
+    const body = JSON.stringify(response.body);
+    expect(body).not.toContain('ECONNREFUSED');
+    expect(body).not.toContain('5432');
+    expect(body).not.toContain('hunter2');
+  });
+
   it('never leaks a stack trace to the client', async () => {
     // Act
     const response = await request(app).get('/api/__boom');

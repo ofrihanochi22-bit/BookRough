@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+import { coverageExclusions } from './vitest.shared.js';
+
 // Unit tests: everything colocated with the code, except the Supertest
 // integration specs, which have their own config and their own CI job.
 export default defineConfig({
@@ -12,20 +14,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: [
-        // Process bootstrap: binds a port and registers signal handlers.
-        // Exercised by running the server, not by a unit test.
-        'src/index.ts',
-        // Generated Prisma client output.
-        'src/generated/**',
-        // Type-only declarations produce no runtime code.
-        'src/**/*.d.ts',
-        // Tests and their helpers are not the subject of coverage.
-        'src/**/*.test.ts',
-        'src/test/**',
-      ],
-      // The 80% floor (CLAUDE.md §10) is switched on in Step 0.5, together with
-      // the CI job that enforces it.
+      exclude: coverageExclusions,
+      // No threshold here on purpose. This config sees only the unit suite, so
+      // files covered by the Supertest suite would report 0% and fail a floor
+      // they actually pass. The gate lives in vitest.coverage.config.ts, which
+      // measures both suites together.
     },
   },
 });

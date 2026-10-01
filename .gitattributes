@@ -1,0 +1,16 @@
+# One line ending everywhere. Without this, Git hands Windows checkouts CRLF
+# while CI runs on Linux with LF, and Prettier then disagrees with itself
+# depending on which machine ran it.
+* text=auto eol=lf
+
+# Binary: never touched, never diffed as text.
+*.docx binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+
+# Lockfiles are deliberately NOT marked -diff. They are noisy, but a lockfile
+# diff is the only place a dependency change is visible, and hiding it would
+# hide exactly what a reviewer most needs to see.
