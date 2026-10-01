@@ -62,14 +62,14 @@ Goal: A new contributor can start Postgres locally and boot both apps with copie
 
 Tasks:
 
-- [x] Infra: `docker-compose.yml` at the repo root with a `postgres:16` service exposing 5432, named volume for data.
+- [x] Infra: `docker-compose.yml` at the repo root with a `postgres:16` service exposing host port 5433 (moved from 5432 in Phase 1 to avoid a native-Postgres collision), named volume for data.
 - [x] Infra: `docker/postgres-init/01-create-test-database.sql` creates `music_app_test_db` beside `music_app_dev`.
 - [x] Backend: `backend/.env.example` with `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `LOG_LEVEL`.
 - [x] Frontend: `frontend/.env.example` with `VITE_API_BASE_URL`, `VITE_GOOGLE_CLIENT_ID`.
 - [x] Docs: README section "Local setup" with the bring-up commands; `.nvmrc` pins Node 24.
 
 What I did:
-Added `docker-compose.yml` running Postgres 16 on 5432 with a named volume and a
+Added `docker-compose.yml` running Postgres 16 on host port 5433 with a named volume and a
 healthcheck, plus an init script that creates the integration-test database
 `music_app_test_db` alongside the development database `music_app_dev` the first
 time the volume is initialised. Wrote `.env.example` for both packages with every
@@ -362,27 +362,12 @@ confirming GitHub refused the merge — recorded in the PR description.
 ## Phase 1 — Foundation & Identity (UC-1, UC-2, UC-3)
 
 > **Scope shrank.** Email/password auth and password recovery were dropped in favour of Google Sign-In only, and user email addresses are no longer stored at all (CLAUDE.md §5). Former steps 1.2 (email/password routes) and 1.4 (forgot-password flow) are **withdrawn**; UC-17 is withdrawn with them.
+>
+> **Re-sliced (2026-10-01).** Steps 1.1 (schema) and 1.5 (Welcome screen) were merged into Step 1.3, because on their own neither 1.1 nor 1.3 shipped anything clickable (CLAUDE.md §11, vertical slicing). Their numbers are kept as pointers, like the withdrawn steps.
 
-### Step 1.1 — Prisma users schema (Phase 1 — UC-1)
+### Step 1.1 — _(merged into Step 1.3)_ Prisma users schema
 
-Status: ☐ Not started
-Branch: feat/db-users-schema
-Spec: docs/features/users-schema.md
-
-Goal: First migration creates the `users` table exactly per `docs/tables.md`.
-
-Tasks:
-
-- [ ] Spec: docs/features/users-schema.md written and approved
-- [ ] DB: `prisma/schema.prisma` — `User` model with `google_sub` (unique), `username` (unique), `display_name`, `profile_picture_url` (nullable), `preferred_service` enum, `role` enum (`USER`/`ADMIN`, default `USER`), `created_at`.
-- [ ] DB: **No `email` column and no `password_hash` column** — this is deliberate, see CLAUDE.md §5.
-- [ ] DB: `npx prisma migrate dev --name init_users` produces a clean migration.
-- [ ] Backend: `src/db/prisma.ts` exporting a singleton PrismaClient.
-- [ ] Review: improvement pass done before tests written
-- [ ] Tests: migration applies cleanly to an empty `music_app_test_db`; unique constraints on `google_sub` and `username` both reject duplicates.
-
-What I did:
-How to view & test:
+> The `users` table ships with Sign in with Google. See Step 1.3.
 
 ---
 
@@ -392,25 +377,24 @@ How to view & test:
 
 ---
 
-### Step 1.3 — Google Sign-In (Phase 1 — UC-1, UC-2, UC-3)
+### Step 1.3 — Sign in with Google (Phase 1 — UC-1, UC-2, UC-3)
 
-Status: ☐ Not started
+Status: 🟡 In progress
 Branch: feat/auth-google
 Spec: docs/features/google-auth.md
 
-Goal: A user can sign in with Google, receive a session cookie, fetch their session, and sign out. This is the whole of authentication.
+Goal: A user taps Continue with Google and is signed in; a first-time user lands on the (placeholder) Complete Your Profile screen, a returning one on the (placeholder) home screen. The session lasts 30 days and slides with use. The app never learns the user's email or real name.
 
 Tasks:
 
-- [ ] Spec: docs/features/google-auth.md written and approved
-- [ ] Backend: `POST /api/auth/google` — verify the identity token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`), read `sub` and `picture`, **discard the `email` claim**, upsert by `google_sub`, issue the app JWT.
-- [ ] Backend: `POST /api/auth/logout` (clear cookie) and `GET /api/auth/me` (auth middleware reads the cookie).
-- [ ] Backend: `src/utils/jwt.ts` sign/verify helpers; `toPublicUser` serialiser — **never return a raw Prisma user**.
-- [ ] Backend: Response carries `needsOnboarding` so the frontend can route to Complete Your Profile.
-- [ ] Review: confirm no code path reads, logs, or returns `payload.email`.
-- [ ] Tests: mock `google-auth-library`. Good: new `sub` creates a user; known `sub` logs in; logout clears the cookie; `/me` returns the session user.
-- [ ] Tests: Bad: invalid signature → 401; wrong audience → 401; expired token → 401; missing cookie on `/me` → 401.
-- [ ] Tests: **Privacy regression test** — assert the created row has no email field populated and that no response body or log line contains the test token's email address.
+- [x] Spec: docs/features/google-auth.md written and approved
+- [x] DB: `users` table + `StreamingService` / `UserRole` enums, migration `init_users`. No `email`, `password_hash` or `username`; one unique `display_name` (via `display_name_key`); profile columns nullable until onboarding.
+- [x] Backend: `POST /api/auth/google`, `GET /api/auth/me`, `POST /api/auth/logout`; JWT cookie with sliding renewal; `requireAuth`; `toPublicUser`; malformed JSON → `400`.
+- [x] Frontend: Welcome screen, auth store, session bootstrap, route guards, placeholder Complete Your Profile and Home with Sign out.
+- [x] Frontend: semantic design tokens (light + dark), self-hosted fonts, `components/ui/` primitives.
+- [x] Docs: `username` removed and session/same-site decisions recorded across the foundational specs (.md + .docx), CLAUDE.md, tech stack.
+- [ ] Review: `/code-review` and `/security-review`, findings worked through.
+- [ ] Tests: the scenario list in the spec §7, including the privacy regression test.
 
 What I did:
 How to view & test:
@@ -423,25 +407,9 @@ How to view & test:
 
 ---
 
-### Step 1.5 — Auth UI: Welcome screen (Phase 1 — UC-1, UC-2)
+### Step 1.5 — _(merged into Step 1.3)_ Auth UI: Welcome screen
 
-Status: ☐ Not started
-Branch: feat/auth-ui-welcome
-Spec: docs/features/auth-ui.md
-
-Goal: The Welcome screen signs a user in with one button and routes them correctly afterwards.
-
-Tasks:
-
-- [ ] Spec: docs/features/auth-ui.md written and approved
-- [ ] Frontend: `pages/Welcome.tsx` — logo, value proposition, a single `<GoogleLogin>` button, and a line of copy stating that the app never asks for a password and never stores an email address.
-- [ ] Frontend: `stores/auth.ts` Zustand store; route to Complete Your Profile when `needsOnboarding`, otherwise to the dashboard.
-- [ ] Frontend: Signing-in state (button disabled + spinner) and error state.
-- [ ] Review: verify at 375px width first (CLAUDE.md §8).
-- [ ] Tests: RTL — renders the button; shows the signing-in state; shows the error state on a rejected sign-in; routes on each of the two success shapes.
-
-What I did:
-How to view & test:
+> The Welcome screen ships with Sign in with Google. See Step 1.3.
 
 ---
 
@@ -451,16 +419,15 @@ Status: ☐ Not started
 Branch: feat/onboarding-profile
 Spec: docs/features/onboarding.md
 
-Goal: A new user sets username, display name, and preferred service before the dashboard becomes reachable.
+Goal: A new user sets their display name and preferred service before the dashboard becomes reachable.
 
 Tasks:
 
-- [ ] Spec: docs/features/onboarding.md written and approved
-- [ ] Backend: `PATCH /api/users/me` — Zod validation; `P2002` on username → friendly `AppError`.
-- [ ] Frontend: `pages/CompleteProfile.tsx` — username with live availability feedback, display name, generated-avatar preview (no upload), preferred-service selector.
-- [ ] Frontend: Route guard — a user with `needsOnboarding` cannot reach the dashboard.
+- [ ] Spec: docs/features/onboarding.md written and approved (display-name length and character rules, the normalisation behind `display_name_key`).
+- [ ] Backend: `PATCH /api/users/me` — Zod validation; `P2002` on `display_name_key` → "That display name is already taken."
+- [ ] Frontend: `pages/CompleteProfile.tsx` replaces the placeholder — display name with live availability feedback, generated-avatar preview (no upload), preferred-service selector.
 - [ ] Review: improvement pass done before tests written
-- [ ] Tests: Good: profile saves and the guard releases. Bad: duplicate username → inline error; missing preferred service → 422; unauthenticated → 401.
+- [ ] Tests: Good: profile saves and the guard releases. Bad: duplicate display name (including a case/whitespace variant) → inline error; missing preferred service → 422; unauthenticated → 401.
 - [ ] Tests: Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
 
 What I did:
@@ -477,7 +444,7 @@ Goal: Playwright covers sign-in through onboarding to the dashboard.
 
 Tasks:
 
-- [ ] Tests: E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → dashboard; second sign-in → straight to dashboard; logout returns to Welcome.
+- [ ] Tests: E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → home; second sign-in → straight to home; logout returns to Welcome.
 - [ ] Tests: Document how the Google popup is stubbed so the suite never depends on a live Google session.
 
 What I did:

@@ -175,7 +175,7 @@ Full detail in [docs/auth.md](docs/auth.md) (companion `docs/auth.docx`).
   3. Backend verifies the token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`).
   4. Backend reads `sub` and `picture`, looks up the user by `google_sub`, and creates a row if none exists.
   5. Backend issues the app JWT as an `HttpOnly`, `Secure` cookie named `token`, plus `needsOnboarding`.
-  6. Users needing onboarding are routed to **Complete Your Profile** to set `username` and `preferred_service` before the dashboard is reachable.
+  6. Users needing onboarding are routed to **Complete Your Profile** to set `display_name` and `preferred_service` before the dashboard is reachable.
 - **Account collision cannot occur.** One provider, one unique key, no merge logic.
 
 ### 🔴 The email address is never stored
@@ -201,7 +201,7 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 `users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`.
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
-- `users` has **no `email` and no `password_hash`**. The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
+- `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
 - The admin area will need a settings table. It is **not designed yet** — that happens in its own feature session (§15) and lands in `docs/features/admin-panel.md` before any migration is written.
 
 Always create migrations via `npx prisma migrate dev --name <descriptive-name>`. Never edit a migration after it has been applied; create a new one.
@@ -246,7 +246,7 @@ Registration, Login, Forgot Password, and Create New Password screens were **wit
 - **Language: English only.** All UI copy, labels, errors, and empty states are in English. There is **no i18n layer and no RTL support** — do not add `react-i18next`, do not add `dir` switching, do not write translation keys. A hardcoded English string is the correct implementation.
 - **Mobile-first.** Write the base Tailwind classes for a phone viewport and add `sm:` / `md:` / `lg:` upward. The primary target device is an iPhone running the installed PWA; the desktop browser is the secondary layout. Verify at 375px width before anything else.
 - **Touch targets** are at least 44×44px, because the primary surface is a phone.
-- **No image uploads.** Profile pictures and community cover images are **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. The only exception is Google sign-in, where the `picture` URL returned by Google is stored and displayed as-is. The schema keeps an `avatar_url` column so real uploads remain possible later without a migration, but no upload endpoint, storage bucket, or image-processing dependency is in scope.
+- **No image uploads.** Profile pictures and community cover images are **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. The only exception is Google sign-in, where the `picture` URL returned by Google is stored and displayed as-is. The schema's nullable `profile_picture_url` column keeps real uploads possible later without a migration, but no upload endpoint, storage bucket, or image-processing dependency is in scope.
 - **Loading is a designed state.** Every screen that waits on the network has an explicit skeleton or spinner, not a blank area. This matters most on the post-submit flow (§7), where the wait is genuinely several seconds.
 
 ---
@@ -539,7 +539,7 @@ An admin area owned by the product owner, scheduled for **Phase 2** so that user
 - **Gated on `users.role = 'ADMIN'`.** The role is set **directly in the database** — there is no endpoint that grants admin, therefore no endpoint to abuse.
 - **Authorisation is server-side on every admin endpoint.** Hiding the nav entry in the frontend is presentation, not security.
 - A non-admin hitting an admin route gets `403`, and the frontend renders the standard not-found page rather than confirming the area exists.
-- **The user list cannot show an email address, because none is stored** (§5). It shows username, display name, preferred service, join date, and activity counts — nothing that identifies a real person. This constraint is the reason the auth design looks the way it does.
+- **The user list cannot show an email address, because none is stored** (§5). It shows display name, preferred service, join date, and activity counts — nothing that identifies a real person. This constraint is the reason the auth design looks the way it does.
 - Every configuration change is recorded with who made it and when.
 
 ### Deliberately not decided here

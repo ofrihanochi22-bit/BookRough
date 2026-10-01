@@ -7,7 +7,9 @@ services:
     container_name: bookrough-postgres
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      # Host port 5433, not 5432: a natively installed Postgres commonly owns 5432
+      # on developer machines, and it silently wins every localhost connection.
+      - '5433:5432'
     environment:
       POSTGRES_USER: bookrough
       POSTGRES_PASSWORD: bookrough

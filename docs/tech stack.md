@@ -9,6 +9,7 @@ The user-facing application where communities, feeds, and profiles live.
 - **@react-oauth/google:** The specific library to handle the Google Login popup and token retrieval.
 - **Zustand:** For global state management. Chosen over React Context and Redux because it is extremely lightweight and requires far less boilerplate for tracking the user's active session and preferred streaming service.
 - **Tailwind CSS:** A utility-first CSS framework. It drastically speeds up styling and ensures a consistent UI without writing sprawling custom CSS files. Classes are written mobile-first and expanded upward with `sm:` / `md:` / `lg:`.
+- **Fontsource (`@fontsource-variable/inter`, `@fontsource/space-grotesk`):** Self-hosted web fonts (Inter for text, Space Grotesk for the wordmark), bundled with the app instead of loaded from Google Fonts: the offline PWA needs them in the bundle, and no request reaches Google before the user chooses to sign in. Free (SIL Open Font License); if removed, text falls back to the system font and nothing breaks.
 - **React Router:** Client-side routing.
 - **Axios:** The HTTP client, configured as a single instance with a `401` interceptor and a global error toast.
 - **vite-plugin-pwa:** Generates the service worker and wires up the web app manifest, turning the site into an installable, offline-capable PWA. Built on Workbox. See `docs/deployment.md` §6 for the full PWA scope.

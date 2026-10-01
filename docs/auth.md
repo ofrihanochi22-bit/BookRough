@@ -108,7 +108,7 @@ export async function authenticateWithGoogle(idToken: string) {
   const googleSub = payload?.sub;
   if (!googleSub) throw new AppError('Sign-in failed. Please try again.', 401);
 
-  // payload.email is deliberately NOT read, NOT stored, and NOT logged.
+  // payload.email and payload.name are deliberately NOT read, NOT stored, and NOT logged.
   // The account key is the opaque `sub` claim. See section 1.1.
   const picture = payload?.picture ?? null;
 
@@ -120,7 +120,7 @@ export async function authenticateWithGoogle(idToken: string) {
     });
   }
 
-  const needsOnboarding = !user.username || !user.preferredService;
+  const needsOnboarding = !user.displayName || !user.preferredService;
 
   return { user, needsOnboarding };
 }
@@ -128,9 +128,9 @@ export async function authenticateWithGoogle(idToken: string) {
 The controller signs the app JWT and sets the cookie:
 
 TypeScript
-const { user, needsOnboarding } = await authenticateWithGoogle(req.body.token);
+const { user, needsOnboarding } = await authenticateWithGoogle(req.body.credential);
 
-const appToken = jwt.sign({ userId: user.id }, env.JWT_SECRET, { expiresIn: '7d' });
+const appToken = jwt.sign({ userId: user.id }, env.JWT_SECRET, { expiresIn: '30d' });
 
 res.cookie('token', appToken, {
   httpOnly: true,
@@ -145,11 +145,11 @@ return res.status(200).json(success({ user: toPublicUser(user), needsOnboarding 
 ### 4. Handling Database Edge Cases
 
 - **Account collision: cannot happen.** With a single provider and `google_sub` as a unique key, there is no second route to the same person, so there is no merge logic to write. This is a direct simplification gained by dropping email/password login.
-- **Missing profile data.** Google supplies neither a unique `username` nor a `preferred_service`. A newly created user therefore has a row but an incomplete profile. The backend returns `needsOnboarding: true` and the frontend routes to the **Complete Your Profile** screen to collect both before the dashboard becomes reachable.
-- **Abandoned onboarding.** A user who closes the app mid-onboarding leaves a row with no username. On their next sign-in the same `sub` matches, `needsOnboarding` is true again, and they resume. Do not create a second row, and do not treat the incomplete row as corrupt.
-- **Username collision.** Usernames are user-chosen and unique. Convert the Prisma `P2002` unique-constraint error into a friendly `AppError` - "That username is already taken." - per CLAUDE.md section 4.
+- **Missing profile data.** Google supplies neither a unique `display_name` nor a `preferred_service`. A newly created user therefore has a row but an incomplete profile. The backend returns `needsOnboarding: true` and the frontend routes to the **Complete Your Profile** screen to collect both before the dashboard becomes reachable.
+- **Abandoned onboarding.** A user who closes the app mid-onboarding leaves a row with no display name. On their next sign-in the same `sub` matches, `needsOnboarding` is true again, and they resume. Do not create a second row, and do not treat the incomplete row as corrupt.
+- **Display-name collision.** Display names are user-chosen and unique, compared case- and whitespace-insensitively through `display_name_key`. Convert the Prisma `P2002` unique-constraint error into a friendly `AppError` - "That display name is already taken." - per CLAUDE.md section 4.
 - **Google picture unavailable.** `payload.picture` may be absent, or may later 404. `profile_picture_url` is nullable and the UI falls back to the generated avatar (CLAUDE.md section 8).
-- **Revoked Google access.** If a user revokes the app from their Google account, future sign-ins fail verification. Existing session cookies stay valid until they expire - acceptable for a 7-day session at this scale.
+- **Revoked Google access.** If a user revokes the app from their Google account, future sign-ins fail verification. Existing session cookies stay valid until they expire - accepted for a 30-day sliding session at this scale. Rotating `JWT_SECRET` is the emergency lever: it signs everyone out.
 
 ### 5. Administrative Access (UC-19)
 

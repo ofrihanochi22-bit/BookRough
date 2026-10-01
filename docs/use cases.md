@@ -2,9 +2,9 @@
 
 ### UC-1: User Registration
 
-- **Description:** A new user creates an account using **Google Sign-In** and completes onboarding by choosing a username, display name, and music preferences.
+- **Description:** A new user creates an account using **Google Sign-In** and completes onboarding by choosing a display name and a preferred streaming service.
 - **Pre-conditions:** The user has a Google account and does not yet have a BookRough account linked to it.
-- **Post-conditions:** A new User record is created containing their id, `google_sub`, username, display name, and preferred service. **No email address is stored.** The user is authenticated and logged in.
+- **Post-conditions:** A new User record is created containing their id, `google_sub`, display name, and preferred service. **No email address is stored.** The user is authenticated and logged in.
 - **Trigger:** The user opens the app and taps "Continue with Google".
 - **Step-by-step scenario (Success):**
   - The user taps "Continue with Google" on the Welcome screen.
@@ -12,9 +12,9 @@
   - The frontend receives a Google identity token and posts it to the backend.
   - The backend verifies the token signature and audience with Google, then reads the `sub` claim. **The `email` claim is discarded and never written to the database.**
   - No user exists for that `sub`, so the backend creates one and issues an app session JWT.
-  - The system routes the user to the "Complete Your Profile" screen to choose a username, a display name, and a Preferred Streaming Service (Spotify, Apple Music, YouTube, Tidal, Deezer).
+  - The system routes the user to the "Complete Your Profile" screen to choose a display name (any language, unique) and a Preferred Streaming Service (Spotify, Apple Music, YouTube, Tidal, Deezer).
   - The user submits; the system saves the profile and routes them to the Communities Dashboard.
-- **Fail description (Alternative Scenario):** The user chooses a username that is already taken. The system halts the profile step and displays "That username is already taken." The account row already exists at this point, so the user stays on the onboarding screen until a valid username is supplied rather than being sent back to the start.
+- **Fail description (Alternative Scenario):** The user chooses a display name that is already taken. The system halts the profile step and displays "That display name is already taken." The account row already exists at this point, so the user stays on the onboarding screen until an available display name is supplied rather than being sent back to the start.
 
 > **Note.** Registration and login are the same button. A returning user whose `sub` is already known is simply logged in (UC-2); a new `sub` becomes a new account. There is no separate "Sign Up" path and no email/password option — see `docs/auth.md`.
 
@@ -60,26 +60,26 @@
   - The user changes their Preferred Streaming Service from Spotify to Apple Music.
   - The user's avatar is regenerated automatically from their display name; there is nothing to upload.
   - The user clicks the "Save Changes" button.
-  - The system validates the inputs (display name length, username uniqueness, a recognised streaming service).
+  - The system validates the inputs (display name length and uniqueness, a recognised streaming service).
   - The backend updates the User record in the database.
   - The system displays a "Profile updated successfully" toast notification and returns the user to their refreshed profile view.
-- **Fail description (Alternative Scenario):** The user attempts to save a username that is already taken by another account. The system prevents the save action and displays an inline error message: "That username is already taken."
+- **Fail description (Alternative Scenario):** The user attempts to save a display name that is already taken by another account. The system prevents the save action and displays an inline error message: "That display name is already taken."
 
 > **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users who signed in with Google keep the picture Google supplies. There is no upload control anywhere in the product; see `docs/general.md` §4.1.
 
 ### UC-5: User Searches Other Users
 
-- **Description:** A user searches the platform's directory to find other individuals using their username or display name.
+- **Description:** A user searches the platform's directory to find other individuals using their display name.
 - **Pre-conditions:** The user is logged into the application.
 - **Post-conditions:** The system displays a list of user profiles that match the search query, allowing the searching user to view them or take further action.
 - **Trigger:** The user taps the search icon/bar, types a query, and submits the search.
 - **Step-by-step scenario (Success):**
   - The user taps the global search bar in the application header.
   - The user types a name (e.g., "Danny").
-  - The system queries the database for User records where the username or display name partially or fully matches the input.
+  - The system queries the database for User records where the display name partially or fully matches the input.
   - The system populates a results list displaying the matching users' profile pictures and names.
   - The user taps on a specific result to view that person's full profile and rating history.
-- **Fail description (Alternative Scenario):** The user searches for a username that does not exist in the database or contains invalid special characters. The system completes the search but returns an empty state graphic with the text: "No users found matching this search. Try a different name."
+- **Fail description (Alternative Scenario):** The user searches for a name that does not exist in the database or contains invalid special characters. The system completes the search but returns an empty state graphic with the text: "No users found matching this search. Try a different name."
 
 ### UC-6: User Sends Friendship Request
 
@@ -245,7 +245,7 @@
   - The user taps the post to open the detailed view.
   - The system queries the database for the ratings array associated with that specific Post ID.
   - The UI renders the detailed view, displaying the calculated average star rating prominently at the top.
-  - Below the average, the system lists individual rating entries, displaying the rater's username, their specific star score (1-10), their optional text comment, and the timestamp.
+  - Below the average, the system lists individual rating entries, displaying the rater's display name, their specific star score (1-10), their optional text comment, and the timestamp.
 - **Fail description (Alternative Scenario):** A database lag occurs while fetching the ratings array for a highly popular post. The system displays a loading skeleton or spinner for 3 seconds. If the fetch times out, the system displays a placeholder: "Could not load comments at this time. Pull to refresh."
 
 ### UC-17: *(withdrawn)* User Resets Password
@@ -281,7 +281,7 @@
 - **Step-by-step scenario (Success):**
   - The administrator signs in through the normal Google flow (UC-2).
   - The system recognises the `ADMIN` role and exposes the admin area; it is invisible and inaccessible to everyone else.
-  - The administrator views the user list: username, display name, preferred service, join date, and activity counts.
+  - The administrator views the user list: display name, preferred service, join date, and activity counts.
   - The administrator adjusts a presentation setting (for example a theme colour or a piece of static copy).
   - The system saves the change, records who made it and when, and applies it for all users.
 - **Fail description (Alternative Scenario):** A non-admin user navigates directly to an admin URL or calls an admin endpoint. The backend returns `403` and the frontend shows the standard not-found page rather than confirming that an admin area exists.

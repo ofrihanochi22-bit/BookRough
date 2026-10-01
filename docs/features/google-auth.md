@@ -193,7 +193,7 @@ Both show the user's avatar (Google picture, or the generated initials avatar wh
 
 - Zustand: `{ status: 'unknown' | 'signedIn' | 'signedOut', user: PublicUser | null, needsOnboarding: boolean }`, actions `setSession`, `clear`.
 - `api/auth.ts`: `signInWithGoogle`, `fetchMe`, `logout`.
-- `onUnauthorized()` in `api/client.ts` now also calls `clear()` — the seam Phase 0 left for this.
+- `onUnauthorized()` in `api/client.ts` now clears the store instead of reloading the page; the route guards then navigate to `/` through the router. Same outcome as CLAUDE.md §4's "clear and redirect", without a full reload and a second `/auth/me`.
 - The axios interceptor gains a per-request opt-out from the error toast (used by sign-in only).
 
 ## 6. Edge cases & failure modes
@@ -271,3 +271,6 @@ Both show the user's avatar (Google picture, or the generated initials avatar wh
 | 2026-10-01 | Session: 30 days, sliding renewal                                                                 | Re-signing into an iPhone PWA every few days is friction; inactivity still expires it    |
 | 2026-10-01 | Column is `profile_picture_url` (CLAUDE.md's `avatar_url` corrected)                              | Three documents already used this name                                                   |
 | 2026-10-01 | Placeholder identity: purple accent, Space Grotesk + Inter, semantic tokens                       | Real logo and design come later; tokens keep that redesign cheap                         |
+| 2026-10-01 | Local Docker Postgres moved to host port 5433                                                     | A natively installed Postgres held 5432 and silently won every localhost connection      |
+| 2026-10-01 | A 401 clears the store; guards redirect (no page reload)                                          | Router navigation is instant and avoids re-running the session bootstrap                 |
+| 2026-10-01 | `GoogleOAuthProvider` wraps Welcome only                                                          | Google's script loads only when the sign-in button is actually on screen                 |
