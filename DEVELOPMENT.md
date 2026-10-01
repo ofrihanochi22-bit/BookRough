@@ -379,7 +379,7 @@ confirming GitHub refused the merge — recorded in the PR description.
 
 ### Step 1.3 — Sign in with Google (Phase 1 — UC-1, UC-2, UC-3)
 
-Status: 🟡 In progress
+Status: ✅ Done
 Branch: feat/auth-google
 Spec: docs/features/google-auth.md
 
@@ -393,11 +393,48 @@ Tasks:
 - [x] Frontend: Welcome screen, auth store, session bootstrap, route guards, placeholder Complete Your Profile and Home with Sign out.
 - [x] Frontend: semantic design tokens (light + dark), self-hosted fonts, `components/ui/` primitives.
 - [x] Docs: `username` removed and session/same-site decisions recorded across the foundational specs (.md + .docx), CLAUDE.md, tech stack.
-- [ ] Review: `/code-review` and `/security-review`, findings worked through.
-- [ ] Tests: the scenario list in the spec §7, including the privacy regression test.
+- [x] Review: `/code-review` and `/security-review`, findings worked through.
+- [x] Tests: the scenario list in the spec §7, including the privacy regression test.
 
 What I did:
+
+Built the first vertical slice of Phase 1 (UC-1 first half, UC-2, UC-3) per `docs/features/google-auth.md`.
+
+- **DB:** `backend/prisma/schema.prisma` — `User` model, `StreamingService` and `UserRole` enums; migration `init_users`. No `email`, `password_hash` or `username`; `display_name` / `display_name_key` (unique) / `preferred_service` are nullable until onboarding.
+- **Backend:** `services/googleIdentity.service.ts` (verifies the Google token; keys fetched first so an outage is `503`, a bad token `401`; rejection logs carry a fixed reason label only, because the library's messages embed the token payload), `services/auth.service.ts` (find-or-create by `google_sub`, picture refresh, concurrent-create fallback), `controllers/auth.controller.ts` + `routes/auth.ts` (`POST /api/auth/google`, `GET /api/auth/me`, `POST /api/auth/logout`), `middleware/requireAuth.ts` (loads the user every request, sliding 30-day renewal), `utils/jwt.ts`, `utils/sessionCookie.ts`, `utils/publicUser.ts` (`toPublicUser`), `utils/validate.ts`. The error handler now passes client-caused body errors through (`400` bad JSON, `413`, `415`) instead of `500`. Prisma disconnects on shutdown.
+- **Frontend:** `pages/Welcome.tsx` (Google button, signing-in / Google-error / server-error / blocked-script / offline states), `stores/auth.ts`, `api/auth.ts`, `components/RouteGuards.tsx` (session bootstrap with a retry screen; guards for `/`, `/onboarding`, `/home`), placeholder `pages/CompleteProfile.tsx` and `pages/Home.tsx` with Sign out. Semantic design tokens with dark mode in `index.css`, self-hosted fonts, `components/ui/` (`Button`, `Avatar`, `Wordmark`, `ScreenLayout`, `Spinner`). A `401` now clears the store and the guards redirect.
+- **Infra:** local Docker Postgres moved to host port **5433** (a native Postgres held 5432). Integration suites migrate the test DB in a Vitest `globalSetup`.
+- **Docs:** `username` removed and the display-name, session and same-site decisions recorded across `tables`, `auth`, `use cases`, `frontend screens`, `general`, `system architecture conventions`, `git workflow`, `deployment`, `tech stack` (.md + .docx), and CLAUDE.md.
+- **Tests:** backend 58 unit + 33 integration (96% lines over both); frontend 54 component/unit (99.6% lines). Includes the privacy regression test, which fails if the old log leak is reintroduced.
+
 How to view & test:
+
+One-time: your `backend/.env` must use port **5433** in `DATABASE_URL` (already updated), and the Google OAuth client must list `http://localhost:5173` as an authorised JavaScript origin.
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` (phone width first: DevTools → 375px).
+
+1. Welcome shows the purple wordmark, the value line, **Continue with Google**, and "No passwords. We never store your email."
+2. Sign in with Google → "Signing you in…" → **Complete your profile** (placeholder) with your Google picture.
+3. Reload the page → you stay signed in (no flash of Welcome).
+4. Visit `/home` → redirected back to `/onboarding` (profile not set yet).
+5. **Sign out** → back on Welcome; visiting `/onboarding` now redirects to `/`.
+6. DevTools → Network → offline, then reload → "Can't reach BookRough right now" with **Try again**.
+
+Tests:
+
+```bash
+cd backend && npm run test:unit            # unit
+cd backend && npm run test:integration     # Supertest against music_app_test_db
+cd backend && npm run test:coverage        # both suites, 80% floor
+cd frontend && npm run test:unit           # components, 80% floor
+cd backend && npx vitest run --config vitest.integration.config.ts -t "privacy"   # the privacy regression test only
+```
 
 ---
 

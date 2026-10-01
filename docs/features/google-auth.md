@@ -8,7 +8,7 @@
 | **Use cases** | UC-1 (account creation, first half), UC-2 (login), UC-3 (logout)   |
 | **Phase**     | 1 — merges former Steps 1.1, 1.3 and 1.5 of `DEVELOPMENT.md`       |
 | **Branch**    | `feat/auth-google`                                                 |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 
