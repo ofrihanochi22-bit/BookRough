@@ -27,6 +27,8 @@ const SERVICES: ReadonlyArray<{ value: StreamingService; label: string }> = [
 
 type AvatarChoice = 'generated' | 'google';
 
+const NAME_MESSAGES: ReadonlySet<string> = new Set(Object.values(DISPLAY_NAME_MESSAGES));
+
 /**
  * Complete Your Profile — docs/features/onboarding.md §6. Collects what
  * Google does not supply: a display name, a streaming service, and whether the
@@ -78,7 +80,9 @@ export function CompleteProfile() {
       setSaving(false);
       const response = isAxiosError<{ message?: string }>(caught) ? caught.response : undefined;
       const message = response?.data?.message;
-      if ((response?.status === 409 || response?.status === 422) && message) {
+      // Only name problems belong on the name's status line; anything else
+      // (e.g. a photo that is no longer available) is a form-level error.
+      if (message && NAME_MESSAGES.has(message)) {
         setRejected({ name: cleaned, message });
       } else if (response) {
         setError(message ?? 'Saving failed. Please try again.');
