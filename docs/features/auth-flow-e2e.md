@@ -8,7 +8,7 @@
 | **Use cases** | UC-1, UC-2, UC-3 (the golden loop through them)                                                      |
 | **Phase**     | 1 — Step 1.7 of `DEVELOPMENT.md`                                                                     |
 | **Branch**    | `chore/auth-flow-e2e` (DEVELOPMENT.md said `test/`, which is not an allowed prefix in CLAUDE.md §11) |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                   |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                                   |
 
 ---
 

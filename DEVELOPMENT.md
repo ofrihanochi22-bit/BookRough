@@ -504,9 +504,9 @@ cd frontend && npm run test:unit                    # includes CompleteProfile.t
 
 ---
 
-### Step 1.7 — Phase 1 E2E coverage (Phase 1)
+### Step 1.7 — Phase 1 E2E coverage (Phase 1 — UC-1, UC-2, UC-3)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: chore/auth-flow-e2e
 Spec: docs/features/auth-flow-e2e.md
 
@@ -514,11 +514,49 @@ Goal: Playwright covers sign-in through onboarding to the dashboard.
 
 Tasks:
 
-- [ ] Tests: E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → home; second sign-in → straight to home; logout returns to Welcome.
-- [ ] Tests: Document how the Google popup is stubbed so the suite never depends on a live Google session.
+- [x] Spec: docs/features/auth-flow-e2e.md written and approved.
+- [x] Backend: Google stand-in — optional `E2E_GOOGLE_PUBLIC_KEY`, verified with RS256/audience/issuer/expiry; the API refuses to start with it unless `NODE_ENV=test`.
+- [x] Tests: E2E with a stubbed Google identity token: first sign-in → Complete Your Profile → home; reload keeps the session; logout returns to Welcome; second sign-in → straight to home; abandoned onboarding resumes.
+- [x] Tests: The stand-in is documented in `docs/tests.md` §3.4 (+ `.docx`) and `e2e/fixtures/README.md`.
+- [x] CI: `main.yml` installs WebKit as well as Chromium and passes the stand-in key to the API.
+- [x] Review: `/code-review` (5 findings: 4 fixed, E2E typecheck deferred — needs `typescript` in `e2e/`) and `/security-review` (clean).
 
 What I did:
+
+Closed Phase 1 with an end-to-end suite (UC-1, UC-2, UC-3) per `docs/features/auth-flow-e2e.md`.
+
+- **Google stand-in:** `e2e/support/googleStandIn.ts` replaces Google's sign-in script in the browser with a stub whose button returns an ID token signed with the throwaway key in `e2e/fixtures/`; `backend/src/services/googleIdentity.service.ts` verifies such tokens when `E2E_GOOGLE_PUBLIC_KEY` is set. `backend/src/config/env.ts` refuses that setting unless `NODE_ENV=test`, and the API prints a warning to stderr whenever it is active.
+- **Specs:** `e2e/tests/auth-flow.spec.ts` — three golden loops, each with a fresh Google account, in desktop Chromium and iPhone-sized WebKit (6 runs).
+- **Local runs:** `e2e/playwright.config.ts` builds and starts the API (port 4100) and the frontend preview (port 4173) against `music_app_test_db`, so the dev servers and dev database are untouched.
+- **CI:** `main.yml` now installs WebKit (the `mobile-safari` project existed but its browser was never installed) and starts the API with the stand-in key.
+- **Tests added:** 11 backend unit tests (env refusal in production / development / unset; stand-in accepts its key and rejects other keys, audience, issuer, expiry, missing sub, HS256 forgery).
+
 How to view & test:
+
+One-time, if Playwright's browsers are missing on the machine:
+
+```bash
+cd e2e && npx playwright install chromium webkit
+```
+
+Run the suite (Docker Postgres must be up; it builds and serves both apps itself):
+
+```bash
+docker compose up -d
+cd e2e && npm test
+```
+
+Expected: `6 passed`. To watch it run in a visible browser:
+
+```bash
+cd e2e && npm run test:headed
+```
+
+Backend tests for the stand-in and its guard:
+
+```bash
+cd backend && npx vitest run src/config src/services/googleIdentity
+```
 
 ---
 
