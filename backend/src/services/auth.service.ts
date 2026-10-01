@@ -1,6 +1,7 @@
 import { Prisma, type User } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
+import { needsOnboarding } from '../utils/publicUser.js';
 import { verifyGoogleIdToken } from './googleIdentity.service.js';
 
 export interface SignInResult {
@@ -12,14 +13,18 @@ export interface SignInResult {
  * Sign-up and sign-in are one action (CLAUDE.md §5): verify the Google token,
  * then find the account by `google_sub` or create it.
  *
- * A returning user's picture is refreshed, because Google picture URLs change.
+ * The Google photo is kept only while it can still be chosen (before
+ * onboarding) or after the user chose it — then it is refreshed, because Google
+ * picture URLs change. A user who declined it never has it stored again
+ * (docs/features/onboarding.md §3).
  */
 export async function authenticateWithGoogle(credential: string): Promise<SignInResult> {
   const { sub, picture } = await verifyGoogleIdToken(credential);
 
   const existing = await prisma.user.findUnique({ where: { googleSub: sub } });
   if (existing) {
-    return { user: await refreshPicture(existing, picture), isNewUser: false };
+    const keep = needsOnboarding(existing) || existing.useGooglePicture;
+    return { user: await syncPicture(existing, keep ? picture : null), isNewUser: false };
   }
 
   try {
@@ -38,7 +43,7 @@ export async function authenticateWithGoogle(credential: string): Promise<SignIn
   }
 }
 
-async function refreshPicture(user: User, picture: string | null): Promise<User> {
+async function syncPicture(user: User, picture: string | null): Promise<User> {
   if (user.profilePictureUrl === picture) {
     return user;
   }

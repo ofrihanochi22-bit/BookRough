@@ -24,6 +24,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     displayName: null,
     displayNameKey: null,
     profilePictureUrl: 'https://pic/old',
+    useGooglePicture: false,
     preferredService: null,
     role: 'USER',
     createdAt: new Date(),

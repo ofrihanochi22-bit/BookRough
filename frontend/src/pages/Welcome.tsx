@@ -6,6 +6,7 @@ import { signInWithGoogle } from '../api/auth';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Spinner } from '../components/ui/Spinner';
 import { Wordmark } from '../components/ui/Wordmark';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useAuthStore } from '../stores/auth';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
@@ -125,22 +126,6 @@ function messageFor(error: unknown): string {
     return error.response.data?.message ?? MESSAGES.fallback;
   }
   return MESSAGES.fallback;
-}
-
-function useOnlineStatus(): boolean {
-  const [online, setOnline] = useState(() => navigator.onLine);
-
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-
-  return online;
 }
 
 /** Google's button is styled by Google; this only picks its light or dark variant. */

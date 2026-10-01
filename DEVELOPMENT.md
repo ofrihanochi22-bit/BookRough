@@ -452,17 +452,18 @@ cd backend && npx vitest run --config vitest.integration.config.ts -t "privacy" 
 
 ### Step 1.6 — Complete-Your-Profile onboarding (Phase 1 — UC-1)
 
-Status: ☐ Not started
+Status: 🟡 In progress
 Branch: feat/onboarding-profile
 Spec: docs/features/onboarding.md
 
-Goal: A new user sets their display name and preferred service before the dashboard becomes reachable.
+Goal: A new user sets their display name, preferred service, and avatar (Google photo or generated) before the dashboard becomes reachable.
 
 Tasks:
 
-- [ ] Spec: docs/features/onboarding.md written and approved (display-name length and character rules, the normalisation behind `display_name_key`).
-- [ ] Backend: `PATCH /api/users/me` — Zod validation; `P2002` on `display_name_key` → "That display name is already taken."
-- [ ] Frontend: `pages/CompleteProfile.tsx` replaces the placeholder — display name with live availability feedback, generated-avatar preview (no upload), preferred-service selector.
+- [x] Spec: docs/features/onboarding.md written and approved (display-name rules, normalisation, reserved names, avatar choice).
+- [x] DB: migration `add_use_google_picture`.
+- [x] Backend: `PATCH /api/users/me` and `GET /api/users/display-name-availability`; `P2002` on `display_name_key` → `409` "That display name is already taken."; sign-in stops storing a declined Google photo.
+- [x] Frontend: `pages/CompleteProfile.tsx` replaces the placeholder — avatar choice, display name with live availability feedback, preferred-service selector.
 - [ ] Review: improvement pass done before tests written
 - [ ] Tests: Good: profile saves and the guard releases. Bad: duplicate display name (including a case/whitespace variant) → inline error; missing preferred service → 422; unauthenticated → 401.
 - [ ] Tests: Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
