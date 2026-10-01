@@ -3,7 +3,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { checkAvailability, updateProfile } from '../services/user.service.js';
-import { AppError } from '../utils/AppError.js';
+import { sessionUser } from '../middleware/requireAuth.js';
 import { sessionPayload } from '../utils/publicUser.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
@@ -22,11 +22,8 @@ const availabilityQuerySchema = z.object({ name: z.string().min(1).max(200) });
 /** PATCH /api/users/me — mounted behind requireAuth. */
 export const updateMe: RequestHandler = async (req, res, next) => {
   try {
-    if (!req.user) {
-      throw new AppError('Please sign in.', 401);
-    }
     const update = parseBody(profileUpdateSchema, req.body);
-    const user = await updateProfile(req.user, update);
+    const user = await updateProfile(sessionUser(req), update);
     res.status(200).json(success(sessionPayload(user)));
   } catch (error) {
     next(error);
@@ -36,11 +33,8 @@ export const updateMe: RequestHandler = async (req, res, next) => {
 /** GET /api/users/display-name-availability?name= — mounted behind requireAuth. */
 export const displayNameAvailability: RequestHandler = async (req, res, next) => {
   try {
-    if (!req.user) {
-      throw new AppError('Please sign in.', 401);
-    }
     const { name } = parseQuery(availabilityQuerySchema, req.query);
-    res.status(200).json(success(await checkAvailability(req.user, name)));
+    res.status(200).json(success(await checkAvailability(sessionUser(req), name)));
   } catch (error) {
     next(error);
   }

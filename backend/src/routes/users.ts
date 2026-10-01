@@ -5,6 +5,6 @@ import { requireAuth } from '../middleware/requireAuth.js';
 
 export const usersRouter: Router = Router();
 
-usersRouter.use(requireAuth);
-usersRouter.patch('/me', updateMe);
-usersRouter.get('/display-name-availability', displayNameAvailability);
+// Guarded per route, not router-wide, so an unknown /users path still 404s.
+usersRouter.patch('/me', requireAuth, updateMe);
+usersRouter.get('/display-name-availability', requireAuth, displayNameAvailability);

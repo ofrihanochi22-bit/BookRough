@@ -20,6 +20,12 @@ export const DISPLAY_NAME_MESSAGES = {
 
 const BASE = /[\p{L}\p{M}\p{N} .\-_'\p{Extended_Pictographic}]/u;
 
+/**
+ * Hangul fillers are classified as letters but render as blank space, so a
+ * name made of them would look empty.
+ */
+const BLANK_LETTERS = new Set([0x115f, 0x1160, 0x3164, 0xffa0]);
+
 function isEmojiPart(codePoint: number): boolean {
   return (
     codePoint === 0x200d || // zero-width joiner
@@ -32,8 +38,20 @@ function isEmojiPart(codePoint: number): boolean {
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
+/**
+ * Typographic apostrophes and hyphens become their plain forms first: iOS
+ * "smart punctuation" turns ' into ’ as the user types.
+ */
+const TYPOGRAPHIC = /[‘’ʼ]/gu;
+const HYPHENS = /[‐‑]/gu;
+
 export function cleanDisplayName(raw: string): string {
-  return raw.normalize('NFC').replace(/\s+/gu, ' ').trim();
+  return raw
+    .normalize('NFC')
+    .replace(TYPOGRAPHIC, "'")
+    .replace(HYPHENS, '-')
+    .replace(/\s+/gu, ' ')
+    .trim();
 }
 
 export function graphemeCount(value: string): number {
@@ -48,7 +66,11 @@ export function displayNameProblem(raw: string): string | null {
   if (length < MIN_GRAPHEMES || length > MAX_GRAPHEMES) {
     return DISPLAY_NAME_MESSAGES.length;
   }
-  if (!Array.from(name).every((char) => BASE.test(char) || isEmojiPart(char.codePointAt(0)!))) {
+  const allowed = Array.from(name).every((char) => {
+    const codePoint = char.codePointAt(0)!;
+    return !BLANK_LETTERS.has(codePoint) && (BASE.test(char) || isEmojiPart(codePoint));
+  });
+  if (!allowed) {
     return DISPLAY_NAME_MESSAGES.character;
   }
   if (Array.from(name).length > MAX_CODE_POINTS) {

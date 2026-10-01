@@ -111,7 +111,12 @@ export function CompleteProfile() {
               selected={avatar === 'generated'}
               onSelect={() => setAvatar('generated')}
             >
-              <Avatar id={user.id} name={cleaned.length > 0 ? cleaned : null} size={56} />
+              <Avatar
+                id={user.id}
+                name={cleaned.length > 0 ? cleaned : null}
+                size={56}
+                decorative
+              />
             </AvatarTile>
             {googlePhoto && (
               <AvatarTile
@@ -119,7 +124,7 @@ export function CompleteProfile() {
                 selected={avatar === 'google'}
                 onSelect={() => setAvatar('google')}
               >
-                <Avatar id={user.id} name={null} pictureUrl={googlePhoto} size={56} />
+                <Avatar id={user.id} name={null} pictureUrl={googlePhoto} size={56} decorative />
               </AvatarTile>
             )}
           </div>
