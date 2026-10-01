@@ -8,7 +8,7 @@
 | **Use cases** | UC-1 (account creation, second half)                               |
 | **Phase**     | 1 — Step 1.6 of `DEVELOPMENT.md`                                   |
 | **Branch**    | `feat/onboarding-profile`                                          |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 
@@ -68,7 +68,7 @@ Applied by the server (authoritative) and mirrored on the client for instant fee
 1. **Clean:** Unicode NFC; typographic apostrophes (`’ ‘ ʼ`) become `'` and Unicode hyphens (`‐ ‑`) become `-` (iOS smart punctuation inserts them while typing); trim; collapse runs of whitespace to one space.
 2. **Length:** 2–20 _visible_ characters, counted as grapheme clusters (`Intl.Segmenter`), so "🎧" or a letter with niqqud counts as one. Additionally at most 50 code points, so the `VarChar(50)` columns always fit (only reachable with long emoji sequences).
 3. **Allowed characters:** letters in any script, combining marks, digits, spaces, emoji (including skin tones, ZWJ sequences and variation selectors), and `. - _ '`. Anything else is rejected — symbols like `<>@#/`, and invisible characters (zero-width space, bidi marks, control characters, and the Hangul fillers `U+115F U+1160 U+3164 U+FFA0`, which are classified as letters but render blank).
-4. **Uniqueness key** (`display_name_key`): NFKD → remove combining marks (accents, niqqud) → remove ZWJ / variation selectors → lower-case → collapse whitespace → trim → NFC. "עֹפְרִי" ≡ "עופרי", "José" ≡ "jose", "Ｏｆｒｉ" ≡ "ofri".
+4. **Uniqueness key** (`display_name_key`): NFKD → remove combining marks (accents, niqqud) → remove ZWJ / variation selectors → lower-case → collapse whitespace → trim → NFC. "עוֹפְרִי" ≡ "עופרי", "José" ≡ "jose", "Ｏｆｒｉ" ≡ "ofri".
 5. **Reserved names:** rejected when the key **equals** a reserved key, or **contains** `bookrough` / `בוקראף`. The list (stored as written, compared by key):
    - App and staff: BookRough, Book Rough, Admin, Administrator, Root, Superuser, Sysadmin, Owner, Staff, Team, Support, Help, Helpdesk, System, Moderator, Mod, Official, Verified, Security, Privacy, Legal, Abuse, Noreply, Info, Contact, API
    - Hebrew: מנהל, מנהלת, הנהלה, אדמין, תמיכה, מערכת, צוות, רשמי, מאומת, בוקראף
