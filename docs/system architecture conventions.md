@@ -52,7 +52,7 @@ JSON
 {
 "status": "success",
 "data": {
-"user": { "id": "123", "username": "danny" }
+"user": { "id": "123", "displayName": "Danny" }
 }
 }
 

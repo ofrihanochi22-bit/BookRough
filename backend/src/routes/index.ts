@@ -2,11 +2,13 @@ import { Router } from 'express';
 
 import { isTest } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
+import { authRouter } from './auth.js';
 import { healthRouter } from './health.js';
 
 export const apiRouter: Router = Router();
 
 apiRouter.use('/health', healthRouter);
+apiRouter.use('/auth', authRouter);
 
 /**
  * GET /api/__boom — mounted only under NODE_ENV=test.

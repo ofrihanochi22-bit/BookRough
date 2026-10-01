@@ -121,7 +121,7 @@ Register the service worker **only in production builds**. A service worker runn
 - [ ] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
 - [ ] Frontend built with the production `VITE_API_BASE_URL` and deployed.
 - [ ] CORS configured to allow exactly the production frontend origin — not a wildcard.
-- [ ] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite` appropriate to the final origin layout.
+- [ ] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite=Lax`, which requires the frontend and the API on the same site (one registrable domain, or the API proxied under the frontend origin). See `docs/features/google-auth.md` §4.
 - [ ] Link conversion verified end-to-end in production — this is the step most likely to fail, because Chromium's memory footprint on a small instance is not reproducible locally.
 - [ ] PWA installed on a real iPhone from Safari and launched from the home screen.
 - [ ] Offline behaviour verified in airplane mode: feed readable, write actions clearly blocked.

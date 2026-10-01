@@ -2,6 +2,7 @@ import { AxiosError, AxiosHeaders, type AxiosAdapter } from 'axios';
 import toast from 'react-hot-toast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useAuthStore } from '../stores/auth';
 import { api, onUnauthorized } from './client';
 
 vi.mock('react-hot-toast', () => ({
@@ -9,6 +10,19 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 const toastError = vi.mocked(toast.error);
+
+function signIn(): void {
+  useAuthStore.getState().setSession({
+    user: {
+      id: 'u1',
+      displayName: 'Ofri',
+      profilePictureUrl: null,
+      preferredService: 'SPOTIFY',
+      createdAt: '2026-10-01T00:00:00.000Z',
+    },
+    needsOnboarding: false,
+  });
+}
 
 /**
  * Replaces the network with a canned HTTP response.
@@ -50,16 +64,6 @@ function failWithoutResponse(): void {
   api.defaults.adapter = adapter;
 }
 
-function stubLocation(pathname: string) {
-  const assign = vi.fn();
-  Object.defineProperty(window, 'location', {
-    value: { ...window.location, pathname, assign },
-    writable: true,
-    configurable: true,
-  });
-  return assign;
-}
-
 describe('api response interceptor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,17 +85,39 @@ describe('api response interceptor', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('on 401, redirects to Welcome exactly once and shows no toast', async () => {
+  it('on 401, clears the auth store (the guards then route to Welcome) and shows no toast', async () => {
     // Arrange
-    const assign = stubLocation('/communities');
-    respondWith(401, { status: 'error', code: 401, message: 'Not signed in.' });
+    signIn();
+    respondWith(401, { status: 'error', code: 401, message: 'Please sign in.' });
 
     // Act
     await expect(api.get('/users/me')).rejects.toThrow();
 
     // Assert
-    expect(assign).toHaveBeenCalledTimes(1);
-    expect(assign).toHaveBeenCalledWith('/');
+    expect(useAuthStore.getState().status).toBe('signedOut');
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('skips the toast for a request that shows its own error', async () => {
+    // Arrange
+    respondWith(500, { status: 'error', code: 500, message: 'Something went wrong.' });
+
+    // Act
+    await expect(api.get('/communities', { skipErrorToast: true })).rejects.toThrow();
+
+    // Assert
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('skips the offline toast too when asked', async () => {
+    // Arrange
+    failWithoutResponse();
+
+    // Act
+    await expect(api.get('/health', { skipErrorToast: true })).rejects.toThrow();
+
+    // Assert
     expect(toastError).not.toHaveBeenCalled();
   });
 
@@ -130,14 +156,14 @@ describe('api response interceptor', () => {
 });
 
 describe('onUnauthorized', () => {
-  it('does not redirect when the user is already on Welcome', () => {
+  it('clears the session from the auth store', () => {
     // Arrange
-    const assign = stubLocation('/');
+    signIn();
 
     // Act
     onUnauthorized();
 
     // Assert
-    expect(assign).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe('signedOut');
   });
 });

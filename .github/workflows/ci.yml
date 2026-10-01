@@ -119,8 +119,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Install backend
         run: npm ci --prefix backend
-      # A no-op until Step 1.1 adds the first migration. Wired now so that step
-      # has nothing left to configure.
+      # The suites' globalSetup also runs this; doing it as its own step makes a
+      # broken migration fail here, with its own name, rather than inside a test.
       - name: Apply migrations to the test database
         run: npm run prisma:deploy --prefix backend
       - name: Integration tests

@@ -39,14 +39,14 @@ export class ErrorBoundary extends Component<Props, State> {
         role="alert"
         className="flex min-h-full flex-col items-center justify-center gap-4 px-6 text-center"
       >
-        <h1 className="text-xl font-semibold">Something broke on this page</h1>
-        <p className="max-w-xs text-sm text-slate-600">
+        <h1 className="text-xl font-display font-medium">Something broke on this page</h1>
+        <p className="max-w-xs text-sm text-muted">
           The error was not your fault. Reloading usually fixes it.
         </p>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="min-h-11 min-w-11 rounded-lg bg-slate-900 px-6 py-3 text-white"
+          className="min-h-11 min-w-11 rounded-full bg-accent px-6 py-3 text-on-accent"
         >
           Reload
         </button>

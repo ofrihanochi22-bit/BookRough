@@ -74,7 +74,7 @@ These are settled decisions, not options. The full reference is in `docs/tech st
 Here is a proposed structure for the core entities to assist with your TypeScript/DB setup:
 - **User:**
   - id
-  - username
+  - displayName
   - preferredService (Enum: Spotify, AppleMusic, etc.)
   - communities (Array of Community IDs)
 - **Community:**

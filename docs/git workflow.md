@@ -181,7 +181,7 @@ Markdown
 ## Testing Performed
 
 - [x] Tested first sign-in creating a new account.
-- [x] Tested duplicate username error handling.
+- [x] Tested duplicate display-name error handling.
 - [x] Tested invalid Google token returning 401.
 - [x] Verified database row creation.
 

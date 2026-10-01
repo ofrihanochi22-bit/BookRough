@@ -34,7 +34,7 @@ Users paste a Spotify link → friends on Apple Music, YouTube, or Tidal see a l
 docker compose up -d
 ```
 
-This starts PostgreSQL 16 on `localhost:5432` with two databases:
+This starts PostgreSQL 16 on `localhost:5433` (not the default 5432, so it cannot collide with a natively installed Postgres) with two databases:
 
 - `music_app_dev` — used while developing
 - `music_app_test_db` — used by integration tests, so they never touch the dev data

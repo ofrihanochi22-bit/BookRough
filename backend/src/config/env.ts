@@ -3,11 +3,6 @@ import { z } from 'zod';
 
 /**
  * Every environment variable the backend reads, in one place.
- *
- * Phase 0 note: JWT_SECRET and GOOGLE_CLIENT_ID are declared here but nothing
- * consumes them yet — authentication is Step 1.3. They are required from the
- * start so that a developer configures their `.env` once, rather than
- * discovering a missing variable three steps later.
  */
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

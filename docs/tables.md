@@ -7,16 +7,17 @@ Below is the detailed breakdown of each table, including column types and constr
 Stores the core authentication and profile data.
 - **id** (UUID, Primary Key): Unique identifier for the user.
 - **google_sub** (VARCHAR, Unique, Not Null): The `sub` claim from the Google identity token. **This is the account key.** It is stable for the lifetime of the Google account and is opaque — it identifies the account to Google, not a person to us.
-- **username** (VARCHAR, Unique, Not Null): For @mentions and searching.
-- **display_name** (VARCHAR, Not Null): The name shown on their profile.
+- **display_name** (VARCHAR(50), Nullable until onboarding): The one user-chosen name, shown everywhere and used for search. Free text in any language (Hebrew, emoji, spaces), editable later, and unique through `display_name_key`. There is deliberately no separate `username`: profile URLs use `id`, so no URL-safe handle is needed.
+- **display_name_key** (VARCHAR(50), Unique, Nullable): Hidden, server-derived normalised form of `display_name` (whitespace collapsed, lower-cased). It carries the uniqueness, so "Ofri" and "ofri " collide while each is still shown as typed. Never sent to a client.
 - **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google. Null for users who have no Google picture; the UI then falls back to a generated avatar.
-- **preferred_service** (ENUM, Not Null): e.g., 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Defaults to a specific service.
+- **preferred_service** (ENUM, Nullable until onboarding): 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Deliberately no default, so "has not chosen" stays distinguishable from "chose Spotify".
 - **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
 - **created_at** (TIMESTAMP, Default Current Time).
+- **updated_at** (TIMESTAMP, Not Null): Set on every write. Added in Phase 1; the admin area will use it.
 
 > **🔴 There is deliberately no `email` column and no `password_hash` column.**
 >
-> Google Sign-In is the only authentication method, so no password exists to hash. The `email` claim returned in the Google identity token is **read for verification and then discarded** — it is never written to the database, never logged, and never exposed through any endpoint including the admin area (UC-19).
+> Google Sign-In is the only authentication method, so no password exists to hash. Google's `name` claim (the person's real name) is discarded the same way as `email`; the only name stored is the `display_name` the user chooses. The `email` claim returned in the Google identity token is **read for verification and then discarded** — it is never written to the database, never logged, and never exposed through any endpoint including the admin area (UC-19).
 >
 > This is a data-minimisation decision: the operator should not hold user email addresses. The consequences are accepted knowingly:
 > - The application can never send email to a user.

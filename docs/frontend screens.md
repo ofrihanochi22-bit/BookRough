@@ -9,8 +9,8 @@ Google Sign-In is the only authentication method, so this group collapsed from f
   - **No** "Log In" / "Sign Up" split, **no** email or password fields, **no** "Forgot Password?" link.
 - **1.2. Complete Your Profile Screen (UC-1)**
   - **Purpose:** Collect the fields Google cannot supply. Shown immediately after a first successful sign-in, and again on any later sign-in where onboarding was abandoned.
-  - **Key UI:** Username input with live availability feedback, Display Name input, a live preview of the **generated avatar** (no upload control), and a mandatory selector for **Preferred Streaming Service**.
-  - **States:** loading; validation error ("That username is already taken."); submitting.
+  - **Key UI:** Display Name input with live availability feedback (any language, must be unique), a live preview of the **generated avatar** (no upload control), and a mandatory selector for **Preferred Streaming Service**.
+  - **States:** loading; validation error ("That display name is already taken."); submitting.
   - The dashboard is unreachable until this screen is completed.
 
 > **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **thirteen** screens. (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
@@ -25,7 +25,7 @@ These screens represent the core social and discovery aspects of the app.
   - **Key UI:** List/Grid of joined Communities (Cover Image, Name), "Create New Community" FAB (Floating Action Button) or prominent button, Bottom/Top navigation bar to switch between Home, Search, My List, and Profile.
 - **2.2. Global Search Screen (UC-5)**
   - **Purpose:** Finding other users on the platform.
-  - **Key UI:** Search input bar, dynamic list of results (Profile Picture, Name, Username), "No results found" empty state.
+  - **Key UI:** Search input bar, dynamic list of results (Profile Picture, Display Name), "No results found" empty state.
 - **2.3. Friends & Requests Screen (UC-7, UC-8)**
   - **Purpose:** Managing bidirectional social connections.
   - **Key UI:** Two tabs or sections: "My Friends" (with a "Remove Friend" option) and "Pending Requests" (with "Accept" and "Ignore" actions).
