@@ -1,0 +1,44 @@
+import { create } from 'zustand';
+
+export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
+
+/** Mirrors the backend's PublicUser — the only user shape the API sends. */
+export interface PublicUser {
+  id: string;
+  displayName: string | null;
+  profilePictureUrl: string | null;
+  preferredService: StreamingService | null;
+  createdAt: string;
+}
+
+export interface Session {
+  user: PublicUser;
+  needsOnboarding: boolean;
+}
+
+/**
+ * `unknown` until the first GET /auth/me answers. The app renders a spinner,
+ * not Welcome, while unknown — so a signed-in user never sees Welcome flash.
+ */
+export type AuthStatus = 'unknown' | 'signedIn' | 'signedOut';
+
+interface AuthState {
+  status: AuthStatus;
+  user: PublicUser | null;
+  needsOnboarding: boolean;
+  setSession: (session: Session) => void;
+  clear: () => void;
+}
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  status: 'unknown',
+  user: null,
+  needsOnboarding: false,
+  setSession: ({ user, needsOnboarding }) => set({ status: 'signedIn', user, needsOnboarding }),
+  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false }),
+}));
+
+/** Where a signed-in user belongs, given their onboarding state. */
+export function homePathFor(needsOnboarding: boolean): string {
+  return needsOnboarding ? '/onboarding' : '/home';
+}

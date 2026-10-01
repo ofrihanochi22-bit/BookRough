@@ -7,10 +7,10 @@ import { Link } from 'react-router-dom';
 export function NotFound() {
   return (
     <main className="flex min-h-full flex-col items-center justify-center gap-4 px-6 text-center">
-      <h1 className="text-2xl font-semibold">This page doesn&apos;t exist</h1>
+      <h1 className="text-2xl font-display font-medium">This page doesn&apos;t exist</h1>
       <Link
         to="/"
-        className="flex min-h-11 items-center rounded-lg bg-slate-900 px-6 py-3 text-white"
+        className="flex min-h-11 items-center rounded-full bg-accent px-6 py-3 text-on-accent"
       >
         Go home
       </Link>

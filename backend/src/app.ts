@@ -24,7 +24,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: env.CORS_ORIGIN,
-      // Required for the session cookie that arrives in Step 1.3.
+      // Required for the session cookie (docs/features/google-auth.md §4).
       credentials: true,
     }),
   );

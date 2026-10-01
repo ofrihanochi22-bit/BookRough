@@ -1,10 +1,63 @@
 @import 'tailwindcss';
 
-/* Design tokens. Kept few on purpose — the palette grows when real screens
-   arrive (Steps 1.5 onward), not before. */
-@theme {
-  --color-ink: #0f172a;
-  --color-paper: #f8fafc;
+/*
+ * Design tokens — docs/features/google-auth.md §5.1.
+ *
+ * Screens use only these semantic names (bg-surface, text-muted, bg-accent…),
+ * never raw palette classes (bg-purple-600). A redesign then changes this file
+ * and nothing else. The identity itself (purple accent, Space Grotesk + Inter)
+ * is an approved placeholder until the real logo and design arrive.
+ *
+ * The raw values live in plain custom properties so dark mode is a swap of
+ * values; `@theme inline` exposes them to Tailwind as utilities.
+ */
+:root {
+  --canvas: #fbfaf7;
+  --surface: #ffffff;
+  --ink: #1f1e1c;
+  --muted: #5f5e5a;
+  --line: #e4e2da;
+  --accent: #534ab7;
+  --accent-soft: #eeedfe;
+  --accent-ink: #3c3489;
+  --on-accent: #ffffff;
+  --danger: #a32d2d;
+  --danger-soft: #fcebeb;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #151413;
+    --surface: #1f1e1c;
+    --ink: #f1efe8;
+    --muted: #b4b2a9;
+    --line: #3a3936;
+    --accent: #afa9ec;
+    --accent-soft: #26215c;
+    --accent-ink: #cecbf6;
+    --on-accent: #1a1640;
+    --danger: #f09595;
+    --danger-soft: #3a1515;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 }
 
 html,
@@ -14,8 +67,9 @@ body,
 }
 
 body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+  background-color: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
   /* Respects the iPhone safe area when the PWA runs full-screen (Phase 6). */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);

@@ -15,9 +15,9 @@ export function Spinner({ label = 'Loading…' }: SpinnerProps) {
     <div role="status" aria-live="polite" className="flex flex-col items-center gap-3">
       <span
         aria-hidden="true"
-        className="size-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900"
+        className="size-8 animate-spin rounded-full border-2 border-line border-t-accent"
       />
-      <span className="text-sm text-slate-600">{label}</span>
+      <span className="text-sm text-muted">{label}</span>
     </div>
   );
 }

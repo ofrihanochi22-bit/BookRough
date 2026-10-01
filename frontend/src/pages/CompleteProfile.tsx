@@ -1,12 +1,9 @@
+import { SignedInPlaceholder } from '../components/SignedInPlaceholder';
+
 /**
- * Placeholder. Step 1.6 replaces this with the real onboarding form:
- * username with live availability feedback, display name, generated-avatar
- * preview, and the preferred-service selector.
+ * Placeholder. The onboarding feature (docs/features/onboarding.md) replaces it
+ * with the real form: display name and preferred streaming service.
  */
 export function CompleteProfile() {
-  return (
-    <main className="flex min-h-full flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-2xl font-semibold">Complete your profile</h1>
-    </main>
-  );
+  return <SignedInPlaceholder title="Complete your profile" note="Profile setup comes next." />;
 }

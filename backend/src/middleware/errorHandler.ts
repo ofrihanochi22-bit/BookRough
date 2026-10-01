@@ -26,6 +26,18 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
+  // express.json() rejects a body before any controller sees it. These are the
+  // client's mistakes, not bugs, and must not surface as a 500.
+  const bodyError = bodyParserError(err);
+  if (bodyError) {
+    log.warn(
+      { statusCode: bodyError.code, path: req.originalUrl, method: req.method },
+      bodyError.message,
+    );
+    res.status(bodyError.code).json(failure(bodyError.code, bodyError.message));
+    return;
+  }
+
   log.error(
     {
       err,
@@ -37,3 +49,15 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
   res.status(500).json(failure(500, GENERIC_MESSAGE));
 };
+
+/** The two body-parser failures a client can cause, mapped to their status. */
+function bodyParserError(err: unknown): { code: number; message: string } | null {
+  const type = (err as { type?: unknown } | null)?.type;
+  if (type === 'entity.parse.failed') {
+    return { code: 400, message: 'The request body is not valid JSON.' };
+  }
+  if (type === 'entity.too.large') {
+    return { code: 413, message: 'The request body is too large.' };
+  }
+  return null;
+}

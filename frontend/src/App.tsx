@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 
+import { RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { CompleteProfile } from './pages/CompleteProfile';
+import { Home } from './pages/Home';
 import { NotFound } from './pages/NotFound';
 import { Welcome } from './pages/Welcome';
 
@@ -10,10 +12,34 @@ import { Welcome } from './pages/Welcome';
  */
 export function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Welcome />} />
-      <Route path="/onboarding" element={<CompleteProfile />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <SessionGate>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <SignedOutOnly>
+              <Welcome />
+            </SignedOutOnly>
+          }
+        />
+        <Route
+          path="/onboarding"
+          element={
+            <RequireSession onboarding="pending">
+              <CompleteProfile />
+            </RequireSession>
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <RequireSession onboarding="complete">
+              <Home />
+            </RequireSession>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </SessionGate>
   );
 }
