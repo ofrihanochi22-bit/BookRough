@@ -9,7 +9,8 @@ Stores the core authentication and profile data.
 - **google_sub** (VARCHAR, Unique, Not Null): The `sub` claim from the Google identity token. **This is the account key.** It is stable for the lifetime of the Google account and is opaque — it identifies the account to Google, not a person to us.
 - **display_name** (VARCHAR(50), Nullable until onboarding): The one user-chosen name, shown everywhere and used for search. Free text in any language (Hebrew, emoji, spaces), editable later, and unique through `display_name_key`. There is deliberately no separate `username`: profile URLs use `id`, so no URL-safe handle is needed.
 - **display_name_key** (VARCHAR(50), Unique, Nullable): Hidden, server-derived normalised form of `display_name` (whitespace collapsed, lower-cased). It carries the uniqueness, so "Ofri" and "ofri " collide while each is still shown as typed. Never sent to a client.
-- **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google. Null for users who have no Google picture; the UI then falls back to a generated avatar.
+- **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google. Held before onboarding only so it can be offered as a choice; kept afterwards only if the user chose it (`use_google_picture`), otherwise set to null and never stored again. When null the UI shows the generated avatar.
+- **use_google_picture** (BOOLEAN, Not Null, Default false): The user chose their Google photo as their avatar during onboarding. False means the generated avatar.
 - **preferred_service** (ENUM, Nullable until onboarding): 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Deliberately no default, so "has not chosen" stays distinguishable from "chose Spotify".
 - **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
 - **created_at** (TIMESTAMP, Default Current Time).

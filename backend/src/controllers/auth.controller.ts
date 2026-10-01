@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { authenticateWithGoogle } from '../services/auth.service.js';
-import { AppError } from '../utils/AppError.js';
+import { sessionUser } from '../middleware/requireAuth.js';
 import { verifySessionToken } from '../utils/jwt.js';
 import { createLogger } from '../utils/logger.js';
 import { sessionPayload } from '../utils/publicUser.js';
@@ -35,12 +35,11 @@ export const signInWithGoogle: RequestHandler = async (req, res, next) => {
 
 /** GET /api/auth/me — mounted behind requireAuth. */
 export const getSession: RequestHandler = (req, res, next) => {
-  if (!req.user) {
-    next(new AppError('Please sign in.', 401));
-    return;
+  try {
+    res.status(200).json(success(sessionPayload(sessionUser(req))));
+  } catch (error) {
+    next(error);
   }
-
-  res.status(200).json(success(sessionPayload(req.user)));
 };
 
 /**

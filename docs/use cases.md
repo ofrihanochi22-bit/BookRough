@@ -65,7 +65,7 @@
   - The system displays a "Profile updated successfully" toast notification and returns the user to their refreshed profile view.
 - **Fail description (Alternative Scenario):** The user attempts to save a display name that is already taken by another account. The system prevents the save action and displays an inline error message: "That display name is already taken."
 
-> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users who signed in with Google keep the picture Google supplies. There is no upload control anywhere in the product; see `docs/general.md` §4.1.
+> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users who signed in with Google may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. There is no upload control anywhere in the product; see `docs/general.md` §4.1.
 
 ### UC-5: User Searches Other Users
 

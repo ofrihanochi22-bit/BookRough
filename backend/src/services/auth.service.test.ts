@@ -24,6 +24,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     displayName: null,
     displayNameKey: null,
     profilePictureUrl: 'https://pic/old',
+    useGooglePicture: false,
     preferredService: null,
     role: 'USER',
     createdAt: new Date(),
@@ -91,6 +92,68 @@ describe('authenticateWithGoogle', () => {
     expect(result).toEqual({ user: refreshed, isNewUser: false });
     expect(userDb.update).toHaveBeenCalledWith({
       where: { id: existing.id },
+      data: { profilePictureUrl: 'https://pic/new' },
+    });
+  });
+
+  it('does not store a new Google photo for an onboarded user who declined it', async () => {
+    // Arrange
+    const declined = makeUser({
+      displayName: 'Ofri',
+      preferredService: 'SPOTIFY',
+      profilePictureUrl: null,
+      useGooglePicture: false,
+    });
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/new' });
+    userDb.findUnique.mockResolvedValue(declined);
+
+    // Act
+    const result = await authenticateWithGoogle('credential');
+
+    // Assert
+    expect(result.user).toBe(declined);
+    expect(userDb.update).not.toHaveBeenCalled();
+  });
+
+  it('clears a leftover photo for an onboarded user who declined it', async () => {
+    // Arrange
+    const declined = makeUser({
+      displayName: 'Ofri',
+      preferredService: 'SPOTIFY',
+      profilePictureUrl: 'https://pic/old',
+      useGooglePicture: false,
+    });
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/new' });
+    userDb.findUnique.mockResolvedValue(declined);
+    userDb.update.mockResolvedValue({ ...declined, profilePictureUrl: null });
+
+    // Act
+    await authenticateWithGoogle('credential');
+
+    // Assert
+    expect(userDb.update).toHaveBeenCalledWith({
+      where: { id: declined.id },
+      data: { profilePictureUrl: null },
+    });
+  });
+
+  it('refreshes the photo for an onboarded user who chose it', async () => {
+    // Arrange
+    const chose = makeUser({
+      displayName: 'Ofri',
+      preferredService: 'SPOTIFY',
+      useGooglePicture: true,
+    });
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/new' });
+    userDb.findUnique.mockResolvedValue(chose);
+    userDb.update.mockResolvedValue({ ...chose, profilePictureUrl: 'https://pic/new' });
+
+    // Act
+    await authenticateWithGoogle('credential');
+
+    // Assert
+    expect(userDb.update).toHaveBeenCalledWith({
+      where: { id: chose.id },
       data: { profilePictureUrl: 'https://pic/new' },
     });
   });

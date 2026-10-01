@@ -8,6 +8,8 @@ interface AvatarProps {
   name: string | null;
   pictureUrl?: string | null;
   size?: number;
+  /** Purely visual here (a labelled control carries the meaning): no accessible name. */
+  decorative?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ interface AvatarProps {
  * derived from the id. A user who has not chosen a name yet gets a neutral
  * glyph rather than initials of nothing.
  */
-export function Avatar({ id, name, pictureUrl, size = 64 }: AvatarProps) {
+export function Avatar({ id, name, pictureUrl, size = 64, decorative = false }: AvatarProps) {
   const [pictureFailed, setPictureFailed] = useState(false);
   const label = name ?? 'Your avatar';
 
@@ -24,7 +26,7 @@ export function Avatar({ id, name, pictureUrl, size = 64 }: AvatarProps) {
     return (
       <img
         src={pictureUrl}
-        alt={label}
+        alt={decorative ? '' : label}
         width={size}
         height={size}
         referrerPolicy="no-referrer"
@@ -38,8 +40,9 @@ export function Avatar({ id, name, pictureUrl, size = 64 }: AvatarProps) {
   const hue = avatarHue(id);
   return (
     <div
-      role="img"
-      aria-label={label}
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : label}
+      aria-hidden={decorative || undefined}
       className="flex items-center justify-center rounded-full font-medium"
       style={{
         width: size,

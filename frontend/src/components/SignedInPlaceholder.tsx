@@ -1,6 +1,4 @@
-import { useState } from 'react';
-
-import { logout } from '../api/auth';
+import { useSignOut } from '../hooks/useSignOut';
 import { useAuthStore } from '../stores/auth';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
@@ -18,19 +16,7 @@ interface SignedInPlaceholderProps {
  */
 export function SignedInPlaceholder({ title, note }: SignedInPlaceholderProps) {
   const user = useAuthStore((state) => state.user);
-  const [signingOut, setSigningOut] = useState(false);
-
-  async function handleSignOut() {
-    setSigningOut(true);
-    try {
-      await logout();
-      useAuthStore.getState().clear();
-    } catch {
-      // The interceptor has already shown a toast. The cookie may still be
-      // valid, so the local session is kept rather than pretending.
-      setSigningOut(false);
-    }
-  }
+  const { signingOut, signOut } = useSignOut();
 
   return (
     <ScreenLayout centered>
@@ -40,7 +26,7 @@ export function SignedInPlaceholder({ title, note }: SignedInPlaceholderProps) {
         )}
         <h1 className="font-display text-2xl font-medium">{title}</h1>
         <p className="max-w-xs text-sm text-muted">{note}</p>
-        <Button variant="secondary" busy={signingOut} onClick={handleSignOut}>
+        <Button variant="secondary" busy={signingOut} onClick={signOut}>
           {signingOut ? 'Signing out…' : 'Sign out'}
         </Button>
       </div>

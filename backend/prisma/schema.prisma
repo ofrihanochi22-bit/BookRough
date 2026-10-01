@@ -41,7 +41,11 @@ model User {
   /// "Ofri" and "ofri " collide while each is still shown as typed. Never sent
   /// to a client.
   displayNameKey    String?           @unique @map("display_name_key") @db.VarChar(50)
+  /// Google's photo URL. Kept only before onboarding (to offer it as a
+  /// choice) or when the user chose it (docs/features/onboarding.md §3).
   profilePictureUrl String?           @map("profile_picture_url")
+  /// The user chose their Google photo as their avatar. False until they do.
+  useGooglePicture  Boolean           @default(false) @map("use_google_picture")
   /// No default: "has not chosen" must stay distinguishable from "chose Spotify".
   preferredService  StreamingService? @map("preferred_service")
   /// Set directly in the database, never through an API (CLAUDE.md §17).

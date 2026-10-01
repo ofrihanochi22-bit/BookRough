@@ -9,7 +9,7 @@ Google Sign-In is the only authentication method, so this group collapsed from f
   - **No** "Log In" / "Sign Up" split, **no** email or password fields, **no** "Forgot Password?" link.
 - **1.2. Complete Your Profile Screen (UC-1)**
   - **Purpose:** Collect the fields Google cannot supply. Shown immediately after a first successful sign-in, and again on any later sign-in where onboarding was abandoned.
-  - **Key UI:** Display Name input with live availability feedback (any language, must be unique), a live preview of the **generated avatar** (no upload control), and a mandatory selector for **Preferred Streaming Service**.
+  - **Key UI:** Display Name input with live availability feedback (any language, must be unique), an avatar choice between the **generated avatar** (default, live preview) and the user's Google photo when one exists (no upload control), and a mandatory selector for **Preferred Streaming Service** with nothing pre-selected.
   - **States:** loading; validation error ("That display name is already taken."); submitting.
   - The dashboard is unreachable until this screen is completed.
 
@@ -71,7 +71,7 @@ These apply to every screen above and are not restated per screen.
 
 - **Language: English only.** All copy, labels, errors, and empty states are in English. There is no internationalisation layer and no RTL support.
 - **Mobile-first.** Every layout is designed at 375px width first and expanded upward with Tailwind's `sm:` / `md:` / `lg:` prefixes. The primary surface is an iPhone running the installed PWA; the desktop browser is secondary. Touch targets are at least 44x44px.
-- **No image uploads.** Avatars and community covers are generated from initials and a colour derived deterministically from the entity id. Google users keep the picture Google supplies. No screen contains an upload control.
+- **No image uploads.** Avatars and community covers are generated from initials and a colour derived deterministically from the entity id. Google users may choose the picture Google supplies during onboarding; the generated avatar is the default. No screen contains an upload control.
 - **Three states, always.** Every screen that waits on the network defines a loading state (skeleton or spinner), an empty state, and an error state. A blank area is not a loading state.
 - **The posting flow blocks.** Link conversion takes 3-8 seconds and the submit button blocks for its duration behind a spinner with explanatory copy. This is a designed wait, not an accident.
 - **Offline.** Installed as a PWA, previously loaded content stays readable without a connection. Write actions (post, rate, bookmark) show an explicit "you're offline" state rather than failing silently or queueing invisibly. See `docs/deployment.md` §6.

@@ -8,7 +8,7 @@
 | **Use cases** | UC-1 (account creation, first half), UC-2 (login), UC-3 (logout)   |
 | **Phase**     | 1 — merges former Steps 1.1, 1.3 and 1.5 of `DEVELOPMENT.md`       |
 | **Branch**    | `feat/auth-google`                                                 |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged |
 
 ---
 
@@ -274,3 +274,4 @@ Both show the user's avatar (Google picture, or the generated initials avatar wh
 | 2026-10-01 | Local Docker Postgres moved to host port 5433                                                     | A natively installed Postgres held 5432 and silently won every localhost connection      |
 | 2026-10-01 | A 401 clears the store; guards redirect (no page reload)                                          | Router navigation is instant and avoids re-running the session bootstrap                 |
 | 2026-10-01 | `GoogleOAuthProvider` wraps Welcome only                                                          | Google's script loads only when the sign-in button is actually on screen                 |
+| 2026-10-01 | Picture refresh on sign-in now depends on the avatar choice                                       | Superseded by `onboarding.md` §3: a declined Google photo is never stored again          |

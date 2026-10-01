@@ -452,23 +452,55 @@ cd backend && npx vitest run --config vitest.integration.config.ts -t "privacy" 
 
 ### Step 1.6 — Complete-Your-Profile onboarding (Phase 1 — UC-1)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/onboarding-profile
 Spec: docs/features/onboarding.md
 
-Goal: A new user sets their display name and preferred service before the dashboard becomes reachable.
+Goal: A new user sets their display name, preferred service, and avatar (Google photo or generated) before the dashboard becomes reachable.
 
 Tasks:
 
-- [ ] Spec: docs/features/onboarding.md written and approved (display-name length and character rules, the normalisation behind `display_name_key`).
-- [ ] Backend: `PATCH /api/users/me` — Zod validation; `P2002` on `display_name_key` → "That display name is already taken."
-- [ ] Frontend: `pages/CompleteProfile.tsx` replaces the placeholder — display name with live availability feedback, generated-avatar preview (no upload), preferred-service selector.
-- [ ] Review: improvement pass done before tests written
-- [ ] Tests: Good: profile saves and the guard releases. Bad: duplicate display name (including a case/whitespace variant) → inline error; missing preferred service → 422; unauthenticated → 401.
-- [ ] Tests: Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
+- [x] Spec: docs/features/onboarding.md written and approved (display-name rules, normalisation, reserved names, avatar choice).
+- [x] DB: migration `add_use_google_picture`.
+- [x] Backend: `PATCH /api/users/me` and `GET /api/users/display-name-availability`; `P2002` on `display_name_key` → `409` "That display name is already taken."; sign-in stops storing a declined Google photo.
+- [x] Frontend: `pages/CompleteProfile.tsx` replaces the placeholder — avatar choice, display name with live availability feedback, preferred-service selector.
+- [x] Review: `/code-review` (6 findings: 5 fixed, 1 accepted as a documented limitation) and `/security-review` (clean).
+- [x] Tests: Good: profile saves and the guard releases. Bad: duplicate display name (including a case/whitespace variant) → inline error; missing preferred service → 422; unauthenticated → 401.
+- [x] Tests: Abandoned onboarding — signing in again with the same `sub` resumes rather than creating a second row.
 
 What I did:
+
+Built Complete Your Profile (UC-1, second half) per `docs/features/onboarding.md`.
+
+- **DB:** migration `add_use_google_picture` (`users.use_google_picture`, default false).
+- **Backend:** `services/displayName.ts` (cleaning incl. iOS smart apostrophes, 2–20 graphemes + 50-code-point ceiling, allowed characters, Hangul fillers rejected, uniqueness key ignoring case/spacing/accents/niqqud/compatibility forms, reserved-name list); `services/user.service.ts` (`updateProfile`, `checkAvailability`); `controllers/user.controller.ts` + `routes/users.ts` (`PATCH /api/users/me`, `GET /api/users/display-name-availability`; duplicate → `409`). Sign-in no longer stores a declined Google photo (`auth.service.ts`). `sessionUser(req)` replaces the repeated `req.user` guard.
+- **Frontend:** `pages/CompleteProfile.tsx` (avatar choice with generated default, display name with live debounced availability, service picker with nothing pre-selected, saving / race / offline states); `lib/displayName.ts` (client mirror of the rules); `hooks/useDisplayNameStatus.ts`, `hooks/useSignOut.ts`, `hooks/useOnlineStatus.ts` (extracted from Welcome); `api/users.ts`; `Avatar` gains a `decorative` mode.
+- **Docs:** `tables`, `auth`, `use cases`, `frontend screens`, `general` (.md + .docx) and CLAUDE.md §5/§8 updated for the avatar choice; `google-auth.md` marked merged.
+- **Tests:** backend 180 (97% lines over both suites), frontend 96 (99.5%). The display-name example table is shared by both mirrors' tests.
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width and sign in with a Google account that has never used the app (or delete your row: `docker exec bookrough-postgres psql -U bookrough -d music_app_dev -c 'DELETE FROM users;'`).
+
+1. Complete Your Profile shows: Generated avatar selected, your Google photo as the second option, an empty name, five unselected services, Continue disabled.
+2. Type `a<b` → "That character isn't allowed." (no network request). Type `Admin` → "That name is reserved." Type a free name → "Checking…" then "✓ Available"; the generated avatar shows its initials.
+3. Pick a service → Continue enables → "Saving…" → home placeholder shows your name.
+4. Sign out and sign in again → straight to home. If you kept the generated avatar, your Google photo is not shown or stored (`SELECT profile_picture_url FROM users;` is empty).
+5. Second Google account: try the same name in another case or with niqqud → "That display name is already taken."
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                 # unit + integration, 80% floor
+cd backend && npx vitest run src/services/displayName.test.ts
+cd frontend && npm run test:unit                    # includes CompleteProfile.test.tsx
+```
 
 ---
 
