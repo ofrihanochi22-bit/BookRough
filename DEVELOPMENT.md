@@ -507,7 +507,8 @@ cd frontend && npm run test:unit                    # includes CompleteProfile.t
 ### Step 1.7 — Phase 1 E2E coverage (Phase 1)
 
 Status: ☐ Not started
-Branch: test/auth-flow-e2e
+Branch: chore/auth-flow-e2e
+Spec: docs/features/auth-flow-e2e.md
 
 Goal: Playwright covers sign-in through onboarding to the dashboard.
 
