@@ -10,13 +10,18 @@ import type { Page } from '@playwright/test';
  * The backend half is `E2E_GOOGLE_PUBLIC_KEY`: given the public key that pairs
  * with ../fixtures/google-stand-in.key, the API verifies these tokens exactly as
  * it would Google's. The key pair is throwaway — the API refuses to start with
- * the stand-in enabled in production.
+ * the stand-in enabled unless NODE_ENV=test.
  */
 
 const PRIVATE_KEY = readFileSync(
   fileURLToPath(new URL('../fixtures/google-stand-in.key', import.meta.url)),
   'utf8',
 );
+const PLACEHOLDER_PICTURE =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="#888"/></svg>',
+  );
 const CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID ?? 'e2e-client-id.apps.googleusercontent.com';
 
 function base64url(value: string | Buffer): string {
@@ -35,7 +40,8 @@ export function signIdToken(sub: string): string {
       // Present so the run would expose any code path that kept them.
       email: `${sub}@example.test`,
       name: 'E2E Person',
-      picture: 'https://lh3.googleusercontent.com/a/e2e-placeholder',
+      // A data URL, so rendering the 'Google photo' option never reaches the network.
+      picture: PLACEHOLDER_PICTURE,
       iat: now,
       exp: now + 600,
     }),

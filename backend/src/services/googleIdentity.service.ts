@@ -7,8 +7,12 @@ import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('googleIdentity');
 
+// Straight to stderr, not the logger: the stand-in only runs under
+// NODE_ENV=test, where the logger is silent.
 if (env.E2E_GOOGLE_PUBLIC_KEY) {
-  log.warn('E2E Google stand-in is active: ID tokens are verified with the test key, not Google');
+  process.stderr.write(
+    'WARNING: E2E Google stand-in is active — ID tokens are verified with the test key, not Google.\n',
+  );
 }
 
 const client = new OAuth2Client();

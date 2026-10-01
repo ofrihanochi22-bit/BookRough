@@ -46,10 +46,12 @@ const envSchema = z
   })
   // The stand-in must be impossible to enable on the real server, not merely
   // discouraged: with it, anyone holding the committed test key could sign in
-  // as anyone.
-  .refine((env) => !(env.NODE_ENV === 'production' && env.E2E_GOOGLE_PUBLIC_KEY), {
+  // as anyone. It is allowed only under NODE_ENV=test (the one mode E2E uses),
+  // so a host that forgets NODE_ENV — which defaults to development — is still
+  // refused.
+  .refine((env) => !env.E2E_GOOGLE_PUBLIC_KEY || env.NODE_ENV === 'test', {
     path: ['E2E_GOOGLE_PUBLIC_KEY'],
-    message: 'must not be set in production — it replaces Google sign-in verification',
+    message: 'is only allowed with NODE_ENV=test — it replaces Google sign-in verification',
   });
 
 export type Env = z.infer<typeof envSchema>;
