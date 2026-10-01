@@ -564,3 +564,16 @@ Keeping them separate matters: someone reading the stack to stand the app up nee
 For each entry record **what it is, why it was chosen, what breaks without it, and any account, key, or cost it carries.** A bare name in a list is not documentation.
 
 The same rule applies to removal: a service that stops being used is deleted from the document, with its rejection recorded under the "deliberately not used" note if it might otherwise be reintroduced.
+
+---
+
+## 19. Communicating with the developer
+
+### Hebrew text is shown right-to-left
+
+**Every time Claude answers in Hebrew, the Hebrew text is rendered right-to-left** so the developer can read it easily. The terminal and chat Markdown lay text out left-to-right, which scrambles Hebrew sentences that mix in English terms, so plain Markdown is not enough.
+
+- Render the Hebrew in an RTL view — in the desktop app, an inline HTML widget with `dir="rtl"` and `text-align: right`.
+- Inside that view, wrap embedded English code, paths, and numbers in `dir="ltr"` spans so they do not reorder the sentence around them.
+- English text (questions, code, commands) stays in normal left-to-right output.
+- If no tool that can render RTL is available in the session, say so once and fall back to plain text rather than skipping the answer.
