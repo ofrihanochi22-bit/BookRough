@@ -45,9 +45,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdenti
     sub = payload?.sub;
     picture = payload?.picture;
   } catch (error) {
-    // The library's message names the failed check (audience, expiry, …); it
-    // does not echo the token's claims.
-    log.warn({ reason: (error as Error).message }, 'Rejected Google ID token');
+    log.warn({ reason: rejectionReason(error) }, 'Rejected Google ID token');
     throw new AppError(SIGN_IN_FAILED, 401);
   }
 
@@ -57,4 +55,27 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdenti
   }
 
   return { sub, picture: picture ?? null };
+}
+
+/**
+ * google-auth-library's error messages embed the raw token or its decoded
+ * payload — email and name included ("Token used too late, …: {payload}").
+ * They must never reach a log (CLAUDE.md §5), so only a fixed label derived
+ * from the message is logged, never the message itself.
+ */
+const REJECTION_REASONS: ReadonlyArray<[prefix: string, reason: string]> = [
+  ['Token used too late', 'expired'],
+  ['Token used too early', 'not yet valid'],
+  ['Invalid token signature', 'bad signature'],
+  ['No pem found', 'unknown signing key'],
+  ['Wrong recipient', 'wrong audience'],
+  ['Invalid issuer', 'wrong issuer'],
+  ['Wrong number of segments', 'malformed'],
+  ["Can't parse token", 'malformed'],
+];
+
+export function rejectionReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  const match = REJECTION_REASONS.find(([prefix]) => message.startsWith(prefix));
+  return match ? match[1] : 'other';
 }

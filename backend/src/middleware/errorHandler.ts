@@ -50,14 +50,26 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   res.status(500).json(failure(500, GENERIC_MESSAGE));
 };
 
-/** The two body-parser failures a client can cause, mapped to their status. */
+/**
+ * express.json() throws http-errors: `status` is the right 4xx and `expose`
+ * marks the error as caused by the client (bad JSON, too large, unsupported
+ * charset or encoding). Any of those is passed on with its own status; the
+ * message is ours, not the library's.
+ */
 function bodyParserError(err: unknown): { code: number; message: string } | null {
-  const type = (err as { type?: unknown } | null)?.type;
+  const { status, expose, type } = (err ?? {}) as {
+    status?: unknown;
+    expose?: unknown;
+    type?: unknown;
+  };
+  if (expose !== true || typeof status !== 'number' || status < 400 || status >= 500) {
+    return null;
+  }
   if (type === 'entity.parse.failed') {
     return { code: 400, message: 'The request body is not valid JSON.' };
   }
   if (type === 'entity.too.large') {
     return { code: 413, message: 'The request body is too large.' };
   }
-  return null;
+  return { code: status, message: 'The request body could not be read.' };
 }

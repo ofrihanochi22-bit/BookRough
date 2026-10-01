@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { prisma } from './db/prisma.js';
 import { createLogger } from './utils/logger.js';
 
 const log = createLogger('server');
@@ -11,7 +12,9 @@ const server = app.listen(env.PORT, () => {
 
 function shutdown(signal: string): void {
   log.info({ signal }, 'Shutting down');
-  server.close(() => process.exit(0));
+  server.close(() => {
+    void prisma.$disconnect().finally(() => process.exit(0));
+  });
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
