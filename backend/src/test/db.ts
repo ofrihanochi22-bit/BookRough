@@ -5,5 +5,5 @@ import { prisma } from '../db/prisma.js';
  * (docs/tests.md §3.3). Extend the list as tables are added.
  */
 export async function resetDatabase(): Promise<void> {
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "users" RESTART IDENTITY CASCADE');
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "users", "communities" RESTART IDENTITY CASCADE');
 }

@@ -15,15 +15,8 @@ import {
   MAX_GRAPHEMES,
   MIN_GRAPHEMES,
 } from '../lib/displayName';
+import { STREAMING_SERVICES } from '../lib/streamingServices';
 import { useAuthStore, type StreamingService } from '../stores/auth';
-
-const SERVICES: ReadonlyArray<{ value: StreamingService; label: string }> = [
-  { value: 'SPOTIFY', label: 'Spotify' },
-  { value: 'APPLE_MUSIC', label: 'Apple Music' },
-  { value: 'YOUTUBE', label: 'YouTube' },
-  { value: 'TIDAL', label: 'Tidal' },
-  { value: 'DEEZER', label: 'Deezer' },
-];
 
 type AvatarChoice = 'generated' | 'google';
 
@@ -162,7 +155,7 @@ export function CompleteProfile() {
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-3 text-sm font-medium">Where do you listen?</legend>
-          {SERVICES.map((option) => (
+          {STREAMING_SERVICES.map((option) => (
             <label
               key={option.value}
               className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${

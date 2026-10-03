@@ -23,6 +23,12 @@ enum UserRole {
   ADMIN
 }
 
+/// A member's role inside one community — unrelated to the app-wide UserRole.
+enum CommunityRole {
+  ADMIN
+  MEMBER
+}
+
 /// docs/features/google-auth.md §3.
 ///
 /// There is deliberately no email, no password hash, and no real name: Google's
@@ -52,6 +58,40 @@ model User {
   role              UserRole          @default(USER)
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships       CommunityMember[]
 
   @@map("users")
+}
+
+/// docs/features/communities-create.md §3.
+///
+/// There is no cover image column: covers are always generated from the name
+/// and id (CLAUDE.md §8). Invite storage arrives with the invites feature.
+model Community {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Shown as typed. Not unique — communities are found by invite, never by name.
+  name        String            @db.VarChar(100)
+  /// Plain text with line breaks; null when the creator left it blank.
+  description String?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  members     CommunityMember[]
+
+  @@map("communities")
+}
+
+/// One row per (user, community). The composite key makes a duplicate
+/// membership impossible; cascades remove rows with either side.
+model CommunityMember {
+  userId      String        @map("user_id") @db.Uuid
+  communityId String        @map("community_id") @db.Uuid
+  role        CommunityRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @map("joined_at") @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([userId, communityId])
+  @@index([communityId])
+  @@map("community_members")
 }

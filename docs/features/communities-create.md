@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (create a community)                                                             |
 | **Phase**     | 2 — merges Step 2.1, the create/read half of 2.2 and the dashboard/create half of 2.5 |
 | **Branch**    | `feat/communities-create`                                                             |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
 
 ---
 
@@ -124,7 +124,7 @@ Applied by the server (authoritative) and mirrored on the client. The cleaning s
 4. **Allowed:** any printable character, including punctuation and URLs, plus `\n`. Control characters (other than `\n`), zero-width characters and bidi marks are rejected.
 5. Rendered as plain text with line breaks preserved. Never as HTML, never auto-linked.
 
-Messages: "A Community name is required." (empty — wording from UC-9), "Use 2–40 characters.", "That name is too long.", "That character isn't allowed.", "Keep the description under 280 characters."
+Messages: "A Community name is required." (empty — wording from UC-9), "Use 2–40 characters.", "That name is too long.", "That character isn't allowed.", "Keep the description to 280 characters."
 
 ## 5. API
 
@@ -218,7 +218,7 @@ Four tabs — Home, Search, My List, Profile (developer's choice, option B) — 
 - **Invite friends card (developer's choice, option B):** static, non-interactive, not styled as a control — an icon, "Invite friends", and "You'll be able to invite friends from here once you have friends on BookRough." No request, no state, no handler.
 - **Submitting:** button busy "Creating…"; no double submission. On success, navigate to `/communities/:id` with `replace`, so Back returns to the dashboard rather than to the form.
 - **Server `422`:** the server's message under the relevant field; values kept.
-- **Other errors:** global toast (interceptor); button returns; values kept.
+- **Other errors:** an inline form error above the button (the request opts out of the toast, as onboarding does, so nothing is shown twice); button returns; values kept.
 - **Offline:** banner "You're offline. Connect to create a community." and Create disabled (`useOnlineStatus`, as in onboarding).
 
 ### 6.6 Community page shell (`pages/Community.tsx`)
@@ -317,14 +317,16 @@ None.
 
 ## 11. Decisions log
 
-| Date       | Decision                                                                        | Reason                                                                                       |
-| ---------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 2026-10-03 | Steps 2.1–2.7 re-sliced into four vertical features (§0)                        | Vertical slicing (§11); smallest slices a friend can use; smaller `/code-review` diffs       |
-| 2026-10-03 | Create form shows a static "Invite friends" card until friends exist (option B) | Developer's choice; recommendation was to omit it. Kept non-interactive, no logic            |
-| 2026-10-03 | Community names are not unique                                                  | Communities are found by invite, never searched; uniqueness would only cause errors          |
-| 2026-10-03 | Bottom nav ships with all four tabs; Search and My List show "Coming soon"      | Developer's choice; recommendation was two tabs. Profile is real so Sign out stays reachable |
-| 2026-10-03 | Covers: initials over an id-derived colour, reusing the avatar generator        | Developer's choice; visual design is deferred to a later stage                               |
-| 2026-10-03 | `cover_image_url` dropped; `invite_token` deferred to feature 2                 | No source for a cover; invite storage depends on feature 2's expiry decision                 |
-| 2026-10-03 | Non-member, missing and malformed ids all return `404`                          | Never confirm that a community exists to an outsider                                         |
-| 2026-10-03 | Create Community is a full-screen route, not a modal                            | Phone back gesture; the installed PWA has no browser back button                             |
-| 2026-10-03 | Creating requires finished onboarding (`403` otherwise)                         | A community admin must have a display name to be shown                                       |
+| Date       | Decision                                                                         | Reason                                                                                       |
+| ---------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 2026-10-03 | Steps 2.1–2.7 re-sliced into four vertical features (§0)                         | Vertical slicing (§11); smallest slices a friend can use; smaller `/code-review` diffs       |
+| 2026-10-03 | Create form shows a static "Invite friends" card until friends exist (option B)  | Developer's choice; recommendation was to omit it. Kept non-interactive, no logic            |
+| 2026-10-03 | Community names are not unique                                                   | Communities are found by invite, never searched; uniqueness would only cause errors          |
+| 2026-10-03 | Bottom nav ships with all four tabs; Search and My List show "Coming soon"       | Developer's choice; recommendation was two tabs. Profile is real so Sign out stays reachable |
+| 2026-10-03 | Covers: initials over an id-derived colour, reusing the avatar generator         | Developer's choice; visual design is deferred to a later stage                               |
+| 2026-10-03 | `cover_image_url` dropped; `invite_token` deferred to feature 2                  | No source for a cover; invite storage depends on feature 2's expiry decision                 |
+| 2026-10-03 | Non-member, missing and malformed ids all return `404`                           | Never confirm that a community exists to an outsider                                         |
+| 2026-10-03 | Create Community is a full-screen route, not a modal                             | Phone back gesture; the installed PWA has no browser back button                             |
+| 2026-10-03 | Creating requires finished onboarding (`403` otherwise)                          | A community admin must have a display name to be shown                                       |
+| 2026-10-03 | Create errors shown inline, not as a toast                                       | Stage 2: matches onboarding; a 422 and a toast would otherwise show the same error twice     |
+| 2026-10-03 | Shared cleaning and character rules extracted to `textRules.ts` in both packages | Stage 2: community names reuse display-name rules; one copy per package, not two             |
