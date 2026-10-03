@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { getCommunity } from '../api/communities';
-import { Button } from '../components/ui/Button';
+import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -47,12 +47,7 @@ export function Community() {
       )}
 
       {community.status === 'error' && (
-        <div role="alert" className="flex flex-col items-center gap-4 py-10 text-center">
-          <p className="text-sm text-muted">Couldn&apos;t load this community.</p>
-          <Button variant="secondary" onClick={community.reload}>
-            Try again
-          </Button>
-        </div>
+        <LoadError message="Couldn't load this community." onRetry={community.reload} />
       )}
 
       {community.status === 'ready' && (

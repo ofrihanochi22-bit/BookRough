@@ -22,6 +22,7 @@ const NAME_MESSAGES: ReadonlySet<string> = new Set([
   COMMUNITY_TEXT_MESSAGES.nameRequired,
   COMMUNITY_TEXT_MESSAGES.nameLength,
   COMMUNITY_TEXT_MESSAGES.nameTooLong,
+  COMMUNITY_TEXT_MESSAGES.character,
 ]);
 
 /** A server rejection, pinned to the exact text it was about. */

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
-import { Button } from '../components/ui/Button';
+import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -30,12 +30,7 @@ export function Dashboard() {
       )}
 
       {communities.status === 'error' && (
-        <div role="alert" className="flex flex-col items-center gap-4 py-10 text-center">
-          <p className="text-sm text-muted">Couldn&apos;t load your communities.</p>
-          <Button variant="secondary" onClick={communities.reload}>
-            Try again
-          </Button>
-        </div>
+        <LoadError message="Couldn't load your communities." onRetry={communities.reload} />
       )}
 
       {communities.status === 'ready' &&
@@ -66,7 +61,8 @@ function EmptyState() {
 function CommunityList({ items }: { items: PublicCommunity[] }) {
   return (
     <>
-      <ul className="flex flex-col gap-4">
+      {/* Bottom padding keeps the last card clear of the floating button. */}
+      <ul className="flex flex-col gap-4 pb-16">
         {items.map((community) => (
           <li key={community.id}>
             <Link

@@ -1,9 +1,4 @@
-import { api } from './client';
-
-interface SuccessBody<T> {
-  status: 'success';
-  data: T;
-}
+import { api, type SuccessBody } from './client';
 
 export type CommunityRole = 'ADMIN' | 'MEMBER';
 

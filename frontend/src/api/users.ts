@@ -1,10 +1,5 @@
 import type { Session, StreamingService } from '../stores/auth';
-import { api } from './client';
-
-interface SuccessBody<T> {
-  status: 'success';
-  data: T;
-}
+import { api, type SuccessBody } from './client';
 
 export type Availability =
   { available: true; reason: null } | { available: false; reason: 'taken' | 'reserved' };

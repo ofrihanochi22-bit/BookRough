@@ -3,6 +3,12 @@ import toast from 'react-hot-toast';
 
 import { useAuthStore } from '../stores/auth';
 
+/** Shape of every success body the backend produces (CLAUDE.md §4). */
+export interface SuccessBody<T> {
+  status: 'success';
+  data: T;
+}
+
 /** Shape of every error body the backend produces (CLAUDE.md §4). */
 interface ApiErrorBody {
   status: 'error';

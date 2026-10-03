@@ -29,6 +29,7 @@ export const COMMUNITY_TEXT_MESSAGES = {
   nameLength: `Use ${NAME_MIN_GRAPHEMES}–${NAME_MAX_GRAPHEMES} characters.`,
   nameTooLong: 'That name is too long.',
   character: "That character isn't allowed.",
+  descriptionCharacter: "The description has a character that isn't allowed.",
   descriptionLength: `Keep the description to ${DESCRIPTION_MAX_GRAPHEMES} characters.`,
 } as const;
 
@@ -89,7 +90,7 @@ export function checkCommunityDescription(
     return { ok: false, message: COMMUNITY_TEXT_MESSAGES.descriptionLength };
   }
   if (!hasOnlyPrintableCharacters(description)) {
-    return { ok: false, message: COMMUNITY_TEXT_MESSAGES.character };
+    return { ok: false, message: COMMUNITY_TEXT_MESSAGES.descriptionCharacter };
   }
   return { ok: true, value: description };
 }
