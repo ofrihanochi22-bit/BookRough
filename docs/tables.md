@@ -33,18 +33,20 @@ Stores the group details.
 - **id** (UUID, Primary Key).
 - **name** (VARCHAR, Not Null): Name of the group.
 - **description** (TEXT, Nullable): Group bio or rules.
-- **cover_image_url** (VARCHAR, Nullable): Link to the banner image.
-- **invite_token** (VARCHAR, Unique, Nullable): A static or regenerating string used to build the invite URLs (UC-15).
 - **created_at** (TIMESTAMP, Default Current Time).
+- **updated_at** (TIMESTAMP, updated automatically on every change).
+
+No cover image column: covers are always generated from the name and id (CLAUDE.md §8). Invite storage is added by the invites feature, which decides whether it is a column or its own table (UC-15 mentions expiry). Names are not unique — communities are found by invite, never by name.
 
 ### 3. community_members Table (Junction Table)
 
 Resolves the many-to-many relationship between users and communities.
 - **user_id** (UUID, Foreign Key referencing users(id)).
 - **community_id** (UUID, Foreign Key referencing communities(id)).
-- **role** (ENUM, Not Null): e.g., 'ADMIN', 'MEMBER'. Dictates permissions like kicking users (UC-14).
+- **role** (ENUM CommunityRole, Not Null, Default 'MEMBER'): 'ADMIN' or 'MEMBER'. Dictates permissions like kicking users (UC-14). The creator of a community is its first ADMIN, written in the same transaction as the community.
 - **joined_at** (TIMESTAMP, Default Current Time).
-- (Composite Primary Key: user_id, community_id to prevent duplicate memberships).
+- **updated_at** (TIMESTAMP, updated automatically on every change).
+- (Composite Primary Key: user_id, community_id to prevent duplicate memberships. An index on community_id serves member counts. Both foreign keys cascade on delete, so removing a user or a community removes its memberships.)
 
 ### 4. friends Table
 

@@ -55,7 +55,7 @@ No new endpoints. One new optional environment variable:
 
 Each test signs in as a fresh random `sub` and a unique display name, so tests never collide and no database wipe is needed between them.
 
-- ✅ **First sign-in → onboarding → home:** Welcome shows → stand-in button → Complete Your Profile → type a free name, see "✓ Available", pick Apple Music, keep the generated avatar → Continue → home shows "Hi, <name>".
+- ✅ **First sign-in → onboarding → home:** Welcome shows → stand-in button → Complete Your Profile → type a free name, see "✓ Available", pick Apple Music, keep the generated avatar → Continue → home shows "Hi, <name>". (Since `communities-create.md`: home is the dashboard, "Your communities", and Sign out is on the Profile tab.)
 - ✅ **Session survives a reload, sign out, sign back in:** after onboarding, reload `/home` → still home; Sign out → Welcome; visiting `/home` now lands on Welcome; sign in again with the same `sub` → straight to home, no onboarding.
 - ✅ **Abandoned onboarding resumes:** sign in, leave on Complete Your Profile, sign out; sign in again with the same `sub` → back on Complete Your Profile.
 

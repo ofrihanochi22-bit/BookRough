@@ -11,7 +11,17 @@ import {
 
 // The same example table lives in frontend/src/lib/displayName.test.ts, so the
 // two mirrors are held to identical behaviour.
-const VALID = ['טל', 'DJ 🎧', 'Ofri H.', "o'neil", 'Al-i', 'José 2', '👩🏽‍💻 dev', 'x'.repeat(20)];
+const VALID = [
+  'ג׳ני',
+  'טל',
+  'DJ 🎧',
+  'Ofri H.',
+  "o'neil",
+  'Al-i',
+  'José 2',
+  '👩🏽‍💻 dev',
+  'x'.repeat(20),
+];
 const INVALID_LENGTH = ['a', ' ', 'x'.repeat(21), '🎧'];
 const INVALID_CHARACTER = [
   'a<b',
@@ -97,6 +107,7 @@ describe('displayNameKey equivalences', () => {
     ['José', 'jose'],
     ['Ｏｆｒｉ', 'Ofri'],
     ['O’Neil', "o'neil"],
+    ['ג׳ני', "ג'ני"],
   ])('%j and %j share a key', (a, b) => {
     // Act & Assert
     expect(keyOf(a)).toBe(keyOf(b));

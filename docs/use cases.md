@@ -134,10 +134,10 @@
   - The user taps the "Create Community" button.
   - The system presents a creation form.
   - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
-  - The system presents the user's friends list, allowing them to select friends to invite.
+  - Once friends exist (Phase 5), the system presents the user's friends list, allowing them to select friends to invite. Until then, a static "Invite friends" card holds that place on the form.
   - The user submits the form.
-  - The backend creates the Community, assigns the creator as Admin, and generates unique invite links for the selected friends.
-  - The user is redirected to the newly created Community's main feed.
+  - The backend creates the Community and assigns the creator as Admin. (Invite links for selected friends arrive with the friends picker; meanwhile an Admin shares an invite link, UC-15.)
+  - The user is redirected to the newly created Community's page (its feed, once posts exist in Phase 3).
 - **Fail description (Alternative Scenario):** The user attempts to create the group without providing a required "Name" field. The system disables the final submit button, highlights the empty Name field in red, and displays helper text: "A Community name is required."
 
 ### UC-10: User Leaves a Group (Community)

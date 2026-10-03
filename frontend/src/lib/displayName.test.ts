@@ -9,7 +9,17 @@ import {
 
 // The same example table as backend/src/services/displayName.test.ts: the two
 // mirrors must agree on every case.
-const VALID = ['טל', 'DJ 🎧', 'Ofri H.', "o'neil", 'Al-i', 'José 2', '👩🏽‍💻 dev', 'x'.repeat(20)];
+const VALID = [
+  'ג׳ני',
+  'טל',
+  'DJ 🎧',
+  'Ofri H.',
+  "o'neil",
+  'Al-i',
+  'José 2',
+  '👩🏽‍💻 dev',
+  'x'.repeat(20),
+];
 const INVALID_LENGTH = ['a', ' ', 'x'.repeat(21), '🎧'];
 const INVALID_CHARACTER = [
   'a<b',

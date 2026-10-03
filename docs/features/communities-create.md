@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (create a community)                                                             |
 | **Phase**     | 2 — merges Step 2.1, the create/read half of 2.2 and the dashboard/create half of 2.5 |
 | **Branch**    | `feat/communities-create`                                                             |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                    |
 
 ---
 
@@ -330,3 +330,6 @@ None.
 | 2026-10-03 | Creating requires finished onboarding (`403` otherwise)                          | A community admin must have a display name to be shown                                       |
 | 2026-10-03 | Create errors shown inline, not as a toast                                       | Stage 2: matches onboarding; a 422 and a toast would otherwise show the same error twice     |
 | 2026-10-03 | Shared cleaning and character rules extracted to `textRules.ts` in both packages | Stage 2: community names reuse display-name rules; one copy per package, not two             |
+| 2026-10-03 | Description character errors get their own message                               | `/code-review`: a server 422 on the name was shown under the description                     |
+| 2026-10-03 | Cover initials skip punctuation ("(Friday) Jazz" → "FJ")                         | `/code-review`: community names now allow leading punctuation                                |
+| 2026-10-03 | Hebrew geresh/gershayim allowed in all names (`onboarding.md` amended)           | Stage 4: "ג׳אז" failed the name rules — the geresh is Unicode punctuation                    |

@@ -35,7 +35,8 @@ export function cleanLine(raw: string): string {
 }
 
 /**
- * Letters and marks in any script, digits, space, `. - _ '`, and what emoji
+ * Letters and marks in any script, digits, space, `. - _ '`, the Hebrew geresh
+ * and gershayim (`׳ ״`, as in ג׳אז — Unicode files them as punctuation), and what emoji
  * are made of: pictographs, ZWJ, variation selectors, skin tones, keycaps,
  * regional indicators and tag characters (subdivision flags). Everything else
  * — symbols, zero-width spaces, bidi marks, control characters — is rejected.
@@ -43,7 +44,7 @@ export function cleanLine(raw: string): string {
  * Checked one code point at a time: a single character class mixing ZWJ and
  * modifiers is ambiguous to read (and to the linter).
  */
-const NAME_BASE = /[\p{L}\p{M}\p{N} .\-_'\p{Extended_Pictographic}]/u;
+const NAME_BASE = /[\p{L}\p{M}\p{N} .\-_'׳״\p{Extended_Pictographic}]/u;
 
 /**
  * Hangul fillers are classified as letters but render as blank space, so a

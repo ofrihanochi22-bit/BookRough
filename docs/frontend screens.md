@@ -22,7 +22,8 @@ Google Sign-In is the only authentication method, so this group collapsed from f
 These screens represent the core social and discovery aspects of the app.
 - **2.1. Communities Dashboard (Home Screen)**
   - **Purpose:** The central hub displaying all the groups a user belongs to.
-  - **Key UI:** List/Grid of joined Communities (Cover Image, Name), "Create New Community" FAB (Floating Action Button) or prominent button, Bottom/Top navigation bar to switch between Home, Search, My List, and Profile.
+  - **Key UI:** List of joined Communities (generated cover, name, member count, an "Admin" label where the user is one), newest joined first, and a floating "Create community" button. A bottom tab bar switches between Home, Search, My List, and Profile; Search and My List show a "Coming soon" screen until their phases, and Profile is a minimal screen with Sign out until My Profile / Settings ships.
+  - **States:** skeleton cards while loading; an empty state ("Start your first community") with a single Create button; an inline error with Try again.
 - **2.2. Global Search Screen (UC-5)**
   - **Purpose:** Finding other users on the platform.
   - **Key UI:** Search input bar, dynamic list of results (Profile Picture, Display Name), "No results found" empty state.
@@ -44,7 +45,8 @@ These are the most heavily trafficked screens where the primary value exchange h
     - Context menu on own posts to "Delete Post".
 - **3.2. Create Community Screen (UC-9)**
   - **Purpose:** Setting up a new group.
-  - **Key UI:** Form for Community Name and Description, a live preview of the **generated cover graphic** (no upload control), and a multi-select list of current friends to invite.
+  - **Key UI:** A full-screen form (not a modal, so the phone's back gesture works) for Community Name and Description, with a live preview of the generated cover graphic (neutral until the community exists, since its colour comes from the id; no upload control). In place of the friends multi-select, a static "Invite friends" card until friends exist (Phase 5).
+  - **States:** required-name error ("A Community name is required."); submitting ("Creating…"); offline banner. On success the user lands on the community's page, which shows the cover, name, description, member line, and a "Posts are coming soon" panel until Phase 3. A community the user is not in renders the standard not-found page.
 - **3.3. Community Settings & Members Screen (UC-10, UC-14, UC-15)**
   - **Purpose:** Managing the group's roster and individual participation.
   - **Key UI:** List of current members. For Admins: "Generate Invite Link" button, "Remove User" actions next to member names. For all members: "Leave Community" button.

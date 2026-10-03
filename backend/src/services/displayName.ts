@@ -34,17 +34,22 @@ export function cleanDisplayName(raw: string): string {
 
 /**
  * The uniqueness key: two names that differ only by case, spacing, accents or
- * niqqud, or Unicode compatibility forms (full-width letters) share one key.
+ * niqqud, Unicode compatibility forms (full-width letters), or a geresh written
+ * as an apostrophe share one key.
  */
 export function displayNameKey(displayName: string): string {
-  return displayName
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .replace(/‍/gu, '')
-    .toLowerCase()
-    .replace(/\s+/gu, ' ')
-    .trim()
-    .normalize('NFC');
+  return (
+    displayName
+      // A geresh and an apostrophe look alike: "ג׳ני" and "ג'ני" share one key.
+      .replace(/׳/gu, "'")
+      .normalize('NFKD')
+      .replace(/\p{M}/gu, '')
+      .replace(/‍/gu, '')
+      .toLowerCase()
+      .replace(/\s+/gu, ' ')
+      .trim()
+      .normalize('NFC')
+  );
 }
 
 const RESERVED_NAMES = [

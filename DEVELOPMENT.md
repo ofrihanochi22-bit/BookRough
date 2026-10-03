@@ -564,131 +564,130 @@ cd backend && npx vitest run src/config src/services/googleIdentity
 
 > Phase 2 now also carries the **administrative area** (Steps 2.8, 2.9). It was pulled forward from a later phase so that users and communities can be managed while the app is being trialled with real friends.
 
-### Step 2.1 — Communities schema (Phase 2 — UC-9)
+> **Re-sliced 2026-10-03.** The original Steps 2.1–2.7 split Phase 2 by layer (schema, backend, screens, tests), and most of them could not merge alone under CLAUDE.md §11. They became four vertical features, each with its own spec session — see `docs/features/communities-create.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-communities-schema
+### Step 2.1 — Communities: create and dashboard (Phase 2 — UC-9)
 
-Goal: Migration adds `communities` and `community_members` tables (composite PK on members, role enum).
+Status: ✅ Done
+Branch: feat/communities-create
+Spec: docs/features/communities-create.md
+
+Goal: A signed-in user creates a community, becomes its admin, lands on its page, and sees all their communities on a real dashboard. A tab bar is in place for the whole app.
 
 Tasks:
 
-- [ ] DB: Add models per `tables.docx`.
-- [ ] DB: Migration `add_communities`.
+- [x] Spec: docs/features/communities-create.md written and approved (re-slice of Phase 2, schema, name rules, screens).
+- [x] DB: migration `add_communities` — `communities`, `community_members`, `CommunityRole`; no `cover_image_url`, no `invite_token` (feature 2).
+- [x] Backend: `POST /api/communities`, `GET /api/communities`, `GET /api/communities/:id` (non-member / missing / malformed → one `404`); `toPublicCommunity`.
+- [x] Frontend: Communities Dashboard replaces the `/home` placeholder; Create Community (full-screen); community page shell; bottom tab bar (Search and My List "Coming soon"); minimal Profile tab with Sign out.
+- [x] Review: `/code-review` (9 findings: 8 fixed, 1 skipped as negligible) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §8.
+
+What I did:
+
+Built the first Phase 2 feature (UC-9) per `docs/features/communities-create.md`.
+
+- **DB:** migration `add_communities`. Composite primary key on memberships, an index on `community_id`, cascades both ways, `updated_at` on both tables. The creator's `ADMIN` membership is written in the same nested create as the community.
+- **Backend:** `services/textRules.ts` (cleaning and character rules now shared by display names and community names; `displayName.ts` refactored onto it); `services/communityText.ts` (name 2–40 graphemes with `& ! ? , : ( ) "`, optional description up to 280 with line breaks); `services/community.service.ts`, `controllers/community.controller.ts`, `routes/communities.ts`; `utils/publicCommunity.ts`. Creating needs finished onboarding (`403` otherwise).
+- **Frontend:** `pages/Dashboard.tsx` (skeleton / empty / error states, floating Create), `pages/CreateCommunity.tsx` (live cover preview, counters, UC-9 required-name error, static "Invite friends" card, offline banner), `pages/Community.tsx` (shell; `404` → not-found page), `pages/Profile.tsx`, `pages/ComingSoon.tsx`, `components/BottomNav.tsx` + `TabLayout.tsx`, `components/ui/CommunityCover.tsx`, `Skeleton`, `LoadError`; `hooks/useRequest.ts`; client mirrors `lib/textRules.ts`, `lib/communityText.ts`. The `Home` placeholder and `SignedInPlaceholder` are gone.
+- **Found by the tests:** the Hebrew geresh (`׳`, as in ג׳אז or ג׳ני) is Unicode punctuation, so it was rejected in display names too. It is now allowed in every name, and a geresh and an apostrophe share one uniqueness key (`docs/features/onboarding.md` amended). Cover initials skip leading punctuation ("(Friday) Jazz" → "FJ").
+- **Docs:** `tables`, `use cases` (UC-9), `frontend screens` (.md + .docx); `onboarding.md`, `auth-flow-e2e.md` amended; this re-slice.
+- **Tests:** backend 275 (97.8% lines over both suites), frontend 170 (97.9%), E2E 8 (the Phase 1 loops now go through the dashboard and sign out from the Profile tab, plus the new create-a-community loop, each in Chromium and iPhone WebKit).
+
+How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width and sign in with an onboarded Google account.
+
+1. Home is now **Your communities**, with the empty state "Start your first community" and one **Create community** button. The tab bar shows Home, Search, My List, Profile.
+2. Tap **Create community**. Tap into Name, then into Description → "A Community name is required." and Create stays disabled. Type `a@b` → "That character isn't allowed."
+3. Type `Friday Jazz & Soul!` → the cover preview shows "FJ" over a neutral colour, the counter reads 19/40. Add a description with a line break, then **Create** → "Creating…" → the community page: coloured cover, name, description with its line break, "1 member · You're an admin", "Posts are coming soon".
+4. Press Back → the dashboard (not the form), with the card "1 member · Admin". Create a second community → it appears first.
+5. Open `http://localhost:5173/communities/00000000-0000-4000-8000-000000000000` → "This page doesn't exist".
+6. **Search** and **My List** show "Coming soon"; **Profile** shows your name, service and **Sign out**.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/communityText.test.ts src/services/community.service.test.ts
+cd backend && npm run test:integration -- communities
+cd frontend && npm run test:unit                          # Dashboard, CreateCommunity, Community, TabLayout, Profile
+npm test --prefix e2e                                     # 8 runs, needs Docker Postgres
+```
+
+---
+
+### Step 2.2 — Invites and joining (Phase 2 — UC-15)
+
+Status: ☐ Not started
+Branch: feat/communities-invites
+Spec: docs/features/communities-invites.md (to be written in its Stage 1 session)
+
+Goal: A community admin gets an invite link; a friend opens it, sees a "Join Community" preview, and joins with one tap. Absorbs the invite half of former 2.2, the accept half of former 2.3, and former 2.6.
+
+Tasks:
+
+- [ ] Spec: invite storage (column vs table, expiry, revocation), preview payload, unauthenticated deep-link flow.
+- [ ] DB, backend, invite preview screen, admin "Get invite link", tests, E2E extension (create → invite → join).
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 2.2 — Community CRUD + invite tokens (Phase 2 — UC-9, UC-15)
+### Step 2.3 — Membership management (Phase 2 — UC-10, UC-14)
 
 Status: ☐ Not started
-Branch: feat/communities-crud
+Branch: feat/communities-membership
+Spec: docs/features/communities-membership.md (to be written in its Stage 1 session)
 
-Goal: Authenticated users can create, read, update, and delete communities; admins can mint invite links.
+Goal: Community Settings & Members — leave (with the sole-admin block), kick (not another admin), edit or delete the community. Absorbs the leave/kick half of former 2.3 and the settings half of former 2.5.
 
 Tasks:
 
-- [ ] Backend: `POST /api/communities`, `GET /api/communities/:id`, `PATCH /api/communities/:id`, `DELETE /api/communities/:id` (admin-only on the latter two).
-- [ ] Backend: `POST /api/communities/:id/invite` mints/rotates `invite_token`; `GET /api/invites/:token` returns a preview payload (community name, cover image, member count).
-- [ ] Tests: Integration tests for permissions and invite-token validity.
+- [ ] Spec, DB (if needed), backend, Community Settings & Members screen, tests.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 2.3 — Membership management (Phase 2 — UC-10, UC-14, UC-15)
+### Step 2.4 — My Profile / Settings (Phase 2 — UC-3, UC-4)
 
 Status: ☐ Not started
-Branch: feat/community-membership
+Branch: feat/profile-settings
+Spec: docs/features/profile-settings.md (to be written in its Stage 1 session)
 
-Goal: Users can join via invite token and leave; admins can kick members.
+Goal: The Profile tab becomes the full My Profile / Settings screen: edit display name and preferred service, avatar, visible Log Out. Absorbs former 2.4 and the profile half of former 2.5. Includes the open question of re-choosing a declined Google photo (`onboarding.md` §2).
 
 Tasks:
 
-- [ ] Backend: `POST /api/invites/:token/accept` joins the community.
-- [ ] Backend: `DELETE /api/communities/:id/members/me` (leave); block if user is sole admin → 400 with the docs message.
-- [ ] Backend: `DELETE /api/communities/:id/members/:userId` (kick); block kicking another admin.
-- [ ] Tests: Integration tests for sole-admin block and kick-admin block.
+- [ ] Spec, backend (reuses `PATCH /api/users/me`), screen, tests.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 2.4 — Edit profile (Phase 2 — UC-4)
+### Step 2.5 — _(split across 2.1, 2.3 and 2.4)_ Community + profile UI
 
-Status: ☐ Not started
-Branch: feat/profile-edit
-
-Goal: Users can update display name, avatar, and preferred streaming service.
-
-Tasks:
-
-- [ ] Backend: `PATCH /api/users/me` with image-size validation (≤5 MB, supported MIME types per UC-4 fail path).
-- [ ] Frontend: Generated avatar component — initials over a colour derived deterministically from the entity id. **No upload endpoint, no storage bucket** (CLAUDE.md §8); Google users keep the `picture` URL Google supplies.
-- [ ] Tests: Integration tests for happy path + oversized image rejection.
-
-What I did:
-How to view & test:
+Each screen ships with the feature that needs it (vertical slicing, CLAUDE.md §11).
 
 ---
 
-### Step 2.5 — Community + profile UI (Phase 2 — UC-4, UC-9, UC-10, UC-14)
-
-Status: ☐ Not started
-Branch: feat/communities-ui
-
-Goal: Communities Dashboard, Create Community modal, Community Settings & Members, and My Profile / Settings screens are functional.
-
-Tasks:
-
-- [ ] Frontend: `pages/Dashboard.tsx` listing joined communities with cover art, FAB for "Create Community".
-- [ ] Frontend: `components/CreateCommunityModal.tsx`.
-- [ ] Frontend: `pages/CommunitySettings.tsx` with members list, kick action for admins, leave button.
-- [ ] Frontend: `pages/MyProfile.tsx` with edit form and visible Logout.
-- [ ] Tests: RTL test on the create form's required-name validation.
-
-What I did:
-How to view & test:
+### Step 2.6 — _(merged into Step 2.2)_ Invite deep links
 
 ---
 
-### Step 2.6 — Invite deep links (Phase 2 — UC-15)
+### Step 2.7 — _(dissolved)_ Phase 2 test coverage
 
-Status: ☐ Not started
-Branch: feat/invite-deep-links
-
-Goal: A user clicking an invite URL lands on a "Join Community" preview screen and can join with one tap.
-
-Tasks:
-
-- [ ] Frontend: Route `/invite/:token` rendering `pages/InvitePreview.tsx` (community name, cover, member count, Join button).
-- [ ] Frontend: Unauthenticated users hitting an invite URL are sent through login first, then back to the preview.
-- [ ] Frontend: Expired/invalid token → error state per UC-15 fail path.
-- [ ] Tests: RTL test for the three states (valid / expired / not logged in).
-
-What I did:
-How to view & test:
-
----
-
-### Step 2.7 — Phase 2 test coverage (Phase 2)
-
-Status: ☐ Not started
-Branch: test/communities
-
-Goal: All Phase 2 routes have integration tests; create-community form has RTL coverage.
-
-Tasks:
-
-- [ ] Tests: Backfill any missing integration tests from steps 2.2–2.4.
-- [ ] Tests: Run `npm test` clean across both apps.
-
-What I did:
-How to view & test:
+Every feature ships its own tests (CLAUDE.md §15); there is no separate test step.
 
 ---
 
