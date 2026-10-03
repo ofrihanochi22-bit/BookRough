@@ -1,10 +1,5 @@
 import type { Session } from '../stores/auth';
-import { api } from './client';
-
-interface SuccessBody<T> {
-  status: 'success';
-  data: T;
-}
+import { api, type SuccessBody } from './client';
 
 /**
  * Exchanges a Google ID token for a session cookie. Errors are shown inline on

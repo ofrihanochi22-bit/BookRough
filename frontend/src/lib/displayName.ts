@@ -3,8 +3,13 @@
  *
  * A deliberate mirror of backend/src/services/displayName.ts, for instant
  * feedback while typing; the server stays authoritative and also checks
- * uniqueness and reserved names. Change both together.
+ * uniqueness and reserved names. Change both together. The cleaning and
+ * character rules shared with community names live in ./textRules.ts.
  */
+
+import { cleanLine, codePointCount, graphemeCount, hasOnlyNameCharacters } from './textRules';
+
+export { graphemeCount };
 
 export const MIN_GRAPHEMES = 2;
 export const MAX_GRAPHEMES = 20;
@@ -18,44 +23,9 @@ export const DISPLAY_NAME_MESSAGES = {
   taken: 'That display name is already taken.',
 } as const;
 
-const BASE = /[\p{L}\p{M}\p{N} .\-_'\p{Extended_Pictographic}]/u;
-
-/**
- * Hangul fillers are classified as letters but render as blank space, so a
- * name made of them would look empty.
- */
-const BLANK_LETTERS = new Set([0x115f, 0x1160, 0x3164, 0xffa0]);
-
-function isEmojiPart(codePoint: number): boolean {
-  return (
-    codePoint === 0x200d || // zero-width joiner
-    codePoint === 0x20e3 || // combining keycap
-    (codePoint >= 0x1f3fb && codePoint <= 0x1f3ff) || // skin tones
-    (codePoint >= 0x1f1e6 && codePoint <= 0x1f1ff) || // regional indicators
-    (codePoint >= 0xe0020 && codePoint <= 0xe007f) // tag characters
-  );
-}
-
-const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-
-/**
- * Typographic apostrophes and hyphens become their plain forms first: iOS
- * "smart punctuation" turns ' into ’ as the user types.
- */
-const TYPOGRAPHIC = /[‘’ʼ]/gu;
-const HYPHENS = /[‐‑]/gu;
-
+/** NFC, plain punctuation, trimmed, whitespace runs collapsed to one space. */
 export function cleanDisplayName(raw: string): string {
-  return raw
-    .normalize('NFC')
-    .replace(TYPOGRAPHIC, "'")
-    .replace(HYPHENS, '-')
-    .replace(/\s+/gu, ' ')
-    .trim();
-}
-
-export function graphemeCount(value: string): number {
-  return Array.from(segmenter.segment(value)).length;
+  return cleanLine(raw);
 }
 
 /** Null when the name passes rules 1–3, otherwise the message to show. */
@@ -66,14 +36,10 @@ export function displayNameProblem(raw: string): string | null {
   if (length < MIN_GRAPHEMES || length > MAX_GRAPHEMES) {
     return DISPLAY_NAME_MESSAGES.length;
   }
-  const allowed = Array.from(name).every((char) => {
-    const codePoint = char.codePointAt(0)!;
-    return !BLANK_LETTERS.has(codePoint) && (BASE.test(char) || isEmojiPart(codePoint));
-  });
-  if (!allowed) {
+  if (!hasOnlyNameCharacters(name)) {
     return DISPLAY_NAME_MESSAGES.character;
   }
-  if (Array.from(name).length > MAX_CODE_POINTS) {
+  if (codePointCount(name) > MAX_CODE_POINTS) {
     return DISPLAY_NAME_MESSAGES.tooLong;
   }
   return null;

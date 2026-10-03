@@ -1,3 +1,6 @@
+import { AxiosError, AxiosHeaders } from 'axios';
+
+import type { PublicCommunity } from '../api/communities';
 import { useAuthStore, type PublicUser, type Session } from '../stores/auth';
 
 export function makeUser(overrides: Partial<PublicUser> = {}): PublicUser {
@@ -18,4 +21,37 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
 /** Back to the app-load state: session not yet resolved. */
 export function resetAuthStore(): void {
   useAuthStore.setState({ status: 'unknown', user: null, needsOnboarding: false });
+}
+
+export function makeCommunity(overrides: Partial<PublicCommunity> = {}): PublicCommunity {
+  return {
+    id: '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40',
+    name: 'Friday Jazz',
+    description: null,
+    memberCount: 1,
+    myRole: 'ADMIN',
+    createdAt: '2026-10-03T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** An axios error carrying a backend error body, as the API client rejects with. */
+export function httpError(status: number, message: string): AxiosError {
+  const config = { headers: new AxiosHeaders() };
+  return new AxiosError('failed', 'ERR_BAD_REQUEST', config, null, {
+    status,
+    statusText: '',
+    headers: new AxiosHeaders(),
+    config,
+    data: { status: 'error', code: status, message },
+  });
+}
+
+/** An axios error with no response at all — offline, DNS, timeout. */
+export function networkError(): AxiosError {
+  return new AxiosError('Network Error', 'ERR_NETWORK', { headers: new AxiosHeaders() });
+}
+
+export function setOnline(online: boolean): void {
+  Object.defineProperty(window.navigator, 'onLine', { value: online, configurable: true });
 }

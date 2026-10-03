@@ -70,4 +70,12 @@ describe('avatarParts', () => {
     // Act & Assert
     expect(initials('🎧 Ofri')).toBe('🎧O');
   });
+
+  it('skips punctuation: leading symbols are dropped and symbol-only words ignored', () => {
+    // Act & Assert
+    expect(initials('(Friday) Jazz')).toBe('FJ');
+    expect(initials('& Friends')).toBe('F');
+    expect(initials('"Quotes" club')).toBe('QC');
+    expect(initials('!!!')).toBe('');
+  });
 });

@@ -14,6 +14,9 @@ const { fetchSession, signInWithGoogle, logout } = vi.hoisted(() => ({
 }));
 
 vi.mock('./api/auth', () => ({ fetchSession, signInWithGoogle, logout }));
+// The dashboard loads communities on mount; an empty list keeps routing tests about routing.
+const { listMyCommunities } = vi.hoisted(() => ({ listMyCommunities: vi.fn() }));
+vi.mock('./api/communities', () => ({ listMyCommunities }));
 
 vi.mock('@react-oauth/google', () => ({
   GoogleOAuthProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -46,6 +49,7 @@ const welcomeHeading = () => screen.findByRole('heading', { name: 'BookRough' })
 beforeEach(() => {
   resetAuthStore();
   vi.resetAllMocks();
+  listMyCommunities.mockResolvedValue([]);
 });
 
 describe('session bootstrap', () => {
@@ -84,7 +88,7 @@ describe('session bootstrap', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     // Assert
-    expect(await screen.findByRole('heading', { name: 'Hi, Ofri' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
     expect(fetchSession).toHaveBeenCalledTimes(2);
   });
 });
@@ -124,7 +128,7 @@ describe('route guards', () => {
     renderAt('/');
 
     // Assert
-    expect(await screen.findByRole('heading', { name: 'Hi, Ofri' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
   });
 
   it('keeps a user who needs onboarding off /home', async () => {
@@ -150,7 +154,7 @@ describe('route guards', () => {
     renderAt('/onboarding');
 
     // Assert
-    expect(await screen.findByRole('heading', { name: 'Hi, Ofri' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
   });
 });
 

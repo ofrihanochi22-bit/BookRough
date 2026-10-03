@@ -15,9 +15,19 @@ export function avatarHue(id: string): number {
   return HUES[hash % HUES.length] ?? HUES[0]!;
 }
 
-/** Up to two letters, first of each word; works for any script. */
+/** A letter, digit or emoji — what an initial may be. Punctuation never is. */
+const INITIAL = /[\p{L}\p{N}\p{Extended_Pictographic}]/u;
+
+/**
+ * Up to two initials, the first letter, digit or emoji of each word; works for
+ * any script. Leading punctuation is skipped ("(Friday) Jazz" → "FJ") and a
+ * word with no such character ("&") contributes nothing.
+ */
 export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  const letters = words.slice(0, 2).map((word) => Array.from(word)[0] ?? '');
-  return letters.join('').toUpperCase();
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => Array.from(word).find((char) => INITIAL.test(char)))
+    .filter((letter): letter is string => letter !== undefined);
+  return letters.slice(0, 2).join('').toUpperCase();
 }

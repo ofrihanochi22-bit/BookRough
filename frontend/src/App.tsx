@@ -1,9 +1,14 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
+import { TabLayout } from './components/TabLayout';
+import { ComingSoon } from './pages/ComingSoon';
+import { Community } from './pages/Community';
 import { CompleteProfile } from './pages/CompleteProfile';
-import { Home } from './pages/Home';
+import { CreateCommunity } from './pages/CreateCommunity';
+import { Dashboard } from './pages/Dashboard';
 import { NotFound } from './pages/NotFound';
+import { Profile } from './pages/Profile';
 import { Welcome } from './pages/Welcome';
 
 /**
@@ -30,14 +35,41 @@ export function App() {
             </RequireSession>
           }
         />
+        {/* Full-screen form: no tab bar (docs/features/communities-create.md §6.1). */}
         <Route
-          path="/home"
+          path="/communities/new"
           element={
             <RequireSession onboarding="complete">
-              <Home />
+              <CreateCommunity />
             </RequireSession>
           }
         />
+        <Route
+          element={
+            <RequireSession onboarding="complete">
+              <TabLayout />
+            </RequireSession>
+          }
+        >
+          <Route path="/home" element={<Dashboard />} />
+          <Route path="/communities/:id" element={<Community />} />
+          <Route
+            path="/search"
+            element={
+              <ComingSoon title="Search" description="Find friends on BookRough. Coming soon." />
+            }
+          />
+          <Route
+            path="/my-list"
+            element={
+              <ComingSoon
+                title="My List"
+                description="Songs you saved to listen later. Coming soon."
+              />
+            }
+          />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     </SessionGate>
