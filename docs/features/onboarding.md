@@ -33,7 +33,7 @@ A user who has just signed in for the first time chooses a display name, a prefe
 - Editing the reserved-name list from the admin area (UC-19). It is a constant in code for now.
 - Cross-script look-alikes (Latin "a" vs Cyrillic "а"). Normalisation handles case, accents/niqqud and compatibility forms; full homoglyph detection is not attempted.
 - Script-aware mark stripping. The key removes every combining mark, which is the intent for Hebrew niqqud and Latin accents but also merges names in scripts whose vowel signs are marks (Devanagari, Thai). Accepted for this audience; revisit if it bites.
-- Re-choosing the Google photo later. A declined photo is not stored, so the future settings screen cannot offer it until a fresh sign-in stores it again — that design belongs to UC-3's spec.
+- Re-choosing the Google photo later. A declined photo is not stored; My Profile offers it again through a fresh Google sign-in — see `docs/features/profile-settings.md` §4.
 - Rename limits or rename history.
 - The real dashboard — `/home` stays a placeholder until Phase 2.
 

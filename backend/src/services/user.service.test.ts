@@ -1,13 +1,21 @@
 import { Prisma, type User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { checkAvailability, updateProfile } from './user.service.js';
+import { AppError } from '../utils/AppError.js';
+import {
+  checkAvailability,
+  GOOGLE_PHOTO_MESSAGES,
+  rechooseGooglePicture,
+  updateProfile,
+} from './user.service.js';
 
-const { userDb } = vi.hoisted(() => ({
+const { userDb, verifyGoogleIdToken } = vi.hoisted(() => ({
   userDb: { update: vi.fn(), findUnique: vi.fn() },
+  verifyGoogleIdToken: vi.fn(),
 }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: { user: userDb } }));
+vi.mock('./googleIdentity.service.js', () => ({ verifyGoogleIdToken }));
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -202,5 +210,97 @@ describe('checkAvailability', () => {
   it('throws 422 for a name that breaks the rules', async () => {
     // Act & Assert
     await expect(checkAvailability(makeUser(), 'a<b')).rejects.toMatchObject({ statusCode: 422 });
+  });
+});
+
+describe('rechooseGooglePicture', () => {
+  const declined = () =>
+    makeUser({
+      displayName: 'Ofri',
+      displayNameKey: 'ofri',
+      preferredService: 'SPOTIFY',
+      profilePictureUrl: null,
+      useGooglePicture: false,
+    });
+
+  it('stores only the token picture and sets the flag', async () => {
+    // Arrange
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/fresh' });
+
+    // Act
+    const user = await rechooseGooglePicture(declined(), 'credential');
+
+    // Assert
+    expect(verifyGoogleIdToken).toHaveBeenCalledWith('credential');
+    expect(userDb.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { profilePictureUrl: 'https://pic/fresh', useGooglePicture: true },
+    });
+    expect(user.profilePictureUrl).toBe('https://pic/fresh');
+  });
+
+  it('refuses a caller who has not finished onboarding, before asking Google (403)', async () => {
+    // Act
+    const attempt = rechooseGooglePicture(makeUser(), 'credential');
+
+    // Assert
+    await expect(attempt).rejects.toMatchObject({ statusCode: 403 });
+    expect(verifyGoogleIdToken).not.toHaveBeenCalled();
+  });
+
+  it('maps a rejected token to 422, so the session survives', async () => {
+    // Arrange
+    verifyGoogleIdToken.mockRejectedValue(new AppError('Google sign-in failed.', 401));
+
+    // Act
+    const attempt = rechooseGooglePicture(declined(), 'credential');
+
+    // Assert
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 422,
+      message: GOOGLE_PHOTO_MESSAGES.failed,
+    });
+    expect(userDb.update).not.toHaveBeenCalled();
+  });
+
+  it('passes "Google unavailable" through as 503', async () => {
+    // Arrange
+    verifyGoogleIdToken.mockRejectedValue(new AppError('Unavailable.', 503));
+
+    // Act
+    const attempt = rechooseGooglePicture(declined(), 'credential');
+
+    // Assert
+    await expect(attempt).rejects.toMatchObject({ statusCode: 503 });
+  });
+
+  it('refuses a different Google account (403)', async () => {
+    // Arrange
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'someone-else', picture: 'https://pic/x' });
+
+    // Act
+    const attempt = rechooseGooglePicture(declined(), 'credential');
+
+    // Assert
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 403,
+      message: GOOGLE_PHOTO_MESSAGES.otherAccount,
+    });
+    expect(userDb.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses an account with no photo (422)', async () => {
+    // Arrange
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: null });
+
+    // Act
+    const attempt = rechooseGooglePicture(declined(), 'credential');
+
+    // Assert
+    await expect(attempt).rejects.toMatchObject({
+      statusCode: 422,
+      message: GOOGLE_PHOTO_MESSAGES.noPhoto,
+    });
+    expect(userDb.update).not.toHaveBeenCalled();
   });
 });

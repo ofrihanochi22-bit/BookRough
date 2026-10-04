@@ -42,8 +42,8 @@
 - **Post-conditions:** The user's active session is completely terminated on both the client and server sides. The user must re-authenticate to access protected features.
 - **Trigger:** The user taps or clicks the "Logout" button, typically found within their profile or settings menu.
 - **Step-by-step scenario (Success):**
-- The user navigates to their profile or settings page.
-- The user clicks the "Logout" button.
+- The user opens My Profile from the Profile tab.
+- The user clicks the "Sign out" button at the bottom of the screen.
 - The system prompts the user to confirm their action (optional).
 - Upon confirmation, the backend invalidates the user's session token.
 - The frontend clears any cached local user data and redirects the user to the public Welcome screen.
@@ -56,16 +56,16 @@
 - **Post-conditions:** The user's updated information is successfully saved in the database and immediately reflected across the application's user interface.
 - **Trigger:** The user navigates to the "Settings" or "Edit Profile" screen and modifies one or more fields.
 - **Step-by-step scenario (Success):**
-  - The user navigates to their profile screen and selects "Edit Profile".
+  - The user opens My Profile from the Profile tab; the fields are editable in place.
   - The user changes their Preferred Streaming Service from Spotify to Apple Music.
   - The user's avatar is regenerated automatically from their display name; there is nothing to upload.
-  - The user clicks the "Save Changes" button.
+  - The user clicks the "Save changes" button, enabled only once something has changed.
   - The system validates the inputs (display name length and uniqueness, a recognised streaming service).
   - The backend updates the User record in the database.
-  - The system displays a "Profile updated successfully" toast notification and returns the user to their refreshed profile view.
+  - The system displays a "Profile updated" toast notification and the screen shows the saved values.
 - **Fail description (Alternative Scenario):** The user attempts to save a display name that is already taken by another account. The system prevents the save action and displays an inline error message: "That display name is already taken."
 
-> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users who signed in with Google may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. There is no upload control anywhere in the product; see `docs/general.md` §4.1.
+> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. On My Profile the avatar can be switched both ways: "Use generated avatar" deletes the stored photo, and going back to the Google photo requires a fresh Google sign-in from the same account, which fetches the current photo (`docs/features/profile-settings.md` §4). There is no upload control anywhere in the product; see `docs/general.md` §4.1.
 
 ### UC-5: User Searches Other Users
 
