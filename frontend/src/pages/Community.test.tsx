@@ -153,3 +153,32 @@ describe('Community page — inviting', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
+
+describe('Community page — owner and settings', () => {
+  it('labels the owner, offers Invite friends, and links every member to Settings', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'OWNER', memberCount: 3 }));
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    expect(await screen.findByText("3 members · You're the owner")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Invite friends' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      `/communities/${ID}/settings`,
+    );
+  });
+
+  it('shows Settings to a plain member too', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'MEMBER', memberCount: 2 }));
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    expect(await screen.findByRole('link', { name: 'Settings' })).toBeInTheDocument();
+  });
+});

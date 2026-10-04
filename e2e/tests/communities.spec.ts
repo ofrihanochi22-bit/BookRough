@@ -21,7 +21,7 @@ test('a new user creates a community and sees it on the dashboard', async ({ pag
 
   // Assert — the new community's page
   await expect(page.getByRole('heading', { name: 'Friday Jazz' })).toBeVisible();
-  await expect(page.getByText("1 member · You're an admin")).toBeVisible();
+  await expect(page.getByText("1 member · You're the owner")).toBeVisible();
   await expect(page).toHaveURL(/\/communities\/[0-9a-f-]{36}$/);
 
   // Act — Back returns to the dashboard, not to the form
@@ -29,5 +29,5 @@ test('a new user creates a community and sees it on the dashboard', async ({ pag
 
   // Assert
   await expect(dashboardHeading(page)).toBeVisible();
-  await expect(page.getByRole('link', { name: /Friday Jazz/ })).toContainText('1 member · Admin');
+  await expect(page.getByRole('link', { name: /Friday Jazz/ })).toContainText('1 member · Owner');
 });

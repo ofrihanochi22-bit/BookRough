@@ -128,7 +128,7 @@
 
 - **Description:** A user creates a new Community to act as a group space for sharing music and invites their friends to join.
 - **Pre-conditions:** The user is logged into the application.
-- **Post-conditions:** A new Community record is created in the database containing an id and name. The creating user is automatically designated as a Community Admin.
+- **Post-conditions:** A new Community record is created in the database containing an id and name. The creating user becomes its Owner — an Admin who cannot be demoted or removed and who alone can delete the community.
 - **Trigger:** The user taps the "Create Community" or "New Group" button from the main navigation or Communities tab.
 - **Step-by-step scenario (Success):**
   - The user taps the "Create Community" button.
@@ -136,7 +136,7 @@
   - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
   - Once friends exist (Phase 5), the system presents the user's friends list, allowing them to select friends to invite. Until then, a static "Invite friends" card holds that place on the form.
   - The user submits the form.
-  - The backend creates the Community and assigns the creator as Admin. (Invite links for selected friends arrive with the friends picker; meanwhile an Admin shares an invite link, UC-15.)
+  - The backend creates the Community and makes the creator its Owner. (Invite links for selected friends arrive with the friends picker; meanwhile an Admin shares an invite link, UC-15.)
   - The user is redirected to the newly created Community's page (its feed, once posts exist in Phase 3).
 - **Fail description (Alternative Scenario):** The user attempts to create the group without providing a required "Name" field. The system disables the final submit button, highlights the empty Name field in red, and displays helper text: "A Community name is required."
 
@@ -154,7 +154,7 @@
   - The user confirms.
   - The backend processes the request and removes the user's ID from the members array.
   - The user is automatically redirected back to their main Communities list or dashboard.
-- **Fail description (Alternative Scenario):** The user is the sole Admin of the Community and attempts to leave. The system blocks the action to prevent the group from becoming orphaned. A modal appears stating: "You are the only Admin. Please assign another member as Admin or delete the Community before leaving."
+- **Fail description (Alternative Scenario):** The user is the community's Owner and attempts to leave. The system blocks the action so the community is never left without an owner: "You're the owner. Transfer ownership to another member or delete the community before leaving." Admins and members can always leave; leaving never blocks them from rejoining.
 
 ### UC-11: User Sends a Message to a Friend/Group Chat (Post Recommendation)
 
@@ -207,7 +207,7 @@
 
 - **Description:** A user with administrative privileges in a Community revokes another user's membership, removing their access to the group's feed and shared music.
 - **Pre-conditions:** The acting user is logged in, holds Admin status within the specific Community, and the target user is currently listed in the Community's members array.
-- **Post-conditions:** The target user's ID is removed from the Community's members array, and the Community ID is removed from the target user's communities array.
+- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen.
 - **Trigger:** The Admin taps the "Remove User" or "Kick" button next to a specific member's name in the Community's member management screen.
 - **Step-by-step scenario (Success):**
   - The Admin navigates to the specific Community's settings and opens the "Members" list.
@@ -217,7 +217,7 @@
   - The Admin confirms the action.
   - The backend successfully updates the database arrays.
   - The UI instantly removes the user from the Admin's visible member list.
-- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them."
+- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them." The Owner cannot be removed or demoted at all; ownership only moves when the Owner transfers it.
 
 ### UC-15: User Joins a Community (via Invite Link)
 

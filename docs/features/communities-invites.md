@@ -8,7 +8,7 @@
 | **Use cases** | UC-15 (join a community via invite link)                                                  |
 | **Phase**     | 2 — Step 2.2 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.2 invites, 2.3 accept, 2.6) |
 | **Branch**    | `feat/communities-invites`                                                                |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                        |
 
 ---
 

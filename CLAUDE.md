@@ -196,9 +196,12 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Seven tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Eight tables** in total:
 
-`users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`.
+
+- `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
+- `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.

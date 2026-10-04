@@ -8,7 +8,7 @@
 | **Use cases** | UC-10 (leave a community), UC-14 (admin removes a user); UC-9/UC-15 touched               |
 | **Phase**     | 2 — Step 2.3 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.3 leave/kick, 2.5 settings) |
 | **Branch**    | `feat/communities-membership`                                                             |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                        |
 
 ---
 
