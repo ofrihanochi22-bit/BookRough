@@ -120,7 +120,8 @@ function ProfileForm({ user }: { user: PublicUser }) {
 
       <AvatarSection
         user={user}
-        disabled={!online || saving}
+        offline={!online}
+        saving={saving}
         busy={avatarBusy}
         onBusyChange={setAvatarBusy}
       />
@@ -152,7 +153,9 @@ function ProfileForm({ user }: { user: PublicUser }) {
 
 interface AvatarSectionProps {
   user: PublicUser;
-  disabled: boolean;
+  offline: boolean;
+  /** The form is saving: the avatar controls wait, but stay on screen. */
+  saving: boolean;
   busy: boolean;
   onBusyChange: (busy: boolean) => void;
 }
@@ -162,7 +165,7 @@ interface AvatarSectionProps {
  * a stored photo URL means the user chose their Google photo (a declined one is
  * deleted — docs/features/onboarding.md §3), so the URL alone tells which is in use.
  */
-function AvatarSection({ user, disabled, busy, onBusyChange }: AvatarSectionProps) {
+function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSectionProps) {
   const [error, setError] = useState<string | null>(null);
   const usingGooglePhoto = user.profilePictureUrl !== null;
 
@@ -187,7 +190,7 @@ function AvatarSection({ user, disabled, busy, onBusyChange }: AvatarSectionProp
           <Button
             variant="secondary"
             busy={busy}
-            disabled={disabled}
+            disabled={offline || saving}
             onClick={() => void switchToGenerated()}
           >
             {busy ? 'Switching…' : 'Use generated avatar'}
@@ -197,20 +200,22 @@ function AvatarSection({ user, disabled, busy, onBusyChange }: AvatarSectionProp
       ) : (
         <>
           <p className="text-sm">Use my Google photo</p>
-          {disabled ? (
+          {offline ? (
             <p className="text-xs text-muted">Connect to change your avatar.</p>
           ) : (
-            <GoogleCredentialButton
-              busyLabel="Fetching your photo…"
-              onCredential={async (credential) => {
-                onBusyChange(true);
-                try {
-                  useAuthStore.getState().setSession(await chooseGooglePhoto(credential));
-                } finally {
-                  onBusyChange(false);
-                }
-              }}
-            />
+            <div inert={saving} className={saving ? 'opacity-50' : undefined}>
+              <GoogleCredentialButton
+                busyLabel="Fetching your photo…"
+                onCredential={async (credential) => {
+                  onBusyChange(true);
+                  try {
+                    useAuthStore.getState().setSession(await chooseGooglePhoto(credential));
+                  } finally {
+                    onBusyChange(false);
+                  }
+                }}
+              />
+            </div>
           )}
           <p className="text-xs text-muted">
             We&apos;ll fetch your current photo from Google. Nothing else is kept.
