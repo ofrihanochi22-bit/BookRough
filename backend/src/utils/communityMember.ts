@@ -1,6 +1,6 @@
 import type { CommunityRole } from '@prisma/client';
 
-/** The only part of a user that member and blocked lists ever show. */
+/** The only part of a user that member lists, blocked lists and posts ever show. */
 export interface MemberUser {
   id: string;
   displayName: string;
@@ -30,7 +30,7 @@ interface UserFields {
  * onboarding (joining and creating require it), so the name is present; the
  * fallback only guards rows edited by hand.
  */
-function toMemberUser(user: UserFields): MemberUser {
+export function toMemberUser(user: UserFields): MemberUser {
   return {
     id: user.id,
     displayName: user.displayName ?? 'Unknown',

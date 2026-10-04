@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { getCommunity } from '../api/communities';
+import { CommunityFeed } from '../components/CommunityFeed';
 import { InvitePanel } from '../components/InvitePanel';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
@@ -15,9 +16,9 @@ import { isAdmin } from '../lib/communityRoles';
 import { NotFound } from './NotFound';
 
 /**
- * A community's page — docs/features/communities-create.md §6.6. A shell until
- * posts arrive in Phase 3. A community the user cannot see renders the
- * standard not-found page, never "you're not a member".
+ * A community's page — docs/features/communities-create.md §6.6, with its feed
+ * (docs/features/posts-feed.md §5.1). A community the user cannot see renders
+ * the standard not-found page, never "you're not a member".
  */
 export function Community() {
   const { id = '' } = useParams();
@@ -26,6 +27,9 @@ export function Community() {
   const location = useLocation();
   const navigate = useNavigate();
   // Right after creating, the invite panel opens once by itself (communities-invites.md §5.5).
+  // Access lost while on the page (removed, or the community deleted).
+  const [gone, setGone] = useState(false);
+  const markGone = useCallback(() => setGone(true), []);
   const [inviting, setInviting] = useState(
     () => (location.state as { justCreated?: boolean } | null)?.justCreated === true,
   );
@@ -39,9 +43,10 @@ export function Community() {
   }
 
   if (
-    community.status === 'error' &&
-    isAxiosError(community.error) &&
-    community.error.response?.status === 404
+    gone ||
+    (community.status === 'error' &&
+      isAxiosError(community.error) &&
+      community.error.response?.status === 404)
   ) {
     return <NotFound />;
   }
@@ -92,12 +97,7 @@ export function Community() {
               Settings
             </Link>
           </div>
-          <section className="mt-4 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">Posts are coming soon</p>
-            <p className="mt-1 text-sm text-muted">
-              This is where your community will share music.
-            </p>
-          </section>
+          <CommunityFeed communityId={community.data.id} onGone={markGone} />
         </article>
       )}
 

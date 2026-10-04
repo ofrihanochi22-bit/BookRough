@@ -928,7 +928,7 @@ npm test --prefix e2e                                     # 23 runs (+1 skipped)
 
 ### Step 3.1 — Posts: share a link and see the feed (Phase 3 — UC-11)
 
-Status: 🟡 In progress — spec written, awaiting approval
+Status: 🟡 In progress — implemented (Stage 2); review and tests next
 Branch: feat/posts-feed
 Spec: docs/features/posts-feed.md
 
@@ -936,11 +936,11 @@ Goal: A member pastes a song or album link from any supported service, the serve
 
 Tasks:
 
-- [x] Spec: docs/features/posts-feed.md written (re-slice of Phase 3, reject-versus-pending, albums, retry, viewer's-service button, removal deletes posts).
-- [ ] DB: migration `add_posts` — `posts` with five link columns, `kind`, `source_service`, `conversion_pending`.
-- [ ] Backend: `services/linkScraper.service.ts` — Chromium with the §7 flags, resource blocking, 8s `waitForSelector`, 12s ceiling including the queue, `p-limit(2)`, browser closed in `finally`; E2E stand-in.
-- [ ] Backend: `POST` / `GET /api/communities/:id/posts`, `POST /api/posts/:postId/conversion`; removal deletes the member's posts.
-- [ ] Frontend: composer with the blocking spinner, feed with Load more, `PostCard`, Other services sheet, pending state and retry.
+- [x] Spec: docs/features/posts-feed.md written and approved (re-slice of Phase 3, reject-versus-pending, albums, retry, viewer's-service button, removal deletes posts).
+- [x] DB: migration `add_posts` — `posts` with five link columns, `kind`, `source_service`, `conversion_pending`.
+- [x] Backend: `services/linkScraper.service.ts` — Chromium with the §7 flags, resource blocking, 8s `waitForSelector`, 12s ceiling including the queue, `p-limit(2)`, browser closed in `finally`; E2E stand-in.
+- [x] Backend: `POST` / `GET /api/communities/:id/posts`, `POST /api/posts/:postId/conversion`; removal deletes the member's posts.
+- [x] Frontend: composer with the blocking spinner, feed with Load more, `PostCard`, Other services sheet, pending state and retry.
 - [ ] Review: `/code-review` and `/security-review`.
 - [ ] Tests: unit, integration, component and E2E per spec §7, plus the nightly live-site test.
 

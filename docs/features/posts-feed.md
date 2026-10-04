@@ -8,7 +8,7 @@
 | **Use cases** | UC-11 (post a recommendation); UC-14 touched (removal deletes the member's posts)  |
 | **Phase**     | 3 — merges Steps 3.1, 3.2, 3.3 and most of 3.6 of `DEVELOPMENT.md` (re-sliced, §0) |
 | **Branch**    | `feat/posts-feed`                                                                  |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                 |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                 |
 
 ---
 
@@ -46,7 +46,7 @@ A member opens a community, pastes a song or album link from any of the five sup
 - Ratings, average stars, bookmarks — Phase 4. The card has no star or bookmark placeholder.
 - The Post Detail screen — Phase 4 (UC-16). Cards are not tappable beyond their buttons.
 - Editing a post or its comment.
-- Amazon Music and SoundCloud links (not in `StreamingService`); playlists, artists, podcasts — squigly answers "not found" for them, so they are rejected (§6).
+- Amazon Music and SoundCloud links (not in `StreamingService`); playlists, artists, podcasts — their link shapes are rejected before conversion (§4.1).
 - Automatic or background retry of pending posts (option C, rejected — CLAUDE.md §7: no background jobs, and no Chromium on reads).
 - Live updates (polling, websockets): the feed loads when the page opens; your own new post is prepended.
 - Post counts in the admin area's activity columns.
@@ -152,7 +152,7 @@ The author carries only the three `MemberUser` fields (reusing `utils/communityM
   - `comment`: cleaned with the shared text rules (NFC, trim, line breaks kept, runs of blank lines collapsed), ≤ 280 graphemes; blank → `null`. Too long → `422` "Comments can be up to 280 characters."
 - **Behaviour:** validate, then convert (§4.2), then insert. The request is **synchronous**: it returns only when the post is saved (CLAUDE.md §7).
 - **Success:** `201 { post: PublicPost }` — also when the conversion failed and the post was saved as pending (`conversionPending: true`).
-- **Errors:** `400`; `401`; `404` not a member / unknown community; `422` invalid or unsupported URL, **or squigly answered definitively that it can't find the link** (developer's choice, option A) — message: "Invalid link. We couldn't retrieve the song information. Please ensure it's a valid link from a supported streaming service." (UC-11); `422` comment too long or unknown key.
+- **Errors:** `400`; `401`; `404` not a member / unknown community; `422` an invalid URL, an unsupported host, a link whose shape isn't a track or album on that service (§4.1), or squigly's explicit "could not be found" (§4.2) — message: "Invalid link. We couldn't retrieve the song information. Please ensure it's a valid link from a supported streaming service." (UC-11); `422` comment too long or unknown key.
 
 ### `GET /api/communities/:id/posts?before=<cursor>`
 
@@ -167,7 +167,7 @@ Retry the conversion of a pending post (developer's choice, option A).
 
 - **Auth:** the post's author, who must still be a member of its community.
 - **Request:** no body.
-- **Behaviour:** runs the same converter with the same limits. Success → the metadata and links are written and `conversionPending` becomes false. Outage again → nothing changes. squigly says "not found" → nothing changes either (the link was saved during an outage; the post stays pending rather than being rejected after the fact).
+- **Behaviour:** runs the same converter with the same limits. Success → the metadata and links are written and `conversionPending` becomes false. Unavailable again → nothing changes and the post stays pending. squigly says "could not be found" → also unchanged (the post was accepted during an outage; it is not rejected after the fact).
 - **Success:** `200 { post: PublicPost }` (pending or converted).
 - **Errors:** `401`; `404` "Post not found." (unknown or malformed id, or the caller is not a member of its community); `403` "Only the author can do this." (a member who isn't the author); `409` "This post already has its links." (not pending). A conditional update (`WHERE conversion_pending = true`) makes a double tap write once; the second gets the current post.
 
@@ -177,6 +177,10 @@ Retry the conversion of a pending post (developer's choice, option A).
 - `DELETE /api/communities/:id` — posts cascade.
 
 ### 4.1 Supported links
+
+A link is accepted only when it is `https:`, its host is listed (exact match), **and its path has the shape of a track or album on that service**. Everything else gets the UC-11 `422` before Chromium launches.
+
+> **Amended in Stage 2 (2026-10-04).** The spec first relied on squigly.link answering "not found" for a broken link. A probe with `open.spotify.com/track/0000000000000000000000` showed squigly answers "We couldn't reach spotify just now. Please try again in a moment." — the same as an outage — so that case gives no not-found signal. A second probe during implementation (a made-up Apple Music id) showed squigly _does_ have one definitive message for some links: "This track could not be found. It may be region-specific or no longer available." Option A's split therefore works like this: what we can tell is wrong — host, shape, or squigly's "could not be found" — is rejected with `422`; anything else squigly can't resolve ("couldn't reach", a timeout, an unreadable page) is saved as pending (the safe side) and its author can retry.
 
 Hosts (exact match, `https:` only):
 
@@ -188,21 +192,31 @@ Hosts (exact match, `https:` only):
 | Tidal       | `tidal.com`, `listen.tidal.com`                                   |
 | Deezer      | `www.deezer.com`, `deezer.com`, `link.deezer.com`                 |
 
-The client mirrors this list for an instant inline error; the server is authoritative. The URL is never fetched by our server — it is only typed into squigly.link — so there is no SSRF surface.
+Accepted shapes (ids are checked for their character set and length, not for existence):
+
+| Service     | Track                                                                                             | Album                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Spotify     | `/track/<22 base62>` (optional `/intl-xx` prefix)                                                 | `/album/<22 base62>`                                                           |
+| Apple Music | `/<cc>/song/…/<digits>`, or `/<cc>/album/…/<digits>?i=<digits>`                                   | `/<cc>/album/…/<digits>`                                                       |
+| YouTube     | `music.youtube.com/watch?v=<id>`, `youtube.com/watch?v=<id>`, `youtu.be/<id>`                     | `music.youtube.com/playlist?list=OLAK5uy_…`, `music.youtube.com/browse/MPREb…` |
+| Tidal       | `(/browse)/track/<digits>`                                                                        | `(/browse)/album/<digits>`                                                     |
+| Deezer      | `(/<lang>)/track/<digits>`; `link.deezer.com/s/<code>` (short link, kind unknown until converted) | `(/<lang>)/album/<digits>`                                                     |
+
+Playlists, artists, podcasts, episodes, users and home pages fail the shape check. The client mirrors these rules for an instant inline error; the server is authoritative. The URL is never fetched by our server — it is only typed into squigly.link — so there is no SSRF surface.
 
 ### 4.2 The converter (`services/linkScraper.service.ts`)
 
 `convertLink(url): Promise<ConversionResult>` where the result is one of:
 
 - `{ outcome: 'converted', kind, title, artist, coverArtUrl, links }`
-- `{ outcome: 'not_found' }` — squigly answered that it can't identify the link → the caller rejects with `422`.
+- `{ outcome: 'not_found' }` — squigly showed "could not be found" → the caller rejects with `422`.
 - `{ outcome: 'unavailable', reason }` — anything else: launch failure, navigation error, timeout, a page we can't read → the caller saves the post as pending.
 
 How it reads the page (selectors confined to this file):
 
 1. Launch Chromium with `--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage`; block `image`, `stylesheet`, `font`, `media` requests.
 2. Open `https://squigly.link`, fill the "Paste a track or album link" input, click **Create link**.
-3. Wait (≤ 8 s) for either the result page (URL `/song/…` or `/album/…`) or squigly's not-found state. **The not-found state is confirmed in Stage 2** by one manual probe with a broken link, with the developer's permission; until then, only a recognised not-found state yields `not_found` — anything unrecognised is `unavailable` (the safe side).
+3. squigly converts by itself as soon as the link is filled in (the button then disappears; pressing it is only a 2 s fallback). Wait (≤ 8 s) for one of two answers: the result page (URL `/song/…` or `/album/…`) → continue; the text "could not be found" → `not_found`. squigly's other inline messages ("We couldn't reach … just now") are not interpreted: no answer within the limit is `unavailable`. On a result page, wait (≤ 8 s) for the first service link, which renders a moment after the metadata.
 4. Read metadata from the page's `application/ld+json` (`MusicRecording` / `MusicAlbum`: `name`, `byArtist.name`, `image`), falling back to `og:title` / `og:image`.
 5. Read links from the result anchors, mapping each **by its href's host** (not by CSS class or label) to a `StreamingService`; unknown hosts (Amazon, SoundCloud) are ignored.
 6. **Scraped values are untrusted.** Each link must be `https:` on that service's host list, ≤ 2048 characters; the cover must be `https:`; title and artist are cleaned and capped at 300 characters. Anything failing is dropped. A result with no title is `unavailable`.
@@ -210,7 +224,7 @@ How it reads the page (selectors confined to this file):
 
 Limits: `p-limit(2)` around the whole operation; a 12 s ceiling measured **from the request's arrival, including time waiting in the queue** — a request still queued or running at 12 s is abandoned (`unavailable`) and its browser closed. Logging through Pino: `info` `{ context: 'linkScraper', outcome, durationMs, sourceService }`; `warn` on `unavailable` with the reason. Never the URL, never page HTML.
 
-**E2E stand-in:** with `E2E_SCRAPER_STAND_IN=1` the service returns canned results from `e2e/fixtures` (a known track, a known album, a not-found link, an outage link) instead of launching Chromium. The API refuses to start with it set unless `NODE_ENV=test`, exactly like `E2E_GOOGLE_PUBLIC_KEY`, and a unit test proves it.
+**E2E stand-in:** with `E2E_SCRAPER_STAND_IN=1` the service returns canned results from `e2e/fixtures` (a known track, a known album, and an outage link) instead of launching Chromium. The API refuses to start with it set unless `NODE_ENV=test`, exactly like `E2E_GOOGLE_PUBLIC_KEY`, and a unit test proves it.
 
 ### Logging
 
@@ -259,8 +273,8 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 ## 6. Edge cases & failure modes
 
 - **squigly.link down / slow / layout changed** → post saved as pending within ≤ 12 s; the user sees it in the feed, not an error.
-- **Broken link on a supported host** (e.g. `open.spotify.com/track/abc123`) → squigly's not-found → `422`, draft kept. If squigly's not-found page is ever unrecognisable, the same link is saved as pending instead — a safe failure.
-- **Playlist, artist or podcast link** on a supported host → squigly can't convert it → treated exactly like the broken link.
+- **Wrong shape on a supported host** (playlist, artist, podcast, `open.spotify.com/track/abc`) → `422` before conversion, draft kept.
+- **Well-shaped but nonexistent link**: when squigly says "could not be found" → `422`, draft kept; when it says it "couldn't reach" the service (as for `open.spotify.com/track/0000000000000000000000`) → saved as pending; the author can retry or, in feature 2, delete it.
 - **A third simultaneous post** waits in the `p-limit` queue; its 12 s budget includes the wait, so under a burst late requests become pending instead of hanging.
 - **The user navigates away mid-conversion** → the server finishes and saves the post; it appears on the next visit.
 - **The poster is removed while their request is in flight** → the insert fails the membership re-check inside the transaction → `404`; nothing is saved.
@@ -282,15 +296,15 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 - ✅ `linkScraper.service` (Playwright mocked at module level): JSON-LD `MusicRecording` → `converted` TRACK with title, artist, cover and the five links mapped by host; `MusicAlbum` → ALBUM.
 - ✅ Falls back to `og:` tags when JSON-LD is missing.
 - ✅ Ignores Amazon / SoundCloud links; drops a non-https link, a link on a foreign host, an over-long value.
-- ✅ Recognised not-found state → `not_found`.
 - ❌ `waitForSelector` timeout → `unavailable`; launch throws → `unavailable`; page without a title → `unavailable`.
-- ✅ `browser.close()` is called on success, on not-found, and on every failure.
+- ✅ `browser.close()` is called on success and on every failure.
 - ✅ Blocks image / stylesheet / font / media requests and passes the three launch flags.
+- ✅ squigly's "could not be found" → `not_found`; ❌ "couldn't reach" (no answer) → `unavailable`.
 - ✅ Concurrency: a burst of five calls never has more than two in flight.
 - ❌ 12 s ceiling: a call still queued or running at 12 s resolves `unavailable` and closes its browser (fake timers).
 - ✅ Stand-in: returns the canned results; ❌ the API refuses to start with `E2E_SCRAPER_STAND_IN` set unless `NODE_ENV=test`.
-- ✅ `supportedLinks`: each host in §4.1 maps to its service; ❌ `http:`, unknown host, look-alike host (`open.spotify.com.evil.io`), non-URL, > 2048 → rejected.
-- ✅ `post.service.createPost`: converted → row with metadata and links; `unavailable` → row with `conversionPending` and nulls; ❌ `not_found` → `422` and no row; ❌ non-member → `404`; ❌ comment too long → `422`.
+- ✅ `supportedLinks`: every track and album shape in §4.1 maps to its service; ❌ `http:`, unknown host, look-alike host (`open.spotify.com.evil.io`), playlist / artist / podcast paths, a too-short id, non-URL, > 2048 → rejected.
+- ✅ `post.service.createPost`: converted → row with metadata and links; `unavailable` → row with `conversionPending` and nulls; ❌ wrong link shape → `422`, no row, converter never called; ❌ `not_found` → `422`, no row; ❌ non-member → `404`; ❌ comment too long → `422`.
 - ✅ `listPosts`: newest first, 20 per page, cursor continues without gaps or duplicates (equal timestamps tie-broken by id); ❌ non-member → `404`; ❌ bad cursor → `422`.
 - ✅ `retryConversion`: pending → converted; still unavailable → unchanged; not_found → unchanged; ❌ not the author → `403`; ❌ not pending → `409`; ❌ author no longer a member / unknown post → `404`.
 - ✅ `removeMember` deletes the target's posts in that community only (their posts elsewhere and others' posts stay); ✅ leave deletes nothing.
@@ -300,6 +314,7 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 **Integration (Supertest, scraper mocked)**
 
 - ✅ `POST /posts` converted → `201`, DB row has metadata and five links; ✅ scraper `unavailable` → `201` with `conversionPending: true`, DB row has the original URL only.
+- ❌ `POST /posts` playlist link on a supported host → `422` UC-11 message, no row, converter not called.
 - ❌ `POST /posts` scraper `not_found` → `422` UC-11 message, no row.
 - ❌ `400` unparseable JSON; `422` missing URL, `http:` URL, unsupported host, comment > 280, unknown key.
 - ❌ `401` signed out; `404` non-member, unknown and malformed community id.
@@ -329,7 +344,7 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 
 - **squigly.link is the single largest external risk** (`tech stack.md`): an unversioned page. Mitigations: pending on failure, host-based link mapping, JSON-LD metadata, all selectors in one file, and the nightly live test.
 - **Dependencies (need the developer's approval at the start of Stage 2):** `playwright` (backend dependency, pinned to the same version as `e2e`'s `@playwright/test` so one Chromium download serves both) and `p-limit`. Chromium is installed with `npx playwright install chromium` locally and in CI for the nightly live test. Both are recorded in `docs/tech stack.md` §5.
-- **The not-found state** is confirmed by one probe in Stage 2, asked first.
+- **Nonexistent but well-shaped links** become pending posts rather than being rejected (Stage 2 finding, §4.1).
 - **Memory**: one Chromium per conversion, at most two; measured for real in feature 3 (Dockerfile) and Phase 6.
 
 ## 9. Doc updates in this PR
@@ -346,18 +361,20 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                                   | Reason                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 2026-10-04 | Phase 3 re-sliced into three PRs: posts + feed, delete, Dockerfile (option A)                              | Vertical slices (§11); the scraper lands with the screen that shows its output  |
-| 2026-10-04 | squigly's definitive "not found" → `422`; outage / timeout / unreadable page → saved as pending (option A) | Honours both UC-11's fail path and §7's "never lose content"                    |
-| 2026-10-04 | Tracks and albums, with `kind` (option A)                                                                  | UC-11 says song/album; squigly supports both                                    |
-| 2026-10-04 | The author can retry a pending post's conversion (option A)                                                | Recoverable without background jobs                                             |
-| 2026-10-04 | One button for the viewer's service with fallback to the original, plus an Other services sheet (option A) | UC-11's one tap, with a way out when the match is wrong                         |
-| 2026-10-04 | Leaving keeps a member's posts; removal deletes them, permanently (option C)                               | Developer's choice; admins clean up after a bad actor in one step               |
-| 2026-10-04 | Five link columns, one per `StreamingService`                                                              | squigly returns all five; every viewer gets their own service                   |
-| 2026-10-04 | Unsupported hosts rejected before Chromium launches                                                        | Instant feedback; no browser cost for obvious mistakes                          |
-| 2026-10-04 | Metadata from JSON-LD/`og:`; links mapped by href host                                                     | Standard, far more stable than CSS classes                                      |
-| 2026-10-04 | The 12 s ceiling includes time queued behind `p-limit`                                                     | A burst becomes pending posts instead of hanging requests                       |
-| 2026-10-04 | Comments: optional, ≤ 280 graphemes, line breaks kept                                                      | Same rules as community descriptions                                            |
-| 2026-10-04 | Feed: newest first, 20 per page, keyset cursor, Load more                                                  | Stable under inserts; simple on a phone                                         |
-| 2026-10-04 | E2E uses a scraper stand-in; one live test runs nightly only                                               | Deterministic PR-time E2E; the nightly run still detects squigly layout changes |
+| Date       | Decision                                                                                                   | Reason                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 2026-10-04 | Phase 3 re-sliced into three PRs: posts + feed, delete, Dockerfile (option A)                              | Vertical slices (§11); the scraper lands with the screen that shows its output                   |
+| 2026-10-04 | What we can tell is wrong → `422`; anything squigly can't resolve → saved as pending (option A)            | Honours both UC-11's fail path and §7's "never lose content"                                     |
+| 2026-10-04 | Tracks and albums, with `kind` (option A)                                                                  | UC-11 says song/album; squigly supports both                                                     |
+| 2026-10-04 | The author can retry a pending post's conversion (option A)                                                | Recoverable without background jobs                                                              |
+| 2026-10-04 | One button for the viewer's service with fallback to the original, plus an Other services sheet (option A) | UC-11's one tap, with a way out when the match is wrong                                          |
+| 2026-10-04 | Leaving keeps a member's posts; removal deletes them, permanently (option C)                               | Developer's choice; admins clean up after a bad actor in one step                                |
+| 2026-10-04 | Five link columns, one per `StreamingService`                                                              | squigly returns all five; every viewer gets their own service                                    |
+| 2026-10-04 | Unsupported hosts rejected before Chromium launches                                                        | Instant feedback; no browser cost for obvious mistakes                                           |
+| 2026-10-04 | Metadata from JSON-LD/`og:`; links mapped by href host                                                     | Standard, far more stable than CSS classes                                                       |
+| 2026-10-04 | The 12 s ceiling includes time queued behind `p-limit`                                                     | A burst becomes pending posts instead of hanging requests                                        |
+| 2026-10-04 | Comments: optional, ≤ 280 graphemes, line breaks kept                                                      | Same rules as community descriptions                                                             |
+| 2026-10-04 | Feed: newest first, 20 per page, keyset cursor, Load more                                                  | Stable under inserts; simple on a phone                                                          |
+| 2026-10-04 | E2E uses a scraper stand-in; one live test runs nightly only                                               | Deterministic PR-time E2E; the nightly run still detects squigly layout changes                  |
+| 2026-10-04 | Link-shape check per service replaces squigly's not-found signal                                           | Stage 2 probe: squigly reports a broken id as "couldn't reach", indistinguishable from an outage |
+| 2026-10-04 | squigly's "could not be found" text → `422`; squigly converts on fill, the button is a fallback            | Stage 2 probes: that message is definitive; "couldn't reach" is not                              |

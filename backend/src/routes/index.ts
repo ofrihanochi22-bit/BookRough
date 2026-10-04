@@ -7,6 +7,7 @@ import { authRouter } from './auth.js';
 import { communitiesRouter } from './communities.js';
 import { healthRouter } from './health.js';
 import { invitesRouter } from './invites.js';
+import { postsRouter } from './posts.js';
 import { settingsRouter } from './settings.js';
 import { usersRouter } from './users.js';
 
@@ -17,6 +18,7 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/communities', communitiesRouter);
 apiRouter.use('/invites', invitesRouter);
+apiRouter.use('/posts', postsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/settings', settingsRouter);
 
