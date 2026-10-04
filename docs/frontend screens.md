@@ -13,7 +13,7 @@ Google Sign-In is the only authentication method, so this group collapsed from f
   - **States:** loading; validation error ("That display name is already taken."); submitting.
   - The dashboard is unreachable until this screen is completed.
 
-> **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **thirteen** screens. (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
+> **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **fourteen** screens (thirteen after the withdrawal, plus Join Community / Invite Preview, added with UC-15 in Phase 2). (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
 
 > **Administrative screens (UC-19) are not listed here yet.** They are specified in the admin panel's own feature session and written to `docs/features/admin-panel.md` before implementation. What is already fixed: they are reachable only for `users.role = 'ADMIN'`, they render the standard not-found page for everyone else, and **they cannot display an email address because none is stored.**
 
@@ -49,10 +49,14 @@ These are the most heavily trafficked screens where the primary value exchange h
   - **States:** required-name error ("A Community name is required."); submitting ("Creating…"); offline banner. On success the user lands on the community's page, which shows the cover, name, description, member line, and a "Posts are coming soon" panel until Phase 3. A community the user is not in renders the standard not-found page.
 - **3.3. Community Settings & Members Screen (UC-10, UC-14, UC-15)**
   - **Purpose:** Managing the group's roster and individual participation.
-  - **Key UI:** List of current members. For Admins: "Generate Invite Link" button, "Remove User" actions next to member names. For all members: "Leave Community" button.
+  - **Key UI:** List of current members. For Admins: "Remove User" actions next to member names, and the invite panel. For all members: "Leave Community" button. Until this screen exists, Admins open the invite panel from an "Invite friends" button on the community page: the link, Share (the iPhone share sheet), Copy, and Reset link with a confirmation. It also opens once by itself right after a community is created.
 - **3.4. Post Detail / Feedback Screen (UC-16)**
   - **Purpose:** Viewing the detailed discussion and ratings for a specific recommendation.
   - **Key UI:** The primary song card at the top, a large average rating display, and a scrolling list of individual member reviews (User, Star Rating, Text Comment, Timestamp).
+- **3.5. Join Community / Invite Preview (UC-15)**
+  - **Purpose:** What a friend sees when they open an invite link — signed in or not, with an account or not.
+  - **Key UI:** The community's generated cover, name and member count under "You're invited to". Signed out: the Google sign-in with "Continue with Google to join"; a new user completes their profile and returns here. Signed in: a "Join community" button, or "You're already in this community." with an Open link.
+  - **States:** loading skeleton; joining ("Joining…"); invalid or reset link (the UC-15 message, with a link home); other load failure (Try again); offline (Join disabled).
 
 ### 4. Personal Management Flows
 

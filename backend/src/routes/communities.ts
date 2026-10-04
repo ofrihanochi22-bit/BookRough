@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { create, listMine, show } from '../controllers/community.controller.js';
+import { resetCommunityInvite, showInvite } from '../controllers/invite.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 export const communitiesRouter: Router = Router();
@@ -9,3 +10,5 @@ export const communitiesRouter: Router = Router();
 communitiesRouter.post('/', requireAuth, create);
 communitiesRouter.get('/', requireAuth, listMine);
 communitiesRouter.get('/:id', requireAuth, show);
+communitiesRouter.get('/:id/invite', requireAuth, showInvite);
+communitiesRouter.post('/:id/invite/reset', requireAuth, resetCommunityInvite);

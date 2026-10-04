@@ -6,14 +6,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { httpError, makeCommunity, networkError } from '../test/fixtures';
 import { Community } from './Community';
 
-const { getCommunity } = vi.hoisted(() => ({ getCommunity: vi.fn() }));
+const { getCommunity, getInvite } = vi.hoisted(() => ({
+  getCommunity: vi.fn(),
+  getInvite: vi.fn(),
+}));
 vi.mock('../api/communities', () => ({ getCommunity }));
+vi.mock('../api/invites', () => ({ getInvite, inviteUrl: (token: string) => `/invite/${token}` }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
 
-function renderCommunity() {
+function renderCommunity(state?: { justCreated: boolean }) {
   return render(
-    <MemoryRouter initialEntries={[`/communities/${ID}`]}>
+    <MemoryRouter initialEntries={[{ pathname: `/communities/${ID}`, state }]}>
       <Routes>
         <Route path="/communities/:id" element={<Community />} />
       </Routes>
@@ -91,5 +95,61 @@ describe('Community page', () => {
 
     // Assert
     expect(await screen.findByRole('heading', { name: 'Friday Jazz' })).toBeInTheDocument();
+  });
+});
+
+describe('Community page — inviting', () => {
+  beforeEach(() => {
+    getInvite.mockResolvedValue({ token: 'tok-1' });
+  });
+
+  it('shows Invite friends to an admin, and it opens the invite panel', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'ADMIN' }));
+    renderCommunity();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite friends' }));
+
+    // Assert
+    expect(screen.getByRole('dialog', { name: 'Invite friends' })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('/invite/tok-1')).toBeInTheDocument();
+  });
+
+  it('hides Invite friends from a plain member', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'MEMBER', memberCount: 2 }));
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    await screen.findByText('2 members');
+    expect(screen.queryByRole('button', { name: 'Invite friends' })).not.toBeInTheDocument();
+  });
+
+  it('opens the panel by itself right after creating, and not again once closed', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'ADMIN' }));
+    renderCommunity({ justCreated: true });
+
+    // Act
+    expect(await screen.findByRole('dialog', { name: 'Invite friends' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not open the panel on a plain visit', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity({ myRole: 'ADMIN' }));
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    await screen.findByRole('button', { name: 'Invite friends' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

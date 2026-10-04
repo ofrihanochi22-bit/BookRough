@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { pendingInvite, rememberPendingInvite } from '../lib/pendingInvite';
 import { useAuthStore } from '../stores/auth';
 import { makeSession, makeUser, networkError } from '../test/fixtures';
 import { Profile } from './Profile';
@@ -28,9 +29,10 @@ describe('Profile (minimal)', () => {
     expect(screen.getByText('Listens on Tidal')).toBeInTheDocument();
   });
 
-  it('signs out and clears the session', async () => {
+  it('signs out, clears the session and forgets any pending invite', async () => {
     // Arrange
     logout.mockResolvedValue(undefined);
+    rememberPendingInvite('/invite/abc');
     render(<Profile />);
 
     // Act
@@ -39,6 +41,7 @@ describe('Profile (minimal)', () => {
     // Assert
     expect(logout).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().status).toBe('signedOut');
+    expect(pendingInvite()).toBeNull();
   });
 
   it('keeps the session when signing out fails, and the button returns', async () => {

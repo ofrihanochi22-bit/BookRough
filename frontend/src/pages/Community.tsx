@@ -1,8 +1,10 @@
-import { useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { getCommunity } from '../api/communities';
+import { InvitePanel } from '../components/InvitePanel';
+import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
@@ -20,6 +22,20 @@ export function Community() {
   const { id = '' } = useParams();
   const load = useCallback(() => getCommunity(id), [id]);
   const community = useRequest(load);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Right after creating, the invite panel opens once by itself (communities-invites.md §5.5).
+  const [inviting, setInviting] = useState(
+    () => (location.state as { justCreated?: boolean } | null)?.justCreated === true,
+  );
+
+  function closeInvite() {
+    setInviting(false);
+    // Drop the router state, so a reload or Back does not open the panel again.
+    if (location.state) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }
 
   if (
     community.status === 'error' &&
@@ -62,6 +78,11 @@ export function Community() {
             )}
             <p className="text-xs text-muted">{membershipLine(community.data)}</p>
           </div>
+          {community.data.myRole === 'ADMIN' && (
+            <Button variant="secondary" onClick={() => setInviting(true)} className="self-start">
+              Invite friends
+            </Button>
+          )}
           <section className="mt-4 rounded-2xl border border-dashed border-line px-6 py-10 text-center">
             <p className="font-medium">Posts are coming soon</p>
             <p className="mt-1 text-sm text-muted">
@@ -69,6 +90,14 @@ export function Community() {
             </p>
           </section>
         </article>
+      )}
+
+      {inviting && community.status === 'ready' && community.data.myRole === 'ADMIN' && (
+        <InvitePanel
+          communityId={community.data.id}
+          communityName={community.data.name}
+          onClose={closeInvite}
+        />
       )}
     </ScreenLayout>
   );

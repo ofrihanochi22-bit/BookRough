@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { pendingInvite } from '../lib/pendingInvite';
+
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
 /** Mirrors the backend's PublicUser — the only user shape the API sends. */
@@ -38,7 +40,14 @@ export const useAuthStore = create<AuthState>()((set) => ({
   clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false }),
 }));
 
-/** Where a signed-in user belongs, given their onboarding state. */
+/**
+ * Where a signed-in user belongs, given their onboarding state. An invite they
+ * opened before signing in wins over the dashboard, so a new friend finishes
+ * onboarding and lands back on it (docs/features/communities-invites.md §5.4).
+ */
 export function homePathFor(needsOnboarding: boolean): string {
-  return needsOnboarding ? '/onboarding' : '/home';
+  if (needsOnboarding) {
+    return '/onboarding';
+  }
+  return pendingInvite() ?? '/home';
 }

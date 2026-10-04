@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { logout } from '../api/auth';
+import { clearPendingInvite } from '../lib/pendingInvite';
 import { useAuthStore } from '../stores/auth';
 
 /**
@@ -16,6 +17,10 @@ export function useSignOut() {
     setSigningOut(true);
     try {
       await logout();
+      // A pending invite belongs to whoever opened it; signing out on purpose drops it.
+      // (Not in the store's clear(): that also runs for the signed-out visitor's
+      // first 401, after the invite preview has already remembered the link.)
+      clearPendingInvite();
       useAuthStore.getState().clear();
     } catch {
       setSigningOut(false);

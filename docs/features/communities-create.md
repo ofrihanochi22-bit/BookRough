@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (create a community)                                                             |
 | **Phase**     | 2 — merges Step 2.1, the create/read half of 2.2 and the dashboard/create half of 2.5 |
 | **Branch**    | `feat/communities-create`                                                             |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                    |
 
 ---
 

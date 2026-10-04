@@ -232,11 +232,11 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Thirteen screens**, four groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Fourteen screens**, four groups:
 
 - **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
 - **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
-- **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback.
+- **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
 
 Registration, Login, Forgot Password, and Create New Password screens were **withdrawn** when email/password auth was dropped (§5). Admin screens (§17) are not in the catalog yet — they are specified in that feature's own session.
