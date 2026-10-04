@@ -26,10 +26,11 @@ export function Community() {
   const community = useRequest(load);
   const location = useLocation();
   const navigate = useNavigate();
+  // Access lost while on the page (removed, or the community deleted). Kept
+  // per id: the same instance renders the next community after Back/Forward.
+  const [goneId, setGoneId] = useState<string | null>(null);
+  const markGone = useCallback(() => setGoneId(id), [id]);
   // Right after creating, the invite panel opens once by itself (communities-invites.md §5.5).
-  // Access lost while on the page (removed, or the community deleted).
-  const [gone, setGone] = useState(false);
-  const markGone = useCallback(() => setGone(true), []);
   const [inviting, setInviting] = useState(
     () => (location.state as { justCreated?: boolean } | null)?.justCreated === true,
   );
@@ -43,7 +44,7 @@ export function Community() {
   }
 
   if (
-    gone ||
+    goneId === id ||
     (community.status === 'error' &&
       isAxiosError(community.error) &&
       community.error.response?.status === 404)

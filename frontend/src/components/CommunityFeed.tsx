@@ -62,10 +62,20 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
       )
     : [];
 
-  function update(next: Partial<LocalChanges>) {
-    if (changes) {
-      setLocal({ ...changes, ...next });
-    }
+  /**
+   * Applies a change against the latest state, not the render that started the
+   * action: a post takes seconds, and Load more or a retry may land meanwhile.
+   * A change made against a page that has since been reloaded is dropped — the
+   * reload already brought the server's version.
+   */
+  function update(page: PostsPage, change: (current: LocalChanges) => Partial<LocalChanges>) {
+    setLocal((previous) => {
+      const current =
+        previous?.page === page
+          ? previous
+          : { page, added: [], replaced: {}, more: [], nextCursor: page.nextCursor };
+      return { ...current, ...change(current) };
+    });
   }
 
   async function loadMore() {
@@ -75,8 +85,11 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
     setLoadingMore(true);
     setMoreFailed(false);
     try {
-      const page = await listPosts(communityId, changes.nextCursor);
-      update({ more: [...changes.more, ...page.posts], nextCursor: page.nextCursor });
+      const next = await listPosts(communityId, changes.nextCursor);
+      update(changes.page, (current) => ({
+        more: [...current.more, ...next.posts],
+        nextCursor: next.nextCursor,
+      }));
     } catch (caught) {
       if (isAxiosError(caught) && caught.response?.status === 404) {
         onGone();
@@ -100,7 +113,14 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
         communityId={communityId}
         online={online}
         onGone={onGone}
-        onPosted={(post) => update({ added: [post, ...(changes?.added ?? [])] })}
+        onPosted={(post) => {
+          if (changes) {
+            update(changes.page, (current) => ({ added: [post, ...current.added] }));
+          } else {
+            // Posted while the feed was still loading or failed: reload it.
+            first.reload();
+          }
+        }}
       />
 
       {first.status === 'loading' && (
@@ -131,9 +151,13 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
           viewerService={viewerService}
           online={online}
           onStale={first.reload}
-          onUpdated={(updated) =>
-            update({ replaced: { ...(changes?.replaced ?? {}), [updated.id]: updated } })
-          }
+          onUpdated={(updated) => {
+            if (changes) {
+              update(changes.page, (current) => ({
+                replaced: { ...current.replaced, [updated.id]: updated },
+              }));
+            }
+          }}
         />
       ))}
 
