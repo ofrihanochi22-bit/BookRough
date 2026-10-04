@@ -251,7 +251,7 @@ describe('POST /api/invites/:token/accept', () => {
     expect(row?.role).toBe('MEMBER');
   });
 
-  it('is idempotent: joining again changes nothing, and the admin stays ADMIN', async () => {
+  it('is idempotent: joining again changes nothing, and the owner stays OWNER', async () => {
     // Arrange
     const { ofri, dana, communityId, token } = await communityWithInvite();
     await joinAs(dana.cookie, token);
@@ -264,7 +264,7 @@ describe('POST /api/invites/:token/accept', () => {
     expect(again.status).toBe(200);
     expect(again.body.data.joined).toBe(false);
     expect(admin.body.data.joined).toBe(false);
-    expect(admin.body.data.community.myRole).toBe('ADMIN');
+    expect(admin.body.data.community.myRole).toBe('OWNER');
     expect(await prisma.communityMember.count({ where: { communityId } })).toBe(2);
   });
 

@@ -5,8 +5,10 @@ import { sessionUser } from '../middleware/requireAuth.js';
 import {
   COMMUNITY_NOT_FOUND,
   createCommunity,
+  deleteCommunity,
   getCommunity,
   listMyCommunities,
+  updateCommunity,
 } from '../services/community.service.js';
 import { AppError } from '../utils/AppError.js';
 import { success } from '../utils/response.js';
@@ -19,6 +21,15 @@ const createCommunitySchema = z
     description: z.string().max(4000).nullable().optional(),
   })
   .strict();
+
+/** At least one key; `description: null` (or blank) clears it. */
+const updateCommunitySchema = z
+  .object({
+    name: z.string().max(400).optional(),
+    description: z.string().max(4000).nullable().optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0);
 
 const communityIdSchema = z.string().uuid();
 
@@ -60,6 +71,28 @@ export const show: RequestHandler = async (req, res, next) => {
   try {
     const community = await getCommunity(sessionUser(req), parseCommunityId(req.params.id));
     res.status(200).json(success({ community }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** PATCH /api/communities/:id — admins edit the name and description. */
+export const update: RequestHandler = async (req, res, next) => {
+  try {
+    const communityId = parseCommunityId(req.params.id);
+    const changes = parseBody(updateCommunitySchema, req.body);
+    const community = await updateCommunity(sessionUser(req), communityId, changes);
+    res.status(200).json(success({ community }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/communities/:id — the owner only; final. */
+export const destroy: RequestHandler = async (req, res, next) => {
+  try {
+    await deleteCommunity(sessionUser(req), parseCommunityId(req.params.id));
+    res.status(200).json(success(null));
   } catch (error) {
     next(error);
   }

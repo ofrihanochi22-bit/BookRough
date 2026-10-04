@@ -5,11 +5,12 @@ import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
 import { needsOnboarding } from '../utils/publicUser.js';
 import { type PublicCommunity, toPublicCommunity } from '../utils/publicCommunity.js';
+import { COMMUNITY_NOT_FOUND, requireAdmin, requireOwner } from './communityAccess.js';
 import { checkCommunityDescription, checkCommunityName } from './communityText.js';
 
 const log = createLogger('community.service');
 
-export const COMMUNITY_NOT_FOUND = 'Community not found.';
+export { COMMUNITY_NOT_FOUND };
 
 export interface NewCommunity {
   name: string;
@@ -20,8 +21,8 @@ export interface NewCommunity {
 const withMemberCount = { _count: { select: { members: true } } } as const;
 
 /**
- * POST /communities — the creator becomes its ADMIN in the same nested write,
- * so a community never exists without its admin. Only a user who has finished
+ * POST /communities — the creator becomes its OWNER in the same nested write,
+ * so a community never exists without its owner. Only a user who has finished
  * onboarding can create one: an admin with no display name could not be shown.
  */
 export async function createCommunity(user: User, input: NewCommunity): Promise<PublicCommunity> {
@@ -42,12 +43,12 @@ export async function createCommunity(user: User, input: NewCommunity): Promise<
     data: {
       name: name.value,
       description: description.value,
-      members: { create: { userId: user.id, role: CommunityRole.ADMIN } },
+      members: { create: { userId: user.id, role: CommunityRole.OWNER } },
     },
   });
 
   log.info({ userId: user.id, communityId: community.id }, 'Community created');
-  return toPublicCommunity(community, 1, CommunityRole.ADMIN);
+  return toPublicCommunity(community, 1, CommunityRole.OWNER);
 }
 
 /** The caller's communities, the one they joined most recently first. */
@@ -78,4 +79,48 @@ export async function getCommunity(user: User, communityId: string): Promise<Pub
 
   const { community, role } = membership;
   return toPublicCommunity(community, community._count.members, role);
+}
+
+export interface CommunityUpdate {
+  name?: string | undefined;
+  description?: string | null | undefined;
+}
+
+/** PATCH /communities/:id — admins; the same rules as creating. */
+export async function updateCommunity(
+  user: User,
+  communityId: string,
+  update: CommunityUpdate,
+): Promise<PublicCommunity> {
+  await requireAdmin(user, communityId, 'Only admins can edit the community.');
+
+  const data: { name?: string; description?: string | null } = {};
+  if (update.name !== undefined) {
+    const name = checkCommunityName(update.name);
+    if (!name.ok) {
+      throw new AppError(name.message, 422);
+    }
+    data.name = name.value;
+  }
+  if (update.description !== undefined) {
+    const description = checkCommunityDescription(update.description);
+    if (!description.ok) {
+      throw new AppError(description.message, 422);
+    }
+    data.description = description.value;
+  }
+
+  await prisma.community.update({ where: { id: communityId }, data });
+  log.info({ userId: user.id, communityId }, 'Community edited');
+  return getCommunity(user, communityId);
+}
+
+/**
+ * DELETE /communities/:id — the owner only. Memberships and blocks (and, from
+ * Phase 3, posts) go with it through the cascades. There is no undo.
+ */
+export async function deleteCommunity(user: User, communityId: string): Promise<void> {
+  await requireOwner(user, communityId, 'Only the owner can delete the community.');
+  await prisma.community.delete({ where: { id: communityId } });
+  log.info({ userId: user.id, communityId }, 'Community deleted');
 }

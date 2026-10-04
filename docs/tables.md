@@ -44,7 +44,7 @@ No cover image column: covers are always generated from the name and id (CLAUDE.
 Resolves the many-to-many relationship between users and communities.
 - **user_id** (UUID, Foreign Key referencing users(id)).
 - **community_id** (UUID, Foreign Key referencing communities(id)).
-- **role** (ENUM CommunityRole, Not Null, Default 'MEMBER'): 'ADMIN' or 'MEMBER'. Dictates permissions like kicking users (UC-14). The creator of a community is its first ADMIN, written in the same transaction as the community.
+- **role** (ENUM CommunityRole, Not Null, Default 'MEMBER'): 'OWNER', 'ADMIN' or 'MEMBER'. Exactly one OWNER per community — the creator, until ownership is transferred — enforced by a partial unique index (community_members_one_owner, hand-written in a migration because Prisma cannot express it; `prisma db push` would drop it, so the project only uses migrations). The owner counts as an admin everywhere, cannot be demoted or removed, and alone can delete the community (UC-10, UC-14).
 - **joined_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, updated automatically on every change).
 - (Composite Primary Key: user_id, community_id to prevent duplicate memberships. An index on community_id serves member counts. Both foreign keys cascade on delete, so removing a user or a community removes its memberships.)
@@ -93,8 +93,17 @@ Powers the "Listen Later" queue (UC-12).
 - **created_at** (TIMESTAMP, Default Current Time).
 - (Composite Primary Key: user_id, post_id).
 
-> **Table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
+### 8. community_bans Table
+
+People removed from a community, who cannot rejoin through any invite link until an admin unblocks them (UC-14). Every removal creates a row; leaving voluntarily does not.
+- **community_id** (UUID, Foreign Key referencing communities(id), cascade on delete).
+- **user_id** (UUID, Foreign Key referencing users(id), cascade on delete).
+- **banned_by_id** (UUID, Nullable, Foreign Key referencing users(id), set to null if that admin's account is deleted): who removed them.
+- **created_at** (TIMESTAMP, Default Current Time).
+- (Composite Primary Key: community_id, user_id).
+
+> **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is seven tables:** `users`, `communities`, `community_members`, `friends`, `posts`, `ratings`, `bookmarks`.
+> **The schema is eight tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`.
 >
 > The administrative area (UC-19) will need a settings table for presentation configuration. It is **not defined here** — its shape is decided in that feature's specification session and written to `docs/features/admin-panel.md` before any migration is written.

@@ -43,7 +43,7 @@ function makeCommunity(overrides: Partial<Community> = {}): Community {
 }
 
 /** A membership row as Prisma returns it with the community and its member count. */
-function membership(role: 'ADMIN' | 'MEMBER', community: Community, members: number) {
+function membership(role: 'OWNER' | 'ADMIN' | 'MEMBER', community: Community, members: number) {
   return { role, community: { ...community, _count: { members } } };
 }
 
@@ -61,7 +61,7 @@ beforeEach(() => {
 });
 
 describe('createCommunity', () => {
-  it('creates the community with the caller as ADMIN in one nested write', async () => {
+  it('creates the community with the caller as OWNER in one nested write', async () => {
     // Act
     const result = await createCommunity(makeUser(), {
       name: '  Friday   Jazz ',
@@ -73,10 +73,10 @@ describe('createCommunity', () => {
       data: {
         name: 'Friday Jazz',
         description: 'Late-night records.\n\n\nOnly.',
-        members: { create: { userId: 'user-1', role: 'ADMIN' } },
+        members: { create: { userId: 'user-1', role: 'OWNER' } },
       },
     });
-    expect(result).toMatchObject({ name: 'Friday Jazz', memberCount: 1, myRole: 'ADMIN' });
+    expect(result).toMatchObject({ name: 'Friday Jazz', memberCount: 1, myRole: 'OWNER' });
   });
 
   it('stores a missing or blank description as null', async () => {

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 
 import { newGoogleAccount, stubGoogle } from './googleStandIn';
 
@@ -41,4 +41,38 @@ export async function signOut(page: Page) {
     .click();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'BookRough' })).toBeVisible();
+}
+
+/** An onboarded user creates a community and reads its link from the invite panel. */
+export async function createCommunityAndReadLink(page: Page, name: string): Promise<string> {
+  await onboardedAccount(page);
+  await page.getByRole('link', { name: 'Create community' }).click();
+  await page.getByLabel('Name').fill(name);
+  await page.getByRole('button', { name: 'Create' }).click();
+
+  const panel = page.getByRole('dialog', { name: 'Invite friends' });
+  await expect(panel).toBeVisible();
+  const link = panel.getByLabel('Invite link');
+  await expect(link).toHaveValue(/\/invite\/[A-Za-z0-9_-]{22}$/);
+  const value = await link.inputValue();
+  await panel.getByRole('button', { name: 'Close' }).click();
+  return value;
+}
+
+/** A second person on their own device: a fresh browser context, signed out. */
+export async function friendPage(browser: Browser): Promise<Page> {
+  const context = await browser.newContext();
+  return context.newPage();
+}
+
+/** A brand-new friend signs up through the link and joins. Returns their display name. */
+export async function joinThroughLink(friend: Page, link: string): Promise<string> {
+  const account = newGoogleAccount();
+  await stubGoogle(friend, account.sub);
+  await friend.goto(link);
+  await friend.getByRole('button', { name: 'Continue with Google' }).click();
+  await completeProfile(friend, account.displayName);
+  await friend.getByRole('button', { name: 'Join community' }).click();
+  await expect(friend.getByRole('link', { name: 'Settings' })).toBeVisible();
+  return account.displayName;
 }

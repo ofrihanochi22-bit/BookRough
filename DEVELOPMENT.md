@@ -681,18 +681,57 @@ npm test --prefix e2e                                   # 12 runs, needs Docker 
 
 ### Step 2.3 — Membership management (Phase 2 — UC-10, UC-14)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/communities-membership
-Spec: docs/features/communities-membership.md (to be written in its Stage 1 session)
+Spec: docs/features/communities-membership.md
 
-Goal: Community Settings & Members — leave (with the sole-admin block), kick (not another admin), edit or delete the community. Absorbs the leave/kick half of former 2.3 and the settings half of former 2.5.
+Goal: Community Settings & Members — leave, remove (and block), roles, ownership transfer, edit, delete. Absorbs the leave/kick half of former 2.3 and the settings half of former 2.5.
 
 Tasks:
 
-- [ ] Spec, DB (if needed), backend, Community Settings & Members screen, tests.
+- [x] Spec: docs/features/communities-membership.md written and approved (owner role, removal blocks, owner transfer, delete with a checkbox).
+- [x] DB: migrations `add_community_owner_role` and `backfill_community_owners` — `OWNER` role (one per community, partial unique index; existing communities' earliest admin became owner) and the `community_bans` table.
+- [x] Backend: `GET /members`, `DELETE /members/me`, `DELETE` / `PATCH /members/:userId`, `POST /ownership`, `GET /bans`, `DELETE /bans/:userId`, `PATCH` / `DELETE` on the community; blocked users get the UC-15 `404` from the invite preview and accept.
+- [x] Frontend: `pages/CommunitySettings.tsx` (members, roles, removal with blocking, blocked list, edit, leave, transfer, delete), Settings link on the community page, "Owner" labels.
+- [x] Review: `/code-review` (8 findings, all fixed — including three races that could leave a community with no owner) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7, including the partial index, the migration backfill, and the race branches.
 
 What I did:
+
+Built Community Settings & Members (UC-10, UC-14) per `docs/features/communities-membership.md`.
+
+- **DB:** `OWNER` joins `CommunityRole`; exactly one per community through the hand-written partial index `community_members_one_owner`; the backfill made each existing community's earliest admin its owner. New table `community_bans` (eighth table).
+- **Backend:** `services/communityAccess.ts` (shared member / admin / owner checks, ban lookup), `services/membership.service.ts`, `controllers/membership.controller.ts`; `updateCommunity` and `deleteCommunity` in `community.service.ts`; `utils/communityMember.ts` (member and blocked-user serialisers with a three-field user). Every role-dependent write is conditional on the role just checked, so concurrent changes are refused instead of misapplied. Creators are now `OWNER`.
+- **Frontend:** `pages/CommunitySettings.tsx` with `ConfirmSheet` (remove, make owner, leave, the owner's leave message, delete with the checkbox); the name/description fields shared with Create through `hooks/useCommunityDetailsForm.ts` and `components/CommunityDetailsFields.tsx`; `lib/communityRoles.ts` mirrors the server's permission rules; `api/membership.ts`.
+- **Docs:** `tables` (owner role, `community_bans`, eight tables), `use cases` (UC-9 owner, UC-10 owner fail path, UC-14 blocking), `frontend screens` (3.3) (.md + .docx); CLAUDE.md §6.
+- **Tests:** backend 375 (98.0% lines over both suites), frontend 247 (99.0%), E2E 16 (new: remove → blocked → unblock → rejoin; transfer → leave → delete — both in Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts again (A creates, B joins through A's link — see Step 2.2). Open `http://localhost:5173/` at 375px width.
+
+1. As A, open the community → **Settings**. You are "Owner"; B is listed. Tap **⋯** next to B → **Make admin** → B shows "Admin"; **⋯** → **Make member**.
+2. **⋯** → **Remove from community** → confirm. B moves to **Blocked**. As B, reload the community → "This page doesn't exist"; open the invite link → the invalid-link message.
+3. As A, **Unblock** B. As B, open the link again → **Join community** works.
+4. As A, edit the name → **Save changes** → "Changes saved".
+5. As A, **Leave community** → the owner message. **⋯** next to B → **Make owner** → confirm → you are "Admin", B is "Owner"; now **Leave community** works.
+6. As B, **Delete community** → the button stays disabled until "I understand this can't be undone" is ticked → the community disappears.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npm run test:integration -- membership
+cd backend && npx vitest run src/services/membership.service.test.ts
+cd frontend && npm run test:unit                          # CommunitySettings, communityRoles
+npm test --prefix e2e                                     # 16 runs, needs Docker Postgres
+```
 
 ---
 

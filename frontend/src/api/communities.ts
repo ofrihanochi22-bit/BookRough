@@ -1,6 +1,6 @@
 import { api, type SuccessBody } from './client';
 
-export type CommunityRole = 'ADMIN' | 'MEMBER';
+export type CommunityRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
 /** Mirrors the backend's PublicCommunity — the only community shape the API sends. */
 export interface PublicCommunity {

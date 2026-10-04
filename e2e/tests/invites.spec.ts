@@ -1,33 +1,13 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { newGoogleAccount, stubGoogle } from '../support/googleStandIn';
-import { completeProfile, onboardedAccount } from '../support/flows';
+import { completeProfile, createCommunityAndReadLink, friendPage } from '../support/flows';
 
 /**
  * Phase 2 golden loop — docs/features/communities-invites.md §7.
  * An admin creates a community and shares its link; a brand-new friend opens
  * it signed out, signs up through it, and joins.
  */
-
-/** A's community, with the invite panel that opens by itself after creating. */
-async function createCommunityAndReadLink(page: Page, name: string): Promise<string> {
-  await onboardedAccount(page);
-  await page.getByRole('link', { name: 'Create community' }).click();
-  await page.getByLabel('Name').fill(name);
-  await page.getByRole('button', { name: 'Create' }).click();
-
-  const panel = page.getByRole('dialog', { name: 'Invite friends' });
-  await expect(panel).toBeVisible();
-  const link = panel.getByLabel('Invite link');
-  await expect(link).toHaveValue(/\/invite\/[A-Za-z0-9_-]{22}$/);
-  return link.inputValue();
-}
-
-/** A second person on their own device: a fresh browser context, signed out. */
-async function friendPage(browser: Browser): Promise<Page> {
-  const context = await browser.newContext();
-  return context.newPage();
-}
 
 test('a new friend opens the link signed out, signs up through it, and joins', async ({
   page,
@@ -57,9 +37,8 @@ test('a new friend opens the link signed out, signs up through it, and joins', a
   await expect(friend.getByRole('heading', { name: 'Friday Jazz' })).toBeVisible();
   await expect(friend.getByText('2 members')).toBeVisible();
   await expect(friend.getByRole('button', { name: 'Invite friends' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Close' }).click();
   await page.reload();
-  await expect(page.getByText("2 members · You're an admin")).toBeVisible();
+  await expect(page.getByText("2 members · You're the owner")).toBeVisible();
 
   await friend.context().close();
 });
@@ -67,6 +46,7 @@ test('a new friend opens the link signed out, signs up through it, and joins', a
 test('after the admin resets the link, the old one is dead', async ({ page, browser }) => {
   // Arrange
   const oldLink = await createCommunityAndReadLink(page, 'Sunday Vinyl');
+  await page.getByRole('button', { name: 'Invite friends' }).click();
   const panel = page.getByRole('dialog', { name: 'Invite friends' });
 
   // Act — reset, with confirmation.

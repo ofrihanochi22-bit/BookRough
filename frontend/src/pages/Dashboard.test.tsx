@@ -100,3 +100,17 @@ describe('Dashboard', () => {
     expect(listMyCommunities).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('Dashboard — roles', () => {
+  it('labels communities the user owns as Owner', async () => {
+    // Arrange
+    listMyCommunities.mockResolvedValue([makeCommunity({ name: 'Mine', myRole: 'OWNER' })]);
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    const card = await screen.findByRole('link', { name: /Mine/ });
+    expect(within(card).getByText('1 member · Owner')).toBeInTheDocument();
+  });
+});
