@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { isTest } from '../config/env.js';
 import { AppError } from '../utils/AppError.js';
+import { adminRouter } from './admin.js';
 import { authRouter } from './auth.js';
 import { communitiesRouter } from './communities.js';
 import { healthRouter } from './health.js';
@@ -15,6 +16,7 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/communities', communitiesRouter);
 apiRouter.use('/invites', invitesRouter);
+apiRouter.use('/admin', adminRouter);
 
 /**
  * GET /api/__boom — mounted only under NODE_ENV=test.

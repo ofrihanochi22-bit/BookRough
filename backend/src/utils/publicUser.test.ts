@@ -1,7 +1,7 @@
 import type { User } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { needsOnboarding, sessionPayload, toPublicUser } from './publicUser.js';
+import { isAppAdmin, needsOnboarding, sessionPayload, toPublicUser } from './publicUser.js';
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -64,7 +64,7 @@ describe('needsOnboarding', () => {
 });
 
 describe('sessionPayload', () => {
-  it('pairs the public user with its onboarding state', () => {
+  it('pairs the public user with its onboarding state and admin flag', () => {
     // Arrange
     const user = makeUser({ displayName: null });
 
@@ -72,6 +72,29 @@ describe('sessionPayload', () => {
     const payload = sessionPayload(user);
 
     // Assert
-    expect(payload).toEqual({ user: toPublicUser(user), needsOnboarding: true });
+    expect(payload).toEqual({ user: toPublicUser(user), needsOnboarding: true, isAdmin: false });
+  });
+
+  it('flags an onboarded admin', () => {
+    // Act
+    const payload = sessionPayload(makeUser());
+
+    // Assert
+    expect(payload.isAdmin).toBe(true);
+  });
+});
+
+describe('isAppAdmin', () => {
+  it.each([
+    ['an onboarded admin', makeUser(), true],
+    ['an ordinary user', makeUser({ role: 'USER' }), false],
+    ['an admin without a name yet', makeUser({ displayName: null }), false],
+    ['an admin without a service yet', makeUser({ preferredService: null }), false],
+  ])('%s -> %s', (_label, user, expected) => {
+    // Act
+    const result = isAppAdmin(user);
+
+    // Assert
+    expect(result).toBe(expected);
   });
 });

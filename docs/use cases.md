@@ -292,4 +292,4 @@
 >
 > **Honest limit:** this reduces *incidental* exposure. It is not a cryptographic guarantee — the operator runs the server and can change the code. The protection is that there is no personal data in the system to expose in the first place.
 >
-> **Scope detail is deliberately not specified here.** Exactly which settings are configurable, and what the audit trail records, are decided in this feature's specification session and written to `docs/features/admin-panel.md` before implementation begins.
+> **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody, and the settings list is fixed in code.
