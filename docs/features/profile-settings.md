@@ -8,7 +8,7 @@
 | **Use cases** | UC-4 (edit account details), UC-3 (log out — visible on this screen)                         |
 | **Phase**     | 2 — Step 2.4 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.4 and the profile half of 2.5) |
 | **Branch**    | `feat/profile-settings`                                                                      |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                           |
+| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                           |
 
 ---
 
