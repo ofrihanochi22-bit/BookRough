@@ -737,18 +737,55 @@ npm test --prefix e2e                                     # 16 runs, needs Docke
 
 ### Step 2.4 — My Profile / Settings (Phase 2 — UC-3, UC-4)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/profile-settings
-Spec: docs/features/profile-settings.md (to be written in its Stage 1 session)
+Spec: docs/features/profile-settings.md
 
 Goal: The Profile tab becomes the full My Profile / Settings screen: edit display name and preferred service, avatar, visible Log Out. Absorbs former 2.4 and the profile half of former 2.5. Includes the open question of re-choosing a declined Google photo (`onboarding.md` §2).
 
 Tasks:
 
-- [ ] Spec, backend (reuses `PATCH /api/users/me`), screen, tests.
+- [x] Spec: docs/features/profile-settings.md written and approved (re-choosing the Google photo needs a fresh Google sign-in from the same account; no rename limits).
+- [x] Backend: `POST /api/users/me/google-picture` (`rechooseGooglePicture` in `user.service.ts`); `PATCH /api/users/me` reused for name, service and the switch to the generated avatar.
+- [x] Frontend: `pages/Profile.tsx` (the full screen); `components/GoogleCredentialButton.tsx`, `DisplayNameField.tsx`, `StreamingServicePicker.tsx` extracted and shared with onboarding.
+- [x] Review: `/code-review` (1 finding, fixed: the avatar showed the offline hint during a save) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built My Profile / Settings (UC-4, UC-3) per `docs/features/profile-settings.md`.
+
+- **Backend:** `rechooseGooglePicture` verifies a fresh Google ID token like a sign-in, requires its `sub` to match the account, and stores only its `picture` (`useGooglePicture = true`). A rejected token is `422` (not `401`, which would sign a valid session out); a different account is `403`; no photo is `422`; not onboarded is `403`; Google unreachable stays `503`. No migration.
+- **Frontend:** the Profile tab is now the full screen — avatar switch (generated ⇄ Google photo), display name with the live availability check, service picker, one **Save changes** that sends only what changed and toasts "Profile updated", offline banner, Sign out. The Google button, name field and service picker are shared components, so onboarding and My Profile apply the same rules and states.
+- **Docs:** `use cases` (UC-3, UC-4), `frontend screens` (4.3), `auth` (the photo's way back) (.md + .docx); CLAUDE.md §5 and §8; `onboarding.md` pointer.
+- **Tests:** backend 395 (98.1% lines over both suites), frontend 260 (98.5%), E2E 20 (new: rename + change service persist after reload; Google photo re-chosen through the stand-in and switched back — both in Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width and sign in with Google (onboard with the generated avatar).
+
+1. Tap the **Profile** tab → "Your profile". **Save changes** is disabled.
+2. Change the display name → "✓ Available" → pick another service → **Save changes** → "Profile updated". Reload: both persist.
+3. Type a name another account uses → "That display name is already taken." and Save stays disabled.
+4. Under the avatar, **Continue with Google** with the same account → your Google photo appears and the button becomes **Use generated avatar**. Try a different Google account → "That's a different Google account…".
+5. **Use generated avatar** → initials again; the photo URL is deleted from the database.
+6. Turn the network off (DevTools → Offline) → the offline banner; Save and the avatar actions are disabled; **Sign out** still works.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npm run test:integration -- users
+cd backend && npx vitest run src/services/user.service.test.ts
+cd frontend && npm run test:unit                          # Profile, CompleteProfile
+npm test --prefix e2e                                     # 20 runs, needs Docker Postgres
+```
 
 ---
 

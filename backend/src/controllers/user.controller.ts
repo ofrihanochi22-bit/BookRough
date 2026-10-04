@@ -2,7 +2,11 @@ import { StreamingService } from '@prisma/client';
 import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
-import { checkAvailability, updateProfile } from '../services/user.service.js';
+import {
+  checkAvailability,
+  rechooseGooglePicture,
+  updateProfile,
+} from '../services/user.service.js';
 import { sessionUser } from '../middleware/requireAuth.js';
 import { sessionPayload } from '../utils/publicUser.js';
 import { success } from '../utils/response.js';
@@ -16,6 +20,8 @@ const profileUpdateSchema = z
   })
   .strict()
   .refine((body) => Object.keys(body).length > 0);
+
+const googlePictureSchema = z.object({ credential: z.string().min(1).max(4096) }).strict();
 
 const availabilityQuerySchema = z.object({ name: z.string().min(1).max(200) });
 
@@ -35,6 +41,17 @@ export const displayNameAvailability: RequestHandler = async (req, res, next) =>
   try {
     const { name } = parseQuery(availabilityQuerySchema, req.query);
     res.status(200).json(success(await checkAvailability(sessionUser(req), name)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** POST /api/users/me/google-picture — mounted behind requireAuth. */
+export const useGooglePicture: RequestHandler = async (req, res, next) => {
+  try {
+    const { credential } = parseBody(googlePictureSchema, req.body);
+    const user = await rechooseGooglePicture(sessionUser(req), credential);
+    res.status(200).json(success(sessionPayload(user)));
   } catch (error) {
     next(error);
   }

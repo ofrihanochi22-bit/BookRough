@@ -2,20 +2,15 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { isAxiosError } from 'axios';
 
 import { updateProfile } from '../api/users';
+import { DisplayNameField } from '../components/DisplayNameField';
+import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSignOut } from '../hooks/useSignOut';
-import {
-  cleanDisplayName,
-  DISPLAY_NAME_MESSAGES,
-  graphemeCount,
-  MAX_GRAPHEMES,
-  MIN_GRAPHEMES,
-} from '../lib/displayName';
-import { STREAMING_SERVICES } from '../lib/streamingServices';
+import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type StreamingService } from '../stores/auth';
 
 type AvatarChoice = 'generated' | 'google';
@@ -126,56 +121,17 @@ export function CompleteProfile() {
           )}
         </fieldset>
 
-        <div className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between">
-            <label htmlFor="display-name" className="text-sm font-medium">
-              Display name
-            </label>
-            <span className="text-xs text-muted" aria-hidden="true">
-              {graphemeCount(cleaned)}/{MAX_GRAPHEMES}
-            </span>
-          </div>
-          <input
-            id="display-name"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setError(null);
-            }}
-            maxLength={200}
-            autoComplete="nickname"
-            aria-describedby="display-name-status"
-            aria-invalid={
-              status.kind === 'invalid' || status.kind === 'taken' || status.kind === 'reserved'
-            }
-            className="min-h-11 rounded-xl border border-line bg-surface px-4 text-base text-ink outline-none focus:border-accent"
-          />
-          <NameStatusLine status={status} />
-        </div>
+        <DisplayNameField
+          value={name}
+          onChange={(value) => {
+            setName(value);
+            setError(null);
+          }}
+          status={status}
+          submitVerb="continue"
+        />
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-3 text-sm font-medium">Where do you listen?</legend>
-          {STREAMING_SERVICES.map((option) => (
-            <label
-              key={option.value}
-              className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${
-                service === option.value
-                  ? 'border-accent bg-accent-soft text-accent-ink'
-                  : 'border-line bg-surface text-ink'
-              }`}
-            >
-              <input
-                type="radio"
-                name="service"
-                value={option.value}
-                checked={service === option.value}
-                onChange={() => setService(option.value)}
-                className="accent-accent"
-              />
-              {option.label}
-            </label>
-          ))}
-        </fieldset>
+        <StreamingServicePicker value={service} onChange={setService} />
 
         {error && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -228,27 +184,5 @@ function AvatarTile({ label, selected, onSelect, children }: AvatarTileProps) {
       {children}
       <span aria-hidden="true">{label}</span>
     </label>
-  );
-}
-
-const STATUS_TEXT: Partial<Record<DisplayNameStatus['kind'], string>> = {
-  checking: 'Checking…',
-  available: '✓ Available',
-  taken: DISPLAY_NAME_MESSAGES.taken,
-  reserved: DISPLAY_NAME_MESSAGES.reserved,
-  unknown: "Couldn't check right now — we'll check when you continue.",
-};
-
-const HINT = `Any language. ${MIN_GRAPHEMES}–${MAX_GRAPHEMES} characters.`;
-
-function NameStatusLine({ status }: { status: DisplayNameStatus }) {
-  const text = status.kind === 'invalid' ? status.message : (STATUS_TEXT[status.kind] ?? HINT);
-  const bad = status.kind === 'invalid' || status.kind === 'taken' || status.kind === 'reserved';
-  const tone = bad ? 'text-danger' : status.kind === 'available' ? 'text-accent' : 'text-muted';
-
-  return (
-    <p id="display-name-status" aria-live="polite" className={`min-h-5 text-xs ${tone}`}>
-      {text}
-    </p>
   );
 }

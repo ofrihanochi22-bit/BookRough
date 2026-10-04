@@ -27,3 +27,13 @@ export async function updateProfile(update: ProfileUpdate): Promise<Session> {
   });
   return response.data.data;
 }
+
+/** Re-chooses the Google photo with a fresh Google credential; returns the refreshed session. */
+export async function chooseGooglePhoto(credential: string): Promise<Session> {
+  const response = await api.post<SuccessBody<Session>>(
+    '/users/me/google-picture',
+    { credential },
+    { skipErrorToast: true },
+  );
+  return response.data.data;
+}

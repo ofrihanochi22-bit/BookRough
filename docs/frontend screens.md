@@ -70,7 +70,9 @@ Screens dedicated to individual user actions and backlog management.
   - **Key UI:** 1-10 Star selection mechanism (slider or interactive stars), optional text input for a review, and a "Submit Rating" button.
 - **4.3. My Profile / Settings Screen (UC-3, UC-4)**
   - **Purpose:** Managing personal account details and app preferences.
-  - **Key UI:** Edit mode for Display Name and Preferred Streaming Service, with the generated avatar shown read-only. A highly visible "Log Out" button.
+  - **Key UI:** The fields are editable in place: the avatar, Display Name (with the same live availability check as onboarding) and Preferred Streaming Service. One "Save changes" button, enabled only once something changed, sends only the changed fields and toasts "Profile updated". A visible "Sign out" button at the bottom.
+  - **Avatar:** with the Google photo in use, "Use generated avatar" (the photo is deleted). With the generated avatar, a Google button fetches the current photo through a fresh Google sign-in from the same account; a different account or an account with no photo shows an inline message.
+  - **States:** a name problem shows on the name's status line, other save failures inline above Save; offline shows a banner and disables Save and the avatar actions, while Sign out stays available.
 
 ### 5. Cross-Cutting UI Conventions
 
