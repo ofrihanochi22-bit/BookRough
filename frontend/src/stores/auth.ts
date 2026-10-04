@@ -16,6 +16,8 @@ export interface PublicUser {
 export interface Session {
   user: PublicUser;
   needsOnboarding: boolean;
+  /** The caller's own admin flag (docs/features/admin-panel.md §4.1). Navigation only — the server authorises. */
+  isAdmin: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ interface AuthState {
   status: AuthStatus;
   user: PublicUser | null;
   needsOnboarding: boolean;
+  isAdmin: boolean;
   setSession: (session: Session) => void;
   clear: () => void;
 }
@@ -36,8 +39,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
   status: 'unknown',
   user: null,
   needsOnboarding: false,
-  setSession: ({ user, needsOnboarding }) => set({ status: 'signedIn', user, needsOnboarding }),
-  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false }),
+  isAdmin: false,
+  setSession: ({ user, needsOnboarding, isAdmin }) =>
+    set({ status: 'signedIn', user, needsOnboarding, isAdmin }),
+  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false, isAdmin: false }),
 }));
 
 /**

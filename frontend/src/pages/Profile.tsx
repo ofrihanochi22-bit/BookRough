@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { isAxiosError } from 'axios';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { chooseGooglePhoto, updateProfile, type ProfileUpdate } from '../api/users';
@@ -34,6 +35,7 @@ function messageOf(error: unknown, fallback: string): string {
  */
 export function Profile() {
   const user = useAuthStore((state) => state.user);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const { signingOut, signOut } = useSignOut();
 
   if (!user) {
@@ -45,6 +47,17 @@ export function Profile() {
       <h1 className="mb-6 font-display text-2xl font-medium">Your profile</h1>
       {/* Remounted after each save, so the form restarts from the saved values. */}
       <ProfileForm key={`${user.displayName}|${user.preferredService}`} user={user} />
+      {isAdmin && (
+        <Link
+          to="/admin"
+          className="mt-8 flex min-h-11 items-center justify-between rounded-xl border border-line bg-surface px-4 text-sm font-medium"
+        >
+          Admin area
+          <span aria-hidden="true" className="text-muted">
+            ›
+          </span>
+        </Link>
+      )}
       <div className="mt-8 flex justify-center pb-4">
         <Button variant="secondary" busy={signingOut} onClick={signOut}>
           {signingOut ? 'Signing out…' : 'Sign out'}

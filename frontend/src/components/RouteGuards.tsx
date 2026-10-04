@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { fetchSession } from '../api/auth';
+import { NotFound } from '../pages/NotFound';
 import { homePathFor, useAuthStore } from '../stores/auth';
 import { Button } from './ui/Button';
 import { ScreenLayout } from './ui/ScreenLayout';
@@ -96,6 +97,22 @@ export function RequireSession({ children, onboarding }: RequireSessionProps) {
   }
   if (needsOnboarding !== (onboarding === 'pending')) {
     return <Navigate to={homePathFor(needsOnboarding)} replace />;
+  }
+  return children;
+}
+
+/**
+ * The admin area (docs/features/admin-panel.md §5.1). Anyone who is not a
+ * signed-in admin — signed-out visitors included — gets the standard not-found
+ * page, rendered without a request, so the area is indistinguishable from a
+ * path that does not exist. The server refuses them regardless (CLAUDE.md §17).
+ */
+export function AdminOnly({ children }: { children: ReactNode }) {
+  const status = useAuthStore((state) => state.status);
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+
+  if (status !== 'signedIn' || !isAdmin) {
+    return <NotFound />;
   }
   return children;
 }

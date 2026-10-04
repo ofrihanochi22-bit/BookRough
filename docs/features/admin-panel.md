@@ -8,7 +8,7 @@
 | **Use cases** | UC-19 (administrator manages the application)                                                                             |
 | **Phase**     | 2 — Steps 2.8 and 2.9 of `DEVELOPMENT.md`                                                                                 |
 | **Branch**    | `feat/admin-user-list` (Part 1, §2.1), then `feat/admin-settings` (Part 2, §2.2)                                          |
-| **Status**    | ☐ Spec approved · Part 1: ☐ Implemented ☐ Reviewed ☐ Tested ☐ Merged · Part 2: ☐ Implemented ☐ Reviewed ☐ Tested ☐ Merged |
+| **Status**    | ☑ Spec approved · Part 1: ☑ Implemented ☐ Reviewed ☐ Tested ☐ Merged · Part 2: ☐ Implemented ☐ Reviewed ☐ Tested ☐ Merged |
 
 ---
 
@@ -185,7 +185,7 @@ At 375px: heading "Admin", a segmented tab control (Users · Communities, later 
 
 ## 6. Edge cases & failure modes
 
-- **Role removed mid-session:** the next admin request answers `403`; the screen turns into `NotFound`. The Admin link disappears at the next session refresh.
+- **Role removed mid-session:** the next admin request answers `403`; the app drops the session's admin flag, so the whole area turns into `NotFound` and the Admin link disappears at once.
 - **A non-admin guesses `/admin`:** `NotFound`, no API call. Calling the API directly gives `403`, which reveals only what CLAUDE.md §17 accepts.
 - **An admin who has not finished onboarding:** treated as a non-admin until they do.
 - **Two admins save at once:** last write wins. Each change's history row records the value it actually replaced, because the read happens inside the same transaction.

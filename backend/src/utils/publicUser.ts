@@ -29,7 +29,19 @@ export function needsOnboarding(user: User): boolean {
   return user.displayName === null || user.preferredService === null;
 }
 
-/** The body every session-returning endpoint sends. */
+/** Whether this user may use the administrative area (docs/features/admin-panel.md §4). */
+export function isAppAdmin(user: User): boolean {
+  return user.role === 'ADMIN' && !needsOnboarding(user);
+}
+
+/**
+ * The body every session-returning endpoint sends. `isAdmin` is the caller's
+ * own flag only — no other user's role leaves the server outside the admin area.
+ */
 export function sessionPayload(user: User) {
-  return { user: toPublicUser(user), needsOnboarding: needsOnboarding(user) };
+  return {
+    user: toPublicUser(user),
+    needsOnboarding: needsOnboarding(user),
+    isAdmin: isAppAdmin(user),
+  };
 }

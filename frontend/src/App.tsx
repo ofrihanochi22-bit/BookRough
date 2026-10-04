@@ -1,7 +1,8 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
+import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { TabLayout } from './components/TabLayout';
+import { AdminCommunities, AdminLayout, AdminUsers } from './pages/Admin';
 import { ComingSoon } from './pages/ComingSoon';
 import { Community } from './pages/Community';
 import { CommunitySettings } from './pages/CommunitySettings';
@@ -72,6 +73,22 @@ export function App() {
             }
           />
           <Route path="/profile" element={<Profile />} />
+        </Route>
+        {/* Not-found for everyone who is not an admin (docs/features/admin-panel.md §5.1). */}
+        <Route
+          path="/admin"
+          element={
+            <AdminOnly>
+              <TabLayout />
+            </AdminOnly>
+          }
+        >
+          <Route element={<AdminLayout />}>
+            <Route index element={<Navigate to="users" replace />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="communities" element={<AdminCommunities />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
         </Route>
         {/* Public on purpose: the preview handles signed-out, onboarding and signed-in visitors. */}
         <Route path="/invite/:token" element={<InvitePreview />} />
