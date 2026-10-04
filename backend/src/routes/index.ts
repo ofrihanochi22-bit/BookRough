@@ -7,6 +7,7 @@ import { authRouter } from './auth.js';
 import { communitiesRouter } from './communities.js';
 import { healthRouter } from './health.js';
 import { invitesRouter } from './invites.js';
+import { settingsRouter } from './settings.js';
 import { usersRouter } from './users.js';
 
 export const apiRouter: Router = Router();
@@ -17,6 +18,7 @@ apiRouter.use('/users', usersRouter);
 apiRouter.use('/communities', communitiesRouter);
 apiRouter.use('/invites', invitesRouter);
 apiRouter.use('/admin', adminRouter);
+apiRouter.use('/settings', settingsRouter);
 
 /**
  * GET /api/__boom — mounted only under NODE_ENV=test.

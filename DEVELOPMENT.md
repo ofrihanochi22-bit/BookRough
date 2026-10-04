@@ -868,7 +868,7 @@ npm test --prefix e2e                                     # 22 runs, needs Docke
 
 ### Step 2.9 — Admin area: presentation settings (Phase 2 — UC-19)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/admin-settings
 Spec: docs/features/admin-panel.md
 
@@ -876,14 +876,49 @@ Goal: The owner can change presentation configuration and have it take effect fo
 
 Tasks:
 
-- [ ] Backend: `GET` / `PATCH` settings endpoints, admin-gated, Zod-validated against the approved allowed-settings list.
-- [ ] Backend: Audit record on every change: actor, setting, old value, new value, timestamp.
-- [ ] Frontend: Settings form; changes reflected for all users.
-- [ ] Review: confirm an unknown or unlisted setting key is rejected rather than silently stored.
-- [ ] Tests: Good: a setting changes and persists; the audit row is written. Bad: non-admin `403`; unknown key `422`; out-of-range value `422`.
+- [x] DB: migration `add_app_settings` — `SettingKey` enum, `app_settings`, `setting_changes` (ten tables).
+- [x] Backend: `GET` / `PATCH /api/admin/settings`, admin-gated, Zod for shapes and the code registry for the rules; public `GET /api/settings` (the banner only for signed-in callers).
+- [x] Backend: a history row on every real change: actor, setting, old value, new value, timestamp — written in the same transaction, under a lock.
+- [x] Frontend: the Settings tab; the accent colour, tagline and banner applied for everyone.
+- [x] Review: `/code-review` (1 finding, fixed: a `403` on Save showed an inline error instead of ending the admin view) and `/security-review` (clean). An unknown key is a `422`, and no colour value from the database ever reaches a style.
+- [x] Tests: a setting changes and persists, its history row is written; non-admin `403`, unknown key `422`, out-of-range values `422`, no-ops write nothing.
 
 What I did:
+
+Built Part 2 of the administrative area (UC-19) per `docs/features/admin-panel.md`.
+
+- **DB:** `app_settings` (one row per setting ever changed; missing = default) and `setting_changes` (the history; `changed_by_id` set to null if the admin's account goes).
+- **Backend:** `services/appSettings.ts` — the registry (three keys, their rules, their defaults), reads that fall back to the default for a value the rules reject, and `updateSettings` (validate everything, then one transaction under an advisory lock: write only what changed, one history row each). `controllers/settings.controller.ts`, `routes/settings.ts`, two routes added to `routes/admin.ts`. Logs the changed keys, never the texts.
+- **Frontend:** `pages/AdminSettings.tsx` (the Settings tab); `stores/settings.ts` and `components/AppSettings.tsx` (fetched at start and on every session change, applied without waiting); `components/AnnouncementBanner.tsx` in the tab layout; the tagline on Welcome; the palette in `index.css` as `data-accent` blocks (the server picks a name, the CSS picks the colours); `lib/appSettings.ts` mirrors the server's rules. `hooks/useForbiddenEndsAdmin.ts` is shared by all three tabs.
+- **Docs:** `tables` (tables 9 and 10; ten tables), `frontend screens` (the Settings tab and how settings apply) (.md + .docx); CLAUDE.md §6.
+- **Tests:** backend 466 (98.1% lines over both suites), frontend 317 (99.0%), E2E 23 (new: an admin changes all three settings; a friend sees the banner and a signed-out visitor the tagline — Chromium only, because the settings are global, and it restores the defaults). Missing API-module tests for `chooseGooglePhoto` (Step 2.4) and `api/admin.ts` (Step 2.8) were added here too.
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+You need an admin account — see Step 2.8 for the one-line `UPDATE`. Open `http://localhost:5173/` at 375px width.
+
+1. **Profile** → **Admin area** → **Settings**. Save is disabled; "No changes yet."
+2. Type a banner text, turn the switch on, pick **Green**, change the tagline → **Save changes** → "Settings saved". The app turns green at once and the three changes are listed.
+3. In another browser, sign in as a normal user → the banner is at the top; dismiss it → it stays gone after a reload.
+4. Sign out → Welcome shows the new tagline, in green, and no banner.
+5. Turn the switch on with empty text, or clear the tagline → the message under the field, Save disabled.
+6. Put things back: switch off, **Purple**, **Reset to default**, **Save changes**.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npm run test:integration -- settings
+cd backend && npx vitest run src/services/appSettings.test.ts
+cd frontend && npm run test:unit                          # AdminSettings, AnnouncementBanner, AppSettings
+npm test --prefix e2e                                     # 23 runs (+1 skipped), needs Docker Postgres
+```
 
 ---
 

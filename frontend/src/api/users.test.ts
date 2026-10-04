@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { makeSession } from '../test/fixtures';
 import { api } from './client';
-import { checkDisplayName, updateProfile } from './users';
+import { checkDisplayName, chooseGooglePhoto, updateProfile } from './users';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -49,5 +49,23 @@ describe('users API module', () => {
       displayName: 'Ofri',
       preferredService: 'SPOTIFY',
     });
+  });
+
+  it('chooseGooglePhoto posts the credential without the global toast and unwraps the session', async () => {
+    // Arrange
+    const session = makeSession();
+    const seen = respondWith({ status: 'success', data: session });
+
+    // Act
+    const result = await chooseGooglePhoto('google-id-token');
+
+    // Assert
+    expect(result).toEqual(session);
+    expect(seen[0]).toMatchObject({
+      method: 'post',
+      url: '/users/me/google-picture',
+      skipErrorToast: true,
+    });
+    expect(JSON.parse(seen[0]!.data as string)).toEqual({ credential: 'google-id-token' });
   });
 });

@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_TAGLINE } from '../lib/appSettings';
 import { useAuthStore } from '../stores/auth';
+import { useSettingsStore } from '../stores/settings';
 import { makeSession, resetAuthStore } from '../test/fixtures';
 import { Welcome } from './Welcome';
 
@@ -253,5 +255,23 @@ describe('Welcome', () => {
 
     // Assert
     expect(google.theme).toBe('outline');
+  });
+});
+
+describe('Welcome — tagline', () => {
+  it('shows the default tagline, then the one the admin set', () => {
+    // Arrange
+    useSettingsStore.setState({ welcomeTagline: DEFAULT_TAGLINE });
+    const { unmount } = render(<Welcome />);
+    expect(screen.getByText(DEFAULT_TAGLINE)).toBeInTheDocument();
+    unmount();
+
+    // Act
+    useSettingsStore.setState({ welcomeTagline: 'Music from friends, wherever you listen.' });
+    render(<Welcome />);
+
+    // Assert
+    expect(screen.getByText('Music from friends, wherever you listen.')).toBeInTheDocument();
+    act(() => useSettingsStore.setState({ welcomeTagline: DEFAULT_TAGLINE }));
   });
 });

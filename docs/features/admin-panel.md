@@ -8,7 +8,7 @@
 | **Use cases** | UC-19 (administrator manages the application)                                                                             |
 | **Phase**     | 2 — Steps 2.8 and 2.9 of `DEVELOPMENT.md`                                                                                 |
 | **Branch**    | `feat/admin-user-list` (Part 1, §2.1), then `feat/admin-settings` (Part 2, §2.2)                                          |
-| **Status**    | ☑ Spec approved · Part 1: ☑ Implemented ☑ Reviewed ☑ Tested ☐ Merged · Part 2: ☐ Implemented ☐ Reviewed ☐ Tested ☐ Merged |
+| **Status**    | ☑ Spec approved · Part 1: ☑ Implemented ☑ Reviewed ☑ Tested ☐ Merged · Part 2: ☑ Implemented ☑ Reviewed ☑ Tested ☐ Merged |
 
 ---
 
