@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { toPublicCommunity } from './publicCommunity.js';
 
 describe('toPublicCommunity', () => {
-  it('returns exactly the six public fields, so a column added later cannot leak', () => {
+  it('returns exactly the six public fields — never the invite token or updatedAt', () => {
     // Arrange
     const community = {
       id: 'community-1',
@@ -12,9 +12,9 @@ describe('toPublicCommunity', () => {
       description: null,
       createdAt: new Date('2026-10-03T09:00:00.000Z'),
       updatedAt: new Date('2026-10-03T10:00:00.000Z'),
-      // Simulates a column a later migration adds.
+      // A secret column: it must never reach a client.
       inviteToken: 'secret-token',
-    } as Community;
+    } satisfies Community;
 
     // Act
     const result = toPublicCommunity(community, 3, 'MEMBER');

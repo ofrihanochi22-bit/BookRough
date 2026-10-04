@@ -93,6 +93,7 @@ function LinkActions({
       setCopied(true);
     } catch {
       // No clipboard access: select the link so it can be copied by hand.
+      field.current?.focus();
       field.current?.select();
     }
   }
@@ -116,6 +117,8 @@ function LinkActions({
       const fresh = await resetInvite(communityId);
       onReset(fresh.token);
       setConfirming(false);
+      // The confirmation (and the focused Reset button) is gone; show the new link.
+      field.current?.focus();
     } catch {
       setError("Couldn't reset the link. Please try again.");
     } finally {

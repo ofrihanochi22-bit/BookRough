@@ -37,12 +37,22 @@ export function Sheet({ title, onClose, dismissible = true, children }: SheetPro
     }
   };
 
-  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      close();
+  // Escape is heard on the document, not the panel: focus can drop to <body>
+  // when the element holding it disappears (a confirmation closing, say).
+  useEffect(() => {
+    if (!dismissible) {
       return;
     }
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [dismissible, onClose]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'Tab' || !panel.current) {
       return;
     }

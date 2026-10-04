@@ -33,10 +33,11 @@ Stores the group details.
 - **id** (UUID, Primary Key).
 - **name** (VARCHAR, Not Null): Name of the group.
 - **description** (TEXT, Nullable): Group bio or rules.
+- **invite_token** (VARCHAR(64), Unique, Nullable): the community's one invite link (UC-15). 128 random bits, base64url. Created the first time an Admin asks for the link; replaced when an Admin resets it, which kills the old link at once. No expiry. A secret: returned only to Admins, never logged, never in any other response.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, updated automatically on every change).
 
-No cover image column: covers are always generated from the name and id (CLAUDE.md §8). Invite storage is added by the invites feature, which decides whether it is a column or its own table (UC-15 mentions expiry). Names are not unique — communities are found by invite, never by name.
+No cover image column: covers are always generated from the name and id (CLAUDE.md §8). Names are not unique — communities are found by invite, never by name.
 
 ### 3. community_members Table (Junction Table)
 

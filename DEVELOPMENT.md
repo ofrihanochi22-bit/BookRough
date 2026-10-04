@@ -625,19 +625,57 @@ npm test --prefix e2e                                     # 8 runs, needs Docker
 
 ### Step 2.2 — Invites and joining (Phase 2 — UC-15)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/communities-invites
-Spec: docs/features/communities-invites.md (to be written in its Stage 1 session)
+Spec: docs/features/communities-invites.md
 
 Goal: A community admin gets an invite link; a friend opens it, sees a "Join Community" preview, and joins with one tap. Absorbs the invite half of former 2.2, the accept half of former 2.3, and former 2.6.
 
 Tasks:
 
-- [ ] Spec: invite storage (column vs table, expiry, revocation), preview payload, unauthenticated deep-link flow.
-- [ ] DB, backend, invite preview screen, admin "Get invite link", tests, E2E extension (create → invite → join).
+- [x] Spec: docs/features/communities-invites.md written and approved (one link per community, admins only, public preview, panel on the community page).
+- [x] DB: migration `add_community_invite_token` — `communities.invite_token` (unique, nullable, created lazily).
+- [x] Backend: `GET /api/communities/:id/invite`, `POST /api/communities/:id/invite/reset` (admins), `GET /api/invites/:token` (public, `optionalAuth`), `POST /api/invites/:token/accept` (idempotent).
+- [x] Frontend: Join Community preview at `/invite/:token` with Google sign-in and the return trip through onboarding; invite panel on the community page (Share / Copy / Reset), opening once after creating.
+- [x] Review: `/code-review` (7 findings, all fixed — including the token leaking into logs through the request path) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7, including a test that the token appears in no response and no log line.
 
 What I did:
+
+Built invites and joining (UC-15) per `docs/features/communities-invites.md`.
+
+- **DB:** migration `add_community_invite_token`. One token per community: 128 random bits, base64url, created the first time an admin opens the panel (conditionally, so two admins cannot overwrite each other), replaced on reset.
+- **Backend:** `services/invite.service.ts` (admin check — non-member `404`, member `403`; lazy create; reset; public preview; idempotent accept, with `P2002` → already in and `P2003` → the UC-15 `404`); `controllers/invite.controller.ts`, `routes/invites.ts`, two routes on `routes/communities.ts`; `utils/inviteToken.ts`, `utils/invitePreview.ts`; `optionalAuth` in `middleware/requireAuth.ts`; `utils/redactPath.ts`, used by pino-http and the error handler so `/invites/<token>` is logged as `/invites/:token`.
+- **Frontend:** `pages/InvitePreview.tsx` (signed out / signed in / already a member / invalid link / offline); `components/InvitePanel.tsx` and the `Sheet` primitive (bottom sheet, focus kept inside, Escape, page scroll locked, stays open during a reset); `components/GoogleSignIn.tsx` extracted from Welcome with no behaviour change; `lib/pendingInvite.ts` + `homePathFor` bring a new user back to the invite after onboarding; `api/invites.ts`.
+- **Found by the E2E test:** the signed-out visitor's first `401` clears the session twice, and the second clear landed after the preview had remembered the invite, so new users ended on the dashboard. The pending invite is now dropped only on an explicit sign-out.
+- **Docs:** `tables`, `use cases` (UC-15), `frontend screens` (new 3.5 Join Community; the catalog is now fourteen screens) (.md + .docx); CLAUDE.md §8 screen count; `communities-create.md` marked merged.
+- **Tests:** backend 328 (97.3% lines over both suites), frontend 211 (99.5%; the communities and invites API modules are now covered too), E2E 12 (new: a fresh friend signs up through the link and joins; a reset link is dead — both in Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+You need two Google accounts (or a second browser profile for the friend). Open `http://localhost:5173/` at 375px width.
+
+1. As account A, create a community → the **Invite friends** panel opens by itself with the link. **Copy** shows "Copied"; on an iPhone, **Share** opens the share sheet. Close it and reload → it does not reopen; the **Invite friends** button reopens it.
+2. In a private window (signed out), open the link → "You're invited to", the cover, name, "1 member", and **Continue with Google to join**.
+3. Sign in there with account B. If B is new: Complete Your Profile → you return to the invite. Tap **Join community** → the community page shows "2 members", and B sees no Invite button.
+4. Open the link again as B → "You're already in this community." with **Open**.
+5. As A, **Reset link** → confirm → "New link created. The old one no longer works." Open the old link → the UC-15 message.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                     # unit + integration, 80% floor
+cd backend && npx vitest run src/services/invite.service.test.ts
+cd backend && npm run test:integration -- invites
+cd frontend && npm run test:unit                        # InvitePreview, InvitePanel, pendingInvite
+npm test --prefix e2e                                   # 12 runs, needs Docker Postgres
+```
 
 ---
 

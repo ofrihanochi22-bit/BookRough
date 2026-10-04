@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { clearPendingInvite, pendingInvite } from '../lib/pendingInvite';
+import { pendingInvite } from '../lib/pendingInvite';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -37,11 +37,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   needsOnboarding: false,
   setSession: ({ user, needsOnboarding }) => set({ status: 'signedIn', user, needsOnboarding }),
-  clear: () => {
-    // A pending invite belongs to the session that opened it; signing out drops it.
-    clearPendingInvite();
-    set({ status: 'signedOut', user: null, needsOnboarding: false });
-  },
+  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false }),
 }));
 
 /**

@@ -8,7 +8,7 @@
 | **Use cases** | UC-15 (join a community via invite link)                                                  |
 | **Phase**     | 2 — Step 2.2 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.2 invites, 2.3 accept, 2.6) |
 | **Branch**    | `feat/communities-invites`                                                                |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                        |
 
 ---
 
@@ -141,7 +141,7 @@ Extracted from `Welcome.tsx` without behaviour change: the provider (still mount
 
 ### 5.4 Return trip through sign-in and onboarding
 
-- Opening `/invite/:token` stores the path in `sessionStorage` (`pendingInvite`); joining, or seeing the invalid-link state, clears it.
+- Opening `/invite/:token` while signed out (or signed in but still onboarding) stores the path in `sessionStorage` (`pendingInvite`); joining, the invalid-link state, **Open** for an existing member, and an explicit sign-out clear it.
 - `homePathFor()` (where a signed-in user "belongs") returns the pending invite instead of `/home` once onboarding is complete, so: Complete Your Profile → Continue → back on the preview.
 - `sessionStorage`, not `localStorage`: the pending invite should not outlive the tab and resurface days later. Wrapped in `try/catch`; if storage is unavailable the user simply lands on the dashboard and can tap the link again.
 
@@ -238,17 +238,20 @@ Extracted from `Welcome.tsx` without behaviour change: the provider (still mount
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                          | Reason                                                                                       |
-| ---------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 2026-10-04 | One link per community, no expiry; admins can reset it (option A)                                 | Matches how friend groups share; reset handles a leaked link; expiry can be added later      |
-| 2026-10-04 | Only admins see and reset the link (option A)                                                     | Developer's choice; recommendation was "members share, admins reset"                         |
-| 2026-10-04 | Public preview before sign-in; explicit Join after (option A)                                     | A newcomer sees what they are joining; only name and count are exposed, to link holders only |
-| 2026-10-04 | Invite panel on the community page; opens once after creating (option A)                          | Closes create → invite → join in the first minute; settings screen is feature 3              |
-| 2026-10-04 | Token: 128 random bits, base64url, plain text, created lazily                                     | Unguessable; admins must see it again; no backfill for existing communities                  |
-| 2026-10-04 | Malformed, unknown and reset tokens all return the same `404`                                     | A link holder cannot tell a typo from a reset; nothing to probe                              |
-| 2026-10-04 | Accept is idempotent (`joined: false` for an existing member)                                     | Double taps, two tabs and retries after a dropped connection all end in the same place       |
-| 2026-10-04 | Reset confirmation is inline in the panel, not a second dialog                                    | Stage 2: a dialog on top of the sheet would be a third floating layer on a phone             |
-| 2026-10-04 | `optionalAuth` middleware for the public preview                                                  | Stage 2: reads a valid session if present; never 401s, clears or renews a cookie             |
-| 2026-10-04 | Paths are redacted before logging (`/invites/:token`)                                             | `/code-review`: the error handler and pino-http logged the token inside the URL              |
-| 2026-10-04 | First token write is conditional on the column still being null                                   | `/code-review`: two admins opening the panel at once overwrote each other's token            |
-| 2026-10-04 | The pending invite is kept only for visitors who must sign in or onboard, and cleared on sign-out | `/code-review`: a stale invite hijacked later sign-ins in the same tab                       |
+| Date       | Decision                                                                                          | Reason                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 2026-10-04 | One link per community, no expiry; admins can reset it (option A)                                 | Matches how friend groups share; reset handles a leaked link; expiry can be added later                     |
+| 2026-10-04 | Only admins see and reset the link (option A)                                                     | Developer's choice; recommendation was "members share, admins reset"                                        |
+| 2026-10-04 | Public preview before sign-in; explicit Join after (option A)                                     | A newcomer sees what they are joining; only name and count are exposed, to link holders only                |
+| 2026-10-04 | Invite panel on the community page; opens once after creating (option A)                          | Closes create → invite → join in the first minute; settings screen is feature 3                             |
+| 2026-10-04 | Token: 128 random bits, base64url, plain text, created lazily                                     | Unguessable; admins must see it again; no backfill for existing communities                                 |
+| 2026-10-04 | Malformed, unknown and reset tokens all return the same `404`                                     | A link holder cannot tell a typo from a reset; nothing to probe                                             |
+| 2026-10-04 | Accept is idempotent (`joined: false` for an existing member)                                     | Double taps, two tabs and retries after a dropped connection all end in the same place                      |
+| 2026-10-04 | Reset confirmation is inline in the panel, not a second dialog                                    | Stage 2: a dialog on top of the sheet would be a third floating layer on a phone                            |
+| 2026-10-04 | `optionalAuth` middleware for the public preview                                                  | Stage 2: reads a valid session if present; never 401s, clears or renews a cookie                            |
+| 2026-10-04 | Paths are redacted before logging (`/invites/:token`)                                             | `/code-review`: the error handler and pino-http logged the token inside the URL                             |
+| 2026-10-04 | First token write is conditional on the column still being null                                   | `/code-review`: two admins opening the panel at once overwrote each other's token                           |
+| 2026-10-04 | The pending invite is kept only for visitors who must sign in or onboard, and cleared on sign-out | `/code-review`: a stale invite hijacked later sign-ins in the same tab                                      |
+| 2026-10-04 | The pending invite is cleared on explicit sign-out only, not on every session clear               | Stage 4 E2E: the signed-out visitor's first 401 clears the session twice, wiping the invite just remembered |
+| 2026-10-04 | Escape is handled on the document, and focus moves to the new link after a reset                  | Stage 4: focus fell to <body> when the confirmation closed, so Escape stopped working                       |
+| 2026-10-04 | Join Community is screen 3.5; the catalog is fourteen screens                                     | It is a full screen of its own (`frontend screens.md`, CLAUDE.md §8)                                        |
