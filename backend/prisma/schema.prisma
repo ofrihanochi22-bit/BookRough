@@ -24,7 +24,11 @@ enum UserRole {
 }
 
 /// A member's role inside one community — unrelated to the app-wide UserRole.
+/// Exactly one OWNER per community, enforced by the partial unique index
+/// `community_members_one_owner` written by hand in the
+/// `backfill_community_owners` migration (Prisma cannot express it).
 enum CommunityRole {
+  OWNER
   ADMIN
   MEMBER
 }
@@ -59,6 +63,8 @@ model User {
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   memberships       CommunityMember[]
+  bans              CommunityBan[]    @relation("BannedUser")
+  bansIssued        CommunityBan[]    @relation("BannedBy")
 
   @@map("users")
 }
@@ -80,6 +86,7 @@ model Community {
   createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   members     CommunityMember[]
+  bans        CommunityBan[]
 
   @@map("communities")
 }
@@ -98,4 +105,20 @@ model CommunityMember {
   @@id([userId, communityId])
   @@index([communityId])
   @@map("community_members")
+}
+
+/// A user removed from a community, who cannot rejoin through any invite link
+/// until an admin unblocks them (docs/features/communities-membership.md §3.2).
+model CommunityBan {
+  communityId String    @map("community_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// Who removed them; null if that admin's account is later deleted.
+  bannedById  String?   @map("banned_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User      @relation("BannedUser", fields: [userId], references: [id], onDelete: Cascade)
+  bannedBy    User?     @relation("BannedBy", fields: [bannedById], references: [id], onDelete: SetNull)
+
+  @@id([communityId, userId])
+  @@map("community_bans")
 }

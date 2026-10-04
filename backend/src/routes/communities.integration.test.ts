@@ -42,7 +42,7 @@ afterAll(async () => {
 });
 
 describe('POST /api/communities', () => {
-  it('creates the community and an ADMIN membership, and returns a PublicCommunity', async () => {
+  it('creates the community and an OWNER membership, and returns a PublicCommunity', async () => {
     // Arrange
     const { user, cookie } = await onboardedUser('sub-1', 'Ofri');
 
@@ -60,12 +60,12 @@ describe('POST /api/communities', () => {
       name: 'Friday Jazz',
       description: 'Late-night records.\nOnly.',
       memberCount: 1,
-      myRole: 'ADMIN',
+      myRole: 'OWNER',
     });
     const row = await prisma.communityMember.findUnique({
       where: { userId_communityId: { userId: user.id, communityId: community.id } },
     });
-    expect(row?.role).toBe('ADMIN');
+    expect(row?.role).toBe('OWNER');
   });
 
   it('stores a missing description as null', async () => {
@@ -202,7 +202,7 @@ describe('GET /api/communities/:id', () => {
     expect(response.body.data.community).toMatchObject({
       id: community.id,
       name: 'Friday Jazz',
-      myRole: 'ADMIN',
+      myRole: 'OWNER',
     });
   });
 

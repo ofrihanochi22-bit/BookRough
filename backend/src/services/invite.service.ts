@@ -7,7 +7,7 @@ import { type InvitePreview, toInvitePreview } from '../utils/invitePreview.js';
 import { createLogger } from '../utils/logger.js';
 import { needsOnboarding } from '../utils/publicUser.js';
 import { type PublicCommunity, toPublicCommunity } from '../utils/publicCommunity.js';
-import { COMMUNITY_NOT_FOUND } from './community.service.js';
+import { isBanned, requireAdmin } from './communityAccess.js';
 
 const log = createLogger('invite.service');
 
@@ -32,23 +32,6 @@ function hasPrismaCode(error: unknown, code: string): boolean {
 
 const isUniqueViolation = (error: unknown) => hasPrismaCode(error, 'P2002');
 const isForeignKeyViolation = (error: unknown) => hasPrismaCode(error, 'P2003');
-
-/**
- * The invite endpoints are for admins only (developer's choice, option A). A
- * non-member gets the same 404 as everywhere else; a plain member gets 403.
- */
-async function requireAdmin(user: User, communityId: string): Promise<void> {
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(COMMUNITY_NOT_FOUND, 404);
-  }
-  if (membership.role !== CommunityRole.ADMIN) {
-    throw new AppError(ADMINS_ONLY, 403);
-  }
-}
 
 /**
  * Writes a fresh token, retrying once on the (astronomically unlikely) collision.
@@ -82,7 +65,7 @@ async function currentToken(communityId: string): Promise<string | null> {
 
 /** GET /communities/:id/invite — the link, created on first request. */
 export async function getInvite(user: User, communityId: string): Promise<Invite> {
-  await requireAdmin(user, communityId);
+  await requireAdmin(user, communityId, ADMINS_ONLY);
 
   const existing = await currentToken(communityId);
   if (existing) {
@@ -95,7 +78,7 @@ export async function getInvite(user: User, communityId: string): Promise<Invite
 
 /** POST /communities/:id/invite/reset — the old link stops working at once. */
 export async function resetInvite(user: User, communityId: string): Promise<Invite> {
-  await requireAdmin(user, communityId);
+  await requireAdmin(user, communityId, ADMINS_ONLY);
 
   await writeNewToken(communityId);
   log.info({ userId: user.id, communityId }, 'Invite link reset');
@@ -130,7 +113,9 @@ async function findIdByToken(token: unknown): Promise<string | null> {
  */
 export async function previewInvite(token: unknown, user: User | null): Promise<InvitePreview> {
   const community = await findByToken(token);
-  if (!community) {
+  // A blocked user is told nothing more than a reset link would tell them
+  // (docs/features/communities-membership.md, option A).
+  if (!community || (user && (await isBanned(user.id, community.id)))) {
     throw new AppError(INVITE_INVALID, 404);
   }
 
@@ -152,7 +137,7 @@ export async function acceptInvite(user: User, token: unknown): Promise<AcceptRe
     throw new AppError('Finish your profile first.', 403);
   }
   const communityId = await findIdByToken(token);
-  if (!communityId) {
+  if (!communityId || (await isBanned(user.id, communityId))) {
     throw new AppError(INVITE_INVALID, 404);
   }
 

@@ -4,6 +4,7 @@ import { RequireSession, SessionGate, SignedOutOnly } from './components/RouteGu
 import { TabLayout } from './components/TabLayout';
 import { ComingSoon } from './pages/ComingSoon';
 import { Community } from './pages/Community';
+import { CommunitySettings } from './pages/CommunitySettings';
 import { CompleteProfile } from './pages/CompleteProfile';
 import { CreateCommunity } from './pages/CreateCommunity';
 import { Dashboard } from './pages/Dashboard';
@@ -54,6 +55,7 @@ export function App() {
         >
           <Route path="/home" element={<Dashboard />} />
           <Route path="/communities/:id" element={<Community />} />
+          <Route path="/communities/:id/settings" element={<CommunitySettings />} />
           <Route
             path="/search"
             element={

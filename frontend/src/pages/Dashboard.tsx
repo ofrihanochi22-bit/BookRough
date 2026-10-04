@@ -7,6 +7,7 @@ import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
+import { roleLabel } from '../lib/communityRoles';
 
 const CREATE_PATH = '/communities/new';
 
@@ -74,7 +75,7 @@ function CommunityList({ items }: { items: PublicCommunity[] }) {
                 <span className="min-w-0 truncate font-medium">{community.name}</span>
                 <span className="shrink-0 text-xs text-muted">
                   {memberCountLabel(community.memberCount)}
-                  {community.myRole === 'ADMIN' && ' · Admin'}
+                  {roleLabel(community.myRole) && ` · ${roleLabel(community.myRole)}`}
                 </span>
               </div>
             </Link>

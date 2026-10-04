@@ -8,7 +8,7 @@
 | **Use cases** | UC-10 (leave a community), UC-14 (admin removes a user); UC-9/UC-15 touched               |
 | **Phase**     | 2 — Step 2.3 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.3 leave/kick, 2.5 settings) |
 | **Branch**    | `feat/communities-membership`                                                             |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
 
 ---
 
@@ -267,13 +267,16 @@ All use the `Sheet` primitive from feature 2.
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                  | Reason                                                                          |
-| ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 2026-10-04 | One Settings & Members screen with members, leave, remove, roles, edit, delete (option A) | UC-10/UC-14 error messages point at promote/demote and delete; editing is cheap |
-| 2026-10-04 | Removal always blocks; admins can unblock (option B)                                      | Developer's choice; recommendation was a "reset the link" checkbox              |
-| 2026-10-04 | A blocked user's invite shows the UC-15 invalid-link message (option A)                   | Doesn't announce the block among friends                                        |
-| 2026-10-04 | The creator is the owner: can't be demoted or removed; only the owner deletes (option B)  | Developer's choice; recommendation was "all admins equal"                       |
-| 2026-10-04 | Owner leaves only after a manual ownership transfer (option A)                            | The owner chooses their successor                                               |
-| 2026-10-04 | Delete confirmed with a warning and an "I understand" checkbox                            | Developer's choice (custom option)                                              |
-| 2026-10-04 | One owner per community enforced by a partial unique index (hand-written SQL)             | The invariant must hold under races; Prisma cannot express a partial index      |
-| 2026-10-04 | Make admin / Make member / Unblock need no confirmation                                   | Each is reversible in one tap                                                   |
+| Date       | Decision                                                                                                      | Reason                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 2026-10-04 | One Settings & Members screen with members, leave, remove, roles, edit, delete (option A)                     | UC-10/UC-14 error messages point at promote/demote and delete; editing is cheap                                  |
+| 2026-10-04 | Removal always blocks; admins can unblock (option B)                                                          | Developer's choice; recommendation was a "reset the link" checkbox                                               |
+| 2026-10-04 | A blocked user's invite shows the UC-15 invalid-link message (option A)                                       | Doesn't announce the block among friends                                                                         |
+| 2026-10-04 | The creator is the owner: can't be demoted or removed; only the owner deletes (option B)                      | Developer's choice; recommendation was "all admins equal"                                                        |
+| 2026-10-04 | Owner leaves only after a manual ownership transfer (option A)                                                | The owner chooses their successor                                                                                |
+| 2026-10-04 | Delete confirmed with a warning and an "I understand" checkbox                                                | Developer's choice (custom option)                                                                               |
+| 2026-10-04 | One owner per community enforced by a partial unique index (hand-written SQL)                                 | The invariant must hold under races; Prisma cannot express a partial index                                       |
+| 2026-10-04 | Make admin / Make member / Unblock need no confirmation                                                       | Each is reversible in one tap                                                                                    |
+| 2026-10-04 | The ⋯ menu expands inline under the row instead of a popover                                                  | Stage 2: no popover primitive exists; an inline row of buttons keeps 44 px targets and needs no positioning code |
+| 2026-10-04 | The screen reloads all its data quietly after each action                                                     | Stage 2: one source of truth after concurrent changes by other admins, without a skeleton flash                  |
+| 2026-10-04 | Name/description fields and rules shared with Create via `useCommunityDetailsForm` + `CommunityDetailsFields` | Stage 2: one implementation of feature 1's rules for both screens                                                |
