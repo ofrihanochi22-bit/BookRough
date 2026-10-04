@@ -33,14 +33,28 @@ export function InvitePreview() {
   const { token = '' } = useParams();
   const status = useAuthStore((state) => state.status);
   const needsOnboarding = useAuthStore((state) => state.needsOnboarding);
-  const path = `/invite/${token}`;
+  // Only a visitor who still has to sign in or onboard needs the way back here.
+  const needsReturnTrip = status !== 'signedIn' || needsOnboarding;
 
   useEffect(() => {
-    rememberPendingInvite(path);
-  }, [path]);
+    if (needsReturnTrip) {
+      rememberPendingInvite(`/invite/${token}`);
+    }
+  }, [needsReturnTrip, token]);
 
-  // Loaded again once the visitor signs in, to learn whether they are already in.
-  const load = useCallback(() => previewInvite(token), [token, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (status === 'signedIn' && needsOnboarding) {
+    // The pending invite brings them back here once onboarding is done.
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  // Remounted when the visitor signs in, so the preview is fetched again with the
+  // session and can say whether they are already in.
+  return <InviteContent key={status} token={token} />;
+}
+
+function InviteContent({ token }: { token: string }) {
+  const status = useAuthStore((state) => state.status);
+  const load = useCallback(() => previewInvite(token), [token]);
   const preview = useRequest(load);
   const invalid = preview.status === 'error' && isNotFound(preview.error);
 
@@ -49,11 +63,6 @@ export function InvitePreview() {
       clearPendingInvite();
     }
   }, [invalid]);
-
-  if (status === 'signedIn' && needsOnboarding) {
-    // The pending invite brings them back here once onboarding is done.
-    return <Navigate to="/onboarding" replace />;
-  }
 
   return (
     <ScreenLayout>

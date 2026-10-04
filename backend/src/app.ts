@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { notFound } from './middleware/notFound.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
+import { redactPath } from './utils/redactPath.js';
 
 /**
  * Builds the Express application without listening on a port, so that
@@ -18,7 +19,15 @@ export function createApp(): Express {
   const app = express();
 
   if (!isTest) {
-    app.use(pinoHttp({ logger }));
+    app.use(
+      pinoHttp({
+        logger,
+        // Request lines carry the URL; an invite token in it must not reach the log.
+        serializers: {
+          req: (req: { url: string }) => ({ ...req, url: redactPath(req.url) }),
+        },
+      }),
+    );
   }
 
   app.use(

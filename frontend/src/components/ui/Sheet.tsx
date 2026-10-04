@@ -3,6 +3,8 @@ import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 interface SheetProps {
   title: string;
   onClose: () => void;
+  /** While false (an action is in flight), the backdrop and Escape do not close it. */
+  dismissible?: boolean;
   children: ReactNode;
 }
 
@@ -14,19 +16,31 @@ const FOCUSABLE =
  * Escape and the close button dismiss it; Tab stays inside while it is open;
  * focus returns to whatever opened it.
  */
-export function Sheet({ title, onClose, children }: SheetProps) {
+export function Sheet({ title, onClose, dismissible = true, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
-    return () => opener?.focus();
+    // The page behind must not scroll while the sheet is open (iPhone drags through).
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = overflow;
+      opener?.focus();
+    };
   }, []);
+
+  const close = () => {
+    if (dismissible) {
+      onClose();
+    }
+  };
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
       event.stopPropagation();
-      onClose();
+      close();
       return;
     }
     if (event.key !== 'Tab' || !panel.current) {
@@ -47,7 +61,7 @@ export function Sheet({ title, onClose, children }: SheetProps) {
   return (
     <div
       className="fixed inset-0 z-20 flex items-end justify-center bg-ink/40 sm:items-center"
-      onClick={onClose}
+      onClick={close}
     >
       <div
         ref={panel}
@@ -62,7 +76,8 @@ export function Sheet({ title, onClose, children }: SheetProps) {
           <h2 className="font-display text-xl font-medium">{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
+            disabled={!dismissible}
             aria-label="Close"
             className="flex size-11 items-center justify-center rounded-full text-muted"
           >

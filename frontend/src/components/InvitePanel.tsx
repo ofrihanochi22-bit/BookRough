@@ -24,10 +24,12 @@ export function InvitePanel({ communityId, communityName, onClose }: InvitePanel
   const invite = useRequest(load);
   /** A token from a reset, which replaces the loaded one. */
   const [resetToken, setResetToken] = useState<string | null>(null);
+  /** While a reset is in flight the panel stays open, so its new link is seen. */
+  const [resetting, setResetting] = useState(false);
   const token = resetToken ?? (invite.status === 'ready' ? invite.data.token : null);
 
   return (
-    <Sheet title="Invite friends" onClose={onClose}>
+    <Sheet title="Invite friends" onClose={onClose} dismissible={!resetting}>
       {invite.status === 'loading' && (
         <div className="py-6">
           <Spinner label="Getting your link…" />
@@ -43,6 +45,8 @@ export function InvitePanel({ communityId, communityName, onClose }: InvitePanel
           token={token}
           wasReset={resetToken !== null}
           onReset={setResetToken}
+          resetting={resetting}
+          onResettingChange={setResetting}
         />
       )}
     </Sheet>
@@ -55,14 +59,23 @@ interface LinkActionsProps {
   token: string;
   wasReset: boolean;
   onReset: (token: string) => void;
+  resetting: boolean;
+  onResettingChange: (resetting: boolean) => void;
 }
 
-function LinkActions({ communityId, communityName, token, wasReset, onReset }: LinkActionsProps) {
+function LinkActions({
+  communityId,
+  communityName,
+  token,
+  wasReset,
+  onReset,
+  resetting,
+  onResettingChange,
+}: LinkActionsProps) {
   const url = inviteUrl(token);
   const field = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canShare = typeof navigator.share === 'function';
 
@@ -97,7 +110,7 @@ function LinkActions({ communityId, communityName, token, wasReset, onReset }: L
   }
 
   async function reset() {
-    setResetting(true);
+    onResettingChange(true);
     setError(null);
     try {
       const fresh = await resetInvite(communityId);
@@ -106,7 +119,7 @@ function LinkActions({ communityId, communityName, token, wasReset, onReset }: L
     } catch {
       setError("Couldn't reset the link. Please try again.");
     } finally {
-      setResetting(false);
+      onResettingChange(false);
     }
   }
 

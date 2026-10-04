@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
 
 import { isAppError } from '../utils/AppError.js';
+import { redactPath } from '../utils/redactPath.js';
 import { failure } from '../utils/response.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -19,7 +20,7 @@ const GENERIC_MESSAGE = 'Something went wrong.';
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (isAppError(err)) {
     log.warn(
-      { statusCode: err.statusCode, path: req.originalUrl, method: req.method },
+      { statusCode: err.statusCode, path: redactPath(req.originalUrl), method: req.method },
       err.message,
     );
     res.status(err.statusCode).json(failure(err.statusCode, err.message));
@@ -31,7 +32,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   const bodyError = bodyParserError(err);
   if (bodyError) {
     log.warn(
-      { statusCode: bodyError.code, path: req.originalUrl, method: req.method },
+      { statusCode: bodyError.code, path: redactPath(req.originalUrl), method: req.method },
       bodyError.message,
     );
     res.status(bodyError.code).json(failure(bodyError.code, bodyError.message));
@@ -41,7 +42,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   log.error(
     {
       err,
-      path: req.originalUrl,
+      path: redactPath(req.originalUrl),
       method: req.method,
     },
     'Unhandled error',
