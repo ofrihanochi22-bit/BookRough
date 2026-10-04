@@ -84,8 +84,9 @@ Reachable only by an onboarded user whose `users.role` is `ADMIN` (set in the da
   - **Key UI:** heading "Admin" and tabs, each with its own URL:
     - **Users** (`/admin/users`): a count, then one row per user - avatar, display name (or "Not finished signing up"), an "Admin" badge, service, join date, number of communities. No email exists to show; a Google photo appears only if the user chose it.
     - **Communities** (`/admin/communities`): a count, then one row per community - generated cover, name, member count, created date, owner's display name (or "No owner").
-    - **Settings** (`/admin/settings`): arrives with Part 2 of the spec - the announcement banner, accent colour and Welcome tagline, with the history of changes.
-  - Rows are read-only; nothing opens a profile or a community, and nothing deletes anything.
+    - **Settings** (`/admin/settings`): an on/off switch and text (up to 140 characters) for the announcement banner; five named accent colours as swatches; the Welcome tagline (up to 80 characters) with "Reset to default". One "Save changes", enabled only once something changed and everything is valid, sends only what changed and toasts "Settings saved"; field problems show under the field, other failures inline; offline disables Save. Below, the last 20 changes, e.g. "Ofri changed the accent colour from Purple to Green", with "Deleted account" for an author whose account is gone.
+  - List rows are read-only; nothing opens a profile or a community, and nothing deletes anything.
+  - **How the settings apply** (everywhere, not just here): the app fetches them at start without waiting on them, defaults until then or on failure. The accent colour is applied app-wide by name; the tagline is Welcome's subtitle; the banner is a slim plain-text bar at the top of every tabbed screen for signed-in users, dismissible, and shown again when its text changes. Other users get a change on their next app load.
   - **States:** skeleton rows while loading; "No communities yet."; an inline error with Try again; a `403` (role removed mid-session) turns the area into the not-found page.
 
 ### 6. Cross-Cutting UI Conventions

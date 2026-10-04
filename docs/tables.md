@@ -102,8 +102,25 @@ People removed from a community, who cannot rejoin through any invite link until
 - **created_at** (TIMESTAMP, Default Current Time).
 - (Composite Primary Key: community_id, user_id).
 
+### 9. app_settings Table
+
+The administrative area's presentation settings (UC-19, `docs/features/admin-panel.md` §3.2). One row per setting that has ever been changed; a missing row means the default.
+- **key** (ENUM `SettingKey`, Primary Key): `ANNOUNCEMENT`, `ACCENT_COLOR` or `WELCOME_TAGLINE`. The list is fixed; a new setting needs a new spec, never just a new row.
+- **value** (JSONB, Not Null): validated in code against the setting's rules before every write - the announcement is `{ enabled, text }` (plain text, at most 140 characters), the accent colour a palette name (`purple`, `blue`, `green`, `orange`, `pink`), the tagline plain text of 1-80 characters. A stored value that fails the rules reads as the default.
+- **updated_at** (TIMESTAMP, Not Null): set on every write.
+
+### 10. setting_changes Table
+
+The history of settings changes. Rows are inserted, never updated or deleted by the app.
+- **id** (UUID, Primary Key).
+- **key** (ENUM `SettingKey`, Not Null): which setting.
+- **old_value** (JSONB, Not Null): the value it replaced (the default if the setting had never been changed).
+- **new_value** (JSONB, Not Null): the value after.
+- **changed_by_id** (UUID, Nullable, Foreign Key referencing users(id), set to null if that admin's account is deleted): who changed it; the entry outlives the account.
+- **changed_at** (TIMESTAMP, Default Current Time). Indexed newest first, for "the last 20 changes".
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is eight tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`.
+> **The schema is ten tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`.
 >
-> The administrative area (UC-19) will need a settings table for presentation configuration. It is **not defined here** — its shape is decided in that feature's specification session and written to `docs/features/admin-panel.md` before any migration is written.
+> The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.
