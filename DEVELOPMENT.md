@@ -807,7 +807,7 @@ Every feature ships its own tests (CLAUDE.md §15); there is no separate test st
 
 ### Step 2.8 — Admin area: user list (Phase 2 — UC-19)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/admin-user-list
 Spec: docs/features/admin-panel.md
 
@@ -817,17 +817,52 @@ Goal: The owner can sign in and review the user base. Nobody else can reach the 
 
 Tasks:
 
-- [ ] Spec: docs/features/admin-panel.md written and approved — settings scope, audit-trail contents, settings-table shape
-- [ ] DB: Settings table per the approved spec (shape deliberately not fixed in advance).
-- [ ] Backend: `requireAdmin` middleware on `users.role = 'ADMIN'`, enforced server-side on every admin route.
-- [ ] Backend: `GET /api/admin/users` — username, display name, preferred service, join date, activity counts. **No email: none is stored** (CLAUDE.md §5).
-- [ ] Frontend: Admin user list, reachable only for admins; nav entry hidden for everyone else.
-- [ ] Review: confirm the admin response is built through an explicit serialiser, not a raw Prisma object.
-- [ ] Tests: Good: an admin lists users. Bad: a normal user gets `403`; an unauthenticated request gets `401`; the frontend renders not-found rather than revealing the area.
-- [ ] Tests: **Privacy test** — assert no admin response contains an email-shaped string.
+- [x] Spec: docs/features/admin-panel.md written and approved — lists plus three fixed settings, a visible change history, two PRs (this one and Step 2.9). The settings table moved to Step 2.9.
+- [x] Backend: `requireAppAdmin` on `users.role = 'ADMIN'` (read from the database each request, onboarding required), on every admin route.
+- [x] Backend: `GET /api/admin/users` — display name, avatar, preferred service, join date, community count. **No email: none is stored** (CLAUDE.md §5). `GET /api/admin/communities` — name, member count, created date, owner.
+- [x] Frontend: Admin screen (Users, Communities tabs), reachable only for admins; the Admin area link on My Profile hidden for everyone else.
+- [x] Review: `/code-review` (1 finding, fixed: the list showed Google photos users had not chosen) and `/security-review` (clean). Both responses go through explicit serialisers.
+- [x] Tests: an admin lists users and communities; `401`, `403` for a user and for an admin mid-onboarding, `403` right after the role is removed; not-found in the frontend.
+- [x] Tests: **Privacy test** — no admin response contains an email-shaped string, a Google `sub` or a display-name key.
 
 What I did:
+
+Built Part 1 of the administrative area (UC-19) per `docs/features/admin-panel.md`.
+
+- **Backend:** `middleware/requireAppAdmin.ts` (named apart from the community-level `requireAdmin`); `services/admin.service.ts` and `utils/adminViews.ts` (`toAdminUser`, `toAdminCommunity`, narrow selects); `controllers/admin.controller.ts`, `routes/admin.ts`. `sessionPayload` now carries `isAdmin` (the caller's own flag). No migration.
+- **Frontend:** `pages/Admin.tsx` (tabs as routes: `/admin/users`, `/admin/communities`), `AdminOnly` in `components/RouteGuards.tsx` (not-found for anyone not a signed-in admin, without a request), `api/admin.ts`, `isAdmin` in the auth store, the Admin area link on My Profile. A `403` mid-session drops the flag and the area turns into not-found.
+- **Docs:** `frontend screens` (Administration group; fifteen screens; the stale Profile line), `use cases` (UC-19's decided scope), `auth` (§5: role read per request, `isAdmin` in the session) (.md + .docx); CLAUDE.md §8 and §17.
+- **Tests:** backend 426 (98.1% lines over both suites), frontend 274 (98.2%), E2E 22 (new: an admin opens the lists from My Profile; a normal user sees not-found — both in Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Make yourself an admin — the role is set in the database only (CLAUDE.md §17):
+
+```bash
+docker exec -it bookrough-postgres psql -U bookrough -d music_app_dev -c "UPDATE users SET role = 'ADMIN' WHERE display_name = '<your display name>';"
+```
+
+Open `http://localhost:5173/` at 375px width, sign in (or reload if already signed in).
+
+1. **Profile** tab → **Admin area** → "Admin", Users tab: everyone, newest first, with "Admin" next to you.
+2. **Communities** tab: each community with its member count and owner.
+3. Sign in as another (non-admin) account and open `http://localhost:5173/admin` → "This page doesn't exist"; no Admin area link on its Profile.
+4. Remove your role (`SET role = 'USER'`) while the Admin screen is open, then switch tabs → the area turns into the not-found page.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npm run test:integration -- admin
+cd frontend && npm run test:unit                          # Admin, Profile
+npm test --prefix e2e                                     # 22 runs, needs Docker Postgres
+```
 
 ---
 

@@ -235,14 +235,15 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Fourteen screens**, four groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Fifteen screens**, five groups:
 
 - **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
 - **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
+- **Administration**: the Admin screen (users, communities, settings) — admins only (§17).
 
-Registration, Login, Forgot Password, and Create New Password screens were **withdrawn** when email/password auth was dropped (§5). Admin screens (§17) are not in the catalog yet — they are specified in that feature's own session.
+Registration, Login, Forgot Password, and Create New Password screens were **withdrawn** when email/password auth was dropped (§5).
 
 ### UI conventions
 
@@ -545,9 +546,13 @@ An admin area owned by the product owner, scheduled for **Phase 2** so that user
 - **The user list cannot show an email address, because none is stored** (§5). It shows display name, preferred service, join date, and activity counts — nothing that identifies a real person. This constraint is the reason the auth design looks the way it does.
 - Every configuration change is recorded with who made it and when.
 
-### Deliberately not decided here
+### Decided scope
 
-Exactly which settings are configurable, whether content as well as design is editable, the shape of the settings table, and what the audit trail stores — **all of that belongs to this feature's Stage 1 specification session** (§15) and lands in `docs/features/admin-panel.md` before a single migration is written. Do not design it in a general planning conversation, and do not let it grow into a CMS by accident.
+Settled in the feature's Stage 1 session and written to [docs/features/admin-panel.md](docs/features/admin-panel.md):
+
+- **Read-only lists** of users and communities. No deleting, suspending or editing anyone.
+- **Three presentation settings, fixed in code**: an announcement banner, an accent colour from a named palette, and the Welcome tagline. A new setting needs a new spec — never just a new row. Do not let it grow into a CMS by accident.
+- **A history table** records every settings change (who, old value, new value, when), shown on the settings screen.
 
 ---
 

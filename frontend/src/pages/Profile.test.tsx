@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DISPLAY_NAME_MESSAGES } from '../lib/displayName';
@@ -310,5 +311,30 @@ describe('Profile — sign out', () => {
     // Assert
     expect(useAuthStore.getState().status).toBe('signedIn');
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+  });
+});
+
+describe('Profile — admin link', () => {
+  it('shows Admin area to an admin', () => {
+    // Arrange
+    useAuthStore.getState().setSession(makeSession({ user: makeUser(), isAdmin: true }));
+
+    // Act
+    render(
+      <MemoryRouter>
+        <Profile />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(screen.getByRole('link', { name: /Admin area/ })).toHaveAttribute('href', '/admin');
+  });
+
+  it('shows nothing of the sort to everyone else', () => {
+    // Act
+    render(<Profile />);
+
+    // Assert
+    expect(screen.queryByRole('link', { name: /Admin area/ })).not.toBeInTheDocument();
   });
 });

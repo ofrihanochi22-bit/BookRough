@@ -156,5 +156,7 @@ return res.status(200).json(success({ user: toPublicUser(user), needsOnboarding 
 - The admin area is gated on `users.role = 'ADMIN'`.
 - **The role is set directly in the database**, never through an API. There is no endpoint that grants admin, so there is no endpoint to abuse.
 - Authorisation is enforced **server-side on every admin endpoint**. Hiding the navigation entry in the frontend is presentation, not security.
+- The guard reads the role from the user row loaded for each request, never from the session token, so a role removed in the database is refused on the very next request. An admin who has not finished onboarding is treated as a non-admin.
+- The session response carries `isAdmin` - the caller's own flag only, used to show the navigation entry. No other user's role leaves the server outside the admin area.
 - A non-admin hitting an admin route receives `403`, and the frontend renders the standard not-found page rather than confirming the area exists.
 - **The admin area cannot display an email address, because none is stored** (section 1.1). This constraint is the reason the authentication design looks the way it does - see UC-19.

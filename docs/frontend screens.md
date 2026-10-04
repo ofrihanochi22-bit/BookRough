@@ -13,16 +13,16 @@ Google Sign-In is the only authentication method, so this group collapsed from f
   - **States:** loading; validation error ("That display name is already taken."); submitting.
   - The dashboard is unreachable until this screen is completed.
 
-> **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **fourteen** screens (thirteen after the withdrawal, plus Join Community / Invite Preview, added with UC-15 in Phase 2). (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
+> **Removed screens.** The former Registration (1.2), Login (1.3), Forgot Password (1.4), and Create New Password (1.5) screens have all been **withdrawn**. There are no passwords to enter or reset and no email address to send a link to - see `docs/auth.md` section 1.1 and the withdrawn UC-17. The catalog is now **fifteen** screens (thirteen after the withdrawal, plus Join Community / Invite Preview, added with UC-15 in Phase 2, and the Admin screen, added with UC-19). (It previously held sixteen; the "thirteen" figure quoted in earlier drafts of CLAUDE.md never matched the actual list and has been corrected.)
 
-> **Administrative screens (UC-19) are not listed here yet.** They are specified in the admin panel's own feature session and written to `docs/features/admin-panel.md` before implementation. What is already fixed: they are reachable only for `users.role = 'ADMIN'`, they render the standard not-found page for everyone else, and **they cannot display an email address because none is stored.**
+> **Administrative screens (UC-19)** are in group 5 below, specified in `docs/features/admin-panel.md`. They are reachable only for `users.role = 'ADMIN'`, they render the standard not-found page for everyone else, and **they cannot display an email address because none is stored.**
 
 ### 2. Main Navigation & Social Flows
 
 These screens represent the core social and discovery aspects of the app.
 - **2.1. Communities Dashboard (Home Screen)**
   - **Purpose:** The central hub displaying all the groups a user belongs to.
-  - **Key UI:** List of joined Communities (generated cover, name, member count, an "Admin" label where the user is one), newest joined first, and a floating "Create community" button. A bottom tab bar switches between Home, Search, My List, and Profile; Search and My List show a "Coming soon" screen until their phases, and Profile is a minimal screen with Sign out until My Profile / Settings ships.
+  - **Key UI:** List of joined Communities (generated cover, name, member count, an "Admin" label where the user is one), newest joined first, and a floating "Create community" button. A bottom tab bar switches between Home, Search, My List, and Profile; Search and My List show a "Coming soon" screen until their phases, and Profile is My Profile / Settings (4.3).
   - **States:** skeleton cards while loading; an empty state ("Start your first community") with a single Create button; an inline error with Try again.
 - **2.2. Global Search Screen (UC-5)**
   - **Purpose:** Finding other users on the platform.
@@ -74,7 +74,21 @@ Screens dedicated to individual user actions and backlog management.
   - **Avatar:** with the Google photo in use, "Use generated avatar" (the photo is deleted). With the generated avatar, a Google button fetches the current photo through a fresh Google sign-in from the same account; a different account or an account with no photo shows an inline message.
   - **States:** a name problem shows on the name's status line, other save failures inline above Save; offline shows a banner and disables Save and the avatar actions, while Sign out stays available.
 
-### 5. Cross-Cutting UI Conventions
+### 5. Administration (UC-19)
+
+Reachable only by an onboarded user whose `users.role` is `ADMIN` (set in the database). Everyone else - signed-out visitors included - gets the standard not-found page at every `/admin` URL, so the area is never confirmed to exist. Full detail: `docs/features/admin-panel.md`.
+
+- **5.1. Admin Screen (UC-19)**
+  - **Purpose:** Let the owner see who uses BookRough and which communities exist, and adjust presentation settings.
+  - **Entry:** an "Admin area" link on My Profile, shown only to admins.
+  - **Key UI:** heading "Admin" and tabs, each with its own URL:
+    - **Users** (`/admin/users`): a count, then one row per user - avatar, display name (or "Not finished signing up"), an "Admin" badge, service, join date, number of communities. No email exists to show; a Google photo appears only if the user chose it.
+    - **Communities** (`/admin/communities`): a count, then one row per community - generated cover, name, member count, created date, owner's display name (or "No owner").
+    - **Settings** (`/admin/settings`): arrives with Part 2 of the spec - the announcement banner, accent colour and Welcome tagline, with the history of changes.
+  - Rows are read-only; nothing opens a profile or a community, and nothing deletes anything.
+  - **States:** skeleton rows while loading; "No communities yet."; an inline error with Try again; a `403` (role removed mid-session) turns the area into the not-found page.
+
+### 6. Cross-Cutting UI Conventions
 
 These apply to every screen above and are not restated per screen.
 
