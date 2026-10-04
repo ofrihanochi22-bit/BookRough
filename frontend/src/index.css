@@ -43,6 +43,77 @@
   }
 }
 
+/*
+ * Accent palette - docs/features/admin-panel.md §5.4. The admin picks a name;
+ * the server stores only that name and the app sets it as `data-accent` on
+ * <html>, so no colour value from the database ever reaches a style. Any
+ * element may carry it too (the admin swatches do). `purple` repeats the base
+ * values so a purple swatch stays purple under another accent. The other
+ * shades are placeholders until the visual
+ * design, kept dark enough for white text in light mode and light enough for
+ * dark text in dark mode. The dark blocks come after the light ones on purpose:
+ * equal specificity, so the later one wins inside the media query.
+ */
+[data-accent='purple'] {
+  --accent: #534ab7;
+  --accent-soft: #eeedfe;
+  --accent-ink: #3c3489;
+  --on-accent: #ffffff;
+}
+[data-accent='blue'] {
+  --accent: #185fa5;
+  --accent-soft: #e6f1fb;
+  --accent-ink: #0c447c;
+}
+[data-accent='green'] {
+  --accent: #3b6d11;
+  --accent-soft: #eaf3de;
+  --accent-ink: #27500a;
+}
+[data-accent='orange'] {
+  --accent: #993c1d;
+  --accent-soft: #faece7;
+  --accent-ink: #712b13;
+}
+[data-accent='pink'] {
+  --accent: #993556;
+  --accent-soft: #fbeaf0;
+  --accent-ink: #72243e;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-accent='purple'] {
+    --accent: #afa9ec;
+    --accent-soft: #26215c;
+    --accent-ink: #cecbf6;
+    --on-accent: #1a1640;
+  }
+  [data-accent='blue'] {
+    --accent: #85b7eb;
+    --accent-soft: #0c2a4a;
+    --accent-ink: #b5d4f4;
+    --on-accent: #042c53;
+  }
+  [data-accent='green'] {
+    --accent: #97c459;
+    --accent-soft: #1c2e0b;
+    --accent-ink: #c0dd97;
+    --on-accent: #173404;
+  }
+  [data-accent='orange'] {
+    --accent: #f0997b;
+    --accent-soft: #3d1a0d;
+    --accent-ink: #f5c4b3;
+    --on-accent: #4a1b0c;
+  }
+  [data-accent='pink'] {
+    --accent: #ed93b1;
+    --accent-soft: #3b1424;
+    --accent-ink: #f4c0d1;
+    --on-accent: #4b1528;
+  }
+}
+
 @theme inline {
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);

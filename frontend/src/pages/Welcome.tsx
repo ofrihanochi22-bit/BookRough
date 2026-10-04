@@ -1,6 +1,7 @@
 import { GoogleSignIn } from '../components/GoogleSignIn';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Wordmark } from '../components/ui/Wordmark';
+import { useSettingsStore } from '../stores/settings';
 
 /**
  * Welcome — the only way in (CLAUDE.md §5, docs/features/google-auth.md §5.3).
@@ -8,13 +9,14 @@ import { Wordmark } from '../components/ui/Wordmark';
  * invite preview; `SignedOutOnly` moves the user on once the store says signed in.
  */
 export function Welcome() {
+  // Set by the admin (docs/features/admin-panel.md §5.4); the default until then.
+  const tagline = useSettingsStore((state) => state.welcomeTagline);
+
   return (
     <ScreenLayout>
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <Wordmark />
-        <p className="max-w-xs text-base text-muted">
-          Share music with friends, on whatever app they use.
-        </p>
+        <p className="max-w-xs text-base text-muted">{tagline}</p>
         <div aria-hidden="true" className="mt-4 flex items-center gap-2 text-xs font-medium">
           <span className="rounded-full bg-accent-soft px-3 py-1 text-accent-ink">
             Spotify link

@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { isAxiosError } from 'axios';
 
 import {
   listAdminCommunities,
@@ -12,15 +10,16 @@ import { Avatar } from '../components/ui/Avatar';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
-import { useRequest, type RequestState } from '../hooks/useRequest';
+import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
+import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
-import { useAuthStore } from '../stores/auth';
 import { NotFound } from './NotFound';
 
 const TABS = [
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/communities', label: 'Communities' },
+  { to: '/admin/settings', label: 'Settings' },
 ] as const;
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
@@ -63,24 +62,6 @@ export function AdminLayout() {
       <Outlet />
     </ScreenLayout>
   );
-}
-
-/**
- * A 403 means the role was removed while the screen was open: drop the
- * session's admin flag, so the guard turns the whole area into NotFound and
- * the Profile link disappears.
- */
-function useForbiddenEndsAdmin(state: RequestState<unknown>): boolean {
-  const forbidden =
-    state.status === 'error' && isAxiosError(state.error) && state.error.response?.status === 403;
-
-  useEffect(() => {
-    if (forbidden) {
-      useAuthStore.setState({ isAdmin: false });
-    }
-  }, [forbidden]);
-
-  return forbidden;
 }
 
 function ListSkeleton({ label }: { label: string }) {

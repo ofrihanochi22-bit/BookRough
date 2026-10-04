@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { communities, users } from '../controllers/admin.controller.js';
+import { adminSettings, changeSettings } from '../controllers/settings.controller.js';
 import { requireAppAdmin } from '../middleware/requireAppAdmin.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
@@ -10,3 +11,5 @@ export const adminRouter: Router = Router();
 // router-wide, so an unknown /admin path still 404s like any other.
 adminRouter.get('/users', requireAuth, requireAppAdmin, users);
 adminRouter.get('/communities', requireAuth, requireAppAdmin, communities);
+adminRouter.get('/settings', requireAuth, requireAppAdmin, adminSettings);
+adminRouter.patch('/settings', requireAuth, requireAppAdmin, changeSettings);

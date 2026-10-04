@@ -23,6 +23,14 @@ enum UserRole {
   ADMIN
 }
 
+/// The admin area's fixed list of presentation settings
+/// (docs/features/admin-panel.md §3.2). A new key needs a new spec.
+enum SettingKey {
+  ANNOUNCEMENT
+  ACCENT_COLOR
+  WELCOME_TAGLINE
+}
+
 /// A member's role inside one community — unrelated to the app-wide UserRole.
 /// Exactly one OWNER per community, enforced by the partial unique index
 /// `community_members_one_owner` written by hand in the
@@ -65,6 +73,7 @@ model User {
   memberships       CommunityMember[]
   bans              CommunityBan[]    @relation("BannedUser")
   bansIssued        CommunityBan[]    @relation("BannedBy")
+  settingChanges    SettingChange[]
 
   @@map("users")
 }
@@ -121,4 +130,30 @@ model CommunityBan {
 
   @@id([communityId, userId])
   @@map("community_bans")
+}
+
+/// One row per setting that has ever been changed; a missing row means the
+/// default. `value` is validated in code against the setting's schema before
+/// every write (docs/features/admin-panel.md §3.2).
+model AppSetting {
+  key       SettingKey @id
+  value     Json
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("app_settings")
+}
+
+/// The settings history. Inserted, never updated or deleted by the app; an
+/// entry outlives the admin's account (`changedById` set to null).
+model SettingChange {
+  id          String     @id @default(uuid()) @db.Uuid
+  key         SettingKey
+  oldValue    Json       @map("old_value")
+  newValue    Json       @map("new_value")
+  changedById String?    @map("changed_by_id") @db.Uuid
+  changedAt   DateTime   @default(now()) @map("changed_at") @db.Timestamptz(3)
+  changedBy   User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([changedAt(sort: Desc)])
+  @@map("setting_changes")
 }
