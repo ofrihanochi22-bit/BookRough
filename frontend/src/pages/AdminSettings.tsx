@@ -27,6 +27,7 @@ import {
 } from '../lib/appSettings';
 import { describeChange } from '../lib/settingsHistory';
 import { cleanLine, graphemeCount } from '../lib/textRules';
+import { useAuthStore } from '../stores/auth';
 import { useSettingsStore } from '../stores/settings';
 
 import { NotFound } from './NotFound';
@@ -135,6 +136,11 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
       onSaved(result);
     } catch (caught) {
       setSaving(false);
+      if (isAxiosError(caught) && caught.response?.status === 403) {
+        // The role was removed mid-session: the guard turns the area into NotFound.
+        useAuthStore.setState({ isAdmin: false });
+        return;
+      }
       setError(messageOf(caught));
     }
   }
