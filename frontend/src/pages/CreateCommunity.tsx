@@ -85,7 +85,7 @@ export function CreateCommunity() {
         description: descriptionCheck.value,
       });
       // Replace, so Back from the new community returns to the dashboard.
-      navigate(`/communities/${community.id}`, { replace: true });
+      navigate(`/communities/${community.id}`, { replace: true, state: { justCreated: true } });
     } catch (caught) {
       setSaving(false);
       const response = isAxiosError<{ message?: string }>(caught) ? caught.response : undefined;

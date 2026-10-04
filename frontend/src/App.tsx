@@ -7,6 +7,7 @@ import { Community } from './pages/Community';
 import { CompleteProfile } from './pages/CompleteProfile';
 import { CreateCommunity } from './pages/CreateCommunity';
 import { Dashboard } from './pages/Dashboard';
+import { InvitePreview } from './pages/InvitePreview';
 import { NotFound } from './pages/NotFound';
 import { Profile } from './pages/Profile';
 import { Welcome } from './pages/Welcome';
@@ -70,6 +71,8 @@ export function App() {
           />
           <Route path="/profile" element={<Profile />} />
         </Route>
+        {/* Public on purpose: the preview handles signed-out, onboarding and signed-in visitors. */}
+        <Route path="/invite/:token" element={<InvitePreview />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </SessionGate>

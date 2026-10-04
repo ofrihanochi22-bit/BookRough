@@ -49,6 +49,30 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
 };
 
 /**
+ * For public routes that read better with a session (the invite preview): sets
+ * `req.user` when the cookie is valid and the user exists, and otherwise does
+ * nothing at all — no 401, no cookie clearing, no renewal. A broken cookie is
+ * requireAuth's business on the next protected request.
+ */
+export const optionalAuth: RequestHandler = async (req, _res, next) => {
+  const token = readSessionCookie(req);
+  const claims = token ? verifySessionToken(token) : null;
+  if (!claims) {
+    next();
+    return;
+  }
+  try {
+    const user = await findSessionUser(claims.sub);
+    if (user) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * The signed-in user of a route mounted behind `requireAuth`. Throws a 401
  * rather than returning undefined, so a route that forgot the middleware fails
  * closed instead of acting on nobody.

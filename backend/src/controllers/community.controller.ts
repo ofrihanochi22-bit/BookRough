@@ -22,6 +22,18 @@ const createCommunitySchema = z
 
 const communityIdSchema = z.string().uuid();
 
+/**
+ * A malformed community id is a 404 like any other community the caller cannot
+ * see — never a 422 that would tell ids apart.
+ */
+export function parseCommunityId(raw: unknown): string {
+  const id = communityIdSchema.safeParse(raw);
+  if (!id.success) {
+    throw new AppError(COMMUNITY_NOT_FOUND, 404);
+  }
+  return id.data;
+}
+
 /** POST /api/communities — mounted behind requireAuth. */
 export const create: RequestHandler = async (req, res, next) => {
   try {
@@ -43,17 +55,10 @@ export const listMine: RequestHandler = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/communities/:id. A malformed id is a 404 like any other community
- * the caller cannot see — never a 422 that would tell ids apart.
- */
+/** GET /api/communities/:id — members only. */
 export const show: RequestHandler = async (req, res, next) => {
   try {
-    const id = communityIdSchema.safeParse(req.params.id);
-    if (!id.success) {
-      throw new AppError(COMMUNITY_NOT_FOUND, 404);
-    }
-    const community = await getCommunity(sessionUser(req), id.data);
+    const community = await getCommunity(sessionUser(req), parseCommunityId(req.params.id));
     res.status(200).json(success({ community }));
   } catch (error) {
     next(error);

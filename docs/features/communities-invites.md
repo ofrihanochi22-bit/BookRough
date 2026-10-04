@@ -8,7 +8,7 @@
 | **Use cases** | UC-15 (join a community via invite link)                                                  |
 | **Phase**     | 2 — Step 2.2 of `DEVELOPMENT.md` (re-sliced; absorbs former 2.2 invites, 2.3 accept, 2.6) |
 | **Branch**    | `feat/communities-invites`                                                                |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
 
 ---
 
@@ -148,7 +148,7 @@ Extracted from `Welcome.tsx` without behaviour change: the provider (still mount
 ### 5.5 Invite panel on the community page (`components/InvitePanel.tsx`)
 
 - **Who sees it:** the **Invite friends** button appears on the community page only when `myRole === 'ADMIN'` (developer's choice, option A). Server-side, a non-admin gets `403` regardless.
-- **Panel contents:** the full link in a read-only field; **Share** (uses `navigator.share` with the community name as the title, available on iPhone; hidden when the browser has no Web Share, where **Copy** remains); **Copy** (clipboard, then "Copied" for two seconds; if the clipboard API fails, the field is selected so the user can copy by hand); **Reset link** (secondary, with a confirm dialog: "Reset the invite link? The current link will stop working for anyone who hasn't joined yet." → **Reset** / **Cancel**).
+- **Panel contents:** the full link in a read-only field; **Share** (uses `navigator.share` with the community name as the title, available on iPhone; hidden when the browser has no Web Share, where **Copy** remains); **Copy** (clipboard, then "Copied" for two seconds; if the clipboard API fails, the field is selected so the user can copy by hand); **Reset link** (a quiet text button, with an inline confirmation inside the panel: "Reset the invite link? The current link will stop working for anyone who hasn't joined yet." → **Reset** / **Cancel**).
 - **Loading:** spinner in the panel while the token is fetched; **error:** inline retry; **reset in progress:** busy "Resetting…"; after reset the field shows the new link and a quiet "New link created. The old one no longer works."
 - **Opens once after creating** (developer's choice, option A): Create Community navigates to `/communities/:id` with router state `{ justCreated: true }`; the community page opens the panel when it sees that state and then clears it, so a reload or Back does not reopen it.
 - Presented as a bottom sheet on phone width, a centred dialog on desktop; closable with a close button and Escape; focus is trapped while open and returns to the button on close.
@@ -247,3 +247,5 @@ Extracted from `Welcome.tsx` without behaviour change: the provider (still mount
 | 2026-10-04 | Token: 128 random bits, base64url, plain text, created lazily            | Unguessable; admins must see it again; no backfill for existing communities                  |
 | 2026-10-04 | Malformed, unknown and reset tokens all return the same `404`            | A link holder cannot tell a typo from a reset; nothing to probe                              |
 | 2026-10-04 | Accept is idempotent (`joined: false` for an existing member)            | Double taps, two tabs and retries after a dropped connection all end in the same place       |
+| 2026-10-04 | Reset confirmation is inline in the panel, not a second dialog           | Stage 2: a dialog on top of the sheet would be a third floating layer on a phone             |
+| 2026-10-04 | `optionalAuth` middleware for the public preview                         | Stage 2: reads a valid session if present; never 401s, clears or renews a cookie             |

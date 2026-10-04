@@ -5,6 +5,7 @@ import { AppError } from '../utils/AppError.js';
 import { authRouter } from './auth.js';
 import { communitiesRouter } from './communities.js';
 import { healthRouter } from './health.js';
+import { invitesRouter } from './invites.js';
 import { usersRouter } from './users.js';
 
 export const apiRouter: Router = Router();
@@ -13,6 +14,7 @@ apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/communities', communitiesRouter);
+apiRouter.use('/invites', invitesRouter);
 
 /**
  * GET /api/__boom — mounted only under NODE_ENV=test.

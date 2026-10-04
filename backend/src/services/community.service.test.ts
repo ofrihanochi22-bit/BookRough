@@ -35,6 +35,7 @@ function makeCommunity(overrides: Partial<Community> = {}): Community {
     id: 'community-1',
     name: 'Friday Jazz',
     description: null,
+    inviteToken: null,
     createdAt: new Date('2026-10-03T09:00:00.000Z'),
     updatedAt: new Date('2026-10-03T09:00:00.000Z'),
     ...overrides,
