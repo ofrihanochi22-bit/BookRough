@@ -29,10 +29,6 @@ const ADMINS_BLOCKS = 'Only admins can manage blocked people.';
 /** Owner first, then admins, then members; oldest first within each. */
 const ROLE_ORDER: Record<CommunityRole, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
 
-function isRecordNotFound(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
-}
-
 /** The target's membership, or 404 "Member not found.". */
 async function targetRole(communityId: string, userId: string): Promise<CommunityRole> {
   const target = await prisma.communityMember.findUnique({
@@ -56,16 +52,47 @@ export async function listMembers(user: User, communityId: string): Promise<Comm
   return members.sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]).map(toCommunityMember);
 }
 
+/*
+ * Every role-dependent write below is conditional on the role the check just
+ * read (deleteMany / updateMany with `role` in the WHERE). A concurrent change
+ * — a promotion, a transfer — then makes the write match nothing instead of
+ * acting on a role it never checked, and the caller gets the error the new
+ * state deserves. Without this, a transfer racing a demotion could leave a
+ * community with no owner at all (the partial index only forbids two).
+ */
+
+export const OWNERSHIP_CHANGED = 'Ownership just changed. Reload and try again.';
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
 /** DELETE /communities/:id/members/me — leaving never blocks; the owner must transfer first. */
 export async function leaveCommunity(user: User, communityId: string): Promise<void> {
   const role = await requireMember(user, communityId);
   if (role === CommunityRole.OWNER) {
     throw new AppError(OWNER_CANNOT_LEAVE, 409);
   }
-  await prisma.communityMember.delete({
-    where: { userId_communityId: { userId: user.id, communityId } },
+  const { count } = await prisma.communityMember.deleteMany({
+    where: { userId: user.id, communityId, role: { not: CommunityRole.OWNER } },
   });
+  if (count === 0) {
+    // Gone already (404 from requireMember), or just made the owner.
+    if ((await requireMember(user, communityId)) === CommunityRole.OWNER) {
+      throw new AppError(OWNER_CANNOT_LEAVE, 409);
+    }
+  }
   log.info({ userId: user.id, communityId }, 'Left community');
+}
+
+/** Why a member cannot be removed, given their role; nothing for a MEMBER. */
+function rejectRemoval(role: CommunityRole): void {
+  if (role === CommunityRole.OWNER) {
+    throw new AppError("The owner can't be removed.", 409);
+  }
+  if (role === CommunityRole.ADMIN) {
+    throw new AppError(CANNOT_REMOVE_ADMIN, 409);
+  }
 }
 
 /**
@@ -81,34 +108,30 @@ export async function removeMember(
   if (targetUserId === user.id) {
     throw new AppError('Use Leave Community instead.', 422);
   }
-  const role = await targetRole(communityId, targetUserId);
-  if (role === CommunityRole.OWNER) {
-    throw new AppError("The owner can't be removed.", 409);
-  }
-  if (role === CommunityRole.ADMIN) {
-    throw new AppError(CANNOT_REMOVE_ADMIN, 409);
-  }
+  rejectRemoval(await targetRole(communityId, targetUserId));
 
-  try {
-    await prisma.$transaction([
-      prisma.communityMember.delete({
-        where: { userId_communityId: { userId: targetUserId, communityId } },
-      }),
-      prisma.communityBan.upsert({
-        where: { communityId_userId: { communityId, userId: targetUserId } },
-        create: { communityId, userId: targetUserId, bannedById: user.id },
-        update: { bannedById: user.id },
-      }),
-    ]);
-  } catch (error) {
-    // Another admin removed them a moment earlier.
-    if (isRecordNotFound(error)) {
-      throw new AppError(MEMBER_NOT_FOUND, 404);
+  const removed = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.communityMember.deleteMany({
+      where: { userId: targetUserId, communityId, role: CommunityRole.MEMBER },
+    });
+    if (count === 0) {
+      return false;
     }
-    throw error;
+    await tx.communityBan.upsert({
+      where: { communityId_userId: { communityId, userId: targetUserId } },
+      create: { communityId, userId: targetUserId, bannedById: user.id },
+      update: { bannedById: user.id },
+    });
+    return true;
+  });
+  if (!removed) {
+    // Promoted or removed meanwhile: 404 if gone, 409 if now an admin.
+    rejectRemoval(await targetRole(communityId, targetUserId));
   }
   log.info({ userId: user.id, communityId, targetUserId }, 'Removed and blocked member');
 }
+
+const OWNER_ROLE_FIXED = "The owner's role can't be changed. Transfer ownership instead.";
 
 /**
  * PATCH /communities/:id/members/:userId — promote or demote. An admin may
@@ -123,31 +146,42 @@ export async function changeRole(
   await requireAdmin(user, communityId, ADMINS_ROLES);
   const current = await targetRole(communityId, targetUserId);
   if (current === CommunityRole.OWNER) {
-    throw new AppError("The owner's role can't be changed. Transfer ownership instead.", 409);
+    throw new AppError(OWNER_ROLE_FIXED, 409);
   }
 
-  try {
-    const member = await prisma.communityMember.update({
-      where: { userId_communityId: { userId: targetUserId, communityId } },
-      data: { role },
-      select: { role: true, joinedAt: true, user: { select: memberUserSelect } },
-    });
-    if (current !== role) {
-      log.info({ userId: user.id, communityId, targetUserId, role }, 'Changed member role');
+  const { count } = await prisma.communityMember.updateMany({
+    where: {
+      userId: targetUserId,
+      communityId,
+      role: { in: [CommunityRole.ADMIN, CommunityRole.MEMBER] },
+    },
+    data: { role },
+  });
+  if (count === 0) {
+    // Gone (404) or made the owner meanwhile (409).
+    if ((await targetRole(communityId, targetUserId)) === CommunityRole.OWNER) {
+      throw new AppError(OWNER_ROLE_FIXED, 409);
     }
-    return toCommunityMember(member);
-  } catch (error) {
-    if (isRecordNotFound(error)) {
-      throw new AppError(MEMBER_NOT_FOUND, 404);
-    }
-    throw error;
   }
+  if (current !== role) {
+    log.info({ userId: user.id, communityId, targetUserId, role }, 'Changed member role');
+  }
+
+  const member = await prisma.communityMember.findUnique({
+    where: { userId_communityId: { userId: targetUserId, communityId } },
+    select: { role: true, joinedAt: true, user: { select: memberUserSelect } },
+  });
+  if (!member) {
+    throw new AppError(MEMBER_NOT_FOUND, 404);
+  }
+  return toCommunityMember(member);
 }
 
 /**
  * POST /communities/:id/ownership — the target becomes OWNER and the caller
- * ADMIN, in one transaction. The demotion runs first, so the one-owner index
- * holds at every step.
+ * ADMIN, in one transaction. The demotion runs first and only while the caller
+ * is still the owner, so the one-owner index holds at every step and a second,
+ * overlapping transfer is refused rather than half-applied.
  */
 export async function transferOwnership(
   user: User,
@@ -161,20 +195,26 @@ export async function transferOwnership(
   await targetRole(communityId, targetUserId);
 
   try {
-    await prisma.$transaction([
-      prisma.communityMember.update({
-        where: { userId_communityId: { userId: user.id, communityId } },
+    await prisma.$transaction(async (tx) => {
+      const demoted = await tx.communityMember.updateMany({
+        where: { userId: user.id, communityId, role: CommunityRole.OWNER },
         data: { role: CommunityRole.ADMIN },
-      }),
-      prisma.communityMember.update({
-        where: { userId_communityId: { userId: targetUserId, communityId } },
+      });
+      if (demoted.count === 0) {
+        throw new AppError(OWNERSHIP_CHANGED, 409);
+      }
+      const promoted = await tx.communityMember.updateMany({
+        where: { userId: targetUserId, communityId },
         data: { role: CommunityRole.OWNER },
-      }),
-    ]);
+      });
+      if (promoted.count === 0) {
+        // The target left or was removed a moment earlier; nothing changes.
+        throw new AppError(MEMBER_NOT_FOUND, 404);
+      }
+    });
   } catch (error) {
-    // The target left or was removed a moment earlier; nothing changed.
-    if (isRecordNotFound(error)) {
-      throw new AppError(MEMBER_NOT_FOUND, 404);
+    if (isUniqueViolation(error)) {
+      throw new AppError(OWNERSHIP_CHANGED, 409);
     }
     throw error;
   }

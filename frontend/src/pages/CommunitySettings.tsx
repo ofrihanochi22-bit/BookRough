@@ -75,8 +75,18 @@ export function CommunitySettings() {
   const me = useAuthStore((state) => state.user);
 
   const load = useCallback(async (): Promise<SettingsData> => {
-    const [community, members] = await Promise.all([getCommunity(id), listMembers(id)]);
-    const blocked = isAdmin(community.myRole) ? await listBlocked(id) : [];
+    // All three at once; for a non-admin the blocked list answers 403, which
+    // simply means "nothing to show".
+    const [community, members, blocked] = await Promise.all([
+      getCommunity(id),
+      listMembers(id),
+      listBlocked(id).catch((error: unknown) => {
+        if (isAxiosError(error) && error.response?.status === 403) {
+          return [];
+        }
+        throw error;
+      }),
+    ]);
     return { community, members, blocked };
   }, [id]);
   const initial = useRequest(load);
@@ -90,6 +100,7 @@ export function CommunitySettings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [detailsVersion, setDetailsVersion] = useState(0);
 
   const data = fresh ?? (initial.status === 'ready' ? initial.data : null);
 
@@ -211,10 +222,14 @@ export function CommunitySettings() {
         <div className="flex flex-col gap-8 pb-8">
           {isAdmin(data.community.myRole) && (
             <DetailsSection
-              key={`${data.community.name}\n${data.community.description ?? ''}`}
+              key={detailsVersion}
               community={data.community}
               disabled={!online}
-              onSaved={refresh}
+              onSaved={async () => {
+                await refresh();
+                // Only a save of this form resets it; other refreshes keep what is being typed.
+                setDetailsVersion((version) => version + 1);
+              }}
             />
           )}
 
@@ -332,7 +347,7 @@ export function CommunitySettings() {
           <Section title="Your membership">
             <Button
               variant="secondary"
-              disabled={!online}
+              disabled={!online || busy !== null}
               onClick={() =>
                 setConfirming({
                   kind: data.community.myRole === 'OWNER' ? 'ownerCannotLeave' : 'leave',
@@ -348,7 +363,7 @@ export function CommunitySettings() {
             <Section title="Danger zone">
               <Button
                 variant="secondary"
-                disabled={!online}
+                disabled={!online || busy !== null}
                 onClick={() => setConfirming({ kind: 'delete' })}
                 className="self-start border-danger text-danger"
               >
@@ -487,18 +502,19 @@ function ConfirmSheet({
     );
   }
 
+  const name = 'member' in confirmation ? confirmation.member.user.displayName : '';
   const copy = {
     remove: {
       title: 'Remove from community',
-      body: `Are you sure you want to remove ${'member' in confirmation ? confirmation.member.user.displayName : ''} from this community?`,
+      body: `Are you sure you want to remove ${name} from this community?`,
       note: "They won't be able to rejoin until an admin unblocks them.",
       action: 'Remove',
       busy: 'Removing…',
     },
     makeOwner: {
       title: 'Make owner',
-      body: `Make ${'member' in confirmation ? confirmation.member.user.displayName : ''} the owner?`,
-      note: `You'll become an admin, and only ${'member' in confirmation ? confirmation.member.user.displayName : ''} will be able to delete the community.`,
+      body: `Make ${name} the owner?`,
+      note: `You'll become an admin, and only ${name} will be able to delete the community.`,
       action: 'Make owner',
       busy: 'Transferring…',
     },
