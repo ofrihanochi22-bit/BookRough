@@ -924,62 +924,40 @@ npm test --prefix e2e                                     # 23 runs (+1 skipped)
 
 ## Phase 3 — The Magic Feature (UC-11, UC-18 + Playwright)
 
-### Step 3.1 — Posts schema (Phase 3 — UC-11)
+> **Re-sliced 2026-10-04.** The original Steps 3.1–3.7 split Phase 3 by layer (schema, scraper, create route, Dockerfile, delete route, all feed UI, E2E), and most of them could not merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/posts-feed.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-posts-schema
+### Step 3.1 — Posts: share a link and see the feed (Phase 3 — UC-11)
 
-Goal: Migration adds `posts` table with original_url, song metadata fields, and the per-platform universal links.
+Status: 🟡 In progress — spec written, awaiting approval
+Branch: feat/posts-feed
+Spec: docs/features/posts-feed.md
+
+Goal: A member pastes a song or album link from any supported service, the server converts it through squigly.link while a designed spinner runs, and every member sees the post with one button that opens it in their own service. If squigly.link is down, the post is saved with the original link and its author can retry. Absorbs former 3.1, 3.2, 3.3 and most of 3.6.
 
 Tasks:
 
-- [ ] DB: Add `Post` model per `tables.docx`, including a `conversionPending` boolean for graceful failure.
-- [ ] DB: Migration `add_posts`.
+- [x] Spec: docs/features/posts-feed.md written (re-slice of Phase 3, reject-versus-pending, albums, retry, viewer's-service button, removal deletes posts).
+- [ ] DB: migration `add_posts` — `posts` with five link columns, `kind`, `source_service`, `conversion_pending`.
+- [ ] Backend: `services/linkScraper.service.ts` — Chromium with the §7 flags, resource blocking, 8s `waitForSelector`, 12s ceiling including the queue, `p-limit(2)`, browser closed in `finally`; E2E stand-in.
+- [ ] Backend: `POST` / `GET /api/communities/:id/posts`, `POST /api/posts/:postId/conversion`; removal deletes the member's posts.
+- [ ] Frontend: composer with the blocking spinner, feed with Load more, `PostCard`, Other services sheet, pending state and retry.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7, plus the nightly live-site test.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 3.2 — Playwright link scraper service (Phase 3 — UC-11)
+### Step 3.2 — _(merged into Step 3.1)_ Playwright link scraper service
 
-Status: ☐ Not started
-Branch: feat/link-scraper-service
-
-Goal: `services/linkScraper.service.ts` returns `UniversalLinks` for a given source URL using headless Chromium.
-
-Tasks:
-
-- [ ] Backend: `npm install playwright` + `npx playwright install chromium`.
-- [ ] Backend: Implement `generateUniversalLinks(sourceUrl)` per `link converter implementation guide.docx`: launch flags, resource blocking, 8s `waitForSelector`, browser cleanup in `finally`.
-- [ ] Backend: Wrap the scrape in `p-limit(2)` — a hard cap on concurrent Chromium instances. Mandatory, not a later optimisation: the deployment target is memory-constrained.
-- [ ] Backend: Enforce an overall 12-second ceiling on the operation, above the 8s `waitForSelector`.
-- [ ] Backend: Log through Pino, never `console.*`. Never log raw scraped HTML at INFO.
-- [ ] Backend: Document the **TODO** about replacing placeholder selectors with real squigly.link selectors after manual DevTools inspection.
-- [ ] Tests: Unit test with Playwright mocked at module level — the function returns the mapped object given a fake `page.evaluate` result.
-- [ ] Tests: **Failure path** — when the scrape throws, the caller still saves the post with `conversion_pending` and returns success, not an error.
-- [ ] Tests: **Concurrency** — a burst of simultaneous calls never exceeds two in flight.
-
-What I did:
-How to view & test:
+The scraper ships with the screen that shows its output — see Step 3.1.
 
 ---
 
-### Step 3.3 — Post-creation route (Phase 3 — UC-11)
+### Step 3.3 — _(merged into Step 3.1)_ Post-creation route
 
-Status: ☐ Not started
-Branch: feat/post-create
-
-Goal: `POST /api/communities/:id/posts` creates a post, calling the scraper and persisting both metadata and per-platform links. On scraper failure, post is still saved with `conversionPending = true`.
-
-Tasks:
-
-- [ ] Backend: Controller validates `{ url, comment }` with Zod; service composes scraper output + DB write.
-- [ ] Backend: Membership guard — only members of the community can post.
-- [ ] Tests: Integration test mocking the scraper for both success and failure; assert DB row in both cases.
-
-What I did:
-How to view & test:
+See Step 3.1.
 
 ---
 
@@ -987,70 +965,47 @@ How to view & test:
 
 Status: ☐ Not started
 Branch: chore/backend-dockerfile
+Spec: docs/features/backend-docker.md (to be written in its own session, after Step 3.5)
 
 Goal: `backend/Dockerfile` based on `mcr.microsoft.com/playwright` builds and runs the API with Chromium available.
 
 Tasks:
 
 - [ ] Infra: Dockerfile per the conversion guide (copy, install, build, expose, start).
-- [ ] Infra: Smoke-test by building the image and running the container; healthcheck responds.
+- [ ] Infra: Smoke-test by building the image and running the container; healthcheck responds, and one real conversion works inside it.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 3.5 — Delete post (Phase 3 — UC-18)
+### Step 3.5 — Delete a post (Phase 3 — UC-18)
 
 Status: ☐ Not started
-Branch: feat/post-delete
+Branch: feat/posts-delete
+Spec: docs/features/posts-delete.md (to be written in its own session, after Step 3.1)
 
-Goal: The original author can delete their post; ratings cascade-delete with it.
+Goal: The original author deletes their post from the feed's context menu, with UC-18's confirmation; later ratings cascade with it. Absorbs former 3.5 and the delete menu of 3.6.
 
 Tasks:
 
-- [ ] Backend: `DELETE /api/posts/:id` — author-only, cascade configured in Prisma schema.
-- [ ] Tests: Integration tests for author success, non-author 403, cascade verified.
+- [ ] Spec session (including whether community admins may delete others' posts).
+- [ ] Backend, frontend and tests per the spec.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 3.6 — Community Feed UI (Phase 3 — UC-11, UC-18)
+### Step 3.6 — _(split across Steps 3.1 and 3.5)_ Community Feed UI
 
-Status: ☐ Not started
-Branch: feat/community-feed-ui
-
-Goal: The Community Feed renders posts with cover art, paste-link input, and a per-post context menu with "Delete" for the author.
-
-Tasks:
-
-- [ ] Frontend: `pages/CommunityFeed.tsx` with paste-link input, optional comment, submit.
-- [ ] Frontend: `components/PostCard.tsx` showing cover art, title, artist, the link routed to the **viewer's** preferred service, a bookmark icon stub (active in Phase 4), and the author context menu.
-- [ ] Frontend: **Blocking submit** — spinner with explanatory copy ("Finding this track on other services…") for the full 3–8s conversion. The post is born complete; no optimistic insert, no polling (CLAUDE.md §7).
-- [ ] Frontend: Conversion-failed state — the post renders with the original link and a quiet "other services unavailable" note. Never an error dialog, never a lost draft.
-- [ ] Tests: RTL on PostCard: author sees Delete, non-author does not.
-
-What I did:
-How to view & test:
+The feed, composer and cards are Step 3.1; the delete menu is Step 3.5.
 
 ---
 
-### Step 3.7 — Phase 3 E2E coverage (Phase 3)
+### Step 3.7 — _(dissolved)_ Phase 3 E2E coverage
 
-Status: ☐ Not started
-Branch: test/post-flow-e2e
-
-Goal: Playwright E2E covers the full paste-a-link-and-see-it-rendered loop.
-
-Tasks:
-
-- [ ] Tests: E2E: log in, open a community, paste a Spotify link (use a known stable URL), assert the post appears with title/artist.
-- [ ] Tests: Document how the test handles squigly.link being live (skip with `test.skip` if `RUN_LIVE_E2E !== '1'`).
-
-What I did:
-How to view & test:
+Every feature ships its own E2E (CLAUDE.md §15). The live-site test gated on `RUN_LIVE_E2E` arrives with Step 3.1.
 
 ---
 
