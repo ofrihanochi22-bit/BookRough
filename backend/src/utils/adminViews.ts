@@ -2,7 +2,7 @@ import type { StreamingService } from '@prisma/client';
 
 /**
  * The admin area's only shapes (docs/features/admin-panel.md §4). Field by
- * field, never a spread: `googleSub`, `displayNameKey`, `useGooglePicture` and
+ * field, never a spread: `googleSub`, `displayNameKey`, `useGooglePicture` (read, never sent) and
  * `updatedAt` never leave the server, and there is no email to leak
  * (CLAUDE.md §5).
  */
@@ -29,6 +29,7 @@ export function toAdminUser(user: {
   id: string;
   displayName: string | null;
   profilePictureUrl: string | null;
+  useGooglePicture: boolean;
   preferredService: StreamingService | null;
   createdAt: Date;
   role: 'USER' | 'ADMIN';
@@ -37,7 +38,9 @@ export function toAdminUser(user: {
   return {
     id: user.id,
     displayName: user.displayName,
-    profilePictureUrl: user.profilePictureUrl,
+    // Before onboarding the column holds a photo kept only to be offered; it
+    // is shown only once the user has chosen it (docs/features/onboarding.md §3).
+    profilePictureUrl: user.useGooglePicture ? user.profilePictureUrl : null,
     preferredService: user.preferredService,
     createdAt: user.createdAt.toISOString(),
     onboarded: user.displayName !== null && user.preferredService !== null,

@@ -19,6 +19,7 @@ export async function listUsers(): Promise<AdminUser[]> {
       id: true,
       displayName: true,
       profilePictureUrl: true,
+      useGooglePicture: true,
       preferredService: true,
       createdAt: true,
       role: true,

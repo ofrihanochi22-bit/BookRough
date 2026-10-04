@@ -105,6 +105,7 @@ The `403` body for every admin route is the same: `{ status: "error", code: 403,
 - **Request:** none.
 - **Success `200`:** `{ users: AdminUser[] }`, newest account first.
   - `AdminUser` = `{ id, displayName: string | null, profilePictureUrl: string | null, preferredService: StreamingService | null, createdAt, onboarded: boolean, isAdmin: boolean, communityCount: number }`
+  - `profilePictureUrl` only when the user chose their Google photo (`useGooglePicture`); before onboarding the column holds a photo kept only to be offered, and the admin never sees it.
   - Built by `toAdminUser`, field by field. `googleSub`, `displayNameKey`, `useGooglePicture` and `updatedAt` are never included. There is no email to include (CLAUDE.md §5).
 - **Errors:** `401` no session; `403` not an admin (or not onboarded).
 
@@ -204,6 +205,7 @@ At 375px: heading "Admin", a segmented tab control (Users · Communities, later 
 - ✅ `requireAppAdmin` passes an onboarded admin.
 - ❌ `requireAppAdmin` refuses a `USER` (`403`) and an admin who has not finished onboarding (`403`).
 - ✅ `toAdminUser` maps every field, including `onboarded`, `isAdmin` and `communityCount`; it never carries `googleSub`, `displayNameKey`, `useGooglePicture` or `updatedAt`.
+- 🔒 `toAdminUser` returns `profilePictureUrl: null` for a user who has not chosen their Google photo (the stored pre-onboarding photo stays hidden).
 - ✅ `toAdminCommunity` maps name, member count, created date and owner; `owner: null` when there is none; no description or invite token.
 
 **Integration**
