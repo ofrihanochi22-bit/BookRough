@@ -119,19 +119,29 @@ export async function removeMember(
     }
     // Removal also deletes their posts here, permanently (posts-feed.md §3.3).
     const posts = await tx.post.deleteMany({ where: { authorId: targetUserId, communityId } });
+    // …and their ratings on the posts here, also permanently (post-detail.md §3.1).
+    const ratings = await tx.rating.deleteMany({
+      where: { userId: targetUserId, post: { communityId } },
+    });
     await tx.communityBan.upsert({
       where: { communityId_userId: { communityId, userId: targetUserId } },
       create: { communityId, userId: targetUserId, bannedById: user.id },
       update: { bannedById: user.id },
     });
-    return { postsDeleted: posts.count };
+    return { postsDeleted: posts.count, ratingsDeleted: ratings.count };
   });
   if (!removed) {
     // Promoted or removed meanwhile: 404 if gone, 409 if now an admin.
     rejectRemoval(await targetRole(communityId, targetUserId));
   }
   log.info(
-    { userId: user.id, communityId, targetUserId, postsDeleted: removed?.postsDeleted ?? 0 },
+    {
+      userId: user.id,
+      communityId,
+      targetUserId,
+      postsDeleted: removed?.postsDeleted ?? 0,
+      ratingsDeleted: removed?.ratingsDeleted ?? 0,
+    },
     'Removed and blocked member',
   );
 }

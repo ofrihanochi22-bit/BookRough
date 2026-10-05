@@ -237,6 +237,8 @@ model Rating {
   score     Int      @db.SmallInt
   comment   String?
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Set on every edit (docs/features/post-detail.md §3); not shown.
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

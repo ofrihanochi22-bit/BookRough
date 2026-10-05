@@ -7,6 +7,7 @@ import { postInclude } from '../utils/publicPost.js';
 import { type SavedPost, toSavedPost } from '../utils/savedPost.js';
 import { isAdminRole } from './communityAccess.js';
 import { decodeCursor, encodeCursor, PAGE_SIZE, POST_NOT_FOUND } from './post.service.js';
+import { ratingSummaries, summaryFor } from './ratingSummary.js';
 
 const log = createLogger('bookmark.service');
 
@@ -109,10 +110,16 @@ export async function listBookmarks(
 
   const page = rows.slice(0, PAGE_SIZE);
   const last = page.at(-1);
+  const summaries = await ratingSummaries(page.map((row) => row.postId));
   return {
     items: page.map((row) => {
       const role = row.post.community.members[0]?.role;
-      return toSavedPost(row, user.id, role !== undefined && isAdminRole(role));
+      return toSavedPost(
+        row,
+        user.id,
+        role !== undefined && isAdminRole(role),
+        summaryFor(summaries, row.postId),
+      );
     }),
     nextCursor:
       rows.length > PAGE_SIZE && last

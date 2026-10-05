@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../stores/auth';
@@ -36,7 +37,11 @@ const post = (n: number) => makePost({ id: `post-${n}`, title: `Song ${n}` });
 
 function renderFeed() {
   const onGone = vi.fn();
-  render(<CommunityFeed communityId={ID} onGone={onGone} />);
+  render(
+    <MemoryRouter>
+      <CommunityFeed communityId={ID} onGone={onGone} />
+    </MemoryRouter>,
+  );
   return { onGone };
 }
 

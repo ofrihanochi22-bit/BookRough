@@ -4,14 +4,22 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
 import { postInclude, type PublicPost, toPublicPost } from '../utils/publicPost.js';
-import { COMMUNITY_NOT_FOUND, isAdminRole, requireMember } from './communityAccess.js';
+import { NO_RATINGS } from '../utils/ratingSummary.js';
+import {
+  COMMUNITY_NOT_FOUND,
+  isAdminRole,
+  POST_NOT_FOUND,
+  requireMember,
+  requirePostMember,
+} from './communityAccess.js';
 import { type ConversionResult, convertLink } from './linkScraper.service.js';
 import { checkPostComment } from './postText.js';
+import { ratingSummaries, summaryFor } from './ratingSummary.js';
 import { INVALID_LINK, parseSupportedLink } from './supportedLinks.js';
 
 const log = createLogger('post.service');
 
-export const POST_NOT_FOUND = 'Post not found.';
+export { POST_NOT_FOUND } from './communityAccess.js';
 export const AUTHOR_ONLY = 'Only the author can do this.';
 export const ALREADY_CONVERTED = 'This post already has its links.';
 export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
@@ -101,8 +109,8 @@ export async function createPost(
       { userId: user.id, communityId, postId: post.id, conversionPending: post.conversionPending },
       'Post created',
     );
-    // The author may always delete their own post.
-    return toPublicPost(post, user.id, false);
+    // The author may always delete their own post; a new post has no ratings yet.
+    return toPublicPost(post, user.id, false, NO_RATINGS);
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new AppError(COMMUNITY_NOT_FOUND, 404);
@@ -166,8 +174,11 @@ export async function listPosts(
 
   const page = rows.slice(0, PAGE_SIZE);
   const last = page.at(-1);
+  const summaries = await ratingSummaries(page.map((post) => post.id));
   return {
-    posts: page.map((post) => toPublicPost(post, user.id, moderates)),
+    posts: page.map((post) =>
+      toPublicPost(post, user.id, moderates, summaryFor(summaries, post.id)),
+    ),
     nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor(last) : null,
   };
 }
@@ -221,7 +232,8 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
     },
     'Post conversion retried',
   );
-  return toPublicPost(current, user.id, false);
+  const summaries = await ratingSummaries([postId]);
+  return toPublicPost(current, user.id, false, summaryFor(summaries, postId));
 }
 
 /**
@@ -255,4 +267,25 @@ export async function deletePost(user: User, postId: string): Promise<void> {
     throw new AppError(POST_NOT_FOUND, 404);
   }
   log.info({ userId: user.id, communityId: post.communityId, postId, byAuthor }, 'Post deleted');
+}
+
+/** GET /posts/:postId — Post Detail's card (docs/features/post-detail.md §4). */
+export async function getPost(
+  user: User,
+  postId: string,
+): Promise<{ post: PublicPost; community: { id: string; name: string } }> {
+  const { role } = await requirePostMember(user, postId);
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    include: { ...postInclude(user.id), community: { select: { id: true, name: true } } },
+  });
+  if (!post) {
+    // Deleted between the two reads.
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  const summaries = await ratingSummaries([postId]);
+  return {
+    post: toPublicPost(post, user.id, isAdminRole(role), summaryFor(summaries, postId)),
+    community: { id: post.community.id, name: post.community.name },
+  };
 }

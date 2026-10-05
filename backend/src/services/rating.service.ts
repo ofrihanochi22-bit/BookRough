@@ -3,9 +3,15 @@ import { Prisma, type User } from '@prisma/client';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
+import {
+  type PublicPostRating,
+  ratingInclude,
+  toPublicPostRating,
+} from '../utils/publicPostRating.js';
 import { type PublicRating, toPublicRating } from '../utils/publicRating.js';
+import { type RatingSummary, summarize } from '../utils/ratingSummary.js';
 import { ALREADY_RATED } from './bookmark.service.js';
-import { POST_NOT_FOUND } from './post.service.js';
+import { POST_NOT_FOUND, requirePostMember } from './communityAccess.js';
 import { checkPostComment } from './postText.js';
 import { notifyAuthorOfRating } from './ratingNotification.js';
 
@@ -13,6 +19,7 @@ const log = createLogger('rating.service');
 
 export const OWN_POST_RATING = "You can't rate your own post.";
 export const SCORE_RANGE = 'Choose a score from 1 to 10.';
+export const NOT_RATED = "You haven't rated this post.";
 
 export interface NewRating {
   /** Validated here, not by the controller's schema, so it gets its own message. */
@@ -36,20 +43,7 @@ export async function ratePost(
   postId: string,
   input: NewRating,
 ): Promise<PublicRating> {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { authorId: true, communityId: true },
-  });
-  if (!post) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
+  const post = await requirePostMember(user, postId);
   if (post.authorId === user.id) {
     throw new AppError(OWN_POST_RATING, 403);
   }
@@ -92,4 +86,82 @@ export async function ratePost(
     log.warn({ err: error, postId }, 'Rating notification failed');
   }
   return toPublicRating(rating);
+}
+
+/**
+ * GET /posts/:postId/ratings — UC-16. Every rating on the post, newest first,
+ * visible to the community's current members (docs/features/post-detail.md §4).
+ * The summary comes from the same rows, so the two always agree.
+ */
+export async function listPostRatings(
+  user: User,
+  postId: string,
+): Promise<{ ratingSummary: RatingSummary; ratings: PublicPostRating[] }> {
+  await requirePostMember(user, postId);
+  const rows = await prisma.rating.findMany({
+    where: { postId },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    include: ratingInclude,
+  });
+  const sum = rows.reduce((total, row) => total + row.score, 0);
+  return {
+    ratingSummary: summarize(sum, rows.length),
+    ratings: rows.map((row) => toPublicPostRating(row, user.id)),
+  };
+}
+
+export interface RatingChanges {
+  score?: unknown;
+  comment?: string | null | undefined;
+}
+
+/**
+ * PATCH /posts/:postId/rating — a current member edits their own rating
+ * (docs/features/post-detail.md §4). Only the keys sent change; no
+ * notification (an edit is a correction).
+ */
+export async function editRating(
+  user: User,
+  postId: string,
+  changes: RatingChanges,
+): Promise<PublicPostRating> {
+  await requirePostMember(user, postId);
+  const existing = await prisma.rating.findUnique({
+    where: { postId_userId: { postId, userId: user.id } },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new AppError(NOT_RATED, 404);
+  }
+
+  const data: { score?: number; comment?: string | null } = {};
+  if ('score' in changes) {
+    if (!isScore(changes.score)) {
+      throw new AppError(SCORE_RANGE, 422);
+    }
+    data.score = changes.score;
+  }
+  if ('comment' in changes) {
+    const comment = checkPostComment(changes.comment);
+    if (!comment.ok) {
+      throw new AppError(comment.message, 422);
+    }
+    data.comment = comment.value;
+  }
+
+  try {
+    const updated = await prisma.rating.update({
+      where: { id: existing.id },
+      data,
+      include: ratingInclude,
+    });
+    log.info({ userId: user.id, postId, score: updated.score }, 'Rating edited');
+    return toPublicPostRating(updated, user.id);
+  } catch (error) {
+    // Deleted (with its post, or by a removal) between the read and the write.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new AppError(POST_NOT_FOUND, 404);
+    }
+    throw error;
+  }
 }

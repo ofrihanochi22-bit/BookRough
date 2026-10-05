@@ -8,7 +8,7 @@
 | **Use cases** | UC-16 (view a post's ratings); UC-13 extended (edit your rating); UC-14 amended (removal) |
 | **Phase**     | 4 — Step 4.4 of `DEVELOPMENT.md` (see `bookmarks-my-list.md` §0)                          |
 | **Branch**    | `feat/post-detail`                                                                        |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                        |
 
 ---
 
@@ -205,13 +205,14 @@ The removal confirmation becomes: "They won't be able to rejoin until an admin u
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                        | Reason                                                                                |
-| ---------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 2026-10-05 | Removal deletes the removed member's ratings in that community; leaving keeps them (option C)   | One rule for all of a member's content; admins clear abusive feedback by removing     |
-| 2026-10-05 | Ratings always visible to members (option A)                                                    | Exactly UC-16; the feedback is the app's social value                                 |
-| 2026-10-05 | You can edit your own rating from Post Detail (option B); no "edited" marker                    | Fix typos and update opinions, reusing the rating sheet                               |
-| 2026-10-05 | Post and ratings are two requests                                                               | UC-16's fail path: the card stays while the comments fail                             |
-| 2026-10-05 | `ratingSummary` on every `PublicPost`, one grouped query per page; average half-up to 1 decimal | The feed card shows the average without N+1 queries; one rounding rule, on the server |
-| 2026-10-05 | The ratings list loads whole, newest first                                                      | Friend groups are small                                                               |
-| 2026-10-05 | No notification on edit                                                                         | The stub announces a new rating; an edit is a correction                              |
-| 2026-10-05 | `ratings.updated_at` added, not shown                                                           | Records edits for support; no "edited" marker by decision                             |
+| Date       | Decision                                                                                                       | Reason                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2026-10-05 | Removal deletes the removed member's ratings in that community; leaving keeps them (option C)                  | One rule for all of a member's content; admins clear abusive feedback by removing      |
+| 2026-10-05 | Ratings always visible to members (option A)                                                                   | Exactly UC-16; the feedback is the app's social value                                  |
+| 2026-10-05 | You can edit your own rating from Post Detail (option B); no "edited" marker                                   | Fix typos and update opinions, reusing the rating sheet                                |
+| 2026-10-05 | Post and ratings are two requests                                                                              | UC-16's fail path: the card stays while the comments fail                              |
+| 2026-10-05 | `ratingSummary` on every `PublicPost`, one grouped query per page; average half-up to 1 decimal                | The feed card shows the average without N+1 queries; one rounding rule, on the server  |
+| 2026-10-05 | The ratings list loads whole, newest first                                                                     | Friend groups are small                                                                |
+| 2026-10-05 | No notification on edit                                                                                        | The stub announces a new rating; an edit is a correction                               |
+| 2026-10-05 | `ratings.updated_at` added, not shown                                                                          | Records edits for support; no "edited" marker by decision                              |
+| 2026-10-05 | Stage 2: one `requirePostMember` helper (post exists, caller a member now) for every post-scoped rating action | The same lookup was about to appear four times; one place keeps the 404 rule identical |

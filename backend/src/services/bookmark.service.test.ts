@@ -22,7 +22,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     communityMember: { findUnique: vi.fn() },
     post: { findUnique: vi.fn() },
-    rating: { findUnique: vi.fn() },
+    rating: { findUnique: vi.fn(), groupBy: vi.fn() },
     bookmark: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
   },
 }));
@@ -83,6 +83,7 @@ beforeEach(() => {
   db.bookmark.createMany.mockResolvedValue({ count: 1 });
   db.bookmark.deleteMany.mockResolvedValue({ count: 1 });
   db.bookmark.findMany.mockResolvedValue([]);
+  db.rating.groupBy.mockResolvedValue([]);
 });
 
 describe('saveBookmark', () => {

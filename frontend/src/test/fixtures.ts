@@ -62,6 +62,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
     createdAt: '2026-10-04T10:00:00.000Z',
     isBookmarked: false,
     myScore: null,
+    ratingSummary: { average: null, count: 0 },
     ...overrides,
   };
 }

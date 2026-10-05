@@ -1,6 +1,7 @@
 import type { Post, PostKind, StreamingService } from '@prisma/client';
 
 import { type MemberUser, memberUserSelect, toMemberUser } from './communityMember.js';
+import type { RatingSummary } from './ratingSummary.js';
 
 /** The only post shape that ever leaves the server (docs/features/posts-feed.md §4). */
 export interface PublicPost {
@@ -24,6 +25,8 @@ export interface PublicPost {
   isBookmarked: boolean;
   /** The viewer's own score, if they rated it; never anyone else's (rate-post.md §4). */
   myScore: number | null;
+  /** Every member's ratings at a glance (post-detail.md §4). */
+  ratingSummary: RatingSummary;
 }
 
 export type PostWithAuthor = Post & {
@@ -56,6 +59,7 @@ export function toPublicPost(
   post: PostWithAuthor,
   viewerId: string,
   viewerModerates: boolean,
+  ratingSummary: RatingSummary,
 ): PublicPost {
   const candidates: Array<[StreamingService, string | null]> = [
     ['SPOTIFY', post.universalLinkSpotify],
@@ -88,5 +92,6 @@ export function toPublicPost(
     createdAt: post.createdAt.toISOString(),
     isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),
     myScore: post.ratings.find((rating) => rating.userId === viewerId)?.score ?? null,
+    ratingSummary: { average: ratingSummary.average, count: ratingSummary.count },
   };
 }

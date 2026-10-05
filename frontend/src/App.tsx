@@ -14,6 +14,7 @@ import { Dashboard } from './pages/Dashboard';
 import { InvitePreview } from './pages/InvitePreview';
 import { MyList } from './pages/MyList';
 import { NotFound } from './pages/NotFound';
+import { PostDetail } from './pages/PostDetail';
 import { Profile } from './pages/Profile';
 import { Welcome } from './pages/Welcome';
 
@@ -62,6 +63,7 @@ export function App() {
             <Route path="/home" element={<Dashboard />} />
             <Route path="/communities/:id" element={<Community />} />
             <Route path="/communities/:id/settings" element={<CommunitySettings />} />
+            <Route path="/posts/:postId" element={<PostDetail />} />
             <Route
               path="/search"
               element={

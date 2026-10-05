@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
@@ -7,6 +9,9 @@ import { CONVERTING_COPY } from '../lib/postText';
 import type { StreamingService } from '../stores/auth';
 import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
 import { PostCard } from './PostCard';
+
+/** The card links to Post Detail, so it renders inside a router. */
+const inRouter = (ui: ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess, toastError } =
   vi.hoisted(() => ({
@@ -30,7 +35,7 @@ function renderCard(
   const onStale = vi.fn();
   const onDeleted = vi.fn();
   const onBookmarkChanged = vi.fn();
-  render(
+  inRouter(
     <PostCard
       post={post}
       viewerService={viewerService}
@@ -103,7 +108,7 @@ describe('PostCard — converted', () => {
 
   it('replaces a cover that fails to load with the placeholder', () => {
     // Arrange
-    const { container } = render(
+    const { container } = inRouter(
       <PostCard
         post={makePost()}
         viewerService="SPOTIFY"

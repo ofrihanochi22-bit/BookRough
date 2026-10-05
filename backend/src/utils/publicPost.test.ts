@@ -2,6 +2,7 @@ import type { Post } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { type PostWithAuthor, toPublicPost } from './publicPost.js';
+import { NO_RATINGS } from './ratingSummary.js';
 
 function post(overrides: Partial<Post> = {}): PostWithAuthor {
   return {
@@ -33,7 +34,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
 describe('toPublicPost', () => {
   it('sends exactly the public keys, and only the author fields of a member list', () => {
     // Act
-    const view = toPublicPost(post(), 'viewer-1', false);
+    const view = toPublicPost(post(), 'viewer-1', false, NO_RATINGS);
 
     // Assert
     expect(Object.keys(view).sort()).toEqual(
@@ -52,6 +53,7 @@ describe('toPublicPost', () => {
         'kind',
         'links',
         'originalUrl',
+        'ratingSummary',
         'sourceService',
         'title',
       ].sort(),
@@ -62,7 +64,7 @@ describe('toPublicPost', () => {
 
   it('lists only the services a link was found for', () => {
     // Act
-    const { links } = toPublicPost(post(), 'viewer-1', false);
+    const { links } = toPublicPost(post(), 'viewer-1', false, NO_RATINGS);
 
     // Assert
     expect(links).toEqual({
@@ -74,8 +76,8 @@ describe('toPublicPost', () => {
 
   it('marks the post as mine only for its author', () => {
     // Act & Assert
-    expect(toPublicPost(post(), 'author-1', false).isMine).toBe(true);
-    expect(toPublicPost(post(), 'viewer-1', false).isMine).toBe(false);
+    expect(toPublicPost(post(), 'author-1', false, NO_RATINGS).isMine).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).isMine).toBe(false);
   });
 
   it('sends a pending post with no metadata and no links', () => {
@@ -93,6 +95,7 @@ describe('toPublicPost', () => {
       }),
       'viewer-1',
       false,
+      NO_RATINGS,
     );
 
     // Assert
@@ -101,9 +104,9 @@ describe('toPublicPost', () => {
 
   it('lets the author and a moderating viewer delete, and nobody else', () => {
     // Act & Assert
-    expect(toPublicPost(post(), 'author-1', false).canDelete).toBe(true);
-    expect(toPublicPost(post(), 'viewer-1', true).canDelete).toBe(true);
-    expect(toPublicPost(post(), 'viewer-1', false).canDelete).toBe(false);
+    expect(toPublicPost(post(), 'author-1', false, NO_RATINGS).canDelete).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', true, NO_RATINGS).canDelete).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).canDelete).toBe(false);
   });
 
   it("is bookmarked only by the viewer's own row", () => {
@@ -112,9 +115,9 @@ describe('toPublicPost', () => {
     const someoneElses = { ...post(), bookmarks: [{ userId: 'viewer-2' }] };
 
     // Act & Assert
-    expect(toPublicPost(saved, 'viewer-1', false).isBookmarked).toBe(true);
-    expect(toPublicPost(someoneElses, 'viewer-1', false).isBookmarked).toBe(false);
-    expect(toPublicPost(post(), 'viewer-1', false).isBookmarked).toBe(false);
+    expect(toPublicPost(saved, 'viewer-1', false, NO_RATINGS).isBookmarked).toBe(true);
+    expect(toPublicPost(someoneElses, 'viewer-1', false, NO_RATINGS).isBookmarked).toBe(false);
+    expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).isBookmarked).toBe(false);
   });
 
   it("shows the viewer's own score only, and null when they have not rated", () => {
@@ -123,8 +126,8 @@ describe('toPublicPost', () => {
     const someoneElses = { ...post(), ratings: [{ userId: 'viewer-2', score: 3 }] };
 
     // Act & Assert
-    expect(toPublicPost(rated, 'viewer-1', false).myScore).toBe(8);
-    expect(toPublicPost(someoneElses, 'viewer-1', false).myScore).toBeNull();
-    expect(toPublicPost(post(), 'viewer-1', false).myScore).toBeNull();
+    expect(toPublicPost(rated, 'viewer-1', false, NO_RATINGS).myScore).toBe(8);
+    expect(toPublicPost(someoneElses, 'viewer-1', false, NO_RATINGS).myScore).toBeNull();
+    expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).myScore).toBeNull();
   });
 });

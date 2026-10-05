@@ -5,6 +5,7 @@ import { sessionUser } from '../middleware/requireAuth.js';
 import {
   createPost,
   deletePost,
+  getPost,
   listPosts,
   POST_NOT_FOUND,
   retryConversion,
@@ -74,6 +75,16 @@ export const destroy: RequestHandler = async (req, res, next) => {
   try {
     await deletePost(sessionUser(req), parsePostId(req.params.postId));
     res.status(200).json(success(null));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/posts/:postId — a current member; Post Detail's card. */
+export const show: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await getPost(sessionUser(req), parsePostId(req.params.postId));
+    res.status(200).json(success(result));
   } catch (error) {
     next(error);
   }

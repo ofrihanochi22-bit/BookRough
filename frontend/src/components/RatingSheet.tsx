@@ -3,9 +3,16 @@ import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 import type { PublicPost } from '../api/posts';
-import { ratePost } from '../api/ratings';
+import { editRating, ratePost } from '../api/ratings';
 import { checkPostComment, cleanPostComment, COMMENT_MAX_GRAPHEMES } from '../lib/postText';
-import { ALREADY_RATED, RATE_FAILED, RATED, RATED_POST_DELETED, SCORES } from '../lib/ratingCopy';
+import {
+  ALREADY_RATED,
+  RATE_FAILED,
+  RATED,
+  RATED_POST_DELETED,
+  RATING_UPDATED,
+  SCORES,
+} from '../lib/ratingCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import { graphemeCount } from '../lib/textRules';
 import { Button } from './ui/Button';
@@ -15,8 +22,12 @@ interface RatingSheetProps {
   post: PublicPost;
   online: boolean;
   onClose: () => void;
-  /** Rated, already rated, or gone: either way the song leaves My List. */
+  /** Rated, already rated, or gone: either way the song leaves My List. Edited: reload. */
   onDone: (postId: string) => void;
+  /** Editing your own rating from Post Detail (post-detail.md §5.2): starts filled in. */
+  editing?: { score: number; comment: string | null };
+  /** While editing, the post or your access is gone (404). */
+  onGone?: () => void;
 }
 
 const inputClass =
@@ -25,11 +36,13 @@ const inputClass =
 /**
  * Rate & Review — docs/features/rate-post.md §5.2. A score from 1 to 10 and an
  * optional comment. Outcomes that end the song's stay on My List are toasts
- * (the sheet closes with them); problems the user can fix stay inline.
+ * (the sheet closes with them); problems the user can fix stay inline. With
+ * `editing`, the same sheet edits your rating (post-detail.md §5.2).
  */
-export function RatingSheet({ post, online, onClose, onDone }: RatingSheetProps) {
-  const [score, setScore] = useState<number | null>(null);
-  const [comment, setComment] = useState('');
+export function RatingSheet({ post, online, onClose, onDone, editing, onGone }: RatingSheetProps) {
+  const [score, setScore] = useState<number | null>(editing?.score ?? null);
+  const [comment, setComment] = useState(editing?.comment ?? '');
+  const title = editing ? 'Edit your rating' : 'Rate & Review';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const commentCheck = checkPostComment(comment);
@@ -43,12 +56,19 @@ export function RatingSheet({ post, online, onClose, onDone }: RatingSheetProps)
     setBusy(true);
     setError(null);
     try {
-      await ratePost(post.id, { score, comment: commentCheck.value });
-      toast.success(RATED);
+      if (editing) {
+        await editRating(post.id, { score, comment: commentCheck.value });
+        toast.success(RATING_UPDATED);
+      } else {
+        await ratePost(post.id, { score, comment: commentCheck.value });
+        toast.success(RATED);
+      }
       onDone(post.id);
     } catch (caught) {
       const response = isAxiosError<{ message?: string }>(caught) ? caught.response : undefined;
-      if (response?.status === 404) {
+      if (editing && response?.status === 404) {
+        onGone?.();
+      } else if (response?.status === 404) {
         toast.error(RATED_POST_DELETED);
         onDone(post.id);
       } else if (response?.status === 409) {
@@ -68,8 +88,8 @@ export function RatingSheet({ post, online, onClose, onDone }: RatingSheetProps)
   }
 
   return (
-    <Sheet title="Rate & Review" onClose={onClose} dismissible={!busy}>
-      <form aria-label="Rate & Review" className="flex flex-col gap-4" onSubmit={submit}>
+    <Sheet title={title} onClose={onClose} dismissible={!busy}>
+      <form aria-label={title} className="flex flex-col gap-4" onSubmit={submit}>
         <div>
           <p className="break-words font-medium">
             {post.conversionPending
@@ -148,7 +168,7 @@ export function RatingSheet({ post, online, onClose, onDone }: RatingSheetProps)
           busy={busy}
           disabled={!online || score === null || commentError !== null}
         >
-          {busy ? 'Submitting…' : 'Submit Rating'}
+          {busy ? 'Submitting…' : editing ? 'Save changes' : 'Submit Rating'}
         </Button>
       </form>
     </Sheet>
