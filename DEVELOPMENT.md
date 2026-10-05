@@ -1023,15 +1023,15 @@ How to view & test:
 
 ### Step 3.5 — Delete a post (Phase 3 — UC-18)
 
-Status: ☐ Not started
+Status: 🟡 In progress — spec written, awaiting approval
 Branch: feat/posts-delete
-Spec: docs/features/posts-delete.md (to be written in its own session, after Step 3.1)
+Spec: docs/features/posts-delete.md
 
 Goal: The original author deletes their post from the feed's context menu, with UC-18's confirmation; later ratings cascade with it. Absorbs former 3.5 and the delete menu of 3.6.
 
 Tasks:
 
-- [ ] Spec session (including whether community admins may delete others' posts).
+- [x] Spec: docs/features/posts-delete.md written (the author, plus the community's admins and owner on any post; server-computed `canDelete`).
 - [ ] Backend, frontend and tests per the spec.
 
 What I did:
