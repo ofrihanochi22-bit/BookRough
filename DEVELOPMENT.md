@@ -924,6 +924,8 @@ npm test --prefix e2e                                     # 23 runs (+1 skipped)
 
 ## Phase 3 — The Magic Feature (UC-11, UC-18 + Playwright)
 
+> **Phase 3 complete (2026-10-05):** Steps 3.1 (posts and the feed), 3.5 (deleting a post) and 3.4 (the backend image) are merged.
+
 > **Re-sliced 2026-10-04.** The original Steps 3.1–3.7 split Phase 3 by layer (schema, scraper, create route, Dockerfile, delete route, all feed UI, E2E), and most of them could not merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/posts-feed.md` §0. The original step numbers are kept so references stay valid.
 
 ### Step 3.1 — Posts: share a link and see the feed (Phase 3 — UC-11)
@@ -1005,19 +1007,62 @@ See Step 3.1.
 
 ### Step 3.4 — Backend Dockerfile (Phase 3)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: chore/backend-dockerfile
-Spec: docs/features/backend-docker.md (to be written in its own session, after Step 3.5)
+Spec: docs/features/backend-docker.md
 
 Goal: `backend/Dockerfile` based on `mcr.microsoft.com/playwright` builds and runs the API with Chromium available.
 
 Tasks:
 
-- [ ] Infra: Dockerfile per the conversion guide (copy, install, build, expose, start).
-- [ ] Infra: Smoke-test by building the image and running the container; healthcheck responds, and one real conversion works inside it.
+- [x] Spec: docs/features/backend-docker.md written and approved (Playwright 1.63.0 base, migrate on start, `test:docker` in `main.yml`).
+- [x] Infra: multi-stage `backend/Dockerfile` (non-root `pwuser`, `tini` as PID 1, `HEALTHCHECK`), `backend/.dockerignore`; `prisma` moved to `dependencies`.
+- [x] Infra: smoke-tested locally — migrations on an empty database, health 200, one real conversion inside the container, graceful stop.
+- [x] CI: `test:docker` job in `main.yml`.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
+- [x] Tests: the existing suites stay green; `test:docker` runs the smoke test in CI after merge.
 
 What I did:
+
+Built the backend's deployment unit per `docs/features/backend-docker.md`. No application code changed.
+
+- **Image:** `backend/Dockerfile` is a multi-stage build on `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright 1.63.0). The runtime stage holds production dependencies, `dist/` and the Prisma migrations only. It runs as the non-root `pwuser`, with `tini` as PID 1, and its start command is `prisma migrate deploy && exec node dist/index.js`. A `HEALTHCHECK` calls `/api/health`. `backend/.dockerignore` keeps `.env` and build output out of the context.
+- **Dependencies (approved):** `prisma` moved from `devDependencies` to `dependencies` (same version), because the container migrates; `tini` installed in the image.
+- **CI:** `test:docker` in `main.yml` (after merge and nightly, not on PRs). It builds the image, runs it against an empty Postgres, waits for health, proves the migrations through `/api/settings`, checks for a graceful stop with exit code 0, and fails on any error-level log line.
+- **Smoke-tested locally:**
+  - all 8 migrations applied to an empty database
+  - health and settings answer
+  - `pwuser`, with tini as PID 1
+  - one real squigly.link conversion inside the container (2.8 s, five links)
+  - a graceful stop with exit code 0
+  - a stand-in refused under production
+  - a missing `DATABASE_URL` named by Prisma
+- **Measured for Phase 6:** image 2.85 GB; about 83 MB of memory idle and about 234 MB at the peak of a conversion.
+- **Docs:** `deployment` (new §3.5, the migrations checklist item), `tech stack` (Docker), `tests` (§4.2 table) (.md + .docx); CLAUDE.md §2, §3 and §10; `posts-delete.md` Merged ticked.
+- **Tests:** no new test files (no application code). Backend 599 (98.3%), lint, typecheck and build all green; `test:docker` is the image's own test.
+
 How to view & test:
+
+You need Docker Desktop running and the local Postgres up (`docker compose up -d`). The base image is about 2.5 GB on first pull.
+
+```bash
+docker build -t bookrough-api backend
+docker exec bookrough-postgres psql -U bookrough -d postgres -c "CREATE DATABASE music_app_docker_smoke"
+docker run --rm --name api-smoke -p 4500:4000 -e DATABASE_URL=postgresql://bookrough:bookrough@host.docker.internal:5433/music_app_docker_smoke -e JWT_SECRET=local-smoke-only-secret-value-long-enough-for-validation -e GOOGLE_CLIENT_ID=smoke.apps.googleusercontent.com -e CORS_ORIGIN=http://localhost:5173 bookrough-api
+```
+
+1. The logs list the 8 migrations being applied, then "API listening".
+2. Open `http://localhost:4500/api/health` → `{"status":"success",…}`; `http://localhost:4500/api/settings` → the default settings.
+3. In another terminal, run `docker exec api-smoke whoami` → `pwuser`.
+4. Press Ctrl+C → "Shutting down" and a clean exit.
+5. Clean up: `docker exec bookrough-postgres psql -U bookrough -d postgres -c "DROP DATABASE music_app_docker_smoke"` and `docker rmi bookrough-api`.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # still green with prisma as a runtime dependency
+# test:docker runs in CI (main.yml) after the merge, and nightly
+```
 
 ---
 

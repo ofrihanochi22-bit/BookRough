@@ -59,7 +59,7 @@ This file is the working contract between the developer and Claude. Read it befo
 
 **Infra**
 
-- Docker (backend image is based on `mcr.microsoft.com/playwright` so Chromium dependencies are available)
+- Docker (backend image is based on `mcr.microsoft.com/playwright:v1.63.0-noble` so Chromium dependencies are available; the tag moves with the `playwright` version; non-root, `tini` as PID 1, migrations on start — docs/deployment.md §3.5)
 - GitHub Actions for CI — see §10 for exactly what gates a merge
 
 **Explicitly rejected alternatives** (do not reintroduce without a new decision):
@@ -105,7 +105,7 @@ This file is the working contract between the developer and Claude. Read it befo
 │   └── features/           ← per-feature specs, Markdown only (see §14.2, §15)
 │       ├── _TEMPLATE.md
 │       └── <feature>.md
-├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E) — see §10
+├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E and the Docker image) — see §10
 ├── .husky/                 ← pre-commit (lint-staged) + commit-msg (commitlint)
 ├── docker-compose.yml      ← local Postgres only; never a deployment artifact
 ├── package.json            ← root: quality tooling only, not an npm workspace
@@ -305,7 +305,7 @@ Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feed
 
 **`main.yml` — runs on push to `main` and on a nightly schedule:**
 
-- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend.
+- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, graceful shutdown).
 
 E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
 
