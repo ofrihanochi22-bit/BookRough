@@ -22,6 +22,12 @@ const { listPosts, createPost, retryConversion, deletePost } = vi.hoisted(() => 
   deletePost: vi.fn(),
 }));
 vi.mock('../api/posts', () => ({ listPosts, createPost, retryConversion, deletePost }));
+const { saveBookmark, toastSuccess } = vi.hoisted(() => ({
+  saveBookmark: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
+vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark: vi.fn() }));
+vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: vi.fn() } }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
 const TRACK = 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv';
@@ -243,5 +249,30 @@ describe('CommunityFeed', () => {
 
     // Assert
     expect(titles()).toEqual(['Song 1']);
+  });
+
+  it('keeps a saved bookmark when a Load more lands while the save is in flight', async () => {
+    // Arrange
+    let finishSave!: () => void;
+    let finishMore!: (page: { posts: ReturnType<typeof post>[]; nextCursor: null }) => void;
+    saveBookmark.mockReturnValue(new Promise<void>((resolve) => (finishSave = resolve)));
+    listPosts
+      .mockResolvedValueOnce({ posts: [post(1)], nextCursor: 'c1' })
+      .mockReturnValueOnce(new Promise((resolve) => (finishMore = resolve)));
+    renderFeed();
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Listen Later' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+
+    // Act: Load more lands first, then the save.
+    finishMore({ posts: [post(2)], nextCursor: null });
+    await vi.waitFor(() => expect(titles()).toEqual(['Song 1', 'Song 2']));
+    finishSave();
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Added to Listen Later'));
+
+    // Assert: the saved state now comes from the feed, not the in-flight request.
+    const [first, second] = screen.getAllByRole('button', { name: /Listen Later/ });
+    expect(first).toHaveAttribute('aria-pressed', 'true');
+    expect(second).toHaveAttribute('aria-pressed', 'false');
+    expect(titles()).toEqual(['Song 1', 'Song 2']);
   });
 });

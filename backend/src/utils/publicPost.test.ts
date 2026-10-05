@@ -103,4 +103,15 @@ describe('toPublicPost', () => {
     expect(toPublicPost(post(), 'viewer-1', true).canDelete).toBe(true);
     expect(toPublicPost(post(), 'viewer-1', false).canDelete).toBe(false);
   });
+
+  it("is bookmarked only by the viewer's own row", () => {
+    // Arrange: the query reads the viewer's row only; a stray row must not count.
+    const saved = { ...post(), bookmarks: [{ userId: 'viewer-1' }] };
+    const someoneElses = { ...post(), bookmarks: [{ userId: 'viewer-2' }] };
+
+    // Act & Assert
+    expect(toPublicPost(saved, 'viewer-1', false).isBookmarked).toBe(true);
+    expect(toPublicPost(someoneElses, 'viewer-1', false).isBookmarked).toBe(false);
+    expect(toPublicPost(post(), 'viewer-1', false).isBookmarked).toBe(false);
+  });
 });
