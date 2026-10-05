@@ -8,7 +8,7 @@
 | **Use cases** | None directly — the deployment unit every UC runs in (CLAUDE.md §16)    |
 | **Phase**     | 3 — Step 3.4 of `DEVELOPMENT.md` (a `chore/`, not a user-visible slice) |
 | **Branch**    | `chore/backend-dockerfile`                                              |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged      |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged      |
 
 ---
 
@@ -86,7 +86,7 @@ Runs on push to `main` and nightly, alongside `test:e2e` (developer's choice, op
 ## 6. Edge cases & failure modes
 
 - **A migration fails on start** → the container exits non-zero before listening; the host shows a crashed deploy instead of a running app with a broken schema.
-- **A required env var is missing** → the env schema exits with the list of missing variables (existing behaviour).
+- **A required env var is missing** → the container exits before serving. Without `DATABASE_URL`, `prisma migrate deploy` stops first with "Environment variable not found: DATABASE_URL"; any other missing variable gets the env schema's list (existing behaviour). (Amended in Stage 2: the spec first said the env schema always answers.)
 - **An E2E stand-in variable set in production** → refused at start (existing behaviour).
 - **The host sends `SIGTERM`** → tini forwards it; the server closes and Prisma disconnects.
 - **A Chromium process outlives a conversion** → tini reaps it; the converter also closes every browser in `finally` (CLAUDE.md §7).
@@ -110,13 +110,14 @@ No application code changes, so there are no new unit, integration or component 
 - ✅ Build locally; run against the local Docker Postgres with a fresh database; health 200; migrations applied.
 - ✅ The container runs as `pwuser`, with tini as PID 1.
 - ✅ One real conversion inside the container: a script run inside it calls the converter on a known Spotify track and gets `converted` with five links.
-- ❌ Start without `DATABASE_URL` → exits with the env error. Start with `E2E_SCRAPER_FIXTURES` set and `NODE_ENV=production` → refused.
+- ❌ Start without `DATABASE_URL` → exits with Prisma's "Environment variable not found: DATABASE_URL". Start with `E2E_SCRAPER_FIXTURES` set and `NODE_ENV=production` → refused.
 - ✅ Image size and idle memory recorded (input for the Phase 6 host choice).
 
 ## 8. Open questions & risks
 
 - **Image size (~2 GB)** — accepted in Q1; recorded for the Phase 6 decision.
-- **Memory** — idle and during one conversion, measured in the manual smoke test and written to `deployment.md` as a Phase 6 input.
+- **Memory** — measured in Stage 2 (Docker Desktop, Windows): about **83 MB idle**; about **234 MB peak** during one real conversion (coarse sampling, and the peak includes the extra Node process that triggered it). Two concurrent conversions would roughly double the Chromium share — a 512 MB instance stays plausible with `p-limit(2)`. Recorded in `deployment.md` for Phase 6.
+- **Size** — measured: the image is **2.85 GB** (2.51 GB base + 0.34 GB ours).
 - **The Playwright tag must track `package.json`** — a documented manual rule (§6).
 
 ## 9. Doc updates in this PR
@@ -137,3 +138,4 @@ No application code changes, so there are no new unit, integration or component 
 | 2026-10-05 | Multi-stage build; the runtime stage has production dependencies only | Smaller attack surface; no source or dev tooling in the image                         |
 | 2026-10-05 | Run as `pwuser` with `tini` as PID 1                                  | Non-root by default; signals and orphaned Chromium processes handled on any host      |
 | 2026-10-05 | `prisma` moves to `dependencies`                                      | The runtime stage needs the CLI to migrate                                            |
+| 2026-10-05 | Missing `DATABASE_URL` is reported by Prisma, not the env schema      | Stage 2: the migrate step runs first; its message names the variable, which is enough |

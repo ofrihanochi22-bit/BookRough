@@ -1005,7 +1005,7 @@ See Step 3.1.
 
 ### Step 3.4 — Backend Dockerfile (Phase 3)
 
-Status: 🟡 In progress — spec written, awaiting approval
+Status: 🟡 In progress — implemented (Stage 2); review next
 Branch: chore/backend-dockerfile
 Spec: docs/features/backend-docker.md
 
@@ -1013,8 +1013,11 @@ Goal: `backend/Dockerfile` based on `mcr.microsoft.com/playwright` builds and ru
 
 Tasks:
 
-- [ ] Infra: Dockerfile per the conversion guide (copy, install, build, expose, start).
-- [ ] Infra: Smoke-test by building the image and running the container; healthcheck responds, and one real conversion works inside it.
+- [x] Spec: docs/features/backend-docker.md written and approved (Playwright 1.63.0 base, migrate on start, `test:docker` in `main.yml`).
+- [x] Infra: multi-stage `backend/Dockerfile` (non-root `pwuser`, `tini` as PID 1, `HEALTHCHECK`), `backend/.dockerignore`; `prisma` moved to `dependencies`.
+- [x] Infra: smoke-tested locally — migrations on an empty database, health 200, one real conversion inside the container, graceful stop.
+- [x] CI: `test:docker` job in `main.yml`.
+- [ ] Review: `/code-review` and `/security-review`.
 
 What I did:
 How to view & test:

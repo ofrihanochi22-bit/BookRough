@@ -1,0 +1,13 @@
+# Build context for backend/Dockerfile — docs/features/backend-docker.md §4.4.
+# Secrets never enter the image: configuration comes from the host at run time.
+.env
+.env.*
+!.env.example
+node_modules
+dist
+coverage
+*.log
+.devtoken*
+*.tmp.ts
+Dockerfile
+.dockerignore
