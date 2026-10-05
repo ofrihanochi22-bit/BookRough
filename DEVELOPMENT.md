@@ -928,7 +928,7 @@ npm test --prefix e2e                                     # 23 runs (+1 skipped)
 
 ### Step 3.1 — Posts: share a link and see the feed (Phase 3 — UC-11)
 
-Status: 🟡 In progress — implemented and reviewed; tests next
+Status: ✅ Done
 Branch: feat/posts-feed
 Spec: docs/features/posts-feed.md
 
@@ -942,10 +942,52 @@ Tasks:
 - [x] Backend: `POST` / `GET /api/communities/:id/posts`, `POST /api/posts/:postId/conversion`; removal deletes the member's posts.
 - [x] Frontend: composer with the blocking spinner, feed with Load more, `PostCard`, Other services sheet, pending state and retry.
 - [x] Review: `/code-review` (2 findings, both fixed — a post finishing after Load more wiped the loaded page; a lost community hid others after Back/Forward) and `/security-review` (clean).
-- [ ] Tests: unit, integration, component and E2E per spec §7, plus the nightly live-site test.
+- [x] Tests: unit, integration, component and E2E per spec §7, plus the nightly live-site test.
 
 What I did:
+
+Built the magic feature's first slice (UC-11, and UC-14's removal rule) per `docs/features/posts-feed.md`.
+
+- **DB:** migration `add_posts` — `posts` with five link columns (one per `StreamingService`), `source_service`, `kind` (`PostKind`: track or album), `conversion_pending`, `updated_at`; a feed index and a removal index; cascades from the community and the author.
+- **Converter:** `services/linkScraper.service.ts` drives squigly.link in headless Chromium (the §7 flags, images/styles/fonts/media blocked, 8 s per wait, browser closed in `finally`), behind `p-limit(2)` and a 12 s ceiling that counts queue time. It reads JSON-LD metadata, maps links by host, and treats every scraped value as untrusted. Three outcomes: converted, `not_found` (squigly's "could not be found" → `422`), unavailable (→ pending). `services/supportedLinks.ts` checks each link's shape before Chromium launches. `linkScraper.standIn.ts` is the E2E stand-in (`E2E_SCRAPER_FIXTURES`, test-only).
+- **Backend:** `services/post.service.ts` (create with a `FOR SHARE` membership re-check after the conversion, keyset-paginated feed, the author's retry), `controllers/post.controller.ts`, `routes/posts.ts` + two routes on `routes/communities.ts`, `utils/publicPost.ts`, `services/postText.ts`. Removing a member deletes their posts in that community, in the same transaction.
+- **Frontend:** the community page's placeholder became `components/CommunityFeed.tsx`: a composer (`PostComposer.tsx`) with the blocking "Finding this track on other services…" state, `PostCard.tsx` ("Open in {your service}", Other services sheet, pending state with "Find on other services"), Load more, and the loading, empty, error and offline states. `lib/supportedLinks.ts` and `lib/postText.ts` mirror the server's rules; `api/posts.ts`.
+- **Found along the way:**
+  - Live probes showed squigly converts as soon as a link is filled in, and that "couldn't reach" is not a not-found answer.
+  - `/code-review`: a post finishing during Load more wiped the loaded page, and a lost community hid other communities after Back/Forward.
+  - The ceiling test: a queued attempt launched Chromium just before its own timeout. It is now skipped when under 2 s remain.
+- **Docs:** `tables`, `use cases` (UC-11, UC-14), `frontend screens` (3.1, 3.3), `link converter implementation guide` (new Phase 0.5), `tech stack`, `tests` (.md + .docx; `tests.docx` also gained its missing Google stand-in paragraph); CLAUDE.md §7; the Phase 3 re-slice above.
+- **Dependencies:** `playwright` 1.63.0 (pinned to the E2E package's version) and `p-limit` 7.3.3.
+- **Tests:** backend 585 (98.3% lines over both suites), frontend 412 (98.8%), E2E 27 + 3 skipped (new: a member shares a link and a friend on another service opens it in theirs; an outage still saves the post — in Chromium and iPhone WebKit; the live squigly.link test runs nightly only).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+The dev backend uses the real squigly.link. Chromium is already installed if you have run the E2E suite; otherwise run `npx playwright install chromium` once in `backend`. Use two Google accounts with different preferred services (for example A on Apple Music, B on Spotify), with B in A's community (see Step 2.2). Open `http://localhost:5173/` at 375px width.
+
+1. As A, open the community → the composer and "Share the first song".
+2. Paste `https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M` → **Post** → the "Invalid link…" message right away, with no request sent.
+3. Paste `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`, type a comment, **Post** → about 2 s of "Finding this track on other services…" → the card shows the Queen cover, "Bohemian Rhapsody - Remastered 2011", the comment, and **Open in Apple Music**. **Other services** lists all five.
+4. As B, open the community → the same post, opening **in Spotify**.
+5. As A, paste `https://open.spotify.com/track/0000000000000000000000` → after about 9 s the post appears as "Shared from Spotify · Other services unavailable" with **Find on other services**. B sees no retry button.
+6. As A, paste `https://music.apple.com/us/album/bohemian-rhapsody/1440650428?i=1440650711` (an id that does not exist) → the "Invalid link…" message, and the link is still in the field.
+7. As A, **Settings** → **⋯** next to B → **Remove from community** → the confirmation now adds "Their posts in this community will be deleted too."
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/linkScraper.service.test.ts src/services/supportedLinks.test.ts src/services/post.service.test.ts
+cd backend && npm run test:integration -- posts
+cd frontend && npm run test:unit                          # CommunityFeed, PostComposer, PostCard, supportedLinks
+npm test --prefix e2e                                     # 27 runs (+3 skipped), needs Docker Postgres
+RUN_LIVE_E2E=1 npx playwright test posts -g live --project chromium   # in e2e/: the real squigly.link
+```
 
 ---
 

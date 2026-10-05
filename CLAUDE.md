@@ -218,8 +218,8 @@ Always create migrations via `npx prisma migrate dev --name <descriptive-name>`.
 - Block `image`, `stylesheet`, `font`, `media` requests to save memory and time.
 - `page.waitForSelector` timeout = **8 seconds**, not the default 30.
 - Browser is closed in a `finally` block — always.
-- **Fail gracefully**: if scraping throws, save the post with `original_url` only and a `conversion_pending` flag. Don't drop the user's content.
-- **Concurrency cap**: wrap the scrape in `p-limit(2)`. Each Chromium instance costs real memory, and the deployment target is a small/free tier. Two simultaneous posts is the ceiling; the third waits.
+- **Fail gracefully**: if scraping throws, save the post with `original_url` only and a `conversion_pending` flag. Don't drop the user's content. Only a link we can tell is wrong is refused (UC-11 `422`): one that is not a track or album on a supported service — checked before Chromium launches — or one squigly.link answers "could not be found" for (docs/features/posts-feed.md §4).
+- **Concurrency cap**: wrap the scrape in `p-limit(2)`. Each Chromium instance costs real memory, and the deployment target is a small/free tier. Two simultaneous posts is the ceiling; the third waits — and its wait counts toward the 12-second ceiling below.
 - Production runs inside the `mcr.microsoft.com/playwright` Docker base image (Chromium system deps preinstalled).
 
 ### Latency budget and posting UX

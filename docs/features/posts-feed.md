@@ -8,7 +8,7 @@
 | **Use cases** | UC-11 (post a recommendation); UC-14 touched (removal deletes the member's posts)  |
 | **Phase**     | 3 — merges Steps 3.1, 3.2, 3.3 and most of 3.6 of `DEVELOPMENT.md` (re-sliced, §0) |
 | **Branch**    | `feat/posts-feed`                                                                  |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                 |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                 |
 
 ---
 
@@ -354,27 +354,30 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 - `docs/frontend screens.md` + `.docx`: 3.1 Community Feed (composer, card, Other services, states; no rating/bookmark until Phase 4); 3.3 the removal line.
 - `docs/link converter implementation guide.md` + `.docx`: the real squigly.link flow (JSON-LD, host-mapped links, the three outcomes, the queue-inclusive ceiling).
 - `docs/tech stack.md` + `.docx` §5: `playwright`, `p-limit` (and squigly.link as a runtime dependency, already listed).
-- `docs/tests.md` + `.docx`: the scraper stand-in and the nightly `RUN_LIVE_E2E`.
+- `docs/tests.md` + `.docx`: the scraper stand-in and the nightly `RUN_LIVE_E2E` (and the `.docx` catches up with the Google stand-in paragraph).
 - CLAUDE.md §7 if anything there changes (e.g. the 12 s ceiling including queue time).
-- `communities-membership.md`: the removal confirmation's new line.
+- `communities-membership.md`: the removal confirmation's new line. `admin-panel.md`: both Merged boxes ticked.
 - `DEVELOPMENT.md`: the Phase 3 re-slice and this step's entry per §13.
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                                   | Reason                                                                                           |
-| ---------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 2026-10-04 | Phase 3 re-sliced into three PRs: posts + feed, delete, Dockerfile (option A)                              | Vertical slices (§11); the scraper lands with the screen that shows its output                   |
-| 2026-10-04 | What we can tell is wrong → `422`; anything squigly can't resolve → saved as pending (option A)            | Honours both UC-11's fail path and §7's "never lose content"                                     |
-| 2026-10-04 | Tracks and albums, with `kind` (option A)                                                                  | UC-11 says song/album; squigly supports both                                                     |
-| 2026-10-04 | The author can retry a pending post's conversion (option A)                                                | Recoverable without background jobs                                                              |
-| 2026-10-04 | One button for the viewer's service with fallback to the original, plus an Other services sheet (option A) | UC-11's one tap, with a way out when the match is wrong                                          |
-| 2026-10-04 | Leaving keeps a member's posts; removal deletes them, permanently (option C)                               | Developer's choice; admins clean up after a bad actor in one step                                |
-| 2026-10-04 | Five link columns, one per `StreamingService`                                                              | squigly returns all five; every viewer gets their own service                                    |
-| 2026-10-04 | Unsupported hosts rejected before Chromium launches                                                        | Instant feedback; no browser cost for obvious mistakes                                           |
-| 2026-10-04 | Metadata from JSON-LD/`og:`; links mapped by href host                                                     | Standard, far more stable than CSS classes                                                       |
-| 2026-10-04 | The 12 s ceiling includes time queued behind `p-limit`                                                     | A burst becomes pending posts instead of hanging requests                                        |
-| 2026-10-04 | Comments: optional, ≤ 280 graphemes, line breaks kept                                                      | Same rules as community descriptions                                                             |
-| 2026-10-04 | Feed: newest first, 20 per page, keyset cursor, Load more                                                  | Stable under inserts; simple on a phone                                                          |
-| 2026-10-04 | E2E uses a scraper stand-in; one live test runs nightly only                                               | Deterministic PR-time E2E; the nightly run still detects squigly layout changes                  |
-| 2026-10-04 | Link-shape check per service replaces squigly's not-found signal                                           | Stage 2 probe: squigly reports a broken id as "couldn't reach", indistinguishable from an outage |
-| 2026-10-04 | squigly's "could not be found" text → `422`; squigly converts on fill, the button is a fallback            | Stage 2 probes: that message is definitive; "couldn't reach" is not                              |
+| Date       | Decision                                                                                                   | Reason                                                                                               |
+| ---------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 2026-10-04 | Phase 3 re-sliced into three PRs: posts + feed, delete, Dockerfile (option A)                              | Vertical slices (§11); the scraper lands with the screen that shows its output                       |
+| 2026-10-04 | What we can tell is wrong → `422`; anything squigly can't resolve → saved as pending (option A)            | Honours both UC-11's fail path and §7's "never lose content"                                         |
+| 2026-10-04 | Tracks and albums, with `kind` (option A)                                                                  | UC-11 says song/album; squigly supports both                                                         |
+| 2026-10-04 | The author can retry a pending post's conversion (option A)                                                | Recoverable without background jobs                                                                  |
+| 2026-10-04 | One button for the viewer's service with fallback to the original, plus an Other services sheet (option A) | UC-11's one tap, with a way out when the match is wrong                                              |
+| 2026-10-04 | Leaving keeps a member's posts; removal deletes them, permanently (option C)                               | Developer's choice; admins clean up after a bad actor in one step                                    |
+| 2026-10-04 | Five link columns, one per `StreamingService`                                                              | squigly returns all five; every viewer gets their own service                                        |
+| 2026-10-04 | Unsupported hosts rejected before Chromium launches                                                        | Instant feedback; no browser cost for obvious mistakes                                               |
+| 2026-10-04 | Metadata from JSON-LD/`og:`; links mapped by href host                                                     | Standard, far more stable than CSS classes                                                           |
+| 2026-10-04 | The 12 s ceiling includes time queued behind `p-limit`                                                     | A burst becomes pending posts instead of hanging requests                                            |
+| 2026-10-04 | Comments: optional, ≤ 280 graphemes, line breaks kept                                                      | Same rules as community descriptions                                                                 |
+| 2026-10-04 | Feed: newest first, 20 per page, keyset cursor, Load more                                                  | Stable under inserts; simple on a phone                                                              |
+| 2026-10-04 | E2E uses a scraper stand-in; one live test runs nightly only                                               | Deterministic PR-time E2E; the nightly run still detects squigly layout changes                      |
+| 2026-10-04 | Link-shape check per service replaces squigly's not-found signal                                           | Stage 2 probe: squigly reports a broken id as "couldn't reach", indistinguishable from an outage     |
+| 2026-10-04 | squigly's "could not be found" text → `422`; squigly converts on fill, the button is a fallback            | Stage 2 probes: that message is definitive; "couldn't reach" is not                                  |
+| 2026-10-05 | A queued conversion with under 2 s of its 12 s budget left is not started                                  | Stage 4: the ceiling test showed a queued attempt launching Chromium a moment before its own timeout |
+| 2026-10-05 | The stand-in's `live` list sends one link to the real converter                                            | The nightly live test needs the real squigly.link while every other E2E test keeps the stand-in      |
+| 2026-10-05 | `tests.docx` gained the Google stand-in paragraph its `.md` already had                                    | Found while mirroring this feature's changes: Phase 1 drift                                          |

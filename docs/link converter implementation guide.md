@@ -9,6 +9,16 @@ Three consequences follow, and they are binding on everything below.
 **2. The posting flow is synchronous and blocking.** The user presses Submit, sees a spinner with explanatory copy ("Finding this track on other services…"), and the post is born complete. We deliberately do **not** publish optimistically and fill in the links via a background job and polling: the extra machinery — job state, polling or websockets, a half-rendered post in the feed — is not worth it at this scale. Because the wait is long and visible, the spinner is a designed state, not an afterthought.
 
 **3. Fragility is permanent.** squigly.link is an unversioned dependency with no contract. A layout change on their side breaks the core feature without any change to our code. Two mitigations are mandatory: the graceful-failure path below, and keeping every selector confined to this one service file so that a break is a small, local fix rather than an investigation.
+### Phase 0.5: What the Shipped Converter Does
+The code in Phase 2 below is the original sketch. The shipped `backend/src/services/linkScraper.service.ts` (Step 3.1, `docs/features/posts-feed.md` §4.2) differs in ways learned from the live site on 2026-10-04:
+- **The link's shape is checked first**, per service (a track or album, not a playlist or artist), so obvious mistakes are refused with UC-11's message before Chromium launches.
+- **squigly converts on its own.** Filling the input starts the conversion and the "Create link" button disappears; pressing it is only a 2-second fallback.
+- **Only two answers are read.** A result page (`/song/…` or `/album/…`) continues; the text "could not be found" is definitive and the link is refused (`422`). squigly's "We couldn't reach … just now" is not interpreted: no answer within 8 seconds means `unavailable`, and the post is saved as pending.
+- **Metadata comes from JSON-LD** (`MusicRecording` / `MusicAlbum`), falling back to `og:` tags; links are read from the result page's anchors and mapped by their host, never by a CSS class. Amazon Music and SoundCloud are ignored.
+- **Scraped values are untrusted.** Only https links on a supported service's host are kept, the cover must be https, and text is cleaned and capped at 300 characters.
+- **The 12-second ceiling includes time queued behind `p-limit(2)`**, and a queued attempt with less than 2 seconds left is not started at all.
+- **The in-page script is a string**, not a function: bundlers rewrite functions with helpers that do not exist inside the page.
+- **Testing:** unit and integration tests mock Playwright or the converter; E2E uses a stand-in (`E2E_SCRAPER_FIXTURES`, test-only); one live test runs on the nightly schedule (`RUN_LIVE_E2E=1`).
 
 ### Phase 1: Project Setup
 

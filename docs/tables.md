@@ -60,19 +60,26 @@ Manages the bidirectional social graph and pending requests (UC-6, UC-7, UC-8).
 
 ### 5. posts Table
 
-The core entity for music recommendations (UC-11).
+The core entity for music recommendations (UC-11, `docs/features/posts-feed.md` §3). Metadata and links come from the link converter (squigly.link); all of them are null while `conversion_pending` is true.
 - **id** (UUID, Primary Key).
 - **author_id** (UUID, Foreign Key referencing users(id)).
 - **community_id** (UUID, Foreign Key referencing communities(id)).
-- **original_url** (VARCHAR, Not Null): The raw link the user pasted.
-- **song_title** (VARCHAR, Nullable): Fetched via your Playwright scraper.
+- **original_url** (VARCHAR(2048), Not Null): The link the user pasted, trimmed. Always present — the fallback link every viewer can open.
+- **source_service** (ENUM `StreamingService`, Not Null): The service the pasted link belongs to, derived from its host.
+- **kind** (ENUM `PostKind`, Nullable): `TRACK` or `ALBUM`, from squigly's JSON-LD type; null while pending.
+- **song_title** (VARCHAR(300), Nullable): From the link converter; for an album, the album name.
 - **song_artist** (VARCHAR, Nullable).
 - **song_cover_art_url** (VARCHAR, Nullable).
-- **universal_link_spotify** (VARCHAR, Nullable): Output from the scraper.
+- **universal_link_spotify** (VARCHAR(2048), Nullable): Output from the link converter — one column per `StreamingService`, so every viewer gets their own service.
 - **universal_link_apple** (VARCHAR, Nullable).
-- **universal_link_youtube** (VARCHAR, Nullable).
-- **text_comment** (TEXT, Nullable): The author's initial thoughts on the song.
+- **universal_link_youtube** (VARCHAR, Nullable): squigly's YouTube Music link.
+- **universal_link_tidal** (VARCHAR, Nullable).
+- **universal_link_deezer** (VARCHAR, Nullable).
+- **text_comment** (TEXT, Nullable): The author's optional comment — at most 280 characters, line breaks kept.
 - **created_at** (TIMESTAMP, Default Current Time).
+- **conversion_pending** (BOOLEAN, Default false): True when the conversion could not run (squigly.link down, a timeout, an unreadable page); the author can retry it.
+- **updated_at** (TIMESTAMP): Set on every write.
+- (Indexed on community_id, created_at and id, newest first, for the feed; and on author_id, community_id, for removal. Cascades: deleting the community or the author deletes the posts; removing a member deletes their posts in that community — UC-14.)
 
 ### 6. ratings Table
 

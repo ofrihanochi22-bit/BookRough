@@ -22,7 +22,7 @@ The API layer that handles business logic, database interactions, and authentica
 - **Node.js:** The JavaScript runtime for your server.
 - **Express.js:** The lightweight web framework used to define your API routes (GET, POST, etc.) and middleware.
 - **TypeScript:** To share data types (like your Post or User interfaces) between your backend and frontend.
-- **Playwright:** The automation library used headlessly on the server to scrape squigly.link and generate universal music links.
+- **Playwright:** The automation library used headlessly on the server to scrape squigly.link and generate universal music links. Pinned to the same version as the E2E package (1.63.0), so one Chromium download serves both.
 - **jsonwebtoken(JWT):** The library used to generate and verify the secure session tokens that keep users logged in.
 - **google-auth-library:** Google's official Node.js library used to cryptographically verify the identity tokens sent from your React frontend. This is the **only** authentication mechanism — `bcrypt` and password hashing have been removed from the stack, because no passwords exist.
 - **Prisma ORM:** A modern Object-Relational Mapper. It reads your database schema and generates highly type-safe database clients, which pairs perfectly with a structured development workflow. Prisma is also what keeps the deployment provider-agnostic: moving the database means changing `DATABASE_URL`, nothing more.
@@ -49,7 +49,7 @@ The safety net to ensure your vertical slices remain functional as the app grows
 
 External platforms **the running application** depends on. The test for this section: if it disappeared, the deployed product would break. Tools that only help us build are in section 5.2, kept separate on purpose.
 - **Google Cloud Console:** The dashboard where you register your application to obtain the OAuth 2.0 Client ID required for Google Social Login. Remember that the production origin must be added to the authorised origins and redirect URIs at deploy time — a step that is easy to forget and produces a confusing failure.
-- **squigly.link:** The external website your Playwright service will navigate to and scrape for music platform conversions. **This is the project's single largest external risk**: it is an unversioned dependency with no contract, and a layout change on their side breaks the core feature. The mitigations are the graceful-failure path (the post is saved regardless) and keeping the scraper's selectors isolated in one service file so a break is a small, local fix.
+- **squigly.link:** The external website the link converter drives to convert a pasted link into links on every supported service, plus title, artist and cover art. Free, no account or key. The converter types the link into squigly's own input — our server never opens the user's URL — reads the result page's JSON-LD and links, and treats every scraped value as untrusted. **This is the project's single largest external risk**: it is an unversioned dependency with no contract, and a layout change on their side breaks the core feature. The mitigations are the graceful-failure path (the post is saved regardless), metadata from standard JSON-LD and links mapped by host rather than CSS classes, keeping the scraper's selectors isolated in one service file so a break is a small, local fix, and a nightly E2E test against the live site.
 
 **Deliberately not used:** the Odesli / Songlink API, which has been degraded for months and no longer returns links for most platforms.
 

@@ -158,7 +158,7 @@
 
 ### UC-11: User Sends a Message to a Friend/Group Chat (Post Recommendation)
 
-- **Description:** A user shares a message in the form of a music recommendation (with optional text comments) to a Community feed.
+- **Description:** A user shares a music recommendation — a song or album link from Spotify, Apple Music, YouTube, Tidal or Deezer, with an optional comment of up to 280 characters — to a Community feed.
 - **Pre-conditions:** The user is logged in and is an active member of the Community where they are attempting to post.
 - **Post-conditions:** A new Post record is added to the database containing the authorId, communityId, and songMetadata. The post is pushed to the posts array of the Community.
 - **Trigger:** The user pastes a URL into the Community's input field and taps "Post" or "Send".
@@ -167,10 +167,10 @@
   - The user pastes a link to a song/album from their preferred streaming service (e.g., Spotify) into the input area.
   - The user optionally types a text comment alongside the link.
   - The user taps "Post".
-  - The backend automatically processes the link, identifies the song, fetches metadata (Artist, Title, Cover Art), and generates a "Universal Link".
+  - The backend converts the link through squigly.link while the user sees "Finding this track on other services…", fetching the metadata (Artist, Title, Cover Art) and the matching link on each supported service.
   - The system publishes the post to the Community feed.
-  - When other members view the post, the link automatically directs them to the specific service they defined in their own preferences.
-- **Fail description (Alternative Scenario):** The user pastes a broken URL or a link that does not point to a supported music service. The backend attempts to fetch the metadata but fails. The system prevents the post from being published and alerts the user: "Invalid link. We couldn't retrieve the song information. Please ensure it's a valid link from a supported streaming service."
+  - When other members view the post, its main button opens it in the service they defined in their own preferences, falling back to the original link when that service has no match; "Other services" lists every link found.
+- **Fail description (Alternative Scenario):** The user pastes a broken URL, a link that is not a song or album on a supported service (a playlist, an artist), or a link squigly.link answers "could not be found" for. The system prevents the post from being published, keeps the draft, and alerts the user: "Invalid link. We couldn't retrieve the song information. Please ensure it's a valid link from a supported streaming service." If the conversion cannot run at all — squigly.link unreachable, slower than the 12-second ceiling, or its page unreadable — the post is still published with the original link and a quiet "Other services unavailable" note, and its author can tap "Find on other services" later.
 
 ### UC-12: User Adds a Recommendation to Bookmarks ("Listen Later")
 
@@ -207,7 +207,7 @@
 
 - **Description:** A user with administrative privileges in a Community revokes another user's membership, removing their access to the group's feed and shared music.
 - **Pre-conditions:** The acting user is logged in, holds Admin status within the specific Community, and the target user is currently listed in the Community's members array.
-- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen.
+- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen. Their posts in this Community are deleted with the removal, permanently; leaving voluntarily (UC-10) keeps a member's posts.
 - **Trigger:** The Admin taps the "Remove User" or "Kick" button next to a specific member's name in the Community's member management screen.
 - **Step-by-step scenario (Success):**
   - The Admin navigates to the specific Community's settings and opens the "Members" list.
