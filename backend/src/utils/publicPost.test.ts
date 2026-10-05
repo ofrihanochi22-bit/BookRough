@@ -24,6 +24,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     createdAt: new Date('2026-10-04T10:00:00.000Z'),
     updatedAt: new Date('2026-10-04T10:00:00.000Z'),
     author: { id: 'author-1', displayName: 'Dana', profilePictureUrl: null },
+    bookmarks: [],
     ...overrides,
   };
 }
@@ -44,6 +45,7 @@ describe('toPublicPost', () => {
         'coverArtUrl',
         'createdAt',
         'id',
+        'isBookmarked',
         'isMine',
         'kind',
         'links',

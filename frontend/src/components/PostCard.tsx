@@ -7,8 +7,10 @@ import { allLinks, mainLink, relativeTime } from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
+import { BookmarkButton } from './BookmarkButton';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
+import { CoverArt } from './ui/CoverArt';
 import { Sheet } from './ui/Sheet';
 
 interface PostCardProps {
@@ -21,37 +23,12 @@ interface PostCardProps {
   onStale: () => void;
   /** Deleted here, or found already deleted: drop it from the feed. */
   onDeleted: (postId: string) => void;
+  /** Saved to or removed from Listen Later here. */
+  onBookmarkChanged: (postId: string, isBookmarked: boolean) => void;
 }
 
 const linkButton =
   'inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium';
-
-/** A neutral square while there is no cover, or the cover fails to load. */
-function CoverArt({ url }: { url: string | null }) {
-  const [failed, setFailed] = useState(false);
-  if (!url || failed) {
-    return (
-      <div
-        aria-hidden="true"
-        className="flex size-20 shrink-0 items-center justify-center rounded-xl bg-line text-2xl text-muted"
-      >
-        ♪
-      </div>
-    );
-  }
-  return (
-    <img
-      src={url}
-      alt=""
-      width={80}
-      height={80}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-      className="size-20 shrink-0 rounded-xl object-cover"
-    />
-  );
-}
 
 const DELETE_FAILED = 'Could not delete post. Check your connection and try again.';
 
@@ -128,6 +105,7 @@ function DeletePostSheet({
  * button opens the viewer's own service; a pending post links to the original
  * and its author can try the conversion again. Its author and the
  * community's admins can delete it from the ⋯ menu (posts-delete.md §5).
+ * Anyone else can save it to Listen Later (bookmarks-my-list.md §5.1).
  */
 export function PostCard({
   post,
@@ -136,6 +114,7 @@ export function PostCard({
   onUpdated,
   onStale,
   onDeleted,
+  onBookmarkChanged,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -181,6 +160,14 @@ export function PostCard({
         <time dateTime={post.createdAt} className="text-xs text-muted">
           {relativeTime(post.createdAt)}
         </time>
+        {!post.isMine && (
+          <BookmarkButton
+            post={post}
+            online={online}
+            onChanged={onBookmarkChanged}
+            onStale={onStale}
+          />
+        )}
         {post.canDelete && (
           <button
             type="button"

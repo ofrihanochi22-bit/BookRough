@@ -20,14 +20,27 @@ export interface PublicPost {
   comment: string | null;
   conversionPending: boolean;
   createdAt: string;
+  /** The viewer saved it to Listen Later. Only ever the viewer's own (bookmarks-my-list.md §4). */
+  isBookmarked: boolean;
 }
 
 export type PostWithAuthor = Post & {
   author: { id: string; displayName: string | null; profilePictureUrl: string | null };
+  /** The viewer's own bookmark, if any — never anyone else's. */
+  bookmarks: Array<{ userId: string }>;
 };
 
-/** What Prisma must include for `toPublicPost` — the author's three fields only. */
-export const postInclude = { author: { select: memberUserSelect } } as const;
+/**
+ * What Prisma must include for `toPublicPost`: the author's three fields, and
+ * the viewer's bookmark only — bookmarks are private, so no other user's row
+ * and no count is ever read for a post.
+ */
+export function postInclude(viewerId: string) {
+  return {
+    author: { select: memberUserSelect },
+    bookmarks: { where: { userId: viewerId }, select: { userId: true } },
+  } as const;
+}
 
 /**
  * Field by field, never a spread: a column added to `posts` later must not
@@ -68,5 +81,6 @@ export function toPublicPost(
     comment: post.textComment,
     conversionPending: post.conversionPending,
     createdAt: post.createdAt.toISOString(),
+    isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),
   };
 }

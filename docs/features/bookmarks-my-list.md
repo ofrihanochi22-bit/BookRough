@@ -8,7 +8,7 @@
 | **Use cases** | UC-12 (save to Listen Later); UC-13's My List screen, without rating; UC-14 amended |
 | **Phase**     | 4 — Step 4.1 of `DEVELOPMENT.md` (re-sliced, §0)                                    |
 | **Branch**    | `feat/bookmarks-my-list`                                                            |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                  |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                  |
 
 ---
 
@@ -68,12 +68,13 @@ model Bookmark {
 
   @@id([userId, postId])
   @@index([userId, createdAt(sort: Desc), postId(sort: Desc)])
+  @@index([postId])
   @@map("bookmarks")
 }
 ```
 
 - Composite primary key: a post is saved at most once per user, which makes saving idempotent.
-- The index serves My List: one user's bookmarks, newest saved first, keyset-paginated.
+- The first index serves My List: one user's bookmarks, newest saved first, keyset-paginated. The second serves the cascade when a post is deleted (the primary key starts with `user_id`, so it cannot).
 - Cascades: deleting the post (by its author or an admin, UC-18; with its community; with a removed member's posts, UC-14) or the user's account deletes the bookmark.
 - `ratings` is **not** added here; it arrives with feature 2.
 
@@ -135,7 +136,7 @@ My List.
 - **Auth:** signed in.
 - **Behaviour:** the caller's bookmarks, newest saved first, 20 per page. `before` is an opaque cursor (base64url of the bookmark's `createdAt` + `postId`) from the previous page's `nextCursor`. Bookmarks from communities the caller has left are included (§3.2).
 - **Success:** `200 { items: SavedPost[], nextCursor: string | null }`.
-- **Errors:** `401`; `422` "Invalid cursor." for a malformed cursor.
+- **Errors:** `401`; `422` "The request query is invalid." for a malformed cursor (the feed's cursor format and message, reused).
 
 ### Changes to existing endpoints
 
@@ -249,15 +250,17 @@ My List stops being "Coming soon". The `BottomNav` comment is updated; Search st
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                     | Reason                                                                               |
-| ---------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 2026-10-05 | Phase 4 re-sliced into three PRs: bookmarks + My List, rate, Post Detail (option A)          | Vertical slices (§11); each PR follows one UC                                        |
-| 2026-10-05 | Step 4.3's notification stub goes with rating (feature 2); Step 4.5 dissolves                | A log line has no screen; every feature ships its own tests                          |
-| 2026-10-05 | Bookmarks survive leaving a community and stay openable (option A)                           | Developer's choice: never lose a saved song                                          |
-| 2026-10-05 | Bookmarks also survive removal (option A); UC-14's "shared music" wording amended            | Developer's choice over UC-14's original wording: one rule for leaving and removal   |
-| 2026-10-05 | No bookmarking your own post (option A): no icon, `403`                                      | My List is "songs friends recommended to me"; feature 2 never meets self-rating      |
-| 2026-10-05 | Bookmarks are private: no counts, no names (option A)                                        | No social pressure; least data leaving the server                                    |
-| 2026-10-05 | `PUT` / `DELETE /posts/:id/bookmark`, both idempotent; `DELETE` needs no membership          | Double taps and two tabs are harmless; a left community's songs can still be cleared |
-| 2026-10-05 | Optimistic icon with rollback and a toast                                                    | UC-12's fail path; a toast survives a feed reload (Phase 3 lesson)                   |
-| 2026-10-05 | My List: one flat list, newest saved first, 20 per page, keyset cursor, community name shown | Simplest list that still says where a song came from                                 |
-| 2026-10-05 | Pending posts can be saved; they open the original link                                      | Same as the feed; nothing about saving depends on the conversion                     |
+| Date       | Decision                                                                                     | Reason                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2026-10-05 | Phase 4 re-sliced into three PRs: bookmarks + My List, rate, Post Detail (option A)          | Vertical slices (§11); each PR follows one UC                                          |
+| 2026-10-05 | Step 4.3's notification stub goes with rating (feature 2); Step 4.5 dissolves                | A log line has no screen; every feature ships its own tests                            |
+| 2026-10-05 | Bookmarks survive leaving a community and stay openable (option A)                           | Developer's choice: never lose a saved song                                            |
+| 2026-10-05 | Bookmarks also survive removal (option A); UC-14's "shared music" wording amended            | Developer's choice over UC-14's original wording: one rule for leaving and removal     |
+| 2026-10-05 | No bookmarking your own post (option A): no icon, `403`                                      | My List is "songs friends recommended to me"; feature 2 never meets self-rating        |
+| 2026-10-05 | Bookmarks are private: no counts, no names (option A)                                        | No social pressure; least data leaving the server                                      |
+| 2026-10-05 | `PUT` / `DELETE /posts/:id/bookmark`, both idempotent; `DELETE` needs no membership          | Double taps and two tabs are harmless; a left community's songs can still be cleared   |
+| 2026-10-05 | Optimistic icon with rollback and a toast                                                    | UC-12's fail path; a toast survives a feed reload (Phase 3 lesson)                     |
+| 2026-10-05 | My List: one flat list, newest saved first, 20 per page, keyset cursor, community name shown | Simplest list that still says where a song came from                                   |
+| 2026-10-05 | Pending posts can be saved; they open the original link                                      | Same as the feed; nothing about saving depends on the conversion                       |
+| 2026-10-05 | Stage 2: a `post_id` index on `bookmarks`                                                    | Deleting a post cascades by `post_id`, which the `(user_id, post_id)` key cannot serve |
+| 2026-10-05 | Stage 2: My List reuses the feed's cursor encoding and its `422` message                     | One cursor format; the spec's "Invalid cursor." wording was never used anywhere else   |

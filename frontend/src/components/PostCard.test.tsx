@@ -33,6 +33,7 @@ function renderCard(
       onUpdated={onUpdated}
       onStale={onStale}
       onDeleted={onDeleted}
+      onBookmarkChanged={vi.fn()}
     />,
   );
   return { onUpdated, onStale, onDeleted };
@@ -105,6 +106,7 @@ describe('PostCard — converted', () => {
         onUpdated={vi.fn()}
         onStale={vi.fn()}
         onDeleted={vi.fn()}
+        onBookmarkChanged={vi.fn()}
       />,
     );
     const image = container.querySelector('img[src="https://img.example/cover.jpg"]')!;

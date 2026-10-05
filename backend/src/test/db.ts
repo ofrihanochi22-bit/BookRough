@@ -6,6 +6,6 @@ import { prisma } from '../db/prisma.js';
  */
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "users", "communities", "community_bans", "posts", "app_settings", "setting_changes" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "users", "communities", "community_bans", "posts", "bookmarks", "app_settings", "setting_changes" RESTART IDENTITY CASCADE',
   );
 }
