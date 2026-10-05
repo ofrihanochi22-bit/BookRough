@@ -116,4 +116,15 @@ describe('toPublicPost', () => {
     expect(toPublicPost(someoneElses, 'viewer-1', false).isBookmarked).toBe(false);
     expect(toPublicPost(post(), 'viewer-1', false).isBookmarked).toBe(false);
   });
+
+  it("shows the viewer's own score only, and null when they have not rated", () => {
+    // Arrange: the query reads the viewer's row only; a stray row must not count.
+    const rated = { ...post(), ratings: [{ userId: 'viewer-1', score: 8 }] };
+    const someoneElses = { ...post(), ratings: [{ userId: 'viewer-2', score: 3 }] };
+
+    // Act & Assert
+    expect(toPublicPost(rated, 'viewer-1', false).myScore).toBe(8);
+    expect(toPublicPost(someoneElses, 'viewer-1', false).myScore).toBeNull();
+    expect(toPublicPost(post(), 'viewer-1', false).myScore).toBeNull();
+  });
 });

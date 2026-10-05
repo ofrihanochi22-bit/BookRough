@@ -8,7 +8,7 @@
 | **Use cases** | UC-12 (save to Listen Later); UC-13's My List screen, without rating; UC-14 amended |
 | **Phase**     | 4 — Step 4.1 of `DEVELOPMENT.md` (re-sliced, §0)                                    |
 | **Branch**    | `feat/bookmarks-my-list`                                                            |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                  |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                  |
 
 ---
 

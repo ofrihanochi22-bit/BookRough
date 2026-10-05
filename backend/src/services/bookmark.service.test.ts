@@ -2,7 +2,13 @@ import { Prisma, type User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../utils/AppError.js';
-import { listBookmarks, OWN_POST, removeBookmark, saveBookmark } from './bookmark.service.js';
+import {
+  ALREADY_RATED,
+  listBookmarks,
+  OWN_POST,
+  removeBookmark,
+  saveBookmark,
+} from './bookmark.service.js';
 import { encodeCursor, POST_NOT_FOUND } from './post.service.js';
 
 /**
@@ -122,6 +128,19 @@ describe('saveBookmark', () => {
 
     // Act & Assert
     await expectAppError(saveBookmark(USER, POST_ID), 404, POST_NOT_FOUND);
+  });
+
+  it('is a 409 on a post you already rated, and saves nothing', async () => {
+    // Arrange
+    db.rating.findUnique.mockResolvedValue({ id: 'rating-1' });
+
+    // Act & Assert
+    await expectAppError(saveBookmark(USER, POST_ID), 409, ALREADY_RATED);
+    expect(db.rating.findUnique).toHaveBeenCalledWith({
+      where: { postId_userId: { postId: POST_ID, userId: USER.id } },
+      select: { id: true },
+    });
+    expect(db.bookmark.createMany).not.toHaveBeenCalled();
   });
 
   it('is a 404 when the post is deleted between the check and the insert', async () => {

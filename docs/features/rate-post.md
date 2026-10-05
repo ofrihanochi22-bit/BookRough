@@ -8,7 +8,7 @@
 | **Use cases** | UC-13 (rate a bookmarked recommendation); UC-12 touched (a rated post can't be saved) |
 | **Phase**     | 4 — Step 4.2 of `DEVELOPMENT.md` (absorbs former 4.3; see `bookmarks-my-list.md` §0)  |
 | **Branch**    | `feat/rate-post`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                    |
 
 ---
 

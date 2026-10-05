@@ -467,4 +467,28 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     // Assert
     expect(save()).toBeDisabled();
   });
+
+  it('shows "You rated n/10" instead of the bookmark once rated', () => {
+    // Arrange & Act
+    renderCard(makePost({ myScore: 8 }));
+
+    // Assert
+    expect(screen.getByText('You rated 8/10')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Listen Later/ })).not.toBeInTheDocument();
+  });
+
+  it('a save answered 409 (rated elsewhere) reverts, toasts and reloads the feed', async () => {
+    // Arrange
+    saveBookmark.mockRejectedValue(httpError(409, 'You already rated this post.'));
+    const { onStale, onBookmarkChanged } = renderCard(makePost());
+
+    // Act
+    await userEvent.click(save());
+
+    // Assert
+    await vi.waitFor(() => expect(toastError).toHaveBeenCalledWith('You already rated this post.'));
+    expect(onStale).toHaveBeenCalled();
+    expect(onBookmarkChanged).not.toHaveBeenCalled();
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
 });

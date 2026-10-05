@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SavedPost } from '../api/bookmarks';
 import { useAuthStore } from '../stores/auth';
 import {
+  httpError,
   makePendingPost,
   makePost,
   makeSession,
@@ -23,6 +24,8 @@ const { listBookmarks, removeBookmark, toastSuccess, toastError } = vi.hoisted((
   toastError: vi.fn(),
 }));
 vi.mock('../api/bookmarks', () => ({ listBookmarks, removeBookmark }));
+const { ratePost } = vi.hoisted(() => ({ ratePost: vi.fn() }));
+vi.mock('../api/ratings', () => ({ ratePost }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 const COMMUNITY = { id: '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40', name: 'Friday Jazz' };
@@ -135,6 +138,9 @@ describe('MyList', () => {
     // Assert
     expect(await screen.findByText('Old Crew')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Old Crew' })).not.toBeInTheDocument();
+    expect(screen.getByText("You're no longer in Old Crew")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
   });
 
   it('loads more with the cursor and appends', async () => {
@@ -250,5 +256,60 @@ describe('MyList', () => {
     expect(await screen.findByText('Song 1')).toBeInTheDocument();
     expect(screen.getByText("You're offline. Connect to change your list.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Rate & Review Song 1' })).toBeDisabled();
+  });
+
+  it("offers Rate & Review on a member's song; rating it takes the card off the list", async () => {
+    // Arrange
+    ratePost.mockResolvedValue({ id: 'r', score: 8, comment: null, createdAt: '' });
+    listBookmarks.mockResolvedValue({ items: [saved(1), saved(2)], nextCursor: null });
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Rate & Review Song 1' }));
+    const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
+    await userEvent.click(within(sheet).getByRole('radio', { name: '8' }));
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
+
+    // Assert
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Rating submitted'));
+    expect(ratePost).toHaveBeenCalledWith('post-1', { score: 8, comment: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(titles()).toEqual(['Song 2']);
+  });
+
+  it("a deleted post leaves the list as a ghost row, with UC-13's message", async () => {
+    // Arrange
+    ratePost.mockRejectedValue(httpError(404, 'Post not found.'));
+    listBookmarks.mockResolvedValue({ items: [saved(1)], nextCursor: null });
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Rate & Review Song 1' }));
+    await userEvent.click(screen.getByRole('radio', { name: '4' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Submit Rating' }));
+
+    // Assert
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'This recommendation is no longer available as the original post was deleted.',
+      ),
+    );
+    expect(screen.getByText('Nothing saved yet')).toBeInTheDocument();
+  });
+
+  it('closing the sheet keeps the song on the list', async () => {
+    // Arrange
+    listBookmarks.mockResolvedValue({ items: [saved(1)], nextCursor: null });
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Rate & Review Song 1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(titles()).toEqual(['Song 1']);
+    expect(ratePost).not.toHaveBeenCalled();
   });
 });
