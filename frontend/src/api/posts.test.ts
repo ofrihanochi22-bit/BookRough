@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { makePost } from '../test/fixtures';
 import { api } from './client';
-import { createPost, listPosts, retryConversion } from './posts';
+import { createPost, deletePost, listPosts, retryConversion } from './posts';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -68,5 +68,20 @@ describe('posts API module', () => {
     // Assert
     expect(result).toEqual(post);
     expect(seen[0]).toMatchObject({ method: 'post', url: `/posts/${post.id}/conversion` });
+  });
+
+  it('deletePost sends a quiet DELETE to the post', async () => {
+    // Arrange
+    const seen = respondWith(ok(null));
+
+    // Act
+    await deletePost('post-1');
+
+    // Assert
+    expect(seen[0]).toMatchObject({
+      method: 'delete',
+      url: '/posts/post-1',
+      skipErrorToast: true,
+    });
   });
 });
