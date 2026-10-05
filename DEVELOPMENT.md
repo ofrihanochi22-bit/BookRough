@@ -1138,7 +1138,7 @@ Every feature ships its own E2E (CLAUDE.md §15). The live-site test gated on `R
 
 ### Step 4.1 — Bookmarks and My List (Phase 4 — UC-12, UC-13's list)
 
-Status: 🟡 In progress — spec written, awaiting approval
+Status: ✅ Done
 Branch: feat/bookmarks-my-list
 Spec: docs/features/bookmarks-my-list.md
 
@@ -1146,15 +1146,60 @@ Goal: A member saves a friend's post from the feed with the bookmark icon, and f
 
 Tasks:
 
-- [x] Spec: docs/features/bookmarks-my-list.md written (re-slice of Phase 4, bookmarks survive leaving and removal, not on your own posts, private).
-- [ ] DB: migration `add_bookmarks` — `bookmarks` with a composite key and a My List index; cascades from the post and the user.
-- [ ] Backend: `PUT` / `DELETE /api/posts/:postId/bookmark`, `GET /api/users/me/bookmarks`; `PublicPost.isBookmarked`.
-- [ ] Frontend: the bookmark icon on `PostCard` (optimistic, with rollback), the My List screen replacing Coming soon.
-- [ ] Review: `/code-review` and `/security-review`.
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Spec: docs/features/bookmarks-my-list.md written and approved (re-slice of Phase 4, bookmarks survive leaving and removal, not on your own posts, private).
+- [x] DB: migration `add_bookmarks` — `bookmarks` with a composite key, a My List index and a `post_id` index; cascades from the post and the user.
+- [x] Backend: `PUT` / `DELETE /api/posts/:postId/bookmark`, `GET /api/users/me/bookmarks`; `PublicPost.isBookmarked`.
+- [x] Frontend: the bookmark icon on `PostCard` (optimistic, with rollback), the My List screen replacing Coming soon.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built saving a post to Listen Later and the My List screen (UC-12, and UC-13's list without rating) per `docs/features/bookmarks-my-list.md`.
+
+- **DB:** migration `add_bookmarks` — `bookmarks` (`user_id`, `post_id`, `created_at`), composite primary key, an index for My List (newest saved first) and one on `post_id` for the cascade when a post is deleted. Both foreign keys cascade.
+- **Backend:**
+  - `services/bookmark.service.ts`: saving needs current membership and someone else's post (`403` "You can't save your own post."); saving and removing are idempotent; removing needs no membership; My List is keyset-paginated with the feed's cursor format.
+  - `controllers/bookmark.controller.ts`, routes on `routes/posts.ts` and `routes/users.ts`, and `utils/savedPost.ts` (field by field).
+  - `PublicPost.isBookmarked`: `postInclude(viewerId)` reads only the viewer's own bookmark, so no other user's bookmark or count is ever read.
+- **Frontend:**
+  - `components/BookmarkButton.tsx` on `PostCard` (not on your own posts): optimistic, reverting with UC-12's message on failure; a `404` toasts "This post is no longer available." and reloads the feed. The feed records the change against the latest state.
+  - `pages/MyList.tsx` and `components/SavedPostCard.tsx` replace the tab's Coming soon: "Shared by … in …" (a link while you are a member), "Open in {your service}", optimistic Remove, Load more, and the loading, empty, error and offline states.
+  - `CoverArt` and `BookmarkIcon` moved to `components/ui/`; `api/bookmarks.ts`; `lib/bookmarkCopy.ts`.
+- **Decisions (Stage 1):** bookmarks survive leaving **and** removal (UC-14 amended); no bookmarking your own post; bookmarks are private.
+- **Found along the way:**
+  - The bookmark table needs its own `post_id` index: the primary key starts with `user_id`, so it can't serve the cascade when a post is deleted.
+  - The auto-mode safety check blocks putting a dev session token into the browser, so the 375px check ran with the developer's own Google sign-in instead.
+  - Stage 4: the first version of the feed's concurrency test passed even with the fix removed, because it asserted while the save was still in flight. It now waits for the save to settle.
+- **Docs:** `tables` (bookmarks), `use cases` (UC-12; UC-14's removal keeps saved songs), `frontend screens` (3.1 the icon, 4.1 My List) (.md + .docx); the Phase 4 re-slice above; `backend-docker.md` Merged ticked.
+- **Tests:** backend 632 (98.4% lines over both suites), frontend 448 (98.8%), E2E 31 + 3 skipped (new: a friend saves a post, finds it in My List and removes it, while the author sees no bookmark on their own post — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts: A owns a community, B is a member (see Step 2.2), and A has shared a link (see Step 3.1). Open `http://localhost:5173/` at 375px width.
+
+1. As A, open the community → there is no bookmark icon on A's own posts.
+2. As B, open the community → an outline bookmark on A's post. Tap it → it fills and "Added to Listen Later" appears. Reload → still filled.
+3. As B, tap the **My List** tab → the song, "Shared by {A} in {community}", **Open in {B's service}** and **Remove**.
+4. As B, tap the filled icon in the feed again → "Removed from Listen Later"; My List is empty ("Nothing saved yet").
+5. As B, save the post again, then **Settings** → **Leave community** → My List still shows the song, and the community's name is no longer a link. **Remove** still works.
+6. Go offline (DevTools) → the bookmark icon and **Remove** are disabled, with the offline banner on My List.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/bookmark.service.test.ts src/utils/savedPost.test.ts src/utils/publicPost.test.ts
+cd backend && npm run test:integration -- bookmarks
+cd frontend && npm run test:unit                          # PostCard, CommunityFeed, MyList, api/bookmarks
+npm test --prefix e2e                                     # 31 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 
