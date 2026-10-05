@@ -130,4 +130,27 @@ describe('parseEnv', () => {
     // Assert
     expect(parsed.E2E_GOOGLE_PUBLIC_KEY).toBeUndefined();
   });
+
+  it.each(['production', 'development'])(
+    'refuses the E2E scraper stand-in under NODE_ENV=%s',
+    (nodeEnv) => {
+      // Arrange
+      const unsafe = { ...validEnv, NODE_ENV: nodeEnv, E2E_SCRAPER_FIXTURES: 'fixtures.json' };
+
+      // Act & Assert
+      expect(() => parseEnv(unsafe)).toThrowError(
+        /E2E_SCRAPER_FIXTURES: is only allowed with NODE_ENV=test/,
+      );
+    },
+  );
+
+  it('accepts the scraper stand-in under NODE_ENV=test, and treats empty as not set', () => {
+    // Act
+    const set = parseEnv({ ...validEnv, NODE_ENV: 'test', E2E_SCRAPER_FIXTURES: 'f.json' });
+    const empty = parseEnv({ ...validEnv, NODE_ENV: 'production', E2E_SCRAPER_FIXTURES: '' });
+
+    // Assert
+    expect(set.E2E_SCRAPER_FIXTURES).toBe('f.json');
+    expect(empty.E2E_SCRAPER_FIXTURES).toBeUndefined();
+  });
 });

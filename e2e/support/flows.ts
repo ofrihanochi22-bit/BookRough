@@ -11,12 +11,12 @@ export async function signIn(page: Page, sub: string) {
   await page.getByRole('button', { name: 'Continue with Google' }).click();
 }
 
-export async function completeProfile(page: Page, displayName: string) {
+export async function completeProfile(page: Page, displayName: string, service = 'Apple Music') {
   await expect(page.getByRole('heading', { name: 'Complete your profile' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Generated' })).toBeChecked();
   await page.getByLabel('Display name').fill(displayName);
   await expect(page.getByText('✓ Available')).toBeVisible();
-  await page.getByText('Apple Music', { exact: true }).click();
+  await page.getByText(service, { exact: true }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
@@ -66,12 +66,16 @@ export async function friendPage(browser: Browser): Promise<Page> {
 }
 
 /** A brand-new friend signs up through the link and joins. Returns their display name. */
-export async function joinThroughLink(friend: Page, link: string): Promise<string> {
+export async function joinThroughLink(
+  friend: Page,
+  link: string,
+  service = 'Apple Music',
+): Promise<string> {
   const account = newGoogleAccount();
   await stubGoogle(friend, account.sub);
   await friend.goto(link);
   await friend.getByRole('button', { name: 'Continue with Google' }).click();
-  await completeProfile(friend, account.displayName);
+  await completeProfile(friend, account.displayName, service);
   await friend.getByRole('button', { name: 'Join community' }).click();
   await expect(friend.getByRole('link', { name: 'Settings' })).toBeVisible();
   return account.displayName;

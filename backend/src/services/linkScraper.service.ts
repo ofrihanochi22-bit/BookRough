@@ -47,6 +47,8 @@ export type ConversionResult =
 export const MAX_CONCURRENT_CONVERSIONS = 2;
 /** The whole operation, queue wait included (CLAUDE.md §7). */
 export const CONVERSION_CEILING_MS = 12_000;
+/** A queued attempt with less time left than this is not started (squigly takes ~2 s). */
+export const MIN_ATTEMPT_MS = 2_000;
 /** Each wait on squigly's page. */
 export const STEP_TIMEOUT_MS = 8_000;
 
@@ -97,11 +99,20 @@ export async function convertLink(
   const attempt: Attempt = { browser: null, abandoned: false };
   let timer: NodeJS.Timeout | undefined;
 
-  const run = env.E2E_SCRAPER_FIXTURES
+  const canned = env.E2E_SCRAPER_FIXTURES
     ? convertWithStandIn(url, env.E2E_SCRAPER_FIXTURES)
-    : limit(() =>
-        attempt.abandoned ? Promise.resolve(unavailable('timeout')) : scrape(url, attempt),
-      );
+    : Promise.resolve(null);
+  const run = canned.then(
+    (result) =>
+      result ??
+      limit(() =>
+        // Leaving the queue too late to finish is the same as timing out:
+        // don't launch a browser only to close it a moment later.
+        attempt.abandoned || Date.now() - started > CONVERSION_CEILING_MS - MIN_ATTEMPT_MS
+          ? Promise.resolve(unavailable('timeout'))
+          : scrape(url, attempt),
+      ),
+  );
 
   const ceiling = new Promise<ConversionResult>((resolve) => {
     timer = setTimeout(() => {

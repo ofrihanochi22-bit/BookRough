@@ -928,7 +928,7 @@ npm test --prefix e2e                                     # 23 runs (+1 skipped)
 
 ### Step 3.1 — Posts: share a link and see the feed (Phase 3 — UC-11)
 
-Status: 🟡 In progress — implemented (Stage 2); review and tests next
+Status: 🟡 In progress — implemented and reviewed; tests next
 Branch: feat/posts-feed
 Spec: docs/features/posts-feed.md
 
@@ -941,7 +941,7 @@ Tasks:
 - [x] Backend: `services/linkScraper.service.ts` — Chromium with the §7 flags, resource blocking, 8s `waitForSelector`, 12s ceiling including the queue, `p-limit(2)`, browser closed in `finally`; E2E stand-in.
 - [x] Backend: `POST` / `GET /api/communities/:id/posts`, `POST /api/posts/:postId/conversion`; removal deletes the member's posts.
 - [x] Frontend: composer with the blocking spinner, feed with Load more, `PostCard`, Other services sheet, pending state and retry.
-- [ ] Review: `/code-review` and `/security-review`.
+- [x] Review: `/code-review` (2 findings, both fixed — a post finishing after Load more wiped the loaded page; a lost community hid others after Back/Forward) and `/security-review` (clean).
 - [ ] Tests: unit, integration, component and E2E per spec §7, plus the nightly live-site test.
 
 What I did:

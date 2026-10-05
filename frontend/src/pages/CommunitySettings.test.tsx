@@ -212,6 +212,7 @@ describe('CommunitySettings — member actions', () => {
     const sheet = screen.getByRole('dialog', { name: 'Remove from community' });
     expect(sheet).toHaveTextContent('Are you sure you want to remove Mia from this community?');
     expect(sheet).toHaveTextContent("They won't be able to rejoin until an admin unblocks them.");
+    expect(sheet).toHaveTextContent('Their posts in this community will be deleted too.');
 
     // Act
     api.listMembers.mockResolvedValue([member(ME, 'Ofri', 'OWNER'), member('ada', 'Ada', 'ADMIN')]);

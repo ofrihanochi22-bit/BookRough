@@ -9,7 +9,10 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Google is replaced by a stand-in (docs/features/auth-flow-e2e.md): the
  * browser gets a stubbed sign-in script (support/googleStandIn.ts) and the API
- * verifies its tokens with E2E_GOOGLE_PUBLIC_KEY. Everything else is real.
+ * verifies its tokens with E2E_GOOGLE_PUBLIC_KEY. squigly.link is replaced the
+ * same way: the API reads canned conversions from fixtures/scraper-stand-in.json
+ * (docs/features/posts-feed.md §4.2), except for the one link the nightly
+ * live-site test sends to the real converter. Everything else is real.
  *
  * In CI the workflow starts both servers, because the API needs the database
  * service container only the workflow can provide. Locally, `webServer` below
@@ -25,6 +28,8 @@ const LOCAL_CLIENT_ID = 'e2e-client-id.apps.googleusercontent.com';
 
 // Read by support/googleStandIn.ts to sign tokens for the right audience.
 process.env.VITE_GOOGLE_CLIENT_ID ??= LOCAL_CLIENT_ID;
+
+const scraperFixtures = fileURLToPath(new URL('./fixtures/scraper-stand-in.json', import.meta.url));
 
 const standInPublicKey = readFileSync(
   fileURLToPath(new URL('./fixtures/google-stand-in.pub', import.meta.url)),
@@ -73,6 +78,7 @@ export default defineConfig({
             GOOGLE_CLIENT_ID: LOCAL_CLIENT_ID,
             CORS_ORIGIN: `http://localhost:${LOCAL_WEB_PORT}`,
             E2E_GOOGLE_PUBLIC_KEY: standInPublicKey,
+            E2E_SCRAPER_FIXTURES: scraperFixtures,
           },
         },
         {

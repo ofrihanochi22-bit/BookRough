@@ -1,8 +1,9 @@
 /**
  * E2E only (docs/features/posts-feed.md §4.2): canned conversions read from a
  * JSON file instead of driving squigly.link, so the E2E suite is fast and
- * deterministic. A link the file does not list behaves like an outage. The env
- * schema refuses to start the API with this set unless NODE_ENV=test.
+ * deterministic. A link the file does not list behaves like an outage, and a
+ * link under `live` goes to the real converter (the nightly live-site test).
+ * The env schema refuses to start the API with this set unless NODE_ENV=test.
  */
 
 import { readFileSync } from 'node:fs';
@@ -27,6 +28,8 @@ const fixturesSchema = z
   .object({
     /** Long enough for the "Finding this track…" state to be seen. */
     delayMs: z.number().int().min(0).max(5000).default(0),
+    /** Links the real converter handles — used only by the nightly live test. */
+    live: z.array(z.string()).default([]),
     conversions: z.record(
       z
         .object({
@@ -52,8 +55,15 @@ function load(path: string): Fixtures {
   return cached.fixtures;
 }
 
-export async function convertWithStandIn(url: string, path: string): Promise<ConversionResult> {
+/** The canned result, or null when the link is listed under `live`. */
+export async function convertWithStandIn(
+  url: string,
+  path: string,
+): Promise<ConversionResult | null> {
   const fixtures = load(path);
+  if (fixtures.live.includes(url)) {
+    return null;
+  }
   await new Promise((resolve) => setTimeout(resolve, fixtures.delayMs));
   const conversion = fixtures.conversions[url];
   if (!conversion) {
