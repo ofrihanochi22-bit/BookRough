@@ -1205,10 +1205,20 @@ npm test --prefix e2e                                     # 31 runs (+3 skipped)
 
 ### Step 4.2 — Rate a post (Phase 4 — UC-13)
 
-Status: ☐ Not started
-Branch: feat/<decided in its spec session>
+Status: 🟡 In progress — spec written, awaiting approval
+Branch: feat/rate-post
+Spec: docs/features/rate-post.md
 
-Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4. Specified in its own session after Step 4.1 merges.
+Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, the feed shows them "You rated n/10", and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4.
+
+Tasks:
+
+- [x] Spec: docs/features/rate-post.md written (My List only, current members only, a rating is final, a rated post can't be saved).
+- [ ] DB: migration `add_ratings` — `ratings`, unique per user and post, with a hand-written score `CHECK`.
+- [ ] Backend: `POST /api/posts/:postId/ratings` (removes the bookmark in the same transaction), the notification stub, `PublicPost.myScore`, `409` on saving a rated post.
+- [ ] Frontend: Rate & Review on My List, the rating sheet, "You rated n/10" on feed cards.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
