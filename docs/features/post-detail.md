@@ -8,7 +8,7 @@
 | **Use cases** | UC-16 (view a post's ratings); UC-13 extended (edit your rating); UC-14 amended (removal) |
 | **Phase**     | 4 — Step 4.4 of `DEVELOPMENT.md` (see `bookmarks-my-list.md` §0)                          |
 | **Branch**    | `feat/post-detail`                                                                        |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                        |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                        |
 
 ---
 

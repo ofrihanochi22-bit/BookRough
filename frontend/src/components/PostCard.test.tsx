@@ -496,4 +496,37 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     expect(onBookmarkChanged).not.toHaveBeenCalled();
     expect(save()).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('shows the average and count, and links the title and View ratings to Post Detail', () => {
+    // Arrange & Act
+    renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 } }));
+
+    // Assert
+    expect(screen.getByText('★ 7.5 · 4 ratings')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View ratings' })).toHaveAttribute(
+      'href',
+      `/posts/${makePost().id}`,
+    );
+    expect(screen.getByRole('link', { name: 'Bohemian Rhapsody' })).toHaveAttribute(
+      'href',
+      `/posts/${makePost().id}`,
+    );
+  });
+
+  it('says "1 rating", and shows no average before anyone rates', () => {
+    // Arrange & Act
+    renderCard(makePost({ ratingSummary: { average: 9, count: 1 } }));
+
+    // Assert
+    expect(screen.getByText('★ 9 · 1 rating')).toBeInTheDocument();
+  });
+
+  it('shows no average when nobody has rated, but still links to the ratings', () => {
+    // Arrange & Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.queryByText(/★/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View ratings' })).toBeInTheDocument();
+  });
 });

@@ -130,4 +130,12 @@ describe('toPublicPost', () => {
     expect(toPublicPost(someoneElses, 'viewer-1', false, NO_RATINGS).myScore).toBeNull();
     expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).myScore).toBeNull();
   });
+
+  it('copies the rating summary it is given', () => {
+    // Act
+    const view = toPublicPost(post(), 'viewer-1', false, { average: 7.5, count: 2 });
+
+    // Assert
+    expect(view.ratingSummary).toEqual({ average: 7.5, count: 2 });
+  });
 });

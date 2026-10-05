@@ -4,7 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '../utils/AppError.js';
 import { ALREADY_RATED } from './bookmark.service.js';
 import { POST_NOT_FOUND } from './post.service.js';
-import { OWN_POST_RATING, ratePost, SCORE_RANGE } from './rating.service.js';
+import {
+  editRating,
+  listPostRatings,
+  NOT_RATED,
+  OWN_POST_RATING,
+  ratePost,
+  SCORE_RANGE,
+} from './rating.service.js';
 
 /**
  * Every branch of ratePost, Prisma and the notification stub mocked. The same
@@ -19,6 +26,7 @@ const { db, tx, notifyAuthorOfRating, warn } = vi.hoisted(() => {
     db: {
       post: { findUnique: vi.fn() },
       communityMember: { findUnique: vi.fn() },
+      rating: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
       $transaction: vi.fn(),
     },
     notifyAuthorOfRating: vi.fn(),
@@ -189,5 +197,157 @@ describe('ratePost', () => {
       expect.objectContaining({ postId: POST_ID }),
       'Rating notification failed',
     );
+  });
+});
+
+/** A rating row as the list and the edit read it, with its rater. */
+function ratingRow(id: string, userId: string, score: number, comment: string | null = null) {
+  return {
+    id,
+    postId: POST_ID,
+    userId,
+    score,
+    comment,
+    createdAt: new Date('2026-10-05T10:00:00.000Z'),
+    updatedAt: new Date('2026-10-05T10:00:00.000Z'),
+    user: { id: userId, displayName: userId === USER.id ? 'Me' : 'Noa', profilePictureUrl: null },
+  };
+}
+
+describe('listPostRatings', () => {
+  it('lists every rating newest first, marks yours, and summarises the same rows', async () => {
+    // Arrange
+    db.rating.findMany.mockResolvedValue([
+      ratingRow('r2', USER.id, 6, 'nise song'),
+      ratingRow('r1', AUTHOR, 9),
+    ]);
+
+    // Act
+    const result = await listPostRatings(USER, POST_ID);
+
+    // Assert
+    expect(db.rating.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { postId: POST_ID },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
+    expect(result.ratingSummary).toEqual({ average: 7.5, count: 2 });
+    expect(result.ratings.map((rating) => [rating.id, rating.isMine])).toEqual([
+      ['r2', true],
+      ['r1', false],
+    ]);
+  });
+
+  it('is empty, with no average, when nobody has rated', async () => {
+    // Arrange
+    db.rating.findMany.mockResolvedValue([]);
+
+    // Act
+    const result = await listPostRatings(USER, POST_ID);
+
+    // Assert
+    expect(result).toEqual({ ratingSummary: { average: null, count: 0 }, ratings: [] });
+  });
+
+  it('is a 404 for an unknown post and for a caller outside its community, reading nothing', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValueOnce(null);
+
+    // Act & Assert
+    await expectAppError(listPostRatings(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Arrange
+    db.communityMember.findUnique.mockResolvedValueOnce(null);
+
+    // Act & Assert
+    await expectAppError(listPostRatings(USER, POST_ID), 404, POST_NOT_FOUND);
+    expect(db.rating.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('editRating', () => {
+  beforeEach(() => {
+    db.rating.findUnique.mockResolvedValue({ id: 'r1' });
+    db.rating.update.mockImplementation(({ data }: { data: object }) =>
+      Promise.resolve({ ...ratingRow('r1', USER.id, 6, 'nise song'), ...data }),
+    );
+  });
+
+  it('changes only the keys sent, on your own rating', async () => {
+    // Act
+    const scoreOnly = await editRating(USER, POST_ID, { score: 9 });
+    const commentOnly = await editRating(USER, POST_ID, { comment: '  nice song  ' });
+
+    // Assert
+    expect(db.rating.findUnique).toHaveBeenCalledWith({
+      where: { postId_userId: { postId: POST_ID, userId: USER.id } },
+      select: { id: true },
+    });
+    expect(db.rating.update.mock.calls.map(([args]) => args.data)).toEqual([
+      { score: 9 },
+      { comment: 'nice song' },
+    ]);
+    expect(scoreOnly).toMatchObject({ id: 'r1', score: 9, isMine: true });
+    expect(commentOnly).toMatchObject({ comment: 'nice song' });
+    expect(notifyAuthorOfRating).not.toHaveBeenCalled();
+  });
+
+  it('clears a blank comment to null', async () => {
+    // Act
+    await editRating(USER, POST_ID, { score: 7, comment: '   ' });
+
+    // Assert
+    expect(db.rating.update.mock.calls[0]![0].data).toEqual({ score: 7, comment: null });
+  });
+
+  it("is a 404 when you haven't rated the post", async () => {
+    // Arrange
+    db.rating.findUnique.mockResolvedValue(null);
+
+    // Act & Assert
+    await expectAppError(editRating(USER, POST_ID, { score: 9 }), 404, NOT_RATED);
+    expect(db.rating.update).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 for an unknown post and for a caller outside its community', async () => {
+    // Arrange
+    db.communityMember.findUnique.mockResolvedValue(null);
+
+    // Act & Assert
+    await expectAppError(editRating(USER, POST_ID, { score: 9 }), 404, POST_NOT_FOUND);
+    expect(db.rating.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 11, 7.5, '7', null])('is a 422 for the score %s', async (score) => {
+    // Act & Assert
+    await expectAppError(editRating(USER, POST_ID, { score }), 422, SCORE_RANGE);
+    expect(db.rating.update).not.toHaveBeenCalled();
+  });
+
+  it('is a 422 for a comment over 280 characters', async () => {
+    // Act & Assert
+    await expectAppError(
+      editRating(USER, POST_ID, { comment: 'a'.repeat(281) }),
+      422,
+      'Comments can be up to 280 characters.',
+    );
+  });
+
+  it('is a 404 when the rating disappears between the read and the write', async () => {
+    // Arrange
+    db.rating.update.mockRejectedValue(knownError('P2025'));
+
+    // Act & Assert
+    await expectAppError(editRating(USER, POST_ID, { score: 9 }), 404, POST_NOT_FOUND);
+  });
+
+  it('passes any other database error on', async () => {
+    // Arrange
+    const failure = knownError('P2034');
+    db.rating.update.mockRejectedValue(failure);
+
+    // Act & Assert
+    await expect(editRating(USER, POST_ID, { score: 9 })).rejects.toBe(failure);
   });
 });
