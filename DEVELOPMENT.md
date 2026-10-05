@@ -1134,6 +1134,8 @@ Every feature ships its own E2E (CLAUDE.md §15). The live-site test gated on `R
 
 ## Phase 4 — Engagement & Feedback (UC-12, UC-13, UC-16)
 
+> **Phase 4 complete (2026-10-05):** Steps 4.1 (bookmarks and My List), 4.2 (rating, with the 4.3 stub) and 4.4 (Post Detail) are built; 4.4 merges with its PR.
+
 > **Re-sliced 2026-10-05.** The original Steps 4.1–4.5 split Phase 4 by layer (schema, routes, notification stub, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/bookmarks-my-list.md` §0. The original step numbers are kept so references stay valid.
 
 ### Step 4.1 — Bookmarks and My List (Phase 4 — UC-12, UC-13's list)
@@ -1277,7 +1279,7 @@ A log line has no screen of its own; it ships with rating — see Step 4.2.
 
 ### Step 4.4 — Post Detail and feedback (Phase 4 — UC-16)
 
-Status: 🟡 In progress — spec written, awaiting approval
+Status: ✅ Done
 Branch: feat/post-detail
 Spec: docs/features/post-detail.md
 
@@ -1285,15 +1287,59 @@ Goal: The average rating on post cards, and a Post Detail screen listing every m
 
 Tasks:
 
-- [x] Spec: docs/features/post-detail.md written (removal deletes ratings, always visible, edit your own).
-- [ ] DB: migration `add_rating_updated_at`.
-- [ ] Backend: `GET /api/posts/:postId`, `GET /api/posts/:postId/ratings`, `PATCH /api/posts/:postId/rating`, `PublicPost.ratingSummary`, removal deletes ratings.
-- [ ] Frontend: the average and View ratings on cards, the Post Detail screen with Edit, the removal line.
-- [ ] Review: `/code-review` and `/security-review`.
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Spec: docs/features/post-detail.md written and approved (removal deletes ratings, always visible, edit your own).
+- [x] DB: migration `add_rating_updated_at`.
+- [x] Backend: `GET /api/posts/:postId`, `GET /api/posts/:postId/ratings`, `PATCH /api/posts/:postId/rating`, `PublicPost.ratingSummary`, removal deletes ratings.
+- [x] Frontend: the average and View ratings on cards, the Post Detail screen with Edit, the removal line.
+- [x] Review: `/code-review` (clean) and `/security-review` (one note, fixed — My List showed live averages for communities you left).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built Post Detail and rating feedback (UC-16, editing your rating, and UC-14's removal of ratings) per `docs/features/post-detail.md`.
+
+- **DB:** migration `add_rating_updated_at` — `ratings.updated_at`, set on every edit and not shown.
+- **Backend:**
+  - `PublicPost.ratingSummary` (average and count) on every post: `services/ratingSummary.ts` sums a page in one grouped query, and `utils/ratingSummary.ts` rounds half-up to one decimal in integers (7.25 → 7.3).
+  - `GET /api/posts/:postId` (`getPost`), `GET /api/posts/:postId/ratings` (`listPostRatings`, newest first, `utils/publicPostRating.ts`) and `PATCH /api/posts/:postId/rating` (`editRating`: only the keys sent, `404` "You haven't rated this post."). All three require current membership through one helper, `requirePostMember` in `services/communityAccess.ts`, which `ratePost` now uses too.
+  - `removeMember` deletes the removed member's ratings in that community in the same transaction as their posts; leaving keeps them.
+  - My List sends no live summary for a community you left (the `/security-review` note).
+- **Frontend:**
+  - `PostCard`: "★ 7.5 · 4 ratings" and **View ratings**; the title links to Post Detail too.
+  - `pages/PostDetail.tsx` at `/posts/:postId`: the card, a large average, every rating ("You" on yours, with **Edit**), and the loading, not-found, ratings-failure (UC-16's message with Try again, the card stays) and offline states. Deleting the post from its menu returns to the community.
+  - `RatingSheet` gains an edit mode: pre-filled, "Edit your rating", "Save changes", "Rating updated".
+  - Community Settings: "Their posts and ratings in this community will be deleted too."
+- **Decisions (Stage 1):** removal deletes ratings, leaving keeps them; ratings always visible to members; you can edit your own rating, with no "edited" marker.
+- **Found along the way:** `/security-review` noticed My List attached live averages to saved posts from communities the viewer had left, against the members-only rule. It now sends none.
+- **Docs:** `tables` (ratings), `use cases` (UC-13, UC-14, UC-16), `frontend screens` (3.1, 3.3, 3.4) (.md + .docx); `communities-membership.md` and `posts-feed.md` (the removal line), `rate-post.md` (Merged ticked, superseded decisions noted).
+- **Tests:** backend 710 (98.6% lines over both suites), frontend 482 (98.7%), E2E 35 + 3 skipped (new: the author sees a friend's rating in Post Detail and the friend edits it — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Three Google accounts: A owns a community and has shared a link; B and C are members (see Steps 2.2 and 3.1). Open `http://localhost:5173/` at 375px width.
+
+1. As B and C, save A's post and rate it from **My List** (say 6 and 9) — see Step 4.2.
+2. As A, open the community → the card shows "★ 7.5 · 2 ratings" and **View ratings**.
+3. Tap **View ratings** → Post Detail: the card, "7.5 out of 10 · 2 ratings", and both ratings newest first with names and comments.
+4. As B, open the same Post Detail → B's row reads "You" with **Edit**. Change the score to 9 → "Rating updated"; the average reads 9.
+5. As A, **Settings** → **⋯** next to C → **Remove from community** → the confirmation says "Their posts and ratings in this community will be deleted too." → C's rating is gone from Post Detail and the average is B's alone.
+6. Open `http://localhost:5173/posts/00000000-0000-4000-8000-000000000000` → the not-found page.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/rating.service.test.ts src/services/ratingSummary.test.ts src/utils/ratingSummary.test.ts src/utils/publicPostRating.test.ts
+cd backend && npm run test:integration -- postDetail
+cd frontend && npm run test:unit                          # PostDetail, PostCard, RatingSheet, api
+npm test --prefix e2e                                     # 35 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 

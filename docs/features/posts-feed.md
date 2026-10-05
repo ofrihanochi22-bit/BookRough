@@ -269,7 +269,7 @@ The "Posts are coming soon" panel is replaced, below the header and buttons, by:
 
 ### 5.5 Community Settings
 
-The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts in this community will be deleted too."
+The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts in this community will be deleted too." (Since `post-detail.md` §5.3: "Their posts and ratings in this community will be deleted too.")
 
 ## 6. Edge cases & failure modes
 
