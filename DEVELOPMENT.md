@@ -1005,9 +1005,9 @@ See Step 3.1.
 
 ### Step 3.4 — Backend Dockerfile (Phase 3)
 
-Status: ☐ Not started
+Status: 🟡 In progress — spec written, awaiting approval
 Branch: chore/backend-dockerfile
-Spec: docs/features/backend-docker.md (to be written in its own session, after Step 3.5)
+Spec: docs/features/backend-docker.md
 
 Goal: `backend/Dockerfile` based on `mcr.microsoft.com/playwright` builds and runs the API with Chromium available.
 
