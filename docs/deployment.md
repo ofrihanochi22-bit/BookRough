@@ -55,6 +55,15 @@ This is a deliberate decision, not an oversight. Free-tier terms change frequent
 - Database access only through Prisma, so the Postgres instance can be moved by changing `DATABASE_URL`.
 
 Written this way, the Phase 6 decision is a configuration change, not a rewrite.
+#### 3.5. The backend image (built in Phase 3)
+`backend/Dockerfile` is the deployment unit (Step 3.4, `docs/features/backend-docker.md`). What any host needs to know:
+- **Build:** `docker build -t bookrough-api backend`. Base `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright); a multi-stage build whose runtime stage holds production dependencies, `dist/` and the Prisma migrations only.
+- **Run:** set `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, and optionally `PORT` (default 4000) and `LOG_LEVEL`. `NODE_ENV=production` is baked in, so both E2E stand-ins are refused.
+- **Migrations run on start:** `prisma migrate deploy`, then the API. A failed migration stops the container before it serves; concurrent starts are safe (Prisma's advisory lock).
+- **Process:** runs as the non-root `pwuser`, with `tini` as PID 1 so `SIGTERM` reaches Node (graceful shutdown) and orphaned Chromium processes are reaped — no `--init` flag needed from the host. `--disable-dev-shm-usage` means `--ipc=host` is not needed either.
+- **Health:** a Docker `HEALTHCHECK` on `GET /api/health`, which deliberately does not touch the database.
+- **Measured (Docker Desktop, 2026-10-05):** image 2.85 GB (2.51 GB of it the base, which also carries unused Firefox and WebKit); about 83 MB of memory idle and about 234 MB at the peak of one real conversion. A 512 MB instance looks workable with `p-limit(2)`; verify under load in Phase 6.
+- **CI:** `test:docker` in `main.yml` builds the image and runs it against an empty Postgres after every merge and nightly (`docs/tests.md` §4.2).
 
 ### 4. Environments
 
@@ -115,7 +124,7 @@ Register the service worker **only in production builds**. A service worker runn
 
 - [ ] Provider chosen, with current free-tier terms verified and recorded in this document.
 - [ ] Production Postgres provisioned; `DATABASE_URL` set as a secret.
-- [ ] Prisma migrations run against production.
+- [ ] Prisma migrations run against production — automatic: the container runs `prisma migrate deploy` on start (§3.5).
 - [ ] `JWT_SECRET` independently generated and set.
 - [ ] Google OAuth client updated with the production origin and redirect URI.
 - [ ] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.

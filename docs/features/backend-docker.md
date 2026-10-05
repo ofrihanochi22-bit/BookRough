@@ -8,7 +8,7 @@
 | **Use cases** | None directly — the deployment unit every UC runs in (CLAUDE.md §16)    |
 | **Phase**     | 3 — Step 3.4 of `DEVELOPMENT.md` (a `chore/`, not a user-visible slice) |
 | **Branch**    | `chore/backend-dockerfile`                                              |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged      |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged      |
 
 ---
 

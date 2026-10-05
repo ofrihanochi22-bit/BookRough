@@ -116,6 +116,7 @@ Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.
 | Job | Command | Purpose |
 |---|---|---|
 | `test:e2e` | `playwright test` | The full end-to-end suite against a built frontend and a live backend |
+| `test:docker` | `docker build` + `docker run` | Builds the backend image, runs it against an empty Postgres, and checks health, migrations and graceful shutdown (`docs/features/backend-docker.md` §5) |
 
 **Why E2E is deliberately kept off the pull-request path:** installing browser binaries and driving real user flows costs several minutes, and E2E is by a wide margin the flakiest layer. A flaky test that blocks every merge gets ignored or disabled, which is worse than having no test. Catching a regression at merge time rather than at PR time is the accepted trade-off, and it is the standard arrangement in the industry for exactly this reason.
 

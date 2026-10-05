@@ -34,7 +34,7 @@ The API layer that handles business logic, database interactions, and authentica
 
 Where your data lives and how the backend is packaged.
 - **PostgreSQL:** The relational database storing all users, communities, posts, and ratings. MongoDB was considered and rejected — the data is relational.
-- **Docker:** The containerization platform. This is not optional: the Node.js backend must be containerized from the `mcr.microsoft.com/playwright` base image so that Playwright has the exact OS-level dependencies (like Chromium and its system libraries) it needs to run in the cloud. The `Dockerfile` is the deployment unit.
+- **Docker:** The containerization platform. This is not optional: the Node.js backend is containerized from `mcr.microsoft.com/playwright:v1.63.0-noble` so that Playwright has the exact OS-level dependencies (Chromium and its system libraries) it needs to run in the cloud. **The tag must move together with the `playwright` version in `backend/package.json`.** `backend/Dockerfile` is the deployment unit: a multi-stage build, running as the non-root `pwuser`, with **tini** (an Ubuntu package installed in the image) as PID 1 to forward signals and reap orphaned Chromium processes, and `prisma migrate deploy` on start — which is why `prisma` is a runtime dependency. Detail: `docs/deployment.md` §3.5.
 - **Hosting:** **Not yet chosen.** The provider decision is deferred to Phase 6 so it can be made against free-tier terms that are current at that time. Until then all code stays provider-agnostic: environment-variable configuration only, no provider SDKs, no vendor-specific build steps. Candidates and the decision checklist are in `docs/deployment.md` §3.
 
 ### 4. Testing & Quality Assurance
