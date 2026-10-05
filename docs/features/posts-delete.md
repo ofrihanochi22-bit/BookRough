@@ -8,7 +8,7 @@
 | **Use cases** | UC-18 (delete a post), extended with an admin path                               |
 | **Phase**     | 3 — Step 3.5 of `DEVELOPMENT.md` (absorbs former 3.5 and the delete menu of 3.6) |
 | **Branch**    | `feat/posts-delete`                                                              |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged               |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged               |
 
 ---
 

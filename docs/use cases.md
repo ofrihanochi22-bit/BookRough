@@ -260,19 +260,19 @@
 
 ### UC-18: User Deletes a Post (Song Recommendation)
 
-- **Description:** The original author of a music recommendation permanently removes their post from a Community feed.
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and their User ID matches the authorId of the target Post.
+- **Description:** The original author of a music recommendation permanently removes their post from a Community feed. A Community's Admins and its Owner can delete any post in that Community the same way — a member's, a fellow Admin's, the Owner's, or a former member's (`docs/features/posts-delete.md`).
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community.
 - **Post-conditions:** The Post record, including its associated ratings array, is permanently deleted from the database and removed from the Community's posts array.
 - **Trigger:** The user taps the "Delete Post" option within the specific post's context menu.
 - **Step-by-step scenario (Success):**
   - The user locates a post they previously authored in the feed.
   - The user taps the context menu (e.g., three dots) on their post.
   - The user selects "Delete Post" from the dropdown.
-  - The system prompts the user with a destructive action warning: "Are you sure you want to delete this recommendation? This will also delete all ratings and comments associated with it."
+  - The system prompts the user with a destructive action warning: "Are you sure you want to delete this recommendation? This will also delete all ratings and comments associated with it." An Admin deleting someone else's post is asked instead: "Delete [Author]'s recommendation? This will also delete all ratings and comments on it. [Author] won't be notified."
   - The user confirms the deletion.
   - The backend deletes the Post record and cascades the deletion to any child data.
   - The UI instantly removes the post from the visible feed.
-- **Fail description (Alternative Scenario):** The user's device loses network connectivity immediately after confirming the deletion. The backend request fails. The system catches the error, leaves the post visible in the feed, and displays a temporary error banner: "Could not delete post. Check your connection and try again."
+- **Fail description (Alternative Scenario):** The user's device loses network connectivity immediately after confirming the deletion. The backend request fails. The system catches the error, leaves the post visible in the feed, and displays a temporary error banner: "Could not delete post. Check your connection and try again." If someone else deleted the post first, it simply disappears with "This post was already deleted." A plain member can never delete another member's post: the server refuses it.
 
 ### UC-19: Administrator Manages the Application
 

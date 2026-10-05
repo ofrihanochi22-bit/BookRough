@@ -1023,22 +1023,55 @@ How to view & test:
 
 ### Step 3.5 — Delete a post (Phase 3 — UC-18)
 
-Status: 🟡 In progress — implemented (Stage 2); review and tests next
+Status: ✅ Done
 Branch: feat/posts-delete
 Spec: docs/features/posts-delete.md
 
-Goal: The original author deletes their post from the feed's context menu, with UC-18's confirmation; later ratings cascade with it. Absorbs former 3.5 and the delete menu of 3.6.
+Goal: The original author deletes their post from the feed's context menu, with UC-18's confirmation, and the community's admins and owner can delete any post there; later ratings cascade with it. Absorbs former 3.5 and the delete menu of 3.6.
 
 Tasks:
 
 - [x] Spec: docs/features/posts-delete.md written and approved (the author, plus the community's admins and owner on any post; server-computed `canDelete`).
 - [x] Backend: `DELETE /api/posts/:postId` (author, or an admin/owner of the community, on any post); `PublicPost.canDelete`.
 - [x] Frontend: ⋯ menu on post cards with UC-18's confirmation (admin wording for someone else's post); the feed drops deleted posts.
-- [ ] Review: `/code-review` and `/security-review`.
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Review: `/code-review` (1 finding, fixed — a 403 message was lost when the feed reloaded) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built deleting a post (UC-18, extended with an admin path) per `docs/features/posts-delete.md`.
+
+- **Backend:** `deletePost` in `services/post.service.ts` lets the author delete their post, and lets an admin or the owner of the post's community delete any post there, whoever wrote it. A non-member gets 404, a plain member 403, and a post already deleted 404. `DELETE /api/posts/:postId` in `controllers/post.controller.ts` / `routes/posts.ts`. `PublicPost.canDelete` is computed by the server from the viewer's role, so the client never mirrors the rule. No schema change.
+- **Frontend:** a ⋯ "Post options" menu on cards with `canDelete`, expanding to **Delete post**. A confirmation sheet uses UC-18's wording for your own post and "Delete {author}'s recommendation? … {author} won't be notified." for someone else's. "Deleting…", then the toast "Post deleted", and the card leaves the feed from whichever list held it. A network failure shows UC-18's error in the sheet; a post already gone disappears quietly; a 403 is toasted and the feed reloads. Delete is disabled offline. `api/posts.ts` `deletePost`.
+- **Found along the way:** `/code-review`: a 403 shown inside the sheet was lost, because the feed reload unmounted the card and its sheet. It is now a toast.
+- **Docs:** `use cases` (UC-18: the admin path, its confirmation, already-deleted posts) and `frontend screens` (3.1, the menu) (.md + .docx); `posts-feed.md` (`canDelete`, Merged ticked).
+- **Tests:** backend 599 (98.3% lines over both suites), frontend 423 (98.9%), E2E 29 + 3 skipped (new: a member deletes their own post and the owner deletes a member's, gone for both — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts: A owns a community, B is a member (see Step 2.2). Open `http://localhost:5173/` at 375px width.
+
+1. As B, share two links (see Step 3.1). The ⋯ appears on B's posts only. On A's posts there is no ⋯.
+2. As B, **⋯** → **Delete post** → "Are you sure you want to delete this recommendation? …" → **Delete** → "Post deleted", and the card is gone.
+3. As A, reload → B's deleted post is gone; the ⋯ appears on every post. **⋯** on B's other post → **Delete post** → "Delete {B}'s recommendation? … {B} won't be notified." → **Delete**.
+4. As B, reload → that post is gone too.
+5. Go offline (DevTools) → **⋯** → **Delete post** is disabled.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/post.service.test.ts src/utils/publicPost.test.ts
+cd backend && npm run test:integration -- posts
+cd frontend && npm run test:unit                          # PostCard, CommunityFeed
+npm test --prefix e2e                                     # 29 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 

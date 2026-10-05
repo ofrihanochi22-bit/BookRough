@@ -8,7 +8,7 @@
 | **Use cases** | UC-11 (post a recommendation); UC-14 touched (removal deletes the member's posts)  |
 | **Phase**     | 3 — merges Steps 3.1, 3.2, 3.3 and most of 3.6 of `DEVELOPMENT.md` (re-sliced, §0) |
 | **Branch**    | `feat/posts-feed`                                                                  |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                 |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                 |
 
 ---
 
@@ -129,6 +129,7 @@ PublicPost {                       // utils/publicPost.ts, field by field
   id: string;
   author: { id: string; displayName: string; profilePictureUrl: string | null }; // MemberUser
   isMine: boolean;
+  canDelete: boolean;              // added by posts-delete.md §4
   originalUrl: string;
   sourceService: StreamingService;
   kind: 'TRACK' | 'ALBUM' | null;  // null while pending
