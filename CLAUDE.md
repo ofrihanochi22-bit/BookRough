@@ -201,6 +201,7 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
+- `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
 - `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).

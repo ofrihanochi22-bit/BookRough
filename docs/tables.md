@@ -83,14 +83,14 @@ The core entity for music recommendations (UC-11, `docs/features/posts-feed.md` 
 
 ### 6. ratings Table
 
-Stores the feedback on specific posts (UC-13, UC-16).
+Stores the feedback on specific posts (UC-13, UC-16, `docs/features/rate-post.md` §3). A rating is final once written.
 - **id** (UUID, Primary Key).
 - **post_id** (UUID, Foreign Key referencing posts(id)).
 - **user_id** (UUID, Foreign Key referencing users(id)): The person leaving the review.
-- **score** (SMALLINT, Not Null): A number between 1 and 10.
-- **comment** (TEXT, Nullable): Optional text feedback.
+- **score** (SMALLINT, Not Null): An integer from 1 to 10, checked by the API and by the hand-written database constraint ratings_score_range.
+- **comment** (TEXT, Nullable): Optional text feedback, at most 280 characters, line breaks kept.
 - **created_at** (TIMESTAMP, Default Current Time).
-- (Unique Constraint on post_id and user_id to ensure a user can only rate a specific post once).
+- (Unique Constraint on post_id and user_id to ensure a user can only rate a specific post once; indexed on user_id for the rater's own ratings. Cascades: deleting the post, its community or the rater deletes the rating. A rating is kept when its rater leaves or is removed from the community.)
 
 ### 7. bookmarks Table
 

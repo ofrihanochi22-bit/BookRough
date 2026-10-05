@@ -154,7 +154,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 
 ### 5.1 Bookmark icon on `PostCard` (feed)
 
-- Shown on every card in the feed **except your own posts**, pending posts included. An icon button: outline when not saved (`aria-label="Save to Listen Later"`, `aria-pressed="false"`), filled when saved (`aria-label="Remove from Listen Later"`, `aria-pressed="true"`). It reuses the tab bar's bookmark shape.
+- Shown on every card in the feed **except your own posts**, pending posts included. An icon button: outline when not saved (`aria-label="Save to Listen Later"`, `aria-pressed="false"`), filled when saved (`aria-label="Remove from Listen Later"`, `aria-pressed="true"`). It reuses the tab bar's bookmark shape. (Since rate-post.md: not on posts you rated either — "You rated n/10" takes its place.)
 - **Optimistic (UC-12):** tapping flips the icon at once and sends the request; the button ignores taps while its request is in flight.
   - Save succeeds → toast "Added to Listen Later".
   - Remove succeeds → toast "Removed from Listen Later".
