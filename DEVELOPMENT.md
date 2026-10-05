@@ -1277,10 +1277,20 @@ A log line has no screen of its own; it ships with rating — see Step 4.2.
 
 ### Step 4.4 — Post Detail and feedback (Phase 4 — UC-16)
 
-Status: ☐ Not started
-Branch: feat/<decided in its spec session>
+Status: 🟡 In progress — spec written, awaiting approval
+Branch: feat/post-detail
+Spec: docs/features/post-detail.md
 
-Goal: The average rating on post cards, and a Post Detail screen listing every review. Absorbs the ratings list of former 4.2 and the Post Detail of 4.4. Specified in its own session after Step 4.2 merges.
+Goal: The average rating on post cards, and a Post Detail screen listing every member's rating, where you can edit your own. Removing a member also removes their ratings in that community. Absorbs the ratings list of former 4.2 and the Post Detail of 4.4.
+
+Tasks:
+
+- [x] Spec: docs/features/post-detail.md written (removal deletes ratings, always visible, edit your own).
+- [ ] DB: migration `add_rating_updated_at`.
+- [ ] Backend: `GET /api/posts/:postId`, `GET /api/posts/:postId/ratings`, `PATCH /api/posts/:postId/rating`, `PublicPost.ratingSummary`, removal deletes ratings.
+- [ ] Frontend: the average and View ratings on cards, the Post Detail screen with Edit, the removal line.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
