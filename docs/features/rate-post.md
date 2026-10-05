@@ -8,7 +8,7 @@
 | **Use cases** | UC-13 (rate a bookmarked recommendation); UC-12 touched (a rated post can't be saved) |
 | **Phase**     | 4 — Step 4.2 of `DEVELOPMENT.md` (absorbs former 4.3; see `bookmarks-my-list.md` §0)  |
 | **Branch**    | `feat/rate-post`                                                                      |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
 
 ---
 
@@ -190,7 +190,7 @@ My List's loading, empty, error and offline states are unchanged (bookmarks-my-l
 - ✅ `toPublicRating`: exact key set.
 - ✅ `toPublicPost`: `myScore` from the viewer's own row only; `null` when absent.
 - ❌ `saveBookmark` on a rated post → `409`.
-- ✅ Frontend `lib/ratingText`: comment cleaning and the 280 limit, mirroring the server.
+- ✅ The rating comment reuses `lib/postText` (already tested); the sheet's own tests cover its use.
 
 **Integration (Supertest, scraper mocked)**
 
@@ -243,3 +243,4 @@ My List's loading, empty, error and offline states are unchanged (bookmarks-my-l
 | 2026-10-05 | Score 1–10 enforced by Zod and a hand-written `CHECK`                                          | Defence in depth; the database never holds an impossible score                                |
 | 2026-10-05 | Comment rules = post-comment rules (≤ 280 graphemes, line breaks kept)                         | One set of text rules for short user text                                                     |
 | 2026-10-05 | The notification stub logs ids and score only                                                  | No comment text or names in logs (CLAUDE.md §4)                                               |
+| 2026-10-05 | Stage 2: the rating comment reuses `postText` on both sides; no `ratingText` module            | The rules are identical to a post comment's; a second mirror would only drift                 |

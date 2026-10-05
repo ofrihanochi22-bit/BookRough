@@ -16,6 +16,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     communityMember: { findUnique: vi.fn() },
     post: { findUnique: vi.fn() },
+    rating: { findUnique: vi.fn() },
     bookmark: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
   },
 }));
@@ -59,6 +60,7 @@ function row(postId: string, createdAt: Date, role: 'MEMBER' | 'ADMIN' | null = 
       updatedAt: createdAt,
       author: { id: AUTHOR, displayName: 'Dana', profilePictureUrl: null },
       bookmarks: [{ userId: USER.id }],
+      ratings: [],
       community: {
         id: COMMUNITY,
         name: 'Friday Jazz',

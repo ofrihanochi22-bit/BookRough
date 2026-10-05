@@ -82,6 +82,7 @@ model User {
   settingChanges    SettingChange[]
   posts             Post[]
   bookmarks         Bookmark[]
+  ratings           Rating[]
 
   @@map("users")
 }
@@ -172,6 +173,7 @@ model Post {
   author               User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
   bookmarks            Bookmark[]
+  ratings              Rating[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
@@ -222,4 +224,25 @@ model SettingChange {
 
   @@index([changedAt(sort: Desc)])
   @@map("setting_changes")
+}
+
+/// One member's rating of a post (UC-13, docs/features/rate-post.md §3).
+/// Final once written. `score` is 1–10, enforced by Zod and by the
+/// hand-written CHECK `ratings_score_range` in the add_ratings migration
+/// (Prisma cannot express it, and `prisma migrate diff` does not see it).
+model Rating {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  score     Int      @db.SmallInt
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One rating per user per post; also serves "the ratings of a post".
+  @@unique([postId, userId])
+  /// The rater's own ratings, for `myScore` and the account cascade.
+  @@index([userId])
+  @@map("ratings")
 }

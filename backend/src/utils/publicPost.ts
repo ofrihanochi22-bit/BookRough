@@ -22,23 +22,28 @@ export interface PublicPost {
   createdAt: string;
   /** The viewer saved it to Listen Later. Only ever the viewer's own (bookmarks-my-list.md §4). */
   isBookmarked: boolean;
+  /** The viewer's own score, if they rated it; never anyone else's (rate-post.md §4). */
+  myScore: number | null;
 }
 
 export type PostWithAuthor = Post & {
   author: { id: string; displayName: string | null; profilePictureUrl: string | null };
   /** The viewer's own bookmark, if any — never anyone else's. */
   bookmarks: Array<{ userId: string }>;
+  /** The viewer's own rating, if any — never anyone else's. */
+  ratings: Array<{ userId: string; score: number }>;
 };
 
 /**
  * What Prisma must include for `toPublicPost`: the author's three fields, and
- * the viewer's bookmark only — bookmarks are private, so no other user's row
- * and no count is ever read for a post.
+ * the viewer's own bookmark and rating only — no other user's row and no
+ * count is ever read for a post.
  */
 export function postInclude(viewerId: string) {
   return {
     author: { select: memberUserSelect },
     bookmarks: { where: { userId: viewerId }, select: { userId: true } },
+    ratings: { where: { userId: viewerId }, select: { userId: true, score: true } },
   } as const;
 }
 
@@ -82,5 +87,6 @@ export function toPublicPost(
     conversionPending: post.conversionPending,
     createdAt: post.createdAt.toISOString(),
     isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),
+    myScore: post.ratings.find((rating) => rating.userId === viewerId)?.score ?? null,
   };
 }

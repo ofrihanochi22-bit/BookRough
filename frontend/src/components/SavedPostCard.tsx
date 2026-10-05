@@ -12,14 +12,23 @@ interface SavedPostCardProps {
   viewerService: StreamingService | null;
   online: boolean;
   onRemove: (postId: string) => void;
+  /** Opens the rating sheet; members only (rate-post.md §5.1). */
+  onRate: (saved: SavedPost) => void;
 }
 
 /**
  * One song on My List — docs/features/bookmarks-my-list.md §5.2. Opens in the
  * viewer's own service, like the feed; the community links to its page only
- * while the viewer is still a member.
+ * while the viewer is still a member, and only a member can rate it
+ * (rate-post.md §5.1).
  */
-export function SavedPostCard({ saved, viewerService, online, onRemove }: SavedPostCardProps) {
+export function SavedPostCard({
+  saved,
+  viewerService,
+  online,
+  onRemove,
+  onRate,
+}: SavedPostCardProps) {
   const { post, community } = saved;
   const main = mainLink(post, viewerService);
 
@@ -56,12 +65,24 @@ export function SavedPostCard({ saved, viewerService, online, onRemove }: SavedP
         · Saved <time dateTime={saved.savedAt}>{relativeTime(saved.savedAt)}</time>
       </p>
 
+      {saved.isMember ? (
+        <Button
+          disabled={!online}
+          onClick={() => onRate(saved)}
+          aria-label={`Rate & Review ${post.title ?? 'this song'}`}
+        >
+          Rate &amp; Review
+        </Button>
+      ) : (
+        <p className="text-xs text-muted">You&apos;re no longer in {community.name}</p>
+      )}
+
       <div className="flex flex-wrap gap-3">
         <a
           href={main.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-on-accent"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-6 py-2.5 text-sm font-medium"
         >
           Open in {main.label}
         </a>

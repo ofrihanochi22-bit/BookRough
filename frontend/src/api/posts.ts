@@ -22,6 +22,8 @@ export interface PublicPost {
   createdAt: string;
   /** The viewer saved it to Listen Later (bookmarks-my-list.md §4). */
   isBookmarked: boolean;
+  /** The viewer's own score, if they rated it (rate-post.md §4). */
+  myScore: number | null;
 }
 
 export interface PostsPage {

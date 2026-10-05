@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 
 import { removeBookmark, saveBookmark } from '../api/bookmarks';
 import type { PublicPost } from '../api/posts';
+import { ALREADY_RATED } from '../lib/ratingCopy';
 import {
   NO_LONGER_AVAILABLE,
   REMOVE_FAILED,
@@ -18,7 +19,7 @@ interface BookmarkButtonProps {
   online: boolean;
   /** The server accepted the change. */
   onChanged: (postId: string, isBookmarked: boolean) => void;
-  /** The post is gone for the caller (404): reload the feed. */
+  /** The post is gone for the caller (404) or already rated elsewhere (409): reload the feed. */
   onStale: () => void;
 }
 
@@ -43,8 +44,13 @@ export function BookmarkButton({ post, online, onChanged, onStale }: BookmarkBut
       toast.success(next ? SAVED : REMOVED);
       onChanged(post.id, next);
     } catch (caught) {
-      if (isAxiosError(caught) && caught.response?.status === 404) {
+      const status = isAxiosError(caught) ? caught.response?.status : undefined;
+      if (status === 404) {
         toast.error(NO_LONGER_AVAILABLE);
+        onStale();
+      } else if (status === 409) {
+        // Rated in another tab: the reload brings "You rated n/10" instead.
+        toast.error(ALREADY_RATED);
         onStale();
       } else {
         toast.error(next ? SAVE_FAILED : REMOVE_FAILED);
