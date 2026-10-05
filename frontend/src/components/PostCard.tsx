@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { isAxiosError } from 'axios';
+import toast from 'react-hot-toast';
 
-import { type PublicPost, retryConversion } from '../api/posts';
+import { deletePost, type PublicPost, retryConversion } from '../api/posts';
 import { allLinks, mainLink, relativeTime } from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
 import { streamingServiceLabel } from '../lib/streamingServices';
@@ -18,6 +19,8 @@ interface PostCardProps {
   onUpdated: (post: PublicPost) => void;
   /** The post changed elsewhere (409) or is gone for the caller (404): reload the feed. */
   onStale: () => void;
+  /** Deleted here, or found already deleted: drop it from the feed. */
+  onDeleted: (postId: string) => void;
 }
 
 const linkButton =
@@ -50,13 +53,93 @@ function CoverArt({ url }: { url: string | null }) {
   );
 }
 
+const DELETE_FAILED = 'Could not delete post. Check your connection and try again.';
+
+/** UC-18's confirmation; an admin deleting someone else's post is told the author won't know. */
+function DeletePostSheet({
+  post,
+  onClose,
+  onDeleted,
+  onStale,
+}: {
+  post: PublicPost;
+  onClose: () => void;
+  onDeleted: (postId: string) => void;
+  onStale: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const author = post.author.displayName;
+
+  async function confirm() {
+    setBusy(true);
+    setError(null);
+    try {
+      await deletePost(post.id);
+      toast.success('Post deleted');
+      onDeleted(post.id);
+    } catch (caught) {
+      const response = isAxiosError<{ message?: string }>(caught) ? caught.response : undefined;
+      if (response?.status === 404) {
+        toast.success('This post was already deleted.');
+        onDeleted(post.id);
+        return;
+      }
+      if (response?.status === 403) {
+        // No longer allowed (demoted meanwhile). A toast, not the sheet: the
+        // reload that refreshes the menus unmounts this card and its sheet.
+        toast.error(response.data?.message ?? DELETE_FAILED);
+        onStale();
+        return;
+      }
+      setBusy(false);
+      setError(DELETE_FAILED);
+    }
+  }
+
+  return (
+    <Sheet title="Delete post" onClose={onClose} dismissible={!busy}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm">
+          {post.isMine
+            ? 'Are you sure you want to delete this recommendation? This will also delete all ratings and comments associated with it.'
+            : `Delete ${author}'s recommendation? This will also delete all ratings and comments on it. ${author} won't be notified.`}
+        </p>
+        {error && (
+          <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={busy} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={confirm} busy={busy} className="flex-1">
+            {busy ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 /**
  * One recommendation in the feed — docs/features/posts-feed.md §5.3. The main
  * button opens the viewer's own service; a pending post links to the original
- * and its author can try the conversion again.
+ * and its author can try the conversion again. Its author and the
+ * community's admins can delete it from the ⋯ menu (posts-delete.md §5).
  */
-export function PostCard({ post, viewerService, online, onUpdated, onStale }: PostCardProps) {
+export function PostCard({
+  post,
+  viewerService,
+  online,
+  onUpdated,
+  onStale,
+  onDeleted,
+}: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const main = mainLink(post, viewerService);
@@ -98,7 +181,34 @@ export function PostCard({ post, viewerService, online, onUpdated, onStale }: Po
         <time dateTime={post.createdAt} className="text-xs text-muted">
           {relativeTime(post.createdAt)}
         </time>
+        {post.canDelete && (
+          <button
+            type="button"
+            aria-label="Post options"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+            className="-mr-2 flex size-11 items-center justify-center rounded-full text-muted"
+          >
+            <span aria-hidden="true" className="text-xl leading-none">
+              ⋯
+            </span>
+          </button>
+        )}
       </header>
+      {menuOpen && post.canDelete && (
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            disabled={!online}
+            onClick={() => {
+              setMenuOpen(false);
+              setDeleting(true);
+            }}
+          >
+            Delete post
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <CoverArt url={post.coverArtUrl} />
@@ -148,6 +258,15 @@ export function PostCard({ post, viewerService, online, onUpdated, onStale }: Po
         <p role="status" className="text-xs text-muted">
           {retryMessage}
         </p>
+      )}
+
+      {deleting && (
+        <DeletePostSheet
+          post={post}
+          onClose={() => setDeleting(false)}
+          onDeleted={onDeleted}
+          onStale={onStale}
+        />
       )}
 
       {showingLinks && (

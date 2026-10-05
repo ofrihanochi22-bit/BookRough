@@ -42,7 +42,7 @@ These are the most heavily trafficked screens where the primary value exchange h
   - **Key UI:** * Header with Community Name and settings icon.
     - Input area: URL paste box and optional comment (counter n/280) with Post. While the link converts, the button reads "Finding this track on other services…" and the fields are read-only; an invalid link shows the UC-11 message under the field with the draft kept.
     - Feed of Post Cards, newest first with Load more: the author and time, cover art, title, artist, an "Album" label for albums, the comment, an "Open in {your service}" button (the original link when your service has no match) and "Other services" (a sheet of every link). A post saved during an outage reads "Shared from {service}" with "Other services unavailable", and its author sees "Find on other services". The bookmark icon and average rating arrive in Phase 4 (UC-12, UC-16).
-    - Context menu on own posts to "Delete Post" — arrives with Step 3.5 (UC-18).
+    - A ⋯ "Post options" menu on posts you may delete — your own, or any post if you are an Admin or the Owner — expanding to "Delete post". The confirmation uses UC-18's wording for your own post and "Delete [Author]'s recommendation? … [Author] won't be notified." for someone else's; success toasts "Post deleted" and the card leaves the feed (UC-18, `docs/features/posts-delete.md`).
     - States: post skeletons while loading; "Share the first song" when empty; "Couldn't load posts." with Try again; offline banner "You're offline. Connect to post." with posting disabled while the feed stays readable. Detail: `docs/features/posts-feed.md` §5.
 - **3.2. Create Community Screen (UC-9)**
   - **Purpose:** Setting up a new group.

@@ -4,7 +4,7 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
 import { postInclude, type PublicPost, toPublicPost } from '../utils/publicPost.js';
-import { COMMUNITY_NOT_FOUND, requireMember } from './communityAccess.js';
+import { COMMUNITY_NOT_FOUND, isAdminRole, requireMember } from './communityAccess.js';
 import { type ConversionResult, convertLink } from './linkScraper.service.js';
 import { checkPostComment } from './postText.js';
 import { INVALID_LINK, parseSupportedLink } from './supportedLinks.js';
@@ -14,6 +14,7 @@ const log = createLogger('post.service');
 export const POST_NOT_FOUND = 'Post not found.';
 export const AUTHOR_ONLY = 'Only the author can do this.';
 export const ALREADY_CONVERTED = 'This post already has its links.';
+export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
 export const PAGE_SIZE = 20;
 
 export interface NewPost {
@@ -100,7 +101,8 @@ export async function createPost(
       { userId: user.id, communityId, postId: post.id, conversionPending: post.conversionPending },
       'Post created',
     );
-    return toPublicPost(post, user.id);
+    // The author may always delete their own post.
+    return toPublicPost(post, user.id, false);
   } catch (error) {
     if (isForeignKeyViolation(error)) {
       throw new AppError(COMMUNITY_NOT_FOUND, 404);
@@ -144,7 +146,8 @@ export async function listPosts(
   before?: string,
 ): Promise<{ posts: PublicPost[]; nextCursor: string | null }> {
   const cursor = before === undefined ? null : decodeCursor(before);
-  await requireMember(user, communityId);
+  const role = await requireMember(user, communityId);
+  const moderates = isAdminRole(role);
 
   const rows = await prisma.post.findMany({
     where: {
@@ -164,7 +167,7 @@ export async function listPosts(
   const page = rows.slice(0, PAGE_SIZE);
   const last = page.at(-1);
   return {
-    posts: page.map((post) => toPublicPost(post, user.id)),
+    posts: page.map((post) => toPublicPost(post, user.id, moderates)),
     nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor(last) : null,
   };
 }
@@ -215,5 +218,38 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
     },
     'Post conversion retried',
   );
-  return toPublicPost(current, user.id);
+  return toPublicPost(current, user.id, false);
+}
+
+/**
+ * DELETE /posts/:postId — UC-18. The author, or an admin or the owner of the
+ * post's community, whoever wrote it (docs/features/posts-delete.md §4). A
+ * post in a community the caller is not in is a 404, like the community.
+ */
+export async function deletePost(user: User, postId: string): Promise<void> {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { authorId: true, communityId: true },
+  });
+  if (!post) {
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  const membership = await prisma.communityMember.findUnique({
+    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
+    select: { role: true },
+  });
+  if (!membership) {
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  const byAuthor = post.authorId === user.id;
+  if (!byAuthor && !isAdminRole(membership.role)) {
+    throw new AppError(AUTHOR_OR_ADMIN, 403);
+  }
+
+  // By id only: matching nothing means someone (or a removal) deleted it first.
+  const { count } = await prisma.post.deleteMany({ where: { id: postId } });
+  if (count === 0) {
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  log.info({ userId: user.id, communityId: post.communityId, postId, byAuthor }, 'Post deleted');
 }

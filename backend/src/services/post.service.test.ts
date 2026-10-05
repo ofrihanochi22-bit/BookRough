@@ -5,8 +5,10 @@ import { AppError } from '../utils/AppError.js';
 import {
   ALREADY_CONVERTED,
   AUTHOR_ONLY,
+  AUTHOR_OR_ADMIN,
   createPost,
   decodeCursor,
+  deletePost,
   encodeCursor,
   POST_NOT_FOUND,
   retryConversion,
@@ -22,7 +24,7 @@ import { INVALID_LINK } from './supportedLinks.js';
 const { db, convertLink } = vi.hoisted(() => ({
   db: {
     communityMember: { findUnique: vi.fn() },
-    post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   },
@@ -170,5 +172,56 @@ describe('cursors', () => {
   ])('rejects %s (%s) with 422', (raw) => {
     // Act & Assert
     expect(() => decodeCursor(raw)).toThrow(AppError);
+  });
+});
+
+describe('deletePost', () => {
+  const someoneElses = { authorId: 'someone-else', communityId: COMMUNITY };
+
+  it.each([
+    ['the author, as a plain member', { authorId: USER.id, communityId: COMMUNITY }, 'MEMBER'],
+    ["an admin, on someone else's post", someoneElses, 'ADMIN'],
+    ["the owner, on someone else's post", someoneElses, 'OWNER'],
+  ])('lets %s delete', async (_who, post, role) => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue(post);
+    db.communityMember.findUnique.mockResolvedValue({ role });
+    db.post.deleteMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    await deletePost(USER, POST_ID);
+
+    // Assert
+    expect(db.post.deleteMany).toHaveBeenCalledWith({ where: { id: POST_ID } });
+  });
+
+  it("refuses a plain member on someone else's post, without deleting", async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue(someoneElses);
+
+    // Act & Assert
+    await expectAppError(deletePost(USER, POST_ID), 403, AUTHOR_OR_ADMIN);
+    expect(db.post.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 for an unknown post and for a caller outside its community', async () => {
+    // Arrange, Act & Assert — unknown
+    db.post.findUnique.mockResolvedValue(null);
+    await expectAppError(deletePost(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Arrange, Act & Assert — not a member
+    db.post.findUnique.mockResolvedValue(someoneElses);
+    db.communityMember.findUnique.mockResolvedValue(null);
+    await expectAppError(deletePost(USER, POST_ID), 404, POST_NOT_FOUND);
+    expect(db.post.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 when someone else deleted it between the check and the delete', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue({ authorId: USER.id, communityId: COMMUNITY });
+    db.post.deleteMany.mockResolvedValue({ count: 0 });
+
+    // Act & Assert
+    await expectAppError(deletePost(USER, POST_ID), 404, POST_NOT_FOUND);
   });
 });

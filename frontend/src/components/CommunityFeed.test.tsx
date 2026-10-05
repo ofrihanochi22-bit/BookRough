@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,12 +15,13 @@ import {
 } from '../test/fixtures';
 import { CommunityFeed } from './CommunityFeed';
 
-const { listPosts, createPost, retryConversion } = vi.hoisted(() => ({
+const { listPosts, createPost, retryConversion, deletePost } = vi.hoisted(() => ({
   listPosts: vi.fn(),
   createPost: vi.fn(),
   retryConversion: vi.fn(),
+  deletePost: vi.fn(),
 }));
-vi.mock('../api/posts', () => ({ listPosts, createPost, retryConversion }));
+vi.mock('../api/posts', () => ({ listPosts, createPost, retryConversion, deletePost }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
 const TRACK = 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv';
@@ -208,5 +209,39 @@ describe('CommunityFeed', () => {
     expect(await screen.findByText('Song 1')).toBeInTheDocument();
     expect(screen.getByText("You're offline. Connect to post.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled();
+  });
+
+  it('removes a deleted post from a Load more page and from your own new posts', async () => {
+    // Arrange
+    const deletable = (n: number) =>
+      makePost({ id: `post-${n}`, title: `Song ${n}`, canDelete: true });
+    listPosts
+      .mockResolvedValueOnce({ posts: [deletable(1)], nextCursor: 'c1' })
+      .mockResolvedValueOnce({ posts: [deletable(2)], nextCursor: null });
+    createPost.mockResolvedValue(
+      makePost({ id: 'new', title: 'New song', isMine: true, canDelete: true }),
+    );
+    deletePost.mockResolvedValue(undefined);
+    renderFeed();
+    await userEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+    await userEvent.type(screen.getByLabelText('Share a song or album'), TRACK);
+    await userEvent.click(screen.getByRole('button', { name: 'Post' }));
+    await vi.waitFor(() => expect(titles()).toEqual(['New song', 'Song 1', 'Song 2']));
+
+    // Act: delete Song 2 (loaded by Load more), then the new post.
+    for (const title of ['Song 2', 'New song']) {
+      const card = screen.getByText(title).closest('article')!;
+      await userEvent.click(within(card).getByRole('button', { name: 'Post options' }));
+      await userEvent.click(within(card).getByRole('button', { name: 'Delete post' }));
+      await userEvent.click(
+        within(screen.getByRole('dialog', { name: 'Delete post' })).getByRole('button', {
+          name: 'Delete',
+        }),
+      );
+      await vi.waitFor(() => expect(screen.queryByText(title)).not.toBeInTheDocument());
+    }
+
+    // Assert
+    expect(titles()).toEqual(['Song 1']);
   });
 });

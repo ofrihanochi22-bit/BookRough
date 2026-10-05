@@ -470,3 +470,155 @@ describe('posts and membership', () => {
     expect(await prisma.post.count()).toBe(0);
   });
 });
+
+describe('DELETE /api/posts/:postId', () => {
+  /** Adds Ada as an admin of the community. */
+  async function withAdmin(setup: Awaited<ReturnType<typeof community>>) {
+    const ada = await person('sub-ada', 'Ada');
+    const invite = await request(app)
+      .get(`/api/communities/${setup.id}/invite`)
+      .set('Cookie', setup.dana.cookie);
+    await request(app)
+      .post(`/api/invites/${invite.body.data.invite.token as string}/accept`)
+      .set('Cookie', ada.cookie);
+    await request(app)
+      .patch(`/api/communities/${setup.id}/members/${ada.id}`)
+      .set('Cookie', setup.dana.cookie)
+      .send({ role: 'ADMIN' });
+    return ada;
+  }
+
+  async function postBy(id: string, who: Person) {
+    const created = await post(id, who);
+    return created.body.data.post.id as string;
+  }
+
+  const remove = (postId: string, who?: Person) => {
+    const call = request(app).delete(`/api/posts/${postId}`);
+    return who ? call.set('Cookie', who.cookie) : call;
+  };
+
+  it('200: the author deletes their own post, and it is gone', async () => {
+    // Arrange
+    const { id, yoni } = await community();
+    const postId = await postBy(id, yoni);
+
+    // Act
+    const response = await remove(postId, yoni);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: 'success', data: null });
+    expect(await prisma.post.count()).toBe(0);
+  });
+
+  it("200: an admin deletes a member's post, and the owner an admin's post", async () => {
+    // Arrange
+    const setup = await community();
+    const ada = await withAdmin(setup);
+    const yonis = await postBy(setup.id, setup.yoni);
+    const adas = await postBy(setup.id, ada);
+
+    // Act
+    const byAdmin = await remove(yonis, ada);
+    const byOwner = await remove(adas, setup.dana);
+
+    // Assert
+    expect(byAdmin.status).toBe(200);
+    expect(byOwner.status).toBe(200);
+    expect(await prisma.post.count()).toBe(0);
+  });
+
+  it("200: an admin deletes the owner's post and an ex-member's post", async () => {
+    // Arrange
+    const setup = await community();
+    const ada = await withAdmin(setup);
+    const danas = await postBy(setup.id, setup.dana);
+    const yonis = await postBy(setup.id, setup.yoni);
+    await request(app)
+      .delete(`/api/communities/${setup.id}/members/me`)
+      .set('Cookie', setup.yoni.cookie);
+
+    // Act
+    const owners = await remove(danas, ada);
+    const exMembers = await remove(yonis, ada);
+
+    // Assert
+    expect(owners.status).toBe(200);
+    expect(exMembers.status).toBe(200);
+    expect(await prisma.post.count()).toBe(0);
+  });
+
+  it("403: a plain member on someone else's post", async () => {
+    // Arrange
+    const { id, dana, yoni } = await community();
+    const postId = await postBy(id, dana);
+
+    // Act
+    const response = await remove(postId, yoni);
+
+    // Assert
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe('Only the author or an admin can delete this post.');
+    expect(await prisma.post.count()).toBe(1);
+  });
+
+  it('404 for a stranger, unknown and malformed ids, and an already deleted post; 401 signed out', async () => {
+    // Arrange
+    const { id, dana, zed } = await community();
+    const postId = await postBy(id, dana);
+
+    // Act
+    const stranger = await remove(postId, zed);
+    const unknown = await remove(UNKNOWN_UUID, dana);
+    const malformed = await remove('nope', dana);
+    const signedOut = await remove(postId);
+    await remove(postId, dana);
+    const again = await remove(postId, dana);
+
+    // Assert
+    for (const response of [stranger, unknown, malformed, again]) {
+      expect(response.status).toBe(404);
+      expect(response.body.message).toBe('Post not found.');
+    }
+    expect(signedOut.status).toBe(401);
+  });
+
+  it('GET /posts sends canDelete per viewer', async () => {
+    // Arrange
+    const { id, dana, yoni } = await community();
+    await postBy(id, dana);
+    await postBy(id, yoni);
+
+    // Act
+    const asOwner = await request(app).get(posts(id)).set('Cookie', dana.cookie);
+    const asMember = await request(app).get(posts(id)).set('Cookie', yoni.cookie);
+
+    // Assert
+    const flags = (response: typeof asOwner) =>
+      response.body.data.posts.map(
+        (item: { author: { displayName: string }; canDelete: boolean }) =>
+          `${item.author.displayName}:${item.canDelete}`,
+      );
+    expect(flags(asOwner)).toEqual(['Yoni:true', 'Dana:true']);
+    expect(flags(asMember)).toEqual(['Yoni:true', 'Dana:false']);
+  });
+
+  it('after a delete the feed no longer lists it and its retry is a 404', async () => {
+    // Arrange
+    const { id, dana } = await community();
+    convertLink.mockResolvedValueOnce(UNAVAILABLE);
+    const postId = await postBy(id, dana);
+
+    // Act
+    await remove(postId, dana);
+    const feed = await request(app).get(posts(id)).set('Cookie', dana.cookie);
+    const retried = await request(app)
+      .post(`/api/posts/${postId}/conversion`)
+      .set('Cookie', dana.cookie);
+
+    // Assert
+    expect(feed.body.data.posts).toEqual([]);
+    expect(retried.status).toBe(404);
+  });
+});

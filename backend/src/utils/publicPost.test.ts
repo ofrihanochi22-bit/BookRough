@@ -31,13 +31,14 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
 describe('toPublicPost', () => {
   it('sends exactly the public keys, and only the author fields of a member list', () => {
     // Act
-    const view = toPublicPost(post(), 'viewer-1');
+    const view = toPublicPost(post(), 'viewer-1', false);
 
     // Assert
     expect(Object.keys(view).sort()).toEqual(
       [
         'artist',
         'author',
+        'canDelete',
         'comment',
         'conversionPending',
         'coverArtUrl',
@@ -57,7 +58,7 @@ describe('toPublicPost', () => {
 
   it('lists only the services a link was found for', () => {
     // Act
-    const { links } = toPublicPost(post(), 'viewer-1');
+    const { links } = toPublicPost(post(), 'viewer-1', false);
 
     // Assert
     expect(links).toEqual({
@@ -69,8 +70,8 @@ describe('toPublicPost', () => {
 
   it('marks the post as mine only for its author', () => {
     // Act & Assert
-    expect(toPublicPost(post(), 'author-1').isMine).toBe(true);
-    expect(toPublicPost(post(), 'viewer-1').isMine).toBe(false);
+    expect(toPublicPost(post(), 'author-1', false).isMine).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', false).isMine).toBe(false);
   });
 
   it('sends a pending post with no metadata and no links', () => {
@@ -87,9 +88,17 @@ describe('toPublicPost', () => {
         universalLinkDeezer: null,
       }),
       'viewer-1',
+      false,
     );
 
     // Assert
     expect(view).toMatchObject({ conversionPending: true, kind: null, title: null, links: {} });
+  });
+
+  it('lets the author and a moderating viewer delete, and nobody else', () => {
+    // Act & Assert
+    expect(toPublicPost(post(), 'author-1', false).canDelete).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', true).canDelete).toBe(true);
+    expect(toPublicPost(post(), 'viewer-1', false).canDelete).toBe(false);
   });
 });

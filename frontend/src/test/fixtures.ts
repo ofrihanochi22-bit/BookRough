@@ -45,6 +45,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
       profilePictureUrl: null,
     },
     isMine: false,
+    canDelete: false,
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
     kind: 'TRACK',
