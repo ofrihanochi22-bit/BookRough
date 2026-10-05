@@ -27,6 +27,7 @@ function bookmark(members: BookmarkWithPost['post']['community']['members']): Bo
       updatedAt: at,
       author: { id: 'author-1', displayName: 'Dana', profilePictureUrl: null },
       bookmarks: [{ userId: 'viewer-1' }],
+      ratings: [],
       community: { id: 'community-1', name: 'Friday Jazz', members },
     },
   };

@@ -7,6 +7,7 @@ import {
   type SavedPost,
   type SavedPostsPage,
 } from '../api/bookmarks';
+import { RatingSheet } from '../components/RatingSheet';
 import { SavedPostCard } from '../components/SavedPostCard';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
@@ -33,6 +34,7 @@ function fresh(page: SavedPostsPage): LocalChanges {
 /**
  * My List, the Listen Later queue — docs/features/bookmarks-my-list.md §5.2.
  * Newest saved first; songs from communities the viewer has left stay here.
+ * Rate & Review opens the rating sheet (rate-post.md §5).
  */
 export function MyList() {
   const first = useRequest(listBookmarks);
@@ -41,6 +43,7 @@ export function MyList() {
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
+  const [rating, setRating] = useState<SavedPost | null>(null);
 
   // Local changes belong to the page they were made on; a reload starts over.
   const changes =
@@ -72,6 +75,14 @@ export function MyList() {
     } catch {
       update(page, (current) => ({ removed: current.removed.filter((id) => id !== postId) }));
       toast.error(REMOVE_FAILED);
+    }
+  }
+
+  /** Rated, already rated, or deleted: the song leaves the list (rate-post.md §5.2). */
+  function rated(postId: string) {
+    setRating(null);
+    if (changes) {
+      update(changes.page, (current) => ({ removed: [...current.removed, postId] }));
     }
   }
 
@@ -134,6 +145,7 @@ export function MyList() {
             viewerService={viewerService}
             online={online}
             onRemove={remove}
+            onRate={setRating}
           />
         ))}
 
@@ -150,6 +162,15 @@ export function MyList() {
           </div>
         )}
       </div>
+
+      {rating && (
+        <RatingSheet
+          post={rating.post}
+          online={online}
+          onClose={() => setRating(null)}
+          onDone={rated}
+        />
+      )}
     </ScreenLayout>
   );
 }

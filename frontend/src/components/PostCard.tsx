@@ -105,7 +105,8 @@ function DeletePostSheet({
  * button opens the viewer's own service; a pending post links to the original
  * and its author can try the conversion again. Its author and the
  * community's admins can delete it from the ⋯ menu (posts-delete.md §5).
- * Anyone else can save it to Listen Later (bookmarks-my-list.md §5.1).
+ * Anyone else can save it to Listen Later (bookmarks-my-list.md §5.1) until
+ * they rate it; then it shows their score (rate-post.md §5.3).
  */
 export function PostCard({
   post,
@@ -160,13 +161,17 @@ export function PostCard({
         <time dateTime={post.createdAt} className="text-xs text-muted">
           {relativeTime(post.createdAt)}
         </time>
-        {!post.isMine && (
-          <BookmarkButton
-            post={post}
-            online={online}
-            onChanged={onBookmarkChanged}
-            onStale={onStale}
-          />
+        {post.myScore !== null ? (
+          <p className="text-xs text-muted">You rated {post.myScore}/10</p>
+        ) : (
+          !post.isMine && (
+            <BookmarkButton
+              post={post}
+              online={online}
+              onChanged={onBookmarkChanged}
+              onStale={onStale}
+            />
+          )
         )}
         {post.canDelete && (
           <button

@@ -427,6 +427,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'isMine',
         'kind',
         'links',
+        'myScore',
         'originalUrl',
         'sourceService',
         'title',

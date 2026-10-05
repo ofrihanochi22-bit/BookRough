@@ -11,6 +11,7 @@ import { decodeCursor, encodeCursor, PAGE_SIZE, POST_NOT_FOUND } from './post.se
 const log = createLogger('bookmark.service');
 
 export const OWN_POST = "You can't save your own post.";
+export const ALREADY_RATED = 'You already rated this post.';
 
 /**
  * PUT /posts/:postId/bookmark — UC-12. A member saves someone else's post.
@@ -34,6 +35,14 @@ export async function saveBookmark(user: User, postId: string): Promise<void> {
   }
   if (post.authorId === user.id) {
     throw new AppError(OWN_POST, 403);
+  }
+  // Nothing would be left to do with it on My List (rate-post.md §4).
+  const rated = await prisma.rating.findUnique({
+    where: { postId_userId: { postId, userId: user.id } },
+    select: { id: true },
+  });
+  if (rated) {
+    throw new AppError(ALREADY_RATED, 409);
   }
 
   try {

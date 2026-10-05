@@ -25,6 +25,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     updatedAt: new Date('2026-10-04T10:00:00.000Z'),
     author: { id: 'author-1', displayName: 'Dana', profilePictureUrl: null },
     bookmarks: [],
+    ratings: [],
     ...overrides,
   };
 }
@@ -47,6 +48,7 @@ describe('toPublicPost', () => {
         'id',
         'isBookmarked',
         'isMine',
+        'myScore',
         'kind',
         'links',
         'originalUrl',
@@ -113,5 +115,16 @@ describe('toPublicPost', () => {
     expect(toPublicPost(saved, 'viewer-1', false).isBookmarked).toBe(true);
     expect(toPublicPost(someoneElses, 'viewer-1', false).isBookmarked).toBe(false);
     expect(toPublicPost(post(), 'viewer-1', false).isBookmarked).toBe(false);
+  });
+
+  it("shows the viewer's own score only, and null when they have not rated", () => {
+    // Arrange: the query reads the viewer's row only; a stray row must not count.
+    const rated = { ...post(), ratings: [{ userId: 'viewer-1', score: 8 }] };
+    const someoneElses = { ...post(), ratings: [{ userId: 'viewer-2', score: 3 }] };
+
+    // Act & Assert
+    expect(toPublicPost(rated, 'viewer-1', false).myScore).toBe(8);
+    expect(toPublicPost(someoneElses, 'viewer-1', false).myScore).toBeNull();
+    expect(toPublicPost(post(), 'viewer-1', false).myScore).toBeNull();
   });
 });

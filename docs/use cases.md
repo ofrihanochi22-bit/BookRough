@@ -176,7 +176,7 @@
 
 - **Description:** A user saves a music recommendation posted by a friend or community member to their personal "Listen Later" list for future listening.
 - **Pre-conditions:** The user is logged in, viewing a Community feed, and sees a song recommendation post that they have not already bookmarked, written by someone else: a user cannot bookmark their own post.
-- **Post-conditions:** The specific Post ID is added to the user's bookmarks list in the database. The user interface updates to reflect that the song is saved. The bookmark is private: nobody else can see who saved a post. It stays in the user's list if they later leave the Community or are removed from it.
+- **Post-conditions:** The specific Post ID is added to the user's bookmarks list in the database. The user interface updates to reflect that the song is saved. The bookmark is private: nobody else can see who saved a post. It stays in the user's list if they later leave the Community or are removed from it. Once the user has rated a post, it can no longer be bookmarked (UC-13).
 - **Trigger:** The user taps the "Bookmark" or "Save for Later" icon located on a specific music recommendation post.
 - **Step-by-step scenario (Success):**
   - The user browses the feed of one of their Communities.
@@ -189,8 +189,8 @@
 ### UC-13: User Processes a Bookmarked Recommendation (Rate & Feedback)
 
 - **Description:** A user accesses their "My List" screen, listens to a saved song, submits a rating with optional text feedback, and the system notifies the friend who recommended it.
-- **Pre-conditions:** The user is logged in and has at least one unrated, saved song residing in their "My List" screen.
-- **Post-conditions:** A Rating object (containing the score and optional comment) is appended to the original Post. The song is removed from the user's active "Listen Later" queue. A notification is dispatched to the author of the original post.
+- **Pre-conditions:** The user is logged in and has at least one unrated, saved song residing in their "My List" screen, and is still a member of that song's Community. A song from a Community the user has left or been removed from shows "You're no longer in {Community}" instead of the rate button.
+- **Post-conditions:** A Rating object (containing the score and optional comment) is appended to the original Post. The song is removed from the user's active "Listen Later" queue. A notification is dispatched to the author of the original post (for now a logged stub; a real channel arrives later, `docs/features/rate-post.md` §4.2). The rating is final, and the feed shows the rater "You rated n/10" on the post.
 - **Trigger:** The user taps the "Rate" or "Mark as Listened" button on a song within their "My List" screen.
 - **Step-by-step scenario (Success):**
   - The user navigates to the dedicated "My List" view to see their bookmarked songs.
@@ -201,7 +201,7 @@
   - The user submits the rating.
   - The backend creates a new Rating object associated with the Post and removes the item from the user's "My List".
   - The backend triggers a notification to the user who originally posted the recommendation (e.g., "[User] rated your recommendation 8 stars!").
-- **Fail description (Alternative Scenario - Post Deleted):** The user attempts to rate a song from their "My List," but the original recommendation post was deleted by its author or a Community Admin while it was sitting in the user's queue. When the user submits the rating, the backend returns a "Post not found" error. The app removes the "ghost" bookmark from the UI and informs the user: "This recommendation is no longer available as the original post was deleted."
+- **Fail description (Alternative Scenario - Post Deleted):** The user attempts to rate a song from their "My List," but the original recommendation post was deleted by its author or a Community Admin while it was sitting in the user's queue. When the user submits the rating, the backend returns a "Post not found" error. The app removes the "ghost" bookmark from the UI and informs the user: "This recommendation is no longer available as the original post was deleted." A second rating of the same post (from another tab) is refused with "You already rated this post." and the song leaves the list; a user can never rate their own post.
 
 ### UC-14: Admin Removes a User from a Community
 

@@ -1205,13 +1205,67 @@ npm test --prefix e2e                                     # 31 runs (+3 skipped)
 
 ### Step 4.2 — Rate a post (Phase 4 — UC-13)
 
-Status: ☐ Not started
-Branch: feat/<decided in its spec session>
+Status: ✅ Done
+Branch: feat/rate-post
+Spec: docs/features/rate-post.md
 
-Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4. Specified in its own session after Step 4.1 merges.
+Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, the feed shows them "You rated n/10", and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4.
+
+Tasks:
+
+- [x] Spec: docs/features/rate-post.md written and approved (My List only, current members only, a rating is final, a rated post can't be saved).
+- [x] DB: migration `add_ratings` — `ratings`, unique per user and post, with a hand-written score `CHECK`.
+- [x] Backend: `POST /api/posts/:postId/ratings` (removes the bookmark in the same transaction), the notification stub, `PublicPost.myScore`, `409` on saving a rated post.
+- [x] Frontend: Rate & Review on My List, the rating sheet, "You rated n/10" on feed cards.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built rating a saved song (UC-13, with former Step 4.3's notification stub) per `docs/features/rate-post.md`.
+
+- **DB:** migration `add_ratings` — `ratings` (`score` SMALLINT, optional `comment`, `created_at`), unique on `(post_id, user_id)`, indexed on `user_id`, cascading from the post and the rater. A hand-written `CHECK` `ratings_score_range` keeps the score between 1 and 10 (recorded in CLAUDE.md §6, since Prisma cannot see it).
+- **Backend:**
+  - `services/rating.service.ts`: a current member rates someone else's post (`404` for a non-member, `403` for your own post, `422` for a bad score or comment, `409` for a second rating). The rating and the deletion of the rater's bookmark happen in one transaction.
+  - `services/ratingNotification.ts`: the stub logs `{ authorId, raterId, postId, score }` only; a failure inside it is logged and never fails the rating.
+  - `controllers/rating.controller.ts`, `utils/publicRating.ts`, a route on `routes/posts.ts`.
+  - `PublicPost.myScore` reads the viewer's own rating only. Saving a post you rated is `409`.
+- **Frontend:**
+  - `components/RatingSheet.tsx`: ten scores, an optional comment with the post-comment rules and counter, "Submitting…". A deleted post leaves My List with UC-13's message, a second rating with "You already rated this post."; validation and network errors stay inline with the draft kept.
+  - `SavedPostCard`: **Rate & Review**, or "You're no longer in {community}" for a community you left.
+  - `PostCard`: "You rated n/10" in place of the bookmark; a save answered `409` toasts and reloads the feed.
+  - `api/ratings.ts`, `lib/ratingCopy.ts`.
+- **Decisions (Stage 1):** rate from My List only; current members only. Mine: a rating is final in this PR; a rated post can't be saved; the API doesn't require a bookmark.
+- **Found along the way:** the rating comment reuses `postText` on both sides rather than a new mirror (the rules are identical).
+- **Docs:** `tables` (ratings), `use cases` (UC-13; UC-12's rated case), `frontend screens` (3.1, 4.1, 4.2) (.md + .docx); CLAUDE.md §6 (the `CHECK`); `bookmarks-my-list.md` (Merged ticked, the rated case noted).
+- **Tests:** backend 670 (98.5% lines over both suites), frontend 464 (98.8%), E2E 33 + 3 skipped (new: a friend rates a saved song from My List and the feed shows their score — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts: A owns a community and has shared a link, B is a member (see Steps 2.2 and 3.1). Open `http://localhost:5173/` at 375px width.
+
+1. As B, save A's post (the bookmark icon), then open **My List** → the card has **Rate & Review**.
+2. Tap it → the sheet with the song, scores 1–10 and a comment. **Submit Rating** is disabled until you pick a score.
+3. Pick 8, type a comment, **Submit Rating** → "Rating submitted", and the song leaves My List.
+4. Back in the community → the post shows "You rated 8/10" and no bookmark icon. The backend log has one "Rating notification (stub)" line with the ids and the score.
+5. As B, save another of A's posts; as A, delete that post; as B, on My List, rate it → "This recommendation is no longer available as the original post was deleted." and the row leaves.
+6. As B, save a third post, then leave the community → My List shows "You're no longer in {community}" instead of **Rate & Review**.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/rating.service.test.ts src/services/ratingNotification.test.ts src/utils/publicRating.test.ts
+cd backend && npm run test:integration -- ratings
+cd frontend && npm run test:unit                          # RatingSheet, MyList, PostCard, api/ratings
+npm test --prefix e2e                                     # 33 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 
