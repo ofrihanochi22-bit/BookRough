@@ -1134,94 +1134,63 @@ Every feature ships its own E2E (CLAUDE.md §15). The live-site test gated on `R
 
 ## Phase 4 — Engagement & Feedback (UC-12, UC-13, UC-16)
 
-### Step 4.1 — Ratings + bookmarks schema (Phase 4)
+> **Re-sliced 2026-10-05.** The original Steps 4.1–4.5 split Phase 4 by layer (schema, routes, notification stub, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/bookmarks-my-list.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-ratings-bookmarks-schema
+### Step 4.1 — Bookmarks and My List (Phase 4 — UC-12, UC-13's list)
 
-Goal: Migration adds `ratings` (unique on `(post_id, user_id)`) and `bookmarks` (composite PK) tables.
+Status: 🟡 In progress — spec written, awaiting approval
+Branch: feat/bookmarks-my-list
+Spec: docs/features/bookmarks-my-list.md
+
+Goal: A member saves a friend's post from the feed with the bookmark icon, and finds it on the My List tab, which opens it in their own service and lets them remove it. Bookmarks are private and outlive leaving or removal. Absorbs the bookmark halves of former 4.1, 4.2 and 4.4.
 
 Tasks:
 
-- [ ] DB: Add `Rating` and `Bookmark` models per `tables.docx`.
-- [ ] DB: Migration `add_ratings_bookmarks`.
+- [x] Spec: docs/features/bookmarks-my-list.md written (re-slice of Phase 4, bookmarks survive leaving and removal, not on your own posts, private).
+- [ ] DB: migration `add_bookmarks` — `bookmarks` with a composite key and a My List index; cascades from the post and the user.
+- [ ] Backend: `PUT` / `DELETE /api/posts/:postId/bookmark`, `GET /api/users/me/bookmarks`; `PublicPost.isBookmarked`.
+- [ ] Frontend: the bookmark icon on `PostCard` (optimistic, with rollback), the My List screen replacing Coming soon.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 4.2 — Bookmark + rating routes (Phase 4 — UC-12, UC-13)
+### Step 4.2 — Rate a post (Phase 4 — UC-13)
 
 Status: ☐ Not started
-Branch: feat/ratings-bookmarks-api
+Branch: feat/<decided in its spec session>
 
-Goal: Users can bookmark/unbookmark posts and submit a 1–10 rating with optional comment.
-
-Tasks:
-
-- [ ] Backend: `POST /api/posts/:id/bookmark` + `DELETE /api/posts/:id/bookmark`.
-- [ ] Backend: `POST /api/posts/:id/ratings` (unique-per-user enforced; on submit, remove from bookmarks if present).
-- [ ] Backend: `GET /api/posts/:id/ratings` returns reviews + average for UC-16.
-- [ ] Backend: `GET /api/users/me/bookmarks` for the My List screen.
-- [ ] Tests: Integration tests for unique-rating constraint and bookmark removal on rate.
+Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4. Specified in its own session after Step 4.1 merges.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 4.3 — Notification stub on rating (Phase 4 — UC-13)
+### Step 4.3 — _(merged into Step 4.2)_ Notification stub on rating
+
+A log line has no screen of its own; it ships with rating — see Step 4.2.
+
+---
+
+### Step 4.4 — Post Detail and feedback (Phase 4 — UC-16)
 
 Status: ☐ Not started
-Branch: feat/rating-notification-stub
+Branch: feat/<decided in its spec session>
 
-Goal: When a rating is submitted, a stub notification is emitted to the post author (logged via Pino now, real channel later).
-
-Tasks:
-
-- [ ] Backend: Service-layer hook after rating insert that logs `INFO` with `{ authorId, raterId, score }`.
-- [ ] Backend: Note in the code where the real notification channel will plug in (no implementation).
+Goal: The average rating on post cards, and a Post Detail screen listing every review. Absorbs the ratings list of former 4.2 and the Post Detail of 4.4. Specified in its own session after Step 4.2 merges.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 4.4 — Engagement UI (Phase 4 — UC-12, UC-13, UC-16)
+### Step 4.5 — _(dissolved)_ Phase 4 test coverage
 
-Status: ☐ Not started
-Branch: feat/engagement-ui
-
-Goal: Bookmark icon, My List screen, Submit Rating modal, and Post Detail / Feedback screen are all live.
-
-Tasks:
-
-- [ ] Frontend: Activate the bookmark icon on `PostCard` (filled / outline state, optimistic update with rollback on error per UC-12 fail path).
-- [ ] Frontend: `pages/MyList.tsx` listing bookmarked posts with a "Rate & Review" CTA.
-- [ ] Frontend: `components/RatingModal.tsx` with 1–10 star control + optional comment.
-- [ ] Frontend: `pages/PostDetail.tsx` with average rating prominently and a list of individual reviews.
-- [ ] Frontend: Stale bookmark handling (UC-13 fail path: post deleted → drop the ghost row + toast).
-
-What I did:
-How to view & test:
-
----
-
-### Step 4.5 — Phase 4 test coverage (Phase 4)
-
-Status: ☐ Not started
-Branch: test/engagement
-
-Goal: Routes have integration tests, star control has RTL coverage.
-
-Tasks:
-
-- [ ] Tests: RTL on the star control: clicking 7 reports score 7.
-- [ ] Tests: Integration: full rate-then-fetch-feedback loop returns the new average.
-
-What I did:
-How to view & test:
+Every feature ships its own tests (CLAUDE.md §15).
 
 ---
 
