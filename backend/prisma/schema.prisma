@@ -41,6 +41,12 @@ enum CommunityRole {
   MEMBER
 }
 
+/// Whether a post links to one song or a whole album (docs/features/posts-feed.md §3).
+enum PostKind {
+  TRACK
+  ALBUM
+}
+
 /// docs/features/google-auth.md §3.
 ///
 /// There is deliberately no email, no password hash, and no real name: Google's
@@ -74,6 +80,7 @@ model User {
   bans              CommunityBan[]    @relation("BannedUser")
   bansIssued        CommunityBan[]    @relation("BannedBy")
   settingChanges    SettingChange[]
+  posts             Post[]
 
   @@map("users")
 }
@@ -96,6 +103,7 @@ model Community {
   updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   members     CommunityMember[]
   bans        CommunityBan[]
+  posts       Post[]
 
   @@map("communities")
 }
@@ -130,6 +138,44 @@ model CommunityBan {
 
   @@id([communityId, userId])
   @@map("community_bans")
+}
+
+/// A music recommendation (UC-11, docs/features/posts-feed.md §3).
+///
+/// Metadata and links come from the link converter; all of them are null while
+/// `conversionPending` is true. Every viewer is sent to their own service's
+/// link, falling back to `originalUrl`.
+model Post {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authorId             String           @map("author_id") @db.Uuid
+  communityId          String           @map("community_id") @db.Uuid
+  /// Exactly as pasted (trimmed). Always present — the fallback link.
+  originalUrl          String           @map("original_url") @db.VarChar(2048)
+  /// The service the original link belongs to, derived from its host.
+  sourceService        StreamingService @map("source_service")
+  kind                 PostKind?
+  songTitle            String?          @map("song_title") @db.VarChar(300)
+  songArtist           String?          @map("song_artist") @db.VarChar(300)
+  songCoverArtUrl      String?          @map("song_cover_art_url") @db.VarChar(2048)
+  universalLinkSpotify String?          @map("universal_link_spotify") @db.VarChar(2048)
+  universalLinkApple   String?          @map("universal_link_apple") @db.VarChar(2048)
+  /// squigly's YouTube Music link.
+  universalLinkYoutube String?          @map("universal_link_youtube") @db.VarChar(2048)
+  universalLinkTidal   String?          @map("universal_link_tidal") @db.VarChar(2048)
+  universalLinkDeezer  String?          @map("universal_link_deezer") @db.VarChar(2048)
+  textComment          String?          @map("text_comment")
+  /// The conversion could not run (squigly down, timeout, unreadable page).
+  conversionPending    Boolean          @default(false) @map("conversion_pending")
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  author               User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  /// The feed: newest first in one community, keyset-paginated.
+  @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
+  /// Removing a member deletes their posts in that community.
+  @@index([authorId, communityId])
+  @@map("posts")
 }
 
 /// One row per setting that has ever been changed; a missing row means the

@@ -173,7 +173,7 @@ Top to bottom, sections shown according to the caller's role:
 
 All use the `Sheet` primitive from feature 2.
 
-- **Remove:** "Are you sure you want to remove {name} from this community?" (UC-14) + "They won't be able to rejoin until an admin unblocks them." → **Remove** / **Cancel**. Afterwards the row disappears from Members and appears under Blocked.
+- **Remove:** "Are you sure you want to remove {name} from this community?" (UC-14) + "They won't be able to rejoin until an admin unblocks them." (+ from Phase 3: "Their posts in this community will be deleted too." — `posts-feed.md` §3.3) → **Remove** / **Cancel**. Afterwards the row disappears from Members and appears under Blocked.
 - **Make owner:** "Make {name} the owner? You'll become an admin, and only {name} will be able to delete the community." → **Make owner** / **Cancel**.
 - **Delete** (developer's choice): "Delete {community name}? Warning: this can't be undone. The community will be deleted for all {n} members." A checkbox **"I understand this can't be undone"**; **Delete community** stays disabled until it is ticked. Success → dashboard, toast "Community deleted".
 - **Make admin / Make member / Unblock:** no confirmation — each is reversible with one tap.

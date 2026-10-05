@@ -115,20 +115,25 @@ export async function removeMember(
       where: { userId: targetUserId, communityId, role: CommunityRole.MEMBER },
     });
     if (count === 0) {
-      return false;
+      return null;
     }
+    // Removal also deletes their posts here, permanently (posts-feed.md §3.3).
+    const posts = await tx.post.deleteMany({ where: { authorId: targetUserId, communityId } });
     await tx.communityBan.upsert({
       where: { communityId_userId: { communityId, userId: targetUserId } },
       create: { communityId, userId: targetUserId, bannedById: user.id },
       update: { bannedById: user.id },
     });
-    return true;
+    return { postsDeleted: posts.count };
   });
   if (!removed) {
     // Promoted or removed meanwhile: 404 if gone, 409 if now an admin.
     rejectRemoval(await targetRole(communityId, targetUserId));
   }
-  log.info({ userId: user.id, communityId, targetUserId }, 'Removed and blocked member');
+  log.info(
+    { userId: user.id, communityId, targetUserId, postsDeleted: removed?.postsDeleted ?? 0 },
+    'Removed and blocked member',
+  );
 }
 
 const OWNER_ROLE_FIXED = "The owner's role can't be changed. Transfer ownership instead.";

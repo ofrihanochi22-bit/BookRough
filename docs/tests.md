@@ -70,8 +70,9 @@ Integration tests must **never** run against your production or local developmen
 ### 3.4. Mocking External Boundaries
 
 When writing unit or integration tests, **do not make actual network requests to third-party services.** * If testing the Google OAuth flow, mock the google-auth-library to return a fake verified token.
-- If testing the route that uses your Playwright scraper, mock the generateUniversalLinks service so it instantly returns fake links instead of actually booting up a headless browser during the test. (Save the real browser interaction for your E2E tests).
+- Routes that convert a link mock `convertLink` (`services/linkScraper.service.ts`) so it instantly returns a fixed result instead of booting a headless browser; the converter's own unit tests mock Playwright at module level. (Save the real browser interaction for your E2E tests.)
 - **E2E and Google sign-in.** E2E cannot sign in with a real Google account (automation is blocked, and it would need a real password in CI). It uses a **Google stand-in** instead: Playwright replaces Google's sign-in script with a stub whose button returns an ID token signed with a throwaway key committed in `e2e/fixtures/`, and the API, started with `E2E_GOOGLE_PUBLIC_KEY`, verifies that token with the same checks it applies to Google's (signature, audience, issuer, expiry). Everything after verification is the real code path. **The API refuses to start with `E2E_GOOGLE_PUBLIC_KEY` set unless `NODE_ENV=test`**, and a unit test proves it. Detail: `docs/features/auth-flow-e2e.md`.
+- **E2E and squigly.link.** E2E uses a **scraper stand-in**: the API, started with `E2E_SCRAPER_FIXTURES` pointing at `e2e/fixtures/scraper-stand-in.json`, returns canned conversions, and any link the file does not list behaves like an outage. **The API refuses to start with it set unless `NODE_ENV=test`.** One link is listed under `live` and goes to the real converter; the only test that sends it is skipped unless `RUN_LIVE_E2E=1`, which `main.yml` sets on the nightly schedule only. Detail: `docs/features/posts-feed.md` §4.2.
 
 ### 3.5. Test Both the Good Path and the Bad Path
 
@@ -118,7 +119,7 @@ Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.
 
 **Why E2E is deliberately kept off the pull-request path:** installing browser binaries and driving real user flows costs several minutes, and E2E is by a wide margin the flakiest layer. A flaky test that blocks every merge gets ignored or disabled, which is worse than having no test. Catching a regression at merge time rather than at PR time is the accepted trade-off, and it is the standard arrangement in the industry for exactly this reason.
 
-The nightly run exists because the scraper depends on a live external site. A layout change at squigly.link can break the core feature without a single line of our code changing, and the nightly E2E run is what discovers it.
+The nightly run exists because the scraper depends on a live external site. A layout change at squigly.link can break the core feature without a single line of our code changing, and the nightly E2E run is what discovers it: on the schedule it sets `RUN_LIVE_E2E=1`, enabling the one test that posts a known track through the real squigly.link (Chromium project only).
 
 **A red `main` or a red nightly run takes priority over starting the next feature.** A broken main branch that is allowed to stay broken defeats the entire purpose of the gate.
 

@@ -1,16 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { httpError, makeCommunity, networkError } from '../test/fixtures';
 import { Community } from './Community';
 
-const { getCommunity, getInvite } = vi.hoisted(() => ({
+const { getCommunity, getInvite, listPosts } = vi.hoisted(() => ({
   getCommunity: vi.fn(),
   getInvite: vi.fn(),
+  listPosts: vi.fn(),
 }));
 vi.mock('../api/communities', () => ({ getCommunity }));
+vi.mock('../api/posts', () => ({ listPosts }));
 vi.mock('../api/invites', () => ({ getInvite, inviteUrl: (token: string) => `/invite/${token}` }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
@@ -27,6 +29,7 @@ function renderCommunity(state?: { justCreated: boolean }) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  listPosts.mockResolvedValue({ posts: [], nextCursor: null });
 });
 
 describe('Community page', () => {
@@ -57,7 +60,8 @@ describe('Community page', () => {
     expect(description.textContent).toBe('Records.\nOnly.');
     expect(description).toHaveClass('whitespace-pre-line');
     expect(screen.getByText("3 members · You're an admin")).toBeInTheDocument();
-    expect(screen.getByText('Posts are coming soon')).toBeInTheDocument();
+    expect(await screen.findByText('Share the first song')).toBeInTheDocument();
+    expect(listPosts).toHaveBeenCalledWith(ID);
   });
 
   it('shows only the count for a plain member', async () => {
@@ -180,5 +184,50 @@ describe('Community page — owner and settings', () => {
 
     // Assert
     expect(await screen.findByRole('link', { name: 'Settings' })).toBeInTheDocument();
+  });
+});
+
+describe('Community page — losing access', () => {
+  const OTHER = '7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
+
+  it('renders not-found when the feed answers 404 (removed, or the community deleted)', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(makeCommunity());
+    listPosts.mockRejectedValue(httpError(404, 'Community not found.'));
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    expect(
+      await screen.findByRole('heading', { name: "This page doesn't exist" }),
+    ).toBeInTheDocument();
+  });
+
+  it('forgets the lost community when the same page shows another one', async () => {
+    // Arrange: lose access to the first community, then go to a second.
+    getCommunity.mockImplementation((id: string) =>
+      Promise.resolve(makeCommunity({ id, name: id === ID ? 'Friday Jazz' : 'Sunday Soul' })),
+    );
+    listPosts.mockImplementation((id: string) =>
+      id === ID
+        ? Promise.reject(httpError(404, 'Community not found.'))
+        : Promise.resolve({ posts: [], nextCursor: null }),
+    );
+    render(
+      <MemoryRouter initialEntries={[`/communities/${ID}`]}>
+        <Link to={`/communities/${OTHER}`}>Go to the other one</Link>
+        <Routes>
+          <Route path="/communities/:id" element={<Community />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: "This page doesn't exist" });
+
+    // Act
+    await userEvent.click(screen.getByRole('link', { name: 'Go to the other one' }));
+
+    // Assert
+    expect(await screen.findByRole('heading', { name: 'Sunday Soul' })).toBeInTheDocument();
   });
 });

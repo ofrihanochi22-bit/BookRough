@@ -1,6 +1,7 @@
 import { AxiosError, AxiosHeaders } from 'axios';
 
 import type { PublicCommunity } from '../api/communities';
+import type { PublicPost } from '../api/posts';
 import { useAuthStore, type PublicUser, type Session } from '../stores/auth';
 
 export function makeUser(overrides: Partial<PublicUser> = {}): PublicUser {
@@ -33,6 +34,46 @@ export function makeCommunity(overrides: Partial<PublicCommunity> = {}): PublicC
     createdAt: '2026-10-03T09:00:00.000Z',
     ...overrides,
   };
+}
+
+export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
+  return {
+    id: '9a3e1d52-7b4c-4f2a-8e61-3c5d7f9b1a20',
+    author: {
+      id: 'a1b2c3d4-0000-4000-8000-000000000001',
+      displayName: 'Dana',
+      profilePictureUrl: null,
+    },
+    isMine: false,
+    originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
+    sourceService: 'SPOTIFY',
+    kind: 'TRACK',
+    title: 'Bohemian Rhapsody',
+    artist: 'Queen',
+    coverArtUrl: 'https://img.example/cover.jpg',
+    links: {
+      SPOTIFY: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
+      APPLE_MUSIC: 'https://music.apple.com/us/album/x/1?i=2',
+      DEEZER: 'https://www.deezer.com/track/1',
+    },
+    comment: null,
+    conversionPending: false,
+    createdAt: '2026-10-04T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** A post saved while the converter was unavailable. */
+export function makePendingPost(overrides: Partial<PublicPost> = {}): PublicPost {
+  return makePost({
+    kind: null,
+    title: null,
+    artist: null,
+    coverArtUrl: null,
+    links: {},
+    conversionPending: true,
+    ...overrides,
+  });
 }
 
 /** An axios error carrying a backend error body, as the API client rejects with. */

@@ -116,8 +116,8 @@ export async function updateCommunity(
 }
 
 /**
- * DELETE /communities/:id — the owner only. Memberships and blocks (and, from
- * Phase 3, posts) go with it through the cascades. There is no undo.
+ * DELETE /communities/:id — the owner only. Memberships, blocks and posts go
+ * with it through the cascades. There is no undo.
  */
 export async function deleteCommunity(user: User, communityId: string): Promise<void> {
   await requireOwner(user, communityId, 'Only the owner can delete the community.');

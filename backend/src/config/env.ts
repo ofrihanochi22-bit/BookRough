@@ -43,6 +43,13 @@ const envSchema = z
       .string()
       .optional()
       .transform((value) => (value ? value.replace(/\\n/g, '\n').trim() : undefined)),
+    // E2E only (docs/features/posts-feed.md §4.2): a JSON file of canned link
+    // conversions that replaces the real squigly.link scraper. Empty means
+    // "not set".
+    E2E_SCRAPER_FIXTURES: z
+      .string()
+      .optional()
+      .transform((value) => value || undefined),
   })
   // The stand-in must be impossible to enable on the real server, not merely
   // discouraged: with it, anyone holding the committed test key could sign in
@@ -52,6 +59,11 @@ const envSchema = z
   .refine((env) => !env.E2E_GOOGLE_PUBLIC_KEY || env.NODE_ENV === 'test', {
     path: ['E2E_GOOGLE_PUBLIC_KEY'],
     message: 'is only allowed with NODE_ENV=test — it replaces Google sign-in verification',
+  })
+  // Same reasoning: canned conversions must never reach real users' posts.
+  .refine((env) => !env.E2E_SCRAPER_FIXTURES || env.NODE_ENV === 'test', {
+    path: ['E2E_SCRAPER_FIXTURES'],
+    message: 'is only allowed with NODE_ENV=test — it replaces the link converter',
   });
 
 export type Env = z.infer<typeof envSchema>;

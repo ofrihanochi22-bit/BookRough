@@ -11,6 +11,7 @@ import {
   transfer,
   unblockUser,
 } from '../controllers/membership.controller.js';
+import { create as createPost, list as listPosts } from '../controllers/post.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 export const communitiesRouter: Router = Router();
@@ -31,3 +32,5 @@ communitiesRouter.get('/:id/bans', requireAuth, blocked);
 communitiesRouter.delete('/:id/bans/:userId', requireAuth, unblockUser);
 communitiesRouter.get('/:id/invite', requireAuth, showInvite);
 communitiesRouter.post('/:id/invite/reset', requireAuth, resetCommunityInvite);
+communitiesRouter.get('/:id/posts', requireAuth, listPosts);
+communitiesRouter.post('/:id/posts', requireAuth, createPost);

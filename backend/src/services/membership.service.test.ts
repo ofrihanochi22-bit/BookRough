@@ -20,7 +20,7 @@ import {
  * moment a concurrent change makes a conditional write match nothing.
  */
 
-const { memberDb, banDb, transaction, getCommunity } = vi.hoisted(() => ({
+const { memberDb, banDb, postDb, transaction, getCommunity } = vi.hoisted(() => ({
   memberDb: {
     findUnique: vi.fn(),
     findMany: vi.fn(),
@@ -28,6 +28,7 @@ const { memberDb, banDb, transaction, getCommunity } = vi.hoisted(() => ({
     updateMany: vi.fn(),
   },
   banDb: { upsert: vi.fn(), deleteMany: vi.fn() },
+  postDb: { deleteMany: vi.fn() },
   transaction: vi.fn(),
   getCommunity: vi.fn(),
 }));
@@ -65,7 +66,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   // Interactive transactions run their callback against the same mocks.
   transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
-    callback({ communityMember: memberDb, communityBan: banDb }),
+    callback({ communityMember: memberDb, communityBan: banDb, post: postDb }),
   );
 });
 
@@ -118,10 +119,11 @@ describe('leaveCommunity — races', () => {
 });
 
 describe('removeMember — races', () => {
-  it('only deletes while the target is still a MEMBER, and writes the ban in the same transaction', async () => {
+  it('only deletes while the target is still a MEMBER, and writes the ban and deletes their posts in the same transaction', async () => {
     // Arrange
     roles({ [CALLER]: 'ADMIN' }, { [TARGET]: 'MEMBER' });
     memberDb.deleteMany.mockResolvedValue({ count: 1 });
+    postDb.deleteMany.mockResolvedValue({ count: 3 });
 
     // Act
     await removeMember(caller, COMMUNITY, TARGET);
@@ -135,6 +137,9 @@ describe('removeMember — races', () => {
         create: { communityId: COMMUNITY, userId: TARGET, bannedById: CALLER },
       }),
     );
+    expect(postDb.deleteMany).toHaveBeenCalledWith({
+      where: { authorId: TARGET, communityId: COMMUNITY },
+    });
   });
 
   it('refuses, and bans nobody, when the target was promoted between the check and the delete', async () => {
@@ -145,6 +150,7 @@ describe('removeMember — races', () => {
     // Act & Assert
     await expectAppError(removeMember(caller, COMMUNITY, TARGET), 409, CANNOT_REMOVE_ADMIN);
     expect(banDb.upsert).not.toHaveBeenCalled();
+    expect(postDb.deleteMany).not.toHaveBeenCalled();
   });
 
   it('answers 404 when another admin removed the target first', async () => {

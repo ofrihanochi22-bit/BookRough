@@ -507,7 +507,7 @@ function ConfirmSheet({
     remove: {
       title: 'Remove from community',
       body: `Are you sure you want to remove ${name} from this community?`,
-      note: "They won't be able to rejoin until an admin unblocks them.",
+      note: "They won't be able to rejoin until an admin unblocks them. Their posts in this community will be deleted too.",
       action: 'Remove',
       busy: 'Removing…',
     },

@@ -1,0 +1,19 @@
+{
+  "delayMs": 800,
+  "live": ["https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv"],
+  "conversions": {
+    "https://open.spotify.com/track/1111111111111111111111": {
+      "kind": "TRACK",
+      "title": "Stand-in Song",
+      "artist": "The Fixtures",
+      "coverArtUrl": null,
+      "links": {
+        "SPOTIFY": "https://open.spotify.com/track/1111111111111111111111",
+        "APPLE_MUSIC": "https://music.apple.com/us/song/stand-in-song/1111111111",
+        "YOUTUBE": "https://music.youtube.com/watch?v=StandIn0001",
+        "TIDAL": "https://tidal.com/browse/track/1111111111",
+        "DEEZER": "https://www.deezer.com/track/1111111111"
+      }
+    }
+  }
+}
