@@ -27,7 +27,7 @@ const listPostsQuerySchema = z.object({ before: z.string().max(200).optional() }
 const postIdSchema = z.string().uuid();
 
 /** A malformed post id is a 404 like any post the caller cannot see. */
-function parsePostId(raw: unknown): string {
+export function parsePostId(raw: unknown): string {
   const id = postIdSchema.safeParse(raw);
   if (!id.success) {
     throw new AppError(POST_NOT_FOUND, 404);

@@ -8,13 +8,17 @@ import type { StreamingService } from '../stores/auth';
 import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
 import { PostCard } from './PostCard';
 
-const { retryConversion, deletePost, toastSuccess, toastError } = vi.hoisted(() => ({
-  retryConversion: vi.fn(),
-  deletePost: vi.fn(),
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
-}));
+const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess, toastError } =
+  vi.hoisted(() => ({
+    retryConversion: vi.fn(),
+    deletePost: vi.fn(),
+    saveBookmark: vi.fn(),
+    removeBookmark: vi.fn(),
+    toastSuccess: vi.fn(),
+    toastError: vi.fn(),
+  }));
 vi.mock('../api/posts', () => ({ retryConversion, deletePost }));
+vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 function renderCard(
@@ -25,6 +29,7 @@ function renderCard(
   const onUpdated = vi.fn();
   const onStale = vi.fn();
   const onDeleted = vi.fn();
+  const onBookmarkChanged = vi.fn();
   render(
     <PostCard
       post={post}
@@ -33,9 +38,10 @@ function renderCard(
       onUpdated={onUpdated}
       onStale={onStale}
       onDeleted={onDeleted}
+      onBookmarkChanged={onBookmarkChanged}
     />,
   );
-  return { onUpdated, onStale, onDeleted };
+  return { onUpdated, onStale, onDeleted, onBookmarkChanged };
 }
 
 beforeEach(() => {
@@ -105,6 +111,7 @@ describe('PostCard — converted', () => {
         onUpdated={vi.fn()}
         onStale={vi.fn()}
         onDeleted={vi.fn()}
+        onBookmarkChanged={vi.fn()}
       />,
     );
     const image = container.querySelector('img[src="https://img.example/cover.jpg"]')!;
@@ -330,5 +337,134 @@ describe('PostCard — deleting', () => {
 
     // Assert
     expect(screen.getByRole('button', { name: 'Delete post' })).toBeDisabled();
+  });
+});
+
+describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
+  const save = () => screen.getByRole('button', { name: 'Save to Listen Later' });
+
+  it("shows an outline icon on someone else's post", () => {
+    // Arrange & Act
+    renderCard(makePost());
+
+    // Assert
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows no bookmark on your own post', () => {
+    // Arrange & Act
+    renderCard(makePost({ isMine: true }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: /Listen Later/ })).not.toBeInTheDocument();
+  });
+
+  it('fills at once, then toasts and reports the change', async () => {
+    // Arrange
+    let finish!: () => void;
+    saveBookmark.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const { onBookmarkChanged } = renderCard(makePost());
+
+    // Act
+    await userEvent.click(save());
+
+    // Assert: optimistic, before the server answers.
+    const pressed = screen.getByRole('button', { name: 'Remove from Listen Later' });
+    expect(pressed).toHaveAttribute('aria-pressed', 'true');
+    expect(saveBookmark).toHaveBeenCalledWith(makePost().id);
+
+    // Act
+    finish();
+
+    // Assert
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Added to Listen Later'));
+    expect(onBookmarkChanged).toHaveBeenCalledWith(makePost().id, true);
+  });
+
+  it('ignores a second tap while the first is in flight', async () => {
+    // Arrange
+    saveBookmark.mockReturnValue(new Promise(() => {}));
+    renderCard(makePost());
+
+    // Act
+    await userEvent.click(save());
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from Listen Later' }));
+
+    // Assert
+    expect(saveBookmark).toHaveBeenCalledTimes(1);
+    expect(removeBookmark).not.toHaveBeenCalled();
+  });
+
+  it('removes a saved post with its own toast', async () => {
+    // Arrange
+    removeBookmark.mockResolvedValue(undefined);
+    const { onBookmarkChanged } = renderCard(makePost({ isBookmarked: true }));
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from Listen Later' }));
+
+    // Assert
+    await vi.waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Removed from Listen Later'));
+    expect(removeBookmark).toHaveBeenCalledWith(makePost().id);
+    expect(onBookmarkChanged).toHaveBeenCalledWith(makePost().id, false);
+  });
+
+  it("reverts and shows UC-12's message when saving fails", async () => {
+    // Arrange
+    saveBookmark.mockRejectedValue(networkError());
+    const { onBookmarkChanged } = renderCard(makePost());
+
+    // Act
+    await userEvent.click(save());
+
+    // Assert
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Failed to save. Please check your connection and try again.',
+      ),
+    );
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+    expect(onBookmarkChanged).not.toHaveBeenCalled();
+  });
+
+  it('reverts with its own message when removing fails', async () => {
+    // Arrange
+    removeBookmark.mockRejectedValue(networkError());
+    renderCard(makePost({ isBookmarked: true }));
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Remove from Listen Later' }));
+
+    // Assert
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Failed to remove. Please check your connection and try again.',
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Remove from Listen Later' })).toBeInTheDocument();
+  });
+
+  it('a 404 reverts, says the post is gone, and reloads the feed', async () => {
+    // Arrange
+    saveBookmark.mockRejectedValue(httpError(404, 'Post not found.'));
+    const { onStale } = renderCard(makePost());
+
+    // Act
+    await userEvent.click(save());
+
+    // Assert
+    await vi.waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('This post is no longer available.'),
+    );
+    expect(onStale).toHaveBeenCalled();
+    expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('is disabled offline', () => {
+    // Arrange & Act
+    renderCard(makePost(), 'APPLE_MUSIC', false);
+
+    // Assert
+    expect(save()).toBeDisabled();
   });
 });

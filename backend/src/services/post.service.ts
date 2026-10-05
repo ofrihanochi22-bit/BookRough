@@ -93,7 +93,7 @@ export async function createPost(
             ? conversionData(result)
             : { conversionPending: true }),
         },
-        include: postInclude,
+        include: postInclude(user.id),
       });
     });
 
@@ -161,7 +161,7 @@ export async function listPosts(
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,
-    include: postInclude,
+    include: postInclude(user.id),
   });
 
   const page = rows.slice(0, PAGE_SIZE);
@@ -204,7 +204,10 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
     });
   }
 
-  const current = await prisma.post.findUnique({ where: { id: postId }, include: postInclude });
+  const current = await prisma.post.findUnique({
+    where: { id: postId },
+    include: postInclude(user.id),
+  });
   if (!current) {
     // Deleted (or its author removed) while converting.
     throw new AppError(POST_NOT_FOUND, 404);

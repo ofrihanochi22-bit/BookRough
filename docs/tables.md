@@ -94,11 +94,11 @@ Stores the feedback on specific posts (UC-13, UC-16).
 
 ### 7. bookmarks Table
 
-Powers the "Listen Later" queue (UC-12).
+Powers the "Listen Later" queue (UC-12, `docs/features/bookmarks-my-list.md` §3). Private: only its user ever sees a bookmark, and no count of savers exists.
 - **user_id** (UUID, Foreign Key referencing users(id)).
 - **post_id** (UUID, Foreign Key referencing posts(id)).
-- **created_at** (TIMESTAMP, Default Current Time).
-- (Composite Primary Key: user_id, post_id).
+- **created_at** (TIMESTAMP, Default Current Time): when it was saved; My List lists newest first.
+- (Composite Primary Key: user_id, post_id, so a post is saved at most once per user. Indexed on user_id, created_at and post_id, newest first, for My List; and on post_id, for the cascade. Cascades: deleting the post or the user deletes the bookmark. A bookmark is kept when its user leaves or is removed from the post's community.)
 
 ### 8. community_bans Table
 

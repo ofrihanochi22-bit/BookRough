@@ -12,6 +12,7 @@ import { CompleteProfile } from './pages/CompleteProfile';
 import { CreateCommunity } from './pages/CreateCommunity';
 import { Dashboard } from './pages/Dashboard';
 import { InvitePreview } from './pages/InvitePreview';
+import { MyList } from './pages/MyList';
 import { NotFound } from './pages/NotFound';
 import { Profile } from './pages/Profile';
 import { Welcome } from './pages/Welcome';
@@ -67,15 +68,7 @@ export function App() {
                 <ComingSoon title="Search" description="Find friends on BookRough. Coming soon." />
               }
             />
-            <Route
-              path="/my-list"
-              element={
-                <ComingSoon
-                  title="My List"
-                  description="Songs you saved to listen later. Coming soon."
-                />
-              }
-            />
+            <Route path="/my-list" element={<MyList />} />
             <Route path="/profile" element={<Profile />} />
           </Route>
           {/* Not-found for everyone who is not an admin (docs/features/admin-panel.md §5.1). */}

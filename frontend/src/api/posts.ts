@@ -20,6 +20,8 @@ export interface PublicPost {
   comment: string | null;
   conversionPending: boolean;
   createdAt: string;
+  /** The viewer saved it to Listen Later (bookmarks-my-list.md §4). */
+  isBookmarked: boolean;
 }
 
 export interface PostsPage {

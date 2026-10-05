@@ -175,8 +175,8 @@
 ### UC-12: User Adds a Recommendation to Bookmarks ("Listen Later")
 
 - **Description:** A user saves a music recommendation posted by a friend or community member to their personal "Listen Later" list for future listening.
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and sees a song recommendation post that they have not already bookmarked.
-- **Post-conditions:** The specific Post ID is added to the user's bookmarks list in the database. The user interface updates to reflect that the song is saved.
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and sees a song recommendation post that they have not already bookmarked, written by someone else: a user cannot bookmark their own post.
+- **Post-conditions:** The specific Post ID is added to the user's bookmarks list in the database. The user interface updates to reflect that the song is saved. The bookmark is private: nobody else can see who saved a post. It stays in the user's list if they later leave the Community or are removed from it.
 - **Trigger:** The user taps the "Bookmark" or "Save for Later" icon located on a specific music recommendation post.
 - **Step-by-step scenario (Success):**
   - The user browses the feed of one of their Communities.
@@ -184,7 +184,7 @@
   - The user taps the "Bookmark" icon on that specific post.
   - The backend processes the request and links the Post ID to the user's personal bookmarks collection.
   - The UI provides immediate visual feedback, changing the bookmark icon's state (e.g., from an outline to a filled icon) and displaying a brief "Added to Listen Later" toast notification.
-- **Fail description (Alternative Scenario):** The user's device loses internet connectivity right as they tap the bookmark icon. The backend request fails to reach the server. The application catches the network error, reverts the icon back to its unsaved state, and displays an error banner: "Failed to save. Please check your connection and try again."
+- **Fail description (Alternative Scenario):** The user's device loses internet connectivity right as they tap the bookmark icon. The backend request fails to reach the server. The application catches the network error, reverts the icon back to its unsaved state, and displays an error banner: "Failed to save. Please check your connection and try again." Tapping the filled icon again removes the bookmark ("Removed from Listen Later"). If the post was deleted meanwhile, the icon reverts and the user is told "This post is no longer available." (`docs/features/bookmarks-my-list.md`)
 
 ### UC-13: User Processes a Bookmarked Recommendation (Rate & Feedback)
 
@@ -207,7 +207,7 @@
 
 - **Description:** A user with administrative privileges in a Community revokes another user's membership, removing their access to the group's feed and shared music.
 - **Pre-conditions:** The acting user is logged in, holds Admin status within the specific Community, and the target user is currently listed in the Community's members array.
-- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen. Their posts in this Community are deleted with the removal, permanently; leaving voluntarily (UC-10) keeps a member's posts.
+- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen. Their posts in this Community are deleted with the removal, permanently; leaving voluntarily (UC-10) keeps a member's posts. Songs the removed user had already saved from this Community stay in their My List (`docs/features/bookmarks-my-list.md` §3.2).
 - **Trigger:** The Admin taps the "Remove User" or "Kick" button next to a specific member's name in the Community's member management screen.
 - **Step-by-step scenario (Success):**
   - The Admin navigates to the specific Community's settings and opens the "Members" list.

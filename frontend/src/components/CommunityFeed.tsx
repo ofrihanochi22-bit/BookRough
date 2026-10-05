@@ -165,6 +165,20 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
               update(changes.page, (current) => ({ deleted: [...current.deleted, postId] }));
             }
           }}
+          onBookmarkChanged={(postId, isBookmarked) => {
+            if (changes) {
+              update(changes.page, (current) => {
+                const base =
+                  current.replaced[postId] ??
+                  [...current.added, ...current.page.posts, ...current.more].find(
+                    (candidate) => candidate.id === postId,
+                  );
+                return base
+                  ? { replaced: { ...current.replaced, [postId]: { ...base, isBookmarked } } }
+                  : {};
+              });
+            }
+          }}
           onUpdated={(updated) => {
             if (changes) {
               update(changes.page, (current) => ({

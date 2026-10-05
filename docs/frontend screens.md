@@ -41,7 +41,7 @@ These are the most heavily trafficked screens where the primary value exchange h
   - **Purpose:** The main timeline for a specific group, displaying all music recommendations.
   - **Key UI:** * Header with Community Name and settings icon.
     - Input area: URL paste box and optional comment (counter n/280) with Post. While the link converts, the button reads "Finding this track on other services…" and the fields are read-only; an invalid link shows the UC-11 message under the field with the draft kept.
-    - Feed of Post Cards, newest first with Load more: the author and time, cover art, title, artist, an "Album" label for albums, the comment, an "Open in {your service}" button (the original link when your service has no match) and "Other services" (a sheet of every link). A post saved during an outage reads "Shared from {service}" with "Other services unavailable", and its author sees "Find on other services". The bookmark icon and average rating arrive in Phase 4 (UC-12, UC-16).
+    - Feed of Post Cards, newest first with Load more: the author and time, cover art, title, artist, an "Album" label for albums, the comment, an "Open in {your service}" button (the original link when your service has no match) and "Other services" (a sheet of every link). A post saved during an outage reads "Shared from {service}" with "Other services unavailable", and its author sees "Find on other services". On other people's posts, a bookmark icon saves to Listen Later: outline or filled, with "Added to Listen Later" / "Removed from Listen Later" toasts, disabled offline (UC-12, `docs/features/bookmarks-my-list.md`). The average rating arrives with UC-16.
     - A ⋯ "Post options" menu on posts you may delete — your own, or any post if you are an Admin or the Owner — expanding to "Delete post". The confirmation uses UC-18's wording for your own post and "Delete [Author]'s recommendation? … [Author] won't be notified." for someone else's; success toasts "Post deleted" and the card leaves the feed (UC-18, `docs/features/posts-delete.md`).
     - States: post skeletons while loading; "Share the first song" when empty; "Couldn't load posts." with Try again; offline banner "You're offline. Connect to post." with posting disabled while the feed stays readable. Detail: `docs/features/posts-feed.md` §5.
 - **3.2. Create Community Screen (UC-9)**
@@ -63,9 +63,9 @@ These are the most heavily trafficked screens where the primary value exchange h
 ### 4. Personal Management Flows
 
 Screens dedicated to individual user actions and backlog management.
-- **4.1. "My List" / Listen Later Screen (UC-13)**
+- **4.1. "My List" / Listen Later Screen (UC-12, UC-13)**
   - **Purpose:** The user's personal queue of bookmarked, unrated songs.
-  - **Key UI:** List of saved song cards. Tapping a card opens it in their preferred external music app. Each card has a prominent "Rate & Review" action button.
+  - **Key UI:** List of saved song cards, newest saved first: cover, title, artist, "Shared by {author} in {community}" (the community links to its page while you are a member; songs from a community you left stay) and when it was saved. "Open in {your service}" opens it in their preferred music app, falling back to the original link; "Remove" takes it off the list at once. Each card gains a prominent "Rate & Review" action button with UC-13. States: card skeletons; "Nothing saved yet"; "Couldn't load your list." with Try again; Load more; offline banner with Remove disabled (`docs/features/bookmarks-my-list.md`).
 - **4.2. Submit Rating Modal / Screen (UC-13)**
   - **Purpose:** The interface for leaving feedback on a listened-to track.
   - **Key UI:** 1-10 Star selection mechanism (slider or interactive stars), optional text input for a review, and a "Submit Rating" button.

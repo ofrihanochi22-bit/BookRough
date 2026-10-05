@@ -81,6 +81,7 @@ model User {
   bansIssued        CommunityBan[]    @relation("BannedBy")
   settingChanges    SettingChange[]
   posts             Post[]
+  bookmarks         Bookmark[]
 
   @@map("users")
 }
@@ -170,12 +171,31 @@ model Post {
   updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   author               User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  bookmarks            Bookmark[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
   /// Removing a member deletes their posts in that community.
   @@index([authorId, communityId])
   @@map("posts")
+}
+
+/// A post saved to its user's Listen Later list (UC-12,
+/// docs/features/bookmarks-my-list.md §3). Private to that user, and kept
+/// when they leave or are removed from the post's community.
+model Bookmark {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  /// My List: one user's bookmarks, newest saved first, keyset-paginated.
+  @@index([userId, createdAt(sort: Desc), postId(sort: Desc)])
+  /// Deleting a post cascades to its bookmarks by post id.
+  @@index([postId])
+  @@map("bookmarks")
 }
 
 /// One row per setting that has ever been changed; a missing row means the

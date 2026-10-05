@@ -1134,94 +1134,108 @@ Every feature ships its own E2E (CLAUDE.md §15). The live-site test gated on `R
 
 ## Phase 4 — Engagement & Feedback (UC-12, UC-13, UC-16)
 
-### Step 4.1 — Ratings + bookmarks schema (Phase 4)
+> **Re-sliced 2026-10-05.** The original Steps 4.1–4.5 split Phase 4 by layer (schema, routes, notification stub, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/bookmarks-my-list.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-ratings-bookmarks-schema
+### Step 4.1 — Bookmarks and My List (Phase 4 — UC-12, UC-13's list)
 
-Goal: Migration adds `ratings` (unique on `(post_id, user_id)`) and `bookmarks` (composite PK) tables.
+Status: ✅ Done
+Branch: feat/bookmarks-my-list
+Spec: docs/features/bookmarks-my-list.md
+
+Goal: A member saves a friend's post from the feed with the bookmark icon, and finds it on the My List tab, which opens it in their own service and lets them remove it. Bookmarks are private and outlive leaving or removal. Absorbs the bookmark halves of former 4.1, 4.2 and 4.4.
 
 Tasks:
 
-- [ ] DB: Add `Rating` and `Bookmark` models per `tables.docx`.
-- [ ] DB: Migration `add_ratings_bookmarks`.
+- [x] Spec: docs/features/bookmarks-my-list.md written and approved (re-slice of Phase 4, bookmarks survive leaving and removal, not on your own posts, private).
+- [x] DB: migration `add_bookmarks` — `bookmarks` with a composite key, a My List index and a `post_id` index; cascades from the post and the user.
+- [x] Backend: `PUT` / `DELETE /api/posts/:postId/bookmark`, `GET /api/users/me/bookmarks`; `PublicPost.isBookmarked`.
+- [x] Frontend: the bookmark icon on `PostCard` (optimistic, with rollback), the My List screen replacing Coming soon.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
+
+What I did:
+
+Built saving a post to Listen Later and the My List screen (UC-12, and UC-13's list without rating) per `docs/features/bookmarks-my-list.md`.
+
+- **DB:** migration `add_bookmarks` — `bookmarks` (`user_id`, `post_id`, `created_at`), composite primary key, an index for My List (newest saved first) and one on `post_id` for the cascade when a post is deleted. Both foreign keys cascade.
+- **Backend:**
+  - `services/bookmark.service.ts`: saving needs current membership and someone else's post (`403` "You can't save your own post."); saving and removing are idempotent; removing needs no membership; My List is keyset-paginated with the feed's cursor format.
+  - `controllers/bookmark.controller.ts`, routes on `routes/posts.ts` and `routes/users.ts`, and `utils/savedPost.ts` (field by field).
+  - `PublicPost.isBookmarked`: `postInclude(viewerId)` reads only the viewer's own bookmark, so no other user's bookmark or count is ever read.
+- **Frontend:**
+  - `components/BookmarkButton.tsx` on `PostCard` (not on your own posts): optimistic, reverting with UC-12's message on failure; a `404` toasts "This post is no longer available." and reloads the feed. The feed records the change against the latest state.
+  - `pages/MyList.tsx` and `components/SavedPostCard.tsx` replace the tab's Coming soon: "Shared by … in …" (a link while you are a member), "Open in {your service}", optimistic Remove, Load more, and the loading, empty, error and offline states.
+  - `CoverArt` and `BookmarkIcon` moved to `components/ui/`; `api/bookmarks.ts`; `lib/bookmarkCopy.ts`.
+- **Decisions (Stage 1):** bookmarks survive leaving **and** removal (UC-14 amended); no bookmarking your own post; bookmarks are private.
+- **Found along the way:**
+  - The bookmark table needs its own `post_id` index: the primary key starts with `user_id`, so it can't serve the cascade when a post is deleted.
+  - The auto-mode safety check blocks putting a dev session token into the browser, so the 375px check ran with the developer's own Google sign-in instead.
+  - Stage 4: the first version of the feed's concurrency test passed even with the fix removed, because it asserted while the save was still in flight. It now waits for the save to settle.
+- **Docs:** `tables` (bookmarks), `use cases` (UC-12; UC-14's removal keeps saved songs), `frontend screens` (3.1 the icon, 4.1 My List) (.md + .docx); the Phase 4 re-slice above; `backend-docker.md` Merged ticked.
+- **Tests:** backend 632 (98.4% lines over both suites), frontend 448 (98.8%), E2E 31 + 3 skipped (new: a friend saves a post, finds it in My List and removes it, while the author sees no bookmark on their own post — Chromium and iPhone WebKit).
+
+How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts: A owns a community, B is a member (see Step 2.2), and A has shared a link (see Step 3.1). Open `http://localhost:5173/` at 375px width.
+
+1. As A, open the community → there is no bookmark icon on A's own posts.
+2. As B, open the community → an outline bookmark on A's post. Tap it → it fills and "Added to Listen Later" appears. Reload → still filled.
+3. As B, tap the **My List** tab → the song, "Shared by {A} in {community}", **Open in {B's service}** and **Remove**.
+4. As B, tap the filled icon in the feed again → "Removed from Listen Later"; My List is empty ("Nothing saved yet").
+5. As B, save the post again, then **Settings** → **Leave community** → My List still shows the song, and the community's name is no longer a link. **Remove** still works.
+6. Go offline (DevTools) → the bookmark icon and **Remove** are disabled, with the offline banner on My List.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/bookmark.service.test.ts src/utils/savedPost.test.ts src/utils/publicPost.test.ts
+cd backend && npm run test:integration -- bookmarks
+cd frontend && npm run test:unit                          # PostCard, CommunityFeed, MyList, api/bookmarks
+npm test --prefix e2e                                     # 31 runs (+3 skipped), needs Docker Postgres
+```
+
+---
+
+### Step 4.2 — Rate a post (Phase 4 — UC-13)
+
+Status: ☐ Not started
+Branch: feat/<decided in its spec session>
+
+Goal: From My List, a member rates a saved song 1–10 with an optional comment; it leaves their list, and the author gets the notification stub. A bookmark whose post was deleted is handled (UC-13's fail path). Absorbs the ratings half of former 4.1 and 4.2, all of 4.3, and the rating modal of 4.4. Specified in its own session after Step 4.1 merges.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 4.2 — Bookmark + rating routes (Phase 4 — UC-12, UC-13)
+### Step 4.3 — _(merged into Step 4.2)_ Notification stub on rating
+
+A log line has no screen of its own; it ships with rating — see Step 4.2.
+
+---
+
+### Step 4.4 — Post Detail and feedback (Phase 4 — UC-16)
 
 Status: ☐ Not started
-Branch: feat/ratings-bookmarks-api
+Branch: feat/<decided in its spec session>
 
-Goal: Users can bookmark/unbookmark posts and submit a 1–10 rating with optional comment.
-
-Tasks:
-
-- [ ] Backend: `POST /api/posts/:id/bookmark` + `DELETE /api/posts/:id/bookmark`.
-- [ ] Backend: `POST /api/posts/:id/ratings` (unique-per-user enforced; on submit, remove from bookmarks if present).
-- [ ] Backend: `GET /api/posts/:id/ratings` returns reviews + average for UC-16.
-- [ ] Backend: `GET /api/users/me/bookmarks` for the My List screen.
-- [ ] Tests: Integration tests for unique-rating constraint and bookmark removal on rate.
+Goal: The average rating on post cards, and a Post Detail screen listing every review. Absorbs the ratings list of former 4.2 and the Post Detail of 4.4. Specified in its own session after Step 4.2 merges.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 4.3 — Notification stub on rating (Phase 4 — UC-13)
+### Step 4.5 — _(dissolved)_ Phase 4 test coverage
 
-Status: ☐ Not started
-Branch: feat/rating-notification-stub
-
-Goal: When a rating is submitted, a stub notification is emitted to the post author (logged via Pino now, real channel later).
-
-Tasks:
-
-- [ ] Backend: Service-layer hook after rating insert that logs `INFO` with `{ authorId, raterId, score }`.
-- [ ] Backend: Note in the code where the real notification channel will plug in (no implementation).
-
-What I did:
-How to view & test:
-
----
-
-### Step 4.4 — Engagement UI (Phase 4 — UC-12, UC-13, UC-16)
-
-Status: ☐ Not started
-Branch: feat/engagement-ui
-
-Goal: Bookmark icon, My List screen, Submit Rating modal, and Post Detail / Feedback screen are all live.
-
-Tasks:
-
-- [ ] Frontend: Activate the bookmark icon on `PostCard` (filled / outline state, optimistic update with rollback on error per UC-12 fail path).
-- [ ] Frontend: `pages/MyList.tsx` listing bookmarked posts with a "Rate & Review" CTA.
-- [ ] Frontend: `components/RatingModal.tsx` with 1–10 star control + optional comment.
-- [ ] Frontend: `pages/PostDetail.tsx` with average rating prominently and a list of individual reviews.
-- [ ] Frontend: Stale bookmark handling (UC-13 fail path: post deleted → drop the ghost row + toast).
-
-What I did:
-How to view & test:
-
----
-
-### Step 4.5 — Phase 4 test coverage (Phase 4)
-
-Status: ☐ Not started
-Branch: test/engagement
-
-Goal: Routes have integration tests, star control has RTL coverage.
-
-Tasks:
-
-- [ ] Tests: RTL on the star control: clicking 7 reports score 7.
-- [ ] Tests: Integration: full rate-then-fetch-feedback loop returns the new average.
-
-What I did:
-How to view & test:
+Every feature ships its own tests (CLAUDE.md §15).
 
 ---
 

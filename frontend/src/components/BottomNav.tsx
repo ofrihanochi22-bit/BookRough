@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { BookmarkIcon } from './ui/BookmarkIcon';
+
 interface Tab {
   to: string;
   label: string;
@@ -47,11 +49,7 @@ const TABS: readonly Tab[] = [
   {
     to: '/my-list',
     label: 'My List',
-    icon: (
-      <Icon>
-        <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z" />
-      </Icon>
-    ),
+    icon: <BookmarkIcon />,
   },
   {
     to: '/profile',
@@ -66,8 +64,8 @@ const TABS: readonly Tab[] = [
 ];
 
 /**
- * The app's tab bar — docs/features/communities-create.md §6.3. Search and My
- * List open a Coming soon screen until their phases. Padded for the iPhone
+ * The app's tab bar — docs/features/communities-create.md §6.3. Search opens a
+ * Coming soon screen until Phase 5; My List is docs/features/bookmarks-my-list.md §5.2. Padded for the iPhone
  * home indicator when the PWA runs full-screen.
  */
 export function BottomNav() {
