@@ -85,14 +85,15 @@ function DeletePostSheet({
         onDeleted(post.id);
         return;
       }
-      setBusy(false);
       if (response?.status === 403) {
-        // No longer allowed (demoted meanwhile): say so, and refresh the menus.
-        setError(response.data?.message ?? DELETE_FAILED);
+        // No longer allowed (demoted meanwhile). A toast, not the sheet: the
+        // reload that refreshes the menus unmounts this card and its sheet.
+        toast.error(response.data?.message ?? DELETE_FAILED);
         onStale();
-      } else {
-        setError(DELETE_FAILED);
+        return;
       }
+      setBusy(false);
+      setError(DELETE_FAILED);
     }
   }
 

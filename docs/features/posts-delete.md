@@ -8,7 +8,7 @@
 | **Use cases** | UC-18 (delete a post), extended with an admin path                               |
 | **Phase**     | 3 — Step 3.5 of `DEVELOPMENT.md` (absorbs former 3.5 and the delete menu of 3.6) |
 | **Branch**    | `feat/posts-delete`                                                              |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged               |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged               |
 
 ---
 
@@ -78,7 +78,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 - Success: the sheet closes, the card disappears from the feed at once, toast "Post deleted".
 - Network failure or `5xx`: inside the sheet, "Could not delete post. Check your connection and try again." (UC-18); the post stays.
 - `404` (already gone): the sheet closes, the card disappears, toast "This post was already deleted."
-- `403` (no longer allowed — demoted meanwhile): the message inside the sheet, and the feed reloads so the menu reflects the new role.
+- `403` (no longer allowed — demoted meanwhile): a toast with the server's message, and the feed reloads so the menu reflects the new role. (A toast, not the sheet: the reload unmounts the card and its sheet — found by `/code-review`.)
 
 ### 5.3 Feed
 
@@ -89,7 +89,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 - **Two people delete the same post** (author and an admin): the second gets `404` → "This post was already deleted."
 - **The author is removed while their delete is in flight:** the removal deletes the post too → `404` → same as above.
 - **Deleting a pending post while its author retries the conversion:** the retry re-reads the post, finds nothing → `404` → the card asks the feed to reload (feature 1 behaviour).
-- **An admin is demoted with the menu open:** the server answers `403`; the sheet shows it and the feed reloads.
+- **An admin is demoted with the menu open:** the server answers `403`; a toast shows it and the feed reloads.
 - **The caller is removed from the community with the menu open:** `404` "Post not found." → treated like "already deleted"; their next feed load gets the community's `404` → not-found page.
 - **The community is deleted meanwhile:** `404`, as above.
 - **An ex-member's post:** visible to members, `canDelete` only for admins and the owner.
@@ -115,7 +115,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 - ✅ The ⋯ menu shows only when `canDelete`; it expands to **Delete post**.
 - ✅ Own post → UC-18 text; someone else's → "Delete {author}'s recommendation?…".
 - ✅ Confirm → busy "Deleting…", then the card leaves the feed and "Post deleted" is toasted.
-- ❌ Network failure → UC-18 error in the sheet, the post stays; `404` → removed with "This post was already deleted."; `403` → message and the feed reloads.
+- ❌ Network failure → UC-18 error in the sheet, the post stays; `404` → removed with "This post was already deleted."; `403` → toast with the message and the feed reloads.
 - ❌ Offline → **Delete post** disabled.
 - ✅ The feed removes a deleted post from a "Load more" page and from your own just-posted ones.
 
