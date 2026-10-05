@@ -7,6 +7,8 @@ export interface PublicPost {
   id: string;
   author: MemberUser;
   isMine: boolean;
+  /** The viewer may delete it: its author, or an admin or the owner (posts-delete.md §4). */
+  canDelete: boolean;
   originalUrl: string;
   sourceService: StreamingService;
   kind: PostKind | null;
@@ -32,7 +34,11 @@ export const postInclude = { author: { select: memberUserSelect } } as const;
  * reach a client until someone adds it here on purpose. `communityId`,
  * `authorId` and `updatedAt` are deliberately absent.
  */
-export function toPublicPost(post: PostWithAuthor, viewerId: string): PublicPost {
+export function toPublicPost(
+  post: PostWithAuthor,
+  viewerId: string,
+  viewerModerates: boolean,
+): PublicPost {
   const candidates: Array<[StreamingService, string | null]> = [
     ['SPOTIFY', post.universalLinkSpotify],
     ['APPLE_MUSIC', post.universalLinkApple],
@@ -51,6 +57,7 @@ export function toPublicPost(post: PostWithAuthor, viewerId: string): PublicPost
     id: post.id,
     author: toMemberUser(post.author),
     isMine: post.authorId === viewerId,
+    canDelete: post.authorId === viewerId || viewerModerates,
     originalUrl: post.originalUrl,
     sourceService: post.sourceService,
     kind: post.kind,

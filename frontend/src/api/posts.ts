@@ -8,6 +8,8 @@ export interface PublicPost {
   id: string;
   author: { id: string; displayName: string; profilePictureUrl: string | null };
   isMine: boolean;
+  /** The viewer may delete it — decided by the server (posts-delete.md §4). */
+  canDelete: boolean;
   originalUrl: string;
   sourceService: StreamingService;
   kind: PostKind | null;
@@ -60,4 +62,9 @@ export async function retryConversion(postId: string): Promise<PublicPost> {
     { skipErrorToast: true },
   );
   return response.data.data.post;
+}
+
+/** The confirmation sheet shows its own outcome, so no toast. */
+export async function deletePost(postId: string): Promise<void> {
+  await api.delete(`/posts/${encodeURIComponent(postId)}`, { skipErrorToast: true });
 }

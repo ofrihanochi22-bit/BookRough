@@ -1023,7 +1023,7 @@ How to view & test:
 
 ### Step 3.5 — Delete a post (Phase 3 — UC-18)
 
-Status: 🟡 In progress — spec written, awaiting approval
+Status: 🟡 In progress — implemented (Stage 2); review and tests next
 Branch: feat/posts-delete
 Spec: docs/features/posts-delete.md
 
@@ -1031,8 +1031,11 @@ Goal: The original author deletes their post from the feed's context menu, with 
 
 Tasks:
 
-- [x] Spec: docs/features/posts-delete.md written (the author, plus the community's admins and owner on any post; server-computed `canDelete`).
-- [ ] Backend, frontend and tests per the spec.
+- [x] Spec: docs/features/posts-delete.md written and approved (the author, plus the community's admins and owner on any post; server-computed `canDelete`).
+- [x] Backend: `DELETE /api/posts/:postId` (author, or an admin/owner of the community, on any post); `PublicPost.canDelete`.
+- [x] Frontend: ⋯ menu on post cards with UC-18's confirmation (admin wording for someone else's post); the feed drops deleted posts.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:

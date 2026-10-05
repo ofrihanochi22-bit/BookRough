@@ -22,6 +22,8 @@ interface LocalChanges {
   page: PostsPage;
   added: PublicPost[];
   replaced: Record<string, PublicPost>;
+  /** Ids deleted on this screen, from whichever list held them. */
+  deleted: string[];
   more: PublicPost[];
   nextCursor: string | null;
 }
@@ -53,13 +55,20 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
     first.status === 'ready' && local?.page === first.data
       ? local
       : first.status === 'ready'
-        ? { page: first.data, added: [], replaced: {}, more: [], nextCursor: first.data.nextCursor }
+        ? {
+            page: first.data,
+            added: [],
+            replaced: {},
+            deleted: [],
+            more: [],
+            nextCursor: first.data.nextCursor,
+          }
         : null;
 
   const posts = changes
-    ? [...changes.added, ...changes.page.posts, ...changes.more].map(
-        (post) => changes.replaced[post.id] ?? post,
-      )
+    ? [...changes.added, ...changes.page.posts, ...changes.more]
+        .filter((post) => !changes.deleted.includes(post.id))
+        .map((post) => changes.replaced[post.id] ?? post)
     : [];
 
   /**
@@ -73,7 +82,7 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
       const current =
         previous?.page === page
           ? previous
-          : { page, added: [], replaced: {}, more: [], nextCursor: page.nextCursor };
+          : { page, added: [], replaced: {}, deleted: [], more: [], nextCursor: page.nextCursor };
       return { ...current, ...change(current) };
     });
   }
@@ -151,6 +160,11 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
           viewerService={viewerService}
           online={online}
           onStale={first.reload}
+          onDeleted={(postId) => {
+            if (changes) {
+              update(changes.page, (current) => ({ deleted: [...current.deleted, postId] }));
+            }
+          }}
           onUpdated={(updated) => {
             if (changes) {
               update(changes.page, (current) => ({

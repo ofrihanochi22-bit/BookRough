@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { sessionUser } from '../middleware/requireAuth.js';
 import {
   createPost,
+  deletePost,
   listPosts,
   POST_NOT_FOUND,
   retryConversion,
@@ -63,6 +64,16 @@ export const retry: RequestHandler = async (req, res, next) => {
   try {
     const post = await retryConversion(sessionUser(req), parsePostId(req.params.postId));
     res.status(200).json(success({ post }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/posts/:postId — the author, or an admin or the owner of its community. */
+export const destroy: RequestHandler = async (req, res, next) => {
+  try {
+    await deletePost(sessionUser(req), parsePostId(req.params.postId));
+    res.status(200).json(success(null));
   } catch (error) {
     next(error);
   }
