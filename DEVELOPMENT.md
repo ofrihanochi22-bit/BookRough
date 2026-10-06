@@ -1491,7 +1491,7 @@ npm test --prefix e2e                                     # 39 runs (+3 skipped)
 
 ### Step 5.3 — Unfriend (Phase 5 — UC-8)
 
-Status: 🟡 In progress
+Status: ✅ Done
 Branch: feat/unfriend
 Spec: docs/features/unfriend.md
 
@@ -1506,7 +1506,46 @@ Tasks:
 - [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built removing a friend (UC-8) per `docs/features/unfriend.md`.
+
+- **Backend:** `removeFriend` in `services/friend.service.ts` and `DELETE /api/friends/:userId` — deletes only an accepted friendship between the caller and that user, in either direction; pending requests are never touched; silent and idempotent; returns the caller's relation afterwards. No schema change.
+- **Frontend:**
+  - `components/RemoveFriendSheet.tsx`: "Remove friend?" / "Remove {name} from your friends? They won't be notified." with Remove friend and Cancel; success and failure toasts.
+  - `pages/Friends.tsx`: a ⋯ beside each of Your friends opens it; the row leaves on success (kept against the loaded page).
+  - `components/FriendButton.tsx`: "✓ Friends" is now a button opening the same sheet; the profile shows whatever relation the server reports.
+- **Decisions (Stage 1):** silent, back to no relation; either may re-request later (option A).
+- **Found along the way:**
+  - `/code-review`: the profile set Add Friend after a removal without reading the server's answer — on a stale profile with a new incoming request, a tap would silently accept it. Fixed, and its test proven to fail without the fix. `/security-review`: clean.
+  - The browser pane drops coordinate clicks while the Claude window is minimized; bringing it forward fixed the check.
+- **Docs:** `use cases` (UC-8), `frontend screens` (2.3, 2.4), `tables` (friends) (.md + .docx); `friend-requests.md` Merged ticked.
+- **Tests:** backend 791 (98.8% lines over both suites), frontend 546 (98.8%), E2E 39 + 3 skipped (the friend loop now ends with the receiver removing the sender, whose profile then offers Add Friend — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts A and B who are friends (see Step 5.2). Open `http://localhost:5173/` at 375px width.
+
+1. As A, open the **Friends** tab → tap **⋯** beside B → "Remove friend?" → **Cancel** → nothing changes.
+2. Tap **⋯** again → **Remove friend** → "Removed B from your friends."; B leaves the list.
+3. As B, reload A's profile → **Add Friend** (B was not told). Send a request, accept it as A.
+4. As A, open B's profile → tap **✓ Friends** → **Remove friend** → the button becomes **Add Friend**.
+5. Go offline (DevTools) → the ⋯ buttons and the Friends button are disabled.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/friend.service.test.ts
+cd backend && npm run test:integration -- friends
+cd frontend && npm run test:unit                          # Friends, FriendButton, api/friends
+npm test --prefix e2e                                     # 39 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 
