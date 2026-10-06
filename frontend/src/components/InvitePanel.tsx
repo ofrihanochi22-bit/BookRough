@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
+import {
+  cancelInvitation,
+  type InviteCandidate,
+  inviteFriends,
+  listCandidates,
+} from '../api/invitations';
 import { getInvite, inviteUrl, resetInvite } from '../api/invites';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { ACTION_FAILED } from '../lib/friendCopy';
+import { FriendPicker } from './FriendPicker';
 import { Button } from './ui/Button';
 import { LoadError } from './ui/LoadError';
 import { Sheet } from './ui/Sheet';
@@ -17,7 +27,8 @@ const COPIED_FOR_MS = 2000;
 
 /**
  * The admin's invite panel — docs/features/communities-invites.md §5.5: the
- * community's one link, with Share (the iPhone share sheet), Copy and Reset.
+ * community's one link, with Share (the iPhone share sheet), Copy and Reset;
+ * and above it, inviting friends in the app (docs/features/invite-friends.md §5.3).
  */
 export function InvitePanel({ communityId, communityName, onClose }: InvitePanelProps) {
   const load = useCallback(() => getInvite(communityId), [communityId]);
@@ -30,6 +41,8 @@ export function InvitePanel({ communityId, communityName, onClose }: InvitePanel
 
   return (
     <Sheet title="Invite friends" onClose={onClose} dismissible={!resetting}>
+      <FriendsSection communityId={communityId} />
+      <h3 className="text-sm font-medium">Invite link</h3>
       {invite.status === 'loading' && (
         <div className="py-6">
           <Spinner label="Getting your link…" />
@@ -194,5 +207,56 @@ function LinkActions({
         </button>
       )}
     </div>
+  );
+}
+
+/** Friends to invite in the app: Invite, or Invited (tap to cancel). */
+function FriendsSection({ communityId }: { communityId: string }) {
+  const online = useOnlineStatus();
+  const load = useCallback(() => listCandidates(communityId), [communityId]);
+  const loaded = useRequest(load);
+  /** The server's latest list after an action, kept against the load it followed. */
+  const [updated, setUpdated] = useState<{
+    base: InviteCandidate[];
+    list: InviteCandidate[];
+  } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const base = loaded.status === 'ready' ? loaded.data : null;
+  const candidates = base && updated?.base === base ? updated.list : base;
+
+  async function act(candidate: InviteCandidate, action: 'invite' | 'cancel') {
+    if (!base) {
+      return;
+    }
+    setBusy(candidate.user.id);
+    try {
+      const list =
+        action === 'invite'
+          ? await inviteFriends(communityId, [candidate.user.id])
+          : await cancelInvitation(communityId, candidate.user.id);
+      setUpdated({ base, list });
+    } catch {
+      toast.error(ACTION_FAILED);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section aria-labelledby="invite-panel-friends" className="flex flex-col gap-2">
+      <h3 id="invite-panel-friends" className="text-sm font-medium">
+        Friends
+      </h3>
+      <FriendPicker
+        mode="manage"
+        candidates={candidates}
+        failed={loaded.status === 'error'}
+        onRetry={loaded.reload}
+        online={online}
+        busy={busy}
+        onInvite={(candidate) => void act(candidate, 'invite')}
+        onCancel={(candidate) => void act(candidate, 'cancel')}
+      />
+    </section>
   );
 }

@@ -1,19 +1,34 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
+import toast from 'react-hot-toast';
 
 import { createCommunity } from '../api/communities';
+import { listFriends } from '../api/friends';
+import { inviteFriends, type InviteCandidate } from '../api/invitations';
 import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
+import { FriendPicker } from '../components/FriendPicker';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useRequest } from '../hooks/useRequest';
 import { cleanCommunityName } from '../lib/communityText';
+import { INVITES_NOT_SENT, MAX_SELECTED } from '../lib/invitationCopy';
+
+/** A new community has no members, invitations or bans: every friend is invitable. */
+async function loadCandidates(): Promise<InviteCandidate[]> {
+  const friends = await listFriends();
+  return friends.map((friend) => ({ user: friend.user, status: 'INVITABLE' }));
+}
 
 /**
  * Create Community — docs/features/communities-create.md §6.5 (UC-9). A
  * full-screen route rather than a modal, so the phone's back gesture works.
+ * The friends picker invites after the community exists
+ * (docs/features/invite-friends.md §5.2), so an invitation failure never
+ * loses the community.
  */
 export function CreateCommunity() {
   const navigate = useNavigate();
@@ -21,6 +36,20 @@ export function CreateCommunity() {
   const form = useCommunityDetailsForm();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const friends = useRequest(loadCandidates);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+
+  function toggle(userId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else if (next.size < MAX_SELECTED) {
+        next.add(userId);
+      }
+      return next;
+    });
+  }
 
   const canSubmit = form.values !== null && online && !saving;
 
@@ -35,6 +64,14 @@ export function CreateCommunity() {
     setFormError(null);
     try {
       const community = await createCommunity(form.values);
+      if (selected.size > 0) {
+        try {
+          await inviteFriends(community.id, [...selected]);
+        } catch {
+          // The community exists; its invite panel opens by itself to retry.
+          toast.error(INVITES_NOT_SENT);
+        }
+      }
       // Replace, so Back from the new community returns to the dashboard.
       navigate(`/communities/${community.id}`, { replace: true, state: { justCreated: true } });
     } catch (caught) {
@@ -76,17 +113,25 @@ export function CreateCommunity() {
 
         <CommunityDetailsFields form={form} onEdit={() => setFormError(null)} />
 
-        {/* Static on purpose (option B): the friends picker arrives with friends in Phase 5. */}
-        <section className="flex items-start gap-3 rounded-2xl bg-accent-soft px-4 py-4 text-accent-ink">
-          <span aria-hidden="true" className="text-xl leading-6">
-            ♫
-          </span>
-          <div>
-            <h2 className="text-sm font-medium">Invite friends</h2>
-            <p className="mt-1 text-xs">
-              You&apos;ll be able to invite friends from here once you have friends on BookRough.
-            </p>
-          </div>
+        <section aria-labelledby="invite-friends" className="flex flex-col gap-2">
+          <h2 id="invite-friends" className="text-sm font-medium">
+            Invite friends
+          </h2>
+          <p className="text-xs text-muted">
+            They&apos;ll get an invitation to join once the community is created.
+          </p>
+          <FriendPicker
+            mode="select"
+            candidates={friends.status === 'ready' ? friends.data : null}
+            failed={friends.status === 'error'}
+            onRetry={friends.reload}
+            online={online}
+            selected={selected}
+            onToggle={toggle}
+          />
+          {selected.size >= MAX_SELECTED && (
+            <p className="text-xs text-muted">You can invite up to {MAX_SELECTED} at once.</p>
+          )}
         </section>
 
         {formError && (

@@ -28,6 +28,12 @@ vi.mock('../api/friends', () => ({
   countFriendRequests: api.countFriendRequests,
   removeFriend: api.removeFriend,
 }));
+const invitationsApi = vi.hoisted(() => ({
+  listMyInvitations: vi.fn(),
+  acceptInvitation: vi.fn(),
+  declineInvitation: vi.fn(),
+}));
+vi.mock('../api/invitations', () => invitationsApi);
 vi.mock('react-hot-toast', () => ({
   default: { success: api.toastSuccess, error: api.toastError },
 }));
@@ -68,6 +74,7 @@ beforeEach(() => {
   api.listFriendRequests.mockResolvedValue([DANA, NOA]);
   api.listFriends.mockResolvedValue([YAEL]);
   api.countFriendRequests.mockResolvedValue(0);
+  invitationsApi.listMyInvitations.mockResolvedValue([]);
 });
 
 afterEach(() => {

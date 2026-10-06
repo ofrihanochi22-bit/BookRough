@@ -1,5 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { httpError } from '../test/fixtures';
@@ -9,6 +10,19 @@ const { getInvite, resetInvite } = vi.hoisted(() => ({
   getInvite: vi.fn(),
   resetInvite: vi.fn(),
 }));
+
+const invitationsApi = vi.hoisted(() => ({
+  listCandidates: vi.fn(),
+  inviteFriends: vi.fn(),
+  cancelInvitation: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock('../api/invitations', () => ({
+  listCandidates: invitationsApi.listCandidates,
+  inviteFriends: invitationsApi.inviteFriends,
+  cancelInvitation: invitationsApi.cancelInvitation,
+}));
+vi.mock('react-hot-toast', () => ({ default: { error: invitationsApi.toastError } }));
 
 vi.mock('../api/invites', () => ({
   getInvite,
@@ -20,7 +34,11 @@ const ORIGIN = window.location.origin;
 const onClose = vi.fn();
 
 function renderPanel() {
-  return render(<InvitePanel communityId="c-1" communityName="Friday Jazz" onClose={onClose} />);
+  return render(
+    <MemoryRouter>
+      <InvitePanel communityId="c-1" communityName="Friday Jazz" onClose={onClose} />
+    </MemoryRouter>,
+  );
 }
 
 const linkField = () => screen.getByLabelText('Invite link');
@@ -36,6 +54,7 @@ function stubShare(share: ((data: ShareData) => Promise<void>) | undefined) {
 beforeEach(() => {
   vi.resetAllMocks();
   getInvite.mockResolvedValue({ token: 'tok-1' });
+  invitationsApi.listCandidates.mockResolvedValue([]);
   stubShare(undefined);
 });
 
@@ -49,7 +68,7 @@ describe('InvitePanel', () => {
     renderPanel();
 
     // Assert
-    expect(screen.getByRole('status')).toHaveTextContent('Getting your link…');
+    expect(screen.getByText('Getting your link…')).toBeInTheDocument();
     expect(await screen.findByDisplayValue(`${ORIGIN}/invite/tok-1`)).toBeInTheDocument();
     expect(getInvite).toHaveBeenCalledWith('c-1');
     expect(screen.getByRole('dialog', { name: 'Invite friends' })).toBeInTheDocument();

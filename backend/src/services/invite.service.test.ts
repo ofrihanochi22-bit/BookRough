@@ -11,14 +11,20 @@ import {
   resetInvite,
 } from './invite.service.js';
 
-const { communityDb, memberDb, banDb } = vi.hoisted(() => ({
+const { communityDb, memberDb, banDb, invitationDb } = vi.hoisted(() => ({
   communityDb: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), updateMany: vi.fn() },
   memberDb: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), count: vi.fn(), create: vi.fn() },
   banDb: { findUnique: vi.fn() },
+  invitationDb: { deleteMany: vi.fn() },
 }));
 
 vi.mock('../db/prisma.js', () => ({
-  prisma: { community: communityDb, communityMember: memberDb, communityBan: banDb },
+  prisma: {
+    community: communityDb,
+    communityMember: memberDb,
+    communityBan: banDb,
+    communityInvitation: invitationDb,
+  },
 }));
 
 const TOKEN = 'qEP_iUKg0kWils3eSHVHZQ';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -10,19 +10,28 @@ import {
   listFriendRequests,
   listFriends,
 } from '../api/friends';
+import {
+  acceptInvitation,
+  declineInvitation,
+  listMyInvitations,
+  type MyInvitation,
+} from '../api/invitations';
 import { PersonLink } from '../components/PersonLink';
 import { RemoveFriendSheet } from '../components/RemoveFriendSheet';
 import { Button } from '../components/ui/Button';
+import { CommunityCover } from '../components/ui/CommunityCover';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { ACTION_FAILED, FRIENDS_LOAD_FAILED, FRIENDS_OFFLINE, nowFriends } from '../lib/friendCopy';
+import { INVITATION_GONE, invitedBy, joinedCommunity } from '../lib/invitationCopy';
 import { relativeTime } from '../lib/postLinks';
 import { useFriendRequests } from '../stores/friendRequests';
 
 interface FriendsData {
+  invitations: MyInvitation[];
   requests: FriendView[];
   friends: FriendView[];
 }
@@ -34,18 +43,25 @@ interface LocalChanges {
   accepted: FriendView[];
   /** Friends removed here (UC-8, unfriend.md §5.2). */
   removed: string[];
+  /** Invitations declined or gone, by community id (invite-friends.md §5.4). */
+  invitationsDone: string[];
 }
 
 async function loadFriends(): Promise<FriendsData> {
-  const [requests, friends] = await Promise.all([listFriendRequests(), listFriends()]);
-  return { requests, friends };
+  const [invitations, requests, friends] = await Promise.all([
+    listMyInvitations(),
+    listFriendRequests(),
+    listFriends(),
+  ]);
+  return { invitations, requests, friends };
 }
 
 const byName = (a: FriendView, b: FriendView) =>
   a.user.displayName.localeCompare(b.user.displayName);
 
 /**
- * Friends & Requests — docs/features/friend-requests.md §5.2 (UC-7). Pending
+ * Friends & Requests — docs/features/friend-requests.md §5.2 (UC-7). Community
+ * invitations first (invite-friends.md §5.4), then pending
  * requests to you, newest first, with Accept and Ignore; then your friends,
  * alphabetical, each removable behind a confirmation (UC-8, unfriend.md §5.2).
  */
@@ -57,11 +73,17 @@ export function Friends() {
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [removing, setRemoving] = useState<FriendView | null>(null);
+  const navigate = useNavigate();
 
   const data = loaded.status === 'ready' ? loaded.data : null;
   const changes = data && local?.base === data ? local : null;
   const requests = data
     ? data.requests.filter((request) => !changes?.answered.includes(request.user.id))
+    : [];
+  const invitations = data
+    ? data.invitations.filter(
+        (invitation) => !changes?.invitationsDone.includes(invitation.community.id),
+      )
     : [];
   const friends = data
     ? [...data.friends, ...(changes?.accepted ?? [])]
@@ -73,7 +95,9 @@ export function Friends() {
   function change(base: FriendsData, update: (current: LocalChanges) => Partial<LocalChanges>) {
     setLocal((previous) => {
       const current: LocalChanges =
-        previous?.base === base ? previous : { base, answered: [], accepted: [], removed: [] };
+        previous?.base === base
+          ? previous
+          : { base, answered: [], accepted: [], removed: [], invitationsDone: [] };
       return { ...current, ...update(current) };
     });
   }
@@ -83,12 +107,46 @@ export function Friends() {
       answered: [...current.answered, userId],
       accepted: friend ? [...current.accepted, friend] : current.accepted,
     }));
-    setCount(requests.length - 1);
+    setCount(invitations.length + requests.length - 1);
   }
 
   function dropFriend(userId: string) {
     if (data) {
       change(data, (current) => ({ removed: [...current.removed, userId] }));
+    }
+  }
+
+  function invitationDone(communityId: string) {
+    if (data) {
+      change(data, (current) => ({ invitationsDone: [...current.invitationsDone, communityId] }));
+      setCount(invitations.length + requests.length - 1);
+    }
+  }
+
+  /** Join navigates into the community, as UC-15 does (invite-friends.md §5.4). */
+  async function respond(invitation: MyInvitation, action: 'join' | 'decline') {
+    const { id, name } = invitation.community;
+    setBusy(id);
+    try {
+      if (action === 'join') {
+        await acceptInvitation(id);
+        toast.success(joinedCommunity(name));
+        void refreshCount();
+        navigate(`/communities/${encodeURIComponent(id)}`);
+        return;
+      }
+      await declineInvitation(id);
+      invitationDone(id);
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 404) {
+        invitationDone(id);
+        void refreshCount();
+        toast.error(INVITATION_GONE);
+      } else {
+        toast.error(ACTION_FAILED);
+      }
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -144,7 +202,7 @@ export function Friends() {
           <LoadError message={FRIENDS_LOAD_FAILED} onRetry={loaded.reload} />
         )}
 
-        {data && requests.length === 0 && friends.length === 0 && (
+        {data && invitations.length === 0 && requests.length === 0 && friends.length === 0 && (
           <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
             <p className="font-medium">No friends yet</p>
             <p className="mt-1 text-sm text-muted">
@@ -155,6 +213,56 @@ export function Friends() {
               tab and add them as friends.
             </p>
           </div>
+        )}
+
+        {invitations.length > 0 && (
+          <section aria-labelledby="community-invitations" className="flex flex-col gap-2">
+            <h2 id="community-invitations" className="font-medium">
+              Invitations
+            </h2>
+            <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+              {invitations.map((invitation) => (
+                <li key={invitation.community.id} className="flex flex-col gap-2 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 shrink-0">
+                      <CommunityCover
+                        id={invitation.community.id}
+                        name={invitation.community.name}
+                        variant="thumb"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{invitation.community.name}</p>
+                      <p className="truncate text-xs text-muted">
+                        {invitedBy(
+                          invitation.invitedBy?.displayName ?? null,
+                          invitation.community.memberCount,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      busy={busy === invitation.community.id}
+                      disabled={!online || busy !== null}
+                      onClick={() => void respond(invitation, 'join')}
+                      aria-label={`Join ${invitation.community.name}`}
+                    >
+                      Join
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      disabled={!online || busy !== null}
+                      onClick={() => void respond(invitation, 'decline')}
+                      aria-label={`Decline ${invitation.community.name}`}
+                    >
+                      Decline
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {requests.length > 0 && (

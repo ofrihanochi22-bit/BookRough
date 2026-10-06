@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (the friends picker); UC-7's "invite each other to Communities"; UC-9 amended (§9) |
 | **Phase**     | 5 — Step 5.5 of `DEVELOPMENT.md` (added in `friend-requests.md` §0)                     |
 | **Branch**    | `feat/invite-friends`                                                                   |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                      |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                      |
 
 ---
 
@@ -154,7 +154,7 @@ One list used in two places: each friend as avatar + name with a 44 px control o
 ### 5.3 Invite panel (`components/InvitePanel.tsx`)
 
 - Two sections, **Friends** first and **Invite link** below it (the existing link, Share, Copy, Reset unchanged).
-- Friends: the picker in button mode; **Invite** sends one invitation; **Invited** asks "Cancel the invitation to {name}?" in place (Cancel invitation / Keep) and cancels. Each action updates the list from the server's answer.
+- Friends: the picker in button mode; **Invite** sends one invitation; **Invited** cancels it on tap (its accessible name says so). Each action updates the list from the server's answer.
 - Failures toast "Action failed. Please check your internet connection and try again." Offline: buttons disabled.
 
 ### 5.4 Friends tab (`pages/Friends.tsx`)
@@ -238,15 +238,17 @@ One list used in two places: each friend as avatar + name with a 44 px control o
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                           | Reason                                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 2026-10-06 | An invitation the friend accepts or declines (option A)                                            | Consent: nobody joins a community without saying yes                          |
-| 2026-10-06 | Invitations on the Friends tab, above Requests; the badge counts both (option A)                   | One inbox, one badge, both already built                                      |
-| 2026-10-06 | Admins and the owner invite, from the Create form and the Invite friends panel (option A)          | Same rule as the invite link; invite after creation too                       |
-| 2026-10-06 | Decline is silent and deletes; admins may invite again                                             | Mirrors Ignore                                                                |
-| 2026-10-06 | Blocked people can't be invited, and a later block wins at Join, unannounced                       | The link's ban rule, applied the same way                                     |
-| 2026-10-06 | An invitation belongs to the community: it survives the friendship, the inviter's role and account | Nothing about the community changed; the inviter shown as gone                |
-| 2026-10-06 | Invalid invitees are skipped, not errors; the response is the refreshed candidate list             | A stale picker never fails a batch; the UI shows the truth                    |
-| 2026-10-06 | The Create form invites after creating, in a second request                                        | Creating stays exactly as tested; an invite failure never loses the community |
-| 2026-10-06 | The link's accept and removal clear a pending invitation                                           | No invitation to a community you're already in, or were removed from          |
-| 2026-10-06 | Join navigates to the community                                                                    | As UC-15 does after joining                                                   |
+| Date       | Decision                                                                                           | Reason                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | An invitation the friend accepts or declines (option A)                                            | Consent: nobody joins a community without saying yes                                                                                            |
+| 2026-10-06 | Invitations on the Friends tab, above Requests; the badge counts both (option A)                   | One inbox, one badge, both already built                                                                                                        |
+| 2026-10-06 | Admins and the owner invite, from the Create form and the Invite friends panel (option A)          | Same rule as the invite link; invite after creation too                                                                                         |
+| 2026-10-06 | Decline is silent and deletes; admins may invite again                                             | Mirrors Ignore                                                                                                                                  |
+| 2026-10-06 | Blocked people can't be invited, and a later block wins at Join, unannounced                       | The link's ban rule, applied the same way                                                                                                       |
+| 2026-10-06 | An invitation belongs to the community: it survives the friendship, the inviter's role and account | Nothing about the community changed; the inviter shown as gone                                                                                  |
+| 2026-10-06 | Invalid invitees are skipped, not errors; the response is the refreshed candidate list             | A stale picker never fails a batch; the UI shows the truth                                                                                      |
+| 2026-10-06 | The Create form invites after creating, in a second request                                        | Creating stays exactly as tested; an invite failure never loses the community                                                                   |
+| 2026-10-06 | The link's accept and removal clear a pending invitation                                           | No invitation to a community you're already in, or were removed from                                                                            |
+| 2026-10-06 | Join navigates to the community                                                                    | As UC-15 does after joining                                                                                                                     |
+| 2026-10-06 | Stage 2: tapping **Invited** cancels at once, without a confirmation                               | Cancelling is undone by tapping Invite again — like a mistaken tap, not a destructive act; mirrors cancelling a friend request in one sheet tap |
+| 2026-10-06 | Stage 2: `CommunityCover` gains a `thumb` size for invitation rows                                 | A 44 px leading square beside the name                                                                                                          |

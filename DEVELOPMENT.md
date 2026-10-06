@@ -1565,10 +1565,10 @@ Goal: Admins invite their friends from the Create Community form and the Invite 
 
 Tasks:
 
-- [ ] Spec: docs/features/invite-friends.md written and approved (accept or decline, on the Friends tab, admins invite).
-- [ ] DB: migration `add_community_invitations`.
-- [ ] Backend: candidates, invite, cancel, my invitations, count, accept, decline; the link's accept and removal clear an invitation.
-- [ ] Frontend: the friends picker on the Create form and in the Invite panel; Invitations on the Friends tab; the combined badge.
+- [x] Spec: docs/features/invite-friends.md written and approved (accept or decline, on the Friends tab, admins invite).
+- [x] DB: migration `add_community_invitations`.
+- [x] Backend: candidates, invite, cancel, my invitations, count, accept, decline; the link's accept and removal clear an invitation.
+- [x] Frontend: the friends picker on the Create form and in the Invite panel; Invitations on the Friends tab; the combined badge.
 - [ ] Review: `/code-review` and `/security-review`.
 - [ ] Tests: unit, integration, component and E2E per spec §7.
 

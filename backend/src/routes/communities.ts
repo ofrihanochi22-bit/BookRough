@@ -11,6 +11,11 @@ import {
   transfer,
   unblockUser,
 } from '../controllers/membership.controller.js';
+import {
+  cancel as cancelInvitation,
+  candidates as invitationCandidates,
+  invite as inviteFriends,
+} from '../controllers/invitation.controller.js';
 import { create as createPost, list as listPosts } from '../controllers/post.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
@@ -32,5 +37,8 @@ communitiesRouter.get('/:id/bans', requireAuth, blocked);
 communitiesRouter.delete('/:id/bans/:userId', requireAuth, unblockUser);
 communitiesRouter.get('/:id/invite', requireAuth, showInvite);
 communitiesRouter.post('/:id/invite/reset', requireAuth, resetCommunityInvite);
+communitiesRouter.get('/:id/invitations/candidates', requireAuth, invitationCandidates);
+communitiesRouter.post('/:id/invitations', requireAuth, inviteFriends);
+communitiesRouter.delete('/:id/invitations/:userId', requireAuth, cancelInvitation);
 communitiesRouter.get('/:id/posts', requireAuth, listPosts);
 communitiesRouter.post('/:id/posts', requireAuth, createPost);

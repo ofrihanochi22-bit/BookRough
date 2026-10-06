@@ -4,10 +4,12 @@ interface CommunityCoverProps {
   /** Picks the colour. Null before the community exists: a neutral preview. */
   id: string | null;
   name: string;
-  variant: 'card' | 'banner';
+  variant: 'thumb' | 'card' | 'banner';
 }
 
 const SIZES = {
+  /** A row's leading square (invite-friends.md §5.4). */
+  thumb: 'h-11 text-sm',
   card: 'h-20 text-2xl',
   banner: 'h-32 text-4xl',
 } as const;

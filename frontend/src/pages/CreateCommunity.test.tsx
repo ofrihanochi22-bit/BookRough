@@ -8,6 +8,14 @@ import { CreateCommunity } from './CreateCommunity';
 
 const { createCommunity } = vi.hoisted(() => ({ createCommunity: vi.fn() }));
 vi.mock('../api/communities', () => ({ createCommunity }));
+const picker = vi.hoisted(() => ({
+  listFriends: vi.fn(),
+  inviteFriends: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock('../api/friends', () => ({ listFriends: picker.listFriends }));
+vi.mock('../api/invitations', () => ({ inviteFriends: picker.inviteFriends }));
+vi.mock('react-hot-toast', () => ({ default: { error: picker.toastError } }));
 
 function Landed() {
   const location = useLocation();
@@ -38,6 +46,7 @@ const createButton = () => screen.getByRole('button', { name: 'Create' });
 beforeEach(() => {
   vi.resetAllMocks();
   setOnline(true);
+  picker.listFriends.mockResolvedValue([]);
 });
 
 describe('CreateCommunity — rendering', () => {
@@ -50,8 +59,7 @@ describe('CreateCommunity — rendering', () => {
     expect(screen.getByText('0/40')).toBeInTheDocument();
     expect(screen.getByText('0/280')).toBeInTheDocument();
     expect(screen.getByTestId('community-cover')).toHaveTextContent('♪');
-    const invite = screen.getByRole('heading', { name: 'Invite friends' }).closest('section')!;
-    expect(invite.querySelector('button, a, input, [role="button"]')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Invite friends' })).toBeInTheDocument();
     expect(createButton()).toBeDisabled();
   });
 

@@ -20,19 +20,22 @@ import {
  * moment a concurrent change makes a conditional write match nothing.
  */
 
-const { memberDb, banDb, postDb, ratingDb, transaction, getCommunity } = vi.hoisted(() => ({
-  memberDb: {
-    findUnique: vi.fn(),
-    findMany: vi.fn(),
-    deleteMany: vi.fn(),
-    updateMany: vi.fn(),
-  },
-  banDb: { upsert: vi.fn(), deleteMany: vi.fn() },
-  postDb: { deleteMany: vi.fn() },
-  ratingDb: { deleteMany: vi.fn() },
-  transaction: vi.fn(),
-  getCommunity: vi.fn(),
-}));
+const { memberDb, banDb, postDb, ratingDb, invitationDb, transaction, getCommunity } = vi.hoisted(
+  () => ({
+    memberDb: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    banDb: { upsert: vi.fn(), deleteMany: vi.fn() },
+    postDb: { deleteMany: vi.fn() },
+    ratingDb: { deleteMany: vi.fn() },
+    invitationDb: { deleteMany: vi.fn() },
+    transaction: vi.fn(),
+    getCommunity: vi.fn(),
+  }),
+);
 
 vi.mock('../db/prisma.js', () => ({
   prisma: { communityMember: memberDb, communityBan: banDb, $transaction: transaction },
@@ -67,7 +70,13 @@ beforeEach(() => {
   vi.resetAllMocks();
   // Interactive transactions run their callback against the same mocks.
   transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
-    callback({ communityMember: memberDb, communityBan: banDb, post: postDb, rating: ratingDb }),
+    callback({
+      communityMember: memberDb,
+      communityBan: banDb,
+      post: postDb,
+      rating: ratingDb,
+      communityInvitation: invitationDb,
+    }),
   );
 });
 

@@ -8,6 +8,8 @@ import { TabLayout } from './TabLayout';
 
 const { countFriendRequests } = vi.hoisted(() => ({ countFriendRequests: vi.fn() }));
 vi.mock('../api/friends', () => ({ countFriendRequests }));
+const { countMyInvitations } = vi.hoisted(() => ({ countMyInvitations: vi.fn() }));
+vi.mock('../api/invitations', () => ({ countMyInvitations }));
 
 function renderAt(path: string) {
   return render(
@@ -31,6 +33,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   useFriendRequests.setState({ count: 0 });
   countFriendRequests.mockResolvedValue(0);
+  countMyInvitations.mockResolvedValue(0);
 });
 
 describe('TabLayout and BottomNav', () => {
@@ -72,17 +75,17 @@ describe('TabLayout and BottomNav', () => {
     renderAt('/home');
 
     // Assert
-    const friends = await within(nav()).findByRole('link', { name: 'Friends, 2 requests' });
+    const friends = await within(nav()).findByRole('link', { name: 'Friends, 2 waiting' });
     expect(within(friends).getByText('2')).toBeInTheDocument();
   });
 
-  it('says "9+" above nine and "request" for one', async () => {
+  it('says "9+" above nine, and names one waiting item', async () => {
     // Arrange
     countFriendRequests.mockResolvedValueOnce(12);
     const { unmount } = renderAt('/home');
 
     // Assert
-    const many = await within(nav()).findByRole('link', { name: 'Friends, 12 requests' });
+    const many = await within(nav()).findByRole('link', { name: 'Friends, 12 waiting' });
     expect(within(many).getByText('9+')).toBeInTheDocument();
     unmount();
 
@@ -92,7 +95,7 @@ describe('TabLayout and BottomNav', () => {
 
     // Assert
     expect(
-      await within(nav()).findByRole('link', { name: 'Friends, 1 request' }),
+      await within(nav()).findByRole('link', { name: 'Friends, 1 waiting' }),
     ).toBeInTheDocument();
   });
 

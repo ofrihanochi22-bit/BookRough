@@ -97,7 +97,7 @@ export function BottomNav() {
               to={tab.to}
               aria-label={
                 tab.to === '/friends' && requests > 0
-                  ? `${tab.label}, ${requests} ${requests === 1 ? 'request' : 'requests'}`
+                  ? `${tab.label}, ${requests} waiting`
                   : undefined
               }
               className={({ isActive }) =>

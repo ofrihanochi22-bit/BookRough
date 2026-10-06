@@ -56,35 +56,37 @@ enum PostKind {
 /// The three profile columns are null until onboarding finishes — the row is
 /// created at first sign-in, before the user has chosen anything.
 model User {
-  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// The account key: Google's opaque, stable `sub` claim.
-  googleSub              String            @unique @map("google_sub")
+  googleSub              String                @unique @map("google_sub")
   /// Shown exactly as typed — any language, editable.
-  displayName            String?           @map("display_name") @db.VarChar(50)
+  displayName            String?               @map("display_name") @db.VarChar(50)
   /// Server-derived normalised form of displayName. Carries the uniqueness, so
   /// "Ofri" and "ofri " collide while each is still shown as typed. Never sent
   /// to a client.
-  displayNameKey         String?           @unique @map("display_name_key") @db.VarChar(50)
+  displayNameKey         String?               @unique @map("display_name_key") @db.VarChar(50)
   /// Google's photo URL. Kept only before onboarding (to offer it as a
   /// choice) or when the user chose it (docs/features/onboarding.md §3).
-  profilePictureUrl      String?           @map("profile_picture_url")
+  profilePictureUrl      String?               @map("profile_picture_url")
   /// The user chose their Google photo as their avatar. False until they do.
-  useGooglePicture       Boolean           @default(false) @map("use_google_picture")
+  useGooglePicture       Boolean               @default(false) @map("use_google_picture")
   /// No default: "has not chosen" must stay distinguishable from "chose Spotify".
-  preferredService       StreamingService? @map("preferred_service")
+  preferredService       StreamingService?     @map("preferred_service")
   /// Set directly in the database, never through an API (CLAUDE.md §17).
-  role                   UserRole          @default(USER)
-  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  role                   UserRole              @default(USER)
+  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
   memberships            CommunityMember[]
-  bans                   CommunityBan[]    @relation("BannedUser")
-  bansIssued             CommunityBan[]    @relation("BannedBy")
+  bans                   CommunityBan[]        @relation("BannedUser")
+  bansIssued             CommunityBan[]        @relation("BannedBy")
   settingChanges         SettingChange[]
   posts                  Post[]
   bookmarks              Bookmark[]
   ratings                Rating[]
-  friendRequestsSent     Friend[]          @relation("FriendRequester")
-  friendRequestsReceived Friend[]          @relation("FriendAddressee")
+  friendRequestsSent     Friend[]              @relation("FriendRequester")
+  friendRequestsReceived Friend[]              @relation("FriendAddressee")
+  invitations            CommunityInvitation[] @relation("InvitationInvitee")
+  invitationsSent        CommunityInvitation[] @relation("InvitationInviter")
 
   @@map("users")
 }
@@ -94,20 +96,21 @@ model User {
 /// There is no cover image column: covers are always generated from the name
 /// and id (CLAUDE.md §8).
 model Community {
-  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Shown as typed. Not unique — communities are found by invite, never by name.
-  name        String            @db.VarChar(100)
+  name        String                @db.VarChar(100)
   /// Plain text with line breaks; null when the creator left it blank.
   description String?
   /// The community's one invite link (docs/features/communities-invites.md §3).
   /// Created on first request, replaced on reset. A secret: never logged, never
   /// in PublicCommunity.
-  inviteToken String?           @unique @map("invite_token") @db.VarChar(64)
-  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  inviteToken String?               @unique @map("invite_token") @db.VarChar(64)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
   members     CommunityMember[]
   bans        CommunityBan[]
   posts       Post[]
+  invitations CommunityInvitation[]
 
   @@map("communities")
 }
@@ -277,4 +280,25 @@ model Friend {
   /// Incoming requests newest first, the badge count, and the addressee's cascade.
   @@index([addresseeId, status, createdAt(sort: Desc)])
   @@map("friends")
+}
+
+/// A pending invitation to join a community (UC-9's picker,
+/// docs/features/invite-friends.md §3). Gone once accepted or declined.
+model CommunityInvitation {
+  communityId String    @map("community_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// The admin who sent it; null once their account is deleted.
+  invitedById String?   @map("invited_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User      @relation("InvitationInvitee", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy   User?     @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  /// One invitation per person per community.
+  @@id([communityId, userId])
+  /// "My invitations" newest first, the badge count, and the invitee's cascade.
+  @@index([userId, createdAt(sort: Desc)])
+  /// The inviter's SET NULL.
+  @@index([invitedById])
+  @@map("community_invitations")
 }
