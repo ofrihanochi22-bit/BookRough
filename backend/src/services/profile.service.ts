@@ -25,7 +25,7 @@ const ONBOARDED = {
   preferredService: { not: null },
 } satisfies Prisma.UserWhereInput;
 
-function requireOnboarded(user: User): void {
+export function requireOnboarded(user: User): void {
   if (needsOnboarding(user)) {
     throw new AppError('Finish your profile first.', 403);
   }
@@ -88,14 +88,20 @@ export async function searchUsers(
   };
 }
 
-/** An onboarded user, or 404: someone mid-onboarding is not in the directory yet. */
-async function findProfileUser(userId: string): Promise<ProfileUser> {
+/**
+ * An onboarded user, or 404: someone mid-onboarding is not in the directory
+ * yet. Also the target check for friend requests (friend-requests.md §4).
+ */
+export async function findProfileUser(
+  userId: string,
+  notFound = USER_NOT_FOUND,
+): Promise<ProfileUser> {
   const target = await prisma.user.findFirst({
     where: { id: userId, ...ONBOARDED },
     select: profileUserSelect,
   });
   if (!target?.displayName || !target.preferredService) {
-    throw new AppError(USER_NOT_FOUND, 404);
+    throw new AppError(notFound, 404);
   }
   return toProfileUser({
     ...target,

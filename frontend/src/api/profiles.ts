@@ -1,5 +1,6 @@
 import type { StreamingService } from '../stores/auth';
 import { api, type SuccessBody } from './client';
+import type { Friendship } from './friends';
 import type { MemberUser } from './membership';
 import type { PostKind } from './posts';
 
@@ -50,12 +51,17 @@ export async function searchUsers(q: string): Promise<SearchResults> {
   return response.data.data;
 }
 
-export async function getProfile(userId: string): Promise<ProfileUser> {
-  const response = await api.get<SuccessBody<{ user: ProfileUser }>>(
-    `/users/${encodeURIComponent(userId)}`,
-    { skipErrorToast: true },
-  );
-  return response.data.data.user;
+/** A profile, with the viewer's friendship (friend-requests.md §4). */
+export interface ProfileData {
+  user: ProfileUser;
+  friendship: Friendship;
+}
+
+export async function getProfile(userId: string): Promise<ProfileData> {
+  const response = await api.get<SuccessBody<ProfileData>>(`/users/${encodeURIComponent(userId)}`, {
+    skipErrorToast: true,
+  });
+  return response.data.data;
 }
 
 export async function listProfileRatings(

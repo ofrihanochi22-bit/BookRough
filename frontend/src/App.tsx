@@ -10,6 +10,7 @@ import { CommunitySettings } from './pages/CommunitySettings';
 import { CompleteProfile } from './pages/CompleteProfile';
 import { CreateCommunity } from './pages/CreateCommunity';
 import { Dashboard } from './pages/Dashboard';
+import { Friends } from './pages/Friends';
 import { InvitePreview } from './pages/InvitePreview';
 import { MyList } from './pages/MyList';
 import { NotFound } from './pages/NotFound';
@@ -66,6 +67,7 @@ export function App() {
             <Route path="/communities/:id/settings" element={<CommunitySettings />} />
             <Route path="/posts/:postId" element={<PostDetail />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/friends" element={<Friends />} />
             <Route path="/users/:userId" element={<PublicProfile />} />
             <Route path="/my-list" element={<MyList />} />
             <Route path="/profile" element={<Profile />} />

@@ -83,7 +83,7 @@ describe('PublicProfile', () => {
 
   it('shows the person and their ratings, each linking to Post Detail', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings.mockResolvedValue({ items: [rating(1)], nextCursor: null });
 
     // Act
@@ -103,7 +103,7 @@ describe('PublicProfile', () => {
 
   it('reads "Shared from …" for a pending post', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings.mockResolvedValue({
       items: [rating(2, { conversionPending: true, title: null, sourceService: 'APPLE_MUSIC' })],
       nextCursor: null,
@@ -118,7 +118,7 @@ describe('PublicProfile', () => {
 
   it('appends the next page with Load more', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings
       .mockResolvedValueOnce({ items: [rating(1)], nextCursor: 'cursor-1' })
       .mockResolvedValueOnce({ items: [rating(2)], nextCursor: null });
@@ -137,7 +137,7 @@ describe('PublicProfile', () => {
 
   it('keeps the loaded rows when Load more fails, and offers Try again', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings
       .mockResolvedValueOnce({ items: [rating(1)], nextCursor: 'cursor-1' })
       .mockRejectedValueOnce(networkError());
@@ -155,7 +155,7 @@ describe('PublicProfile', () => {
 
   it('shows the empty state with their name', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings.mockResolvedValue({ items: [], nextCursor: null });
 
     // Act
@@ -170,7 +170,7 @@ describe('PublicProfile', () => {
 
   it('keeps the header when the ratings fail, and retries them', async () => {
     // Arrange
-    getProfile.mockResolvedValue(DANA);
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings
       .mockRejectedValueOnce(networkError())
       .mockResolvedValueOnce({ items: [rating(1)], nextCursor: null });
@@ -199,7 +199,9 @@ describe('PublicProfile', () => {
 
   it('shows the profile error with Try again', async () => {
     // Arrange
-    getProfile.mockRejectedValueOnce(networkError()).mockResolvedValueOnce(DANA);
+    getProfile
+      .mockRejectedValueOnce(networkError())
+      .mockResolvedValueOnce({ user: DANA, friendship: 'NONE' });
     listProfileRatings.mockResolvedValue({ items: [], nextCursor: null });
     renderProfile();
     await screen.findByText(PROFILE_FAILED);

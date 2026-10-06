@@ -2,18 +2,22 @@ import { useCallback, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
+import type { Friendship } from '../api/friends';
 import {
   getProfile,
   listProfileRatings,
+  type ProfileData,
   type ProfileRating,
   type ProfileRatingsPage,
 } from '../api/profiles';
+import { FriendButton } from '../components/FriendButton';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { CoverArt } from '../components/ui/CoverArt';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { relativeTime } from '../lib/postLinks';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED, ratingsEmptyHint } from '../lib/profileCopy';
@@ -44,6 +48,11 @@ export function PublicProfile() {
   const ratings = useRequest(loadRatings);
   const [more, setMore] = useState<MorePages | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  // The friend button's answer, kept against the profile load it was made on.
+  const [friendship, setFriendship] = useState<{ base: ProfileData; value: Friendship } | null>(
+    null,
+  );
+  const online = useOnlineStatus();
   // The page whose Load more failed, so the message never follows to another profile.
   const [moreFailed, setMoreFailed] = useState<ProfileRatingsPage | null>(null);
 
@@ -54,6 +63,12 @@ export function PublicProfile() {
     return <NotFound />;
   }
 
+  const loadedProfile = profile.status === 'ready' ? profile.data : null;
+  const user = loadedProfile?.user ?? null;
+  const currentFriendship =
+    loadedProfile && friendship?.base === loadedProfile
+      ? friendship.value
+      : (loadedProfile?.friendship ?? 'NONE');
   const first = ratings.status === 'ready' ? ratings.data : null;
   const extra = first && more?.first === first ? more : null;
   const items = first ? [...first.items, ...(extra?.items ?? [])] : [];
@@ -92,24 +107,35 @@ export function PublicProfile() {
         <LoadError message={PROFILE_FAILED} onRetry={profile.reload} />
       )}
 
-      {profile.status === 'ready' && (
+      {loadedProfile && user && (
         <header className="flex items-center gap-4">
           <Avatar
-            id={profile.data.id}
-            name={profile.data.displayName}
-            pictureUrl={profile.data.profilePictureUrl}
+            id={user.id}
+            name={user.displayName}
+            pictureUrl={user.profilePictureUrl}
             size={80}
             decorative
           />
           <div className="min-w-0">
-            <h1 className="break-words font-display text-2xl font-medium">
-              {profile.data.displayName}
-            </h1>
+            <h1 className="break-words font-display text-2xl font-medium">{user.displayName}</h1>
             <p className="text-sm text-muted">
-              Listens on {streamingServiceLabel(profile.data.preferredService)}
+              Listens on {streamingServiceLabel(user.preferredService)}
             </p>
           </div>
         </header>
+      )}
+
+      {loadedProfile && user && (
+        <div className="mt-4">
+          <FriendButton
+            userId={user.id}
+            name={user.displayName}
+            friendship={currentFriendship}
+            online={online}
+            onChanged={(value) => setFriendship({ base: loadedProfile, value })}
+            onStale={profile.reload}
+          />
+        </div>
       )}
 
       {profile.status !== 'error' && (
@@ -129,12 +155,10 @@ export function PublicProfile() {
             <LoadError message={RATINGS_LOAD_FAILED} onRetry={ratings.reload} />
           )}
 
-          {first && items.length === 0 && profile.status === 'ready' && (
+          {first && items.length === 0 && user && (
             <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
               <p className="font-medium">No ratings to show</p>
-              <p className="mt-1 text-sm text-muted">
-                {ratingsEmptyHint(profile.data.displayName)}
-              </p>
+              <p className="mt-1 text-sm text-muted">{ratingsEmptyHint(user.displayName)}</p>
             </div>
           )}
 
