@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { sessionUser } from '../middleware/requireAuth.js';
+import { friendshipOf } from '../services/friend.service.js';
 import {
   EMPTY_QUERY,
   getProfile,
@@ -39,11 +40,13 @@ export const search: RequestHandler = async (req, res, next) => {
   }
 };
 
-/** GET /api/users/:userId — a Public Profile. */
+/** GET /api/users/:userId — a Public Profile, with the viewer's friendship (friend-requests.md §4). */
 export const profile: RequestHandler = async (req, res, next) => {
   try {
-    const user = await getProfile(sessionUser(req), parseProfileId(req.params.userId));
-    res.status(200).json(success({ user }));
+    const viewer = sessionUser(req);
+    const user = await getProfile(viewer, parseProfileId(req.params.userId));
+    const friendship = await friendshipOf(viewer.id, user.id);
+    res.status(200).json(success({ user, friendship }));
   } catch (error) {
     next(error);
   }

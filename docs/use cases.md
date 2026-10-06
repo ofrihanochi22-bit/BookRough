@@ -91,23 +91,23 @@
   - The user views the profile of a non-friend user.
   - The user taps the "Add Friend" button.
   - The system creates a pending request record in the database linking the two user IDs.
-  - The UI instantly updates the button state from "Add Friend" to "Request Sent" or "Pending".
-  - The system sends an in-app notification (and optionally a push notification) to the target user informing them of the new request.
-- **Fail description (Alternative Scenario):** The target user has specific privacy settings enabled that prevent them from receiving incoming friend requests from strangers, or the target user has previously blocked the sender. When the user views the profile, the "Add Friend" button is either hidden entirely or disabled, preventing the trigger action from occurring.
+  - The UI updates the button from "Add Friend" to "Request sent". If the target had already sent the user a request, it is accepted instead and both become friends. The sender may cancel a pending request from the same profile.
+  - The target user sees a badge counting pending requests on the Friends tab — the in-app notification; a log-only stub marks where a push channel would plug in (`docs/features/friend-requests.md`).
+- **Fail description (Alternative Scenario):** The target account no longer exists or has not finished onboarding: the request is refused with "User not found." Any signed-in user may send a request to anyone else — there are no privacy settings and no blocking (withdrawn by decision, `docs/features/friend-requests.md` §10); an unwanted request is ignored (UC-7).
 
 ### UC-7: User Accepts/Ignores a Friend Request
 
 - **Description:** A user responds to an incoming friend request by either accepting the connection or dismissing (ignoring) it.
 - **Pre-conditions:** The user is logged in and has at least one unresolved, pending friend request in their notifications or dedicated "Friends" tab.
-- **Post-conditions:** If accepted, the database updates the relationship status to "Friends" for both users. If ignored, the pending request is deleted from the database. The notification is cleared in both cases.
+- **Post-conditions:** If accepted, the database updates the relationship status to "Friends" for both users. If ignored, the pending request is deleted from the database; the sender is not told, sees "Add Friend" again, and may send a new request. The Friends tab badge drops in both cases.
 - **Trigger:** The user taps either the "Accept" or "Ignore" button associated with a specific friend request.
 - **Step-by-step scenario (Success - Accept):**
-  - The user navigates to their pending friend requests list.
+  - The user opens the Friends tab, whose badge counts pending requests; requests are listed first, newest first.
   - The user taps the "Accept" button next to a requester's name.
   - The backend updates the social graph, establishing a bidirectional "Friend" link between the two user IDs.
   - The system removes the request from the pending list.
-  - The system notifies the original sender that their request was accepted. Both users can now easily invite each other to Communities.
-- **Fail description (Alternative Scenario - Sender Deleted Account):** The user taps "Accept" on a request, but the user who originally sent the request has since deleted their account. The backend fails to find the sender's user ID. The system removes the "ghost" request from the UI and displays a brief error toast: "This request is no longer valid as the user account does not exist."
+  - The system notifies the original sender that their request was accepted (a log-only stub for now), and both see each other under "Your friends". Inviting friends to a community arrives with Phase 5, Step 5.5 (UC-9's picker).
+- **Fail description (Alternative Scenario - Sender Deleted Account):** The user taps "Accept" on a request, but the user who originally sent the request has since deleted their account. The backend fails to find the sender's user ID. The system removes the "ghost" request from the UI and displays a brief error toast: "This request is no longer valid as the user account does not exist." A request that was cancelled or answered elsewhere meanwhile shows "This request is no longer available." instead.
 
 ### UC-8: User Deletes a Friend
 

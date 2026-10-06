@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { badgeText } from '../lib/friendCopy';
+import { useFriendRequests } from '../stores/friendRequests';
 import { BookmarkIcon } from './ui/BookmarkIcon';
 
 interface Tab {
@@ -47,6 +49,17 @@ const TABS: readonly Tab[] = [
     ),
   },
   {
+    to: '/friends',
+    label: 'Friends',
+    icon: (
+      <Icon>
+        <circle cx="9" cy="8" r="3.5" />
+        <path d="M2.5 20c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" />
+        <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 15.6c1.6.7 2.8 2.2 3.5 4.4" />
+      </Icon>
+    ),
+  },
+  {
     to: '/my-list',
     label: 'My List',
     icon: <BookmarkIcon />,
@@ -65,10 +78,13 @@ const TABS: readonly Tab[] = [
 
 /**
  * The app's tab bar — docs/features/communities-create.md §6.3. Search is
- * docs/features/find-people.md §5.1; My List is docs/features/bookmarks-my-list.md §5.2.
+ * docs/features/find-people.md §5.1; Friends, with its pending-request badge,
+ * docs/features/friend-requests.md §5.1; My List is docs/features/bookmarks-my-list.md §5.2.
  * Padded for the iPhone home indicator when the PWA runs full-screen.
  */
 export function BottomNav() {
+  const requests = useFriendRequests((state) => state.count);
+
   return (
     <nav
       aria-label="Main"
@@ -79,13 +95,28 @@ export function BottomNav() {
           <li key={tab.to} className="flex-1">
             <NavLink
               to={tab.to}
+              aria-label={
+                tab.to === '/friends' && requests > 0
+                  ? `${tab.label}, ${requests} ${requests === 1 ? 'request' : 'requests'}`
+                  : undefined
+              }
               className={({ isActive }) =>
                 `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${
                   isActive ? 'text-accent' : 'text-muted'
                 }`
               }
             >
-              {tab.icon}
+              <span className="relative">
+                {tab.icon}
+                {tab.to === '/friends' && requests > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium leading-none text-on-accent"
+                  >
+                    {badgeText(requests)}
+                  </span>
+                )}
+              </span>
               {tab.label}
             </NavLink>
           </li>

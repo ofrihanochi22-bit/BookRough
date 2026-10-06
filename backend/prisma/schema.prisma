@@ -56,33 +56,35 @@ enum PostKind {
 /// The three profile columns are null until onboarding finishes — the row is
 /// created at first sign-in, before the user has chosen anything.
 model User {
-  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// The account key: Google's opaque, stable `sub` claim.
-  googleSub         String            @unique @map("google_sub")
+  googleSub              String            @unique @map("google_sub")
   /// Shown exactly as typed — any language, editable.
-  displayName       String?           @map("display_name") @db.VarChar(50)
+  displayName            String?           @map("display_name") @db.VarChar(50)
   /// Server-derived normalised form of displayName. Carries the uniqueness, so
   /// "Ofri" and "ofri " collide while each is still shown as typed. Never sent
   /// to a client.
-  displayNameKey    String?           @unique @map("display_name_key") @db.VarChar(50)
+  displayNameKey         String?           @unique @map("display_name_key") @db.VarChar(50)
   /// Google's photo URL. Kept only before onboarding (to offer it as a
   /// choice) or when the user chose it (docs/features/onboarding.md §3).
-  profilePictureUrl String?           @map("profile_picture_url")
+  profilePictureUrl      String?           @map("profile_picture_url")
   /// The user chose their Google photo as their avatar. False until they do.
-  useGooglePicture  Boolean           @default(false) @map("use_google_picture")
+  useGooglePicture       Boolean           @default(false) @map("use_google_picture")
   /// No default: "has not chosen" must stay distinguishable from "chose Spotify".
-  preferredService  StreamingService? @map("preferred_service")
+  preferredService       StreamingService? @map("preferred_service")
   /// Set directly in the database, never through an API (CLAUDE.md §17).
-  role              UserRole          @default(USER)
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
-  memberships       CommunityMember[]
-  bans              CommunityBan[]    @relation("BannedUser")
-  bansIssued        CommunityBan[]    @relation("BannedBy")
-  settingChanges    SettingChange[]
-  posts             Post[]
-  bookmarks         Bookmark[]
-  ratings           Rating[]
+  role                   UserRole          @default(USER)
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships            CommunityMember[]
+  bans                   CommunityBan[]    @relation("BannedUser")
+  bansIssued             CommunityBan[]    @relation("BannedBy")
+  settingChanges         SettingChange[]
+  posts                  Post[]
+  bookmarks              Bookmark[]
+  ratings                Rating[]
+  friendRequestsSent     Friend[]          @relation("FriendRequester")
+  friendRequestsReceived Friend[]          @relation("FriendAddressee")
 
   @@map("users")
 }
@@ -248,4 +250,31 @@ model Rating {
   /// (docs/features/find-people.md §3), `myScore`, and the account cascade.
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("ratings")
+}
+
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+}
+
+/// A friend request, and once accepted a friendship (UC-6, UC-7,
+/// docs/features/friend-requests.md §3). One row per pair, in either direction:
+/// the hand-written unique index `friends_one_per_pair` and CHECK
+/// `friends_not_self` (in the add_friends migration; Prisma cannot express
+/// them, and `prisma migrate diff` does not see them) guard it.
+model Friend {
+  requesterId String       @map("requester_id") @db.Uuid
+  addresseeId String       @map("addressee_id") @db.Uuid
+  status      FriendStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Set on every write; for an accepted row, when it was accepted.
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  requester   User         @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User         @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  /// The requester's side, and the cascade from the requester.
+  @@id([requesterId, addresseeId])
+  /// Incoming requests newest first, the badge count, and the addressee's cascade.
+  @@index([addresseeId, status, createdAt(sort: Desc)])
+  @@map("friends")
 }

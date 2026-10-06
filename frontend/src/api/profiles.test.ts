@@ -40,7 +40,7 @@ describe('profiles API module', () => {
     });
   });
 
-  it('getProfile GETs the user and unwraps it', async () => {
+  it("getProfile GETs the user with the viewer's friendship", async () => {
     // Arrange
     const user = {
       id: USER_ID,
@@ -48,13 +48,13 @@ describe('profiles API module', () => {
       profilePictureUrl: null,
       preferredService: 'TIDAL',
     };
-    const seen = respondWith(ok({ user }));
+    const seen = respondWith(ok({ user, friendship: 'REQUEST_SENT' }));
 
     // Act
     const data = await getProfile(USER_ID);
 
     // Assert
-    expect(data).toEqual(user);
+    expect(data).toEqual({ user, friendship: 'REQUEST_SENT' });
     expect(seen[0]).toMatchObject({ url: `/users/${USER_ID}`, skipErrorToast: true });
   });
 

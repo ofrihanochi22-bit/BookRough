@@ -54,9 +54,9 @@ Resolves the many-to-many relationship between users and communities.
 Manages the bidirectional social graph and pending requests (UC-6, UC-7, UC-8).
 - **requester_id** (UUID, Foreign Key referencing users(id)): The person who sent the invite.
 - **addressee_id** (UUID, Foreign Key referencing users(id)): The person receiving the invite.
-- **status** (ENUM, Not Null): 'PENDING', 'ACCEPTED'.
+- **status** (ENUM, Not Null): 'PENDING', 'ACCEPTED'. Accepting updates the row in place; ignoring or cancelling deletes it. An updated_at timestamp is set on every write — for a friendship, when it was accepted.
 - **created_at** (TIMESTAMP, Default Current Time).
-- (Composite Primary Key: requester_id, addressee_id. You will need application logic or a database check constraint to ensure that if User A requests User B, User B cannot simultaneously request User A to prevent redundant rows).
+- (Composite Primary Key: requester_id, addressee_id. One row per pair in either direction, enforced by the hand-written unique index friends_one_per_pair on the LEAST and GREATEST of the two ids; the hand-written CHECK friends_not_self forbids a row to yourself. Both live in the add_friends migration and are invisible to Prisma (`docs/features/friend-requests.md` §3). Indexed on addressee_id, status and created_at, newest first, for incoming requests and the Friends tab badge. Both foreign keys cascade, so deleting either user deletes the row — UC-7's ghost request.)
 
 ### 5. posts Table
 
