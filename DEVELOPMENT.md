@@ -1368,7 +1368,7 @@ Tasks:
 - [x] Backend: `GET /api/users/search?q=`, `GET /api/users/:userId`, `GET /api/users/:userId/ratings`; `redactPath` drops query strings; the request log drops `query`, `params` and `referer`.
 - [x] Frontend: the Search screen replacing Coming soon, the Public Profile screen, names linking to profiles on posts, ratings and members.
 - [x] Review: `/code-review` (1 finding, fixed) and `/security-review` (clean).
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:

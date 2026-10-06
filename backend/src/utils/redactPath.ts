@@ -11,3 +11,16 @@ const QUERY = /\?.*$/s;
 export function redactPath(path: string): string {
   return path.replace(QUERY, '?…').replace(INVITE_TOKEN, '$1:token');
 }
+
+/**
+ * The request logger's view of a request: an invite token or a searched name
+ * must not reach the log through the URL, nor through pino-http's parsed
+ * `query` and `params` (docs/features/find-people.md §4).
+ */
+export function serializeRequest({
+  query: _query,
+  params: _params,
+  ...req
+}: Record<string, unknown>): Record<string, unknown> {
+  return { ...req, url: redactPath(String(req.url)) };
+}

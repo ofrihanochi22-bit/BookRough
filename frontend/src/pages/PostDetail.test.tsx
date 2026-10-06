@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,6 +75,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmount first: resetting the store under a mounted screen re-renders it outside act.
+  cleanup();
   resetAuthStore();
 });
 
@@ -113,6 +115,22 @@ describe('PostDetail (post-detail.md §5.2)', () => {
     expect(within(rows[1]!).getByText('Noa')).toBeInTheDocument();
     expect(within(rows[1]!).getByText(/Still gives me chills/)).toBeInTheDocument();
     expect(within(rows[1]!).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it("links each rater to their profile, and the author's name too (find-people.md §5.3)", async () => {
+    // Act
+    renderDetail();
+
+    // Assert
+    const region = ratingsRegion();
+    expect(await within(region).findByRole('link', { name: 'Noa' })).toHaveAttribute(
+      'href',
+      '/users/u1',
+    );
+    expect(screen.getByRole('link', { name: 'Dana' })).toHaveAttribute(
+      'href',
+      `/users/${POST.author.id}`,
+    );
   });
 
   it('says "No ratings yet" when nobody has rated', async () => {

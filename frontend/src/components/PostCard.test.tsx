@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -6,8 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
 import { CONVERTING_COPY } from '../lib/postText';
-import type { StreamingService } from '../stores/auth';
-import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
+import { type StreamingService, useAuthStore } from '../stores/auth';
+import {
+  httpError,
+  makePendingPost,
+  makePost,
+  makeSession,
+  makeUser,
+  networkError,
+  resetAuthStore,
+} from '../test/fixtures';
 import { PostCard } from './PostCard';
 
 /** The card links to Post Detail, so it renders inside a router. */
@@ -127,6 +135,33 @@ describe('PostCard — converted', () => {
     // Assert
     expect(container.querySelector('img[src="https://img.example/cover.jpg"]')).toBeNull();
     expect(screen.getByText('♪')).toBeInTheDocument();
+  });
+});
+
+describe('PostCard author (find-people.md §5.3)', () => {
+  it("links the author's avatar and name to their profile", () => {
+    // Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Dana' })).toHaveAttribute(
+      'href',
+      '/users/a1b2c3d4-0000-4000-8000-000000000001',
+    );
+  });
+
+  it('links "You" to My Profile on your own post', () => {
+    // Arrange
+    const post = makePost({ isMine: true });
+    useAuthStore.getState().setSession(makeSession({ user: makeUser({ id: post.author.id }) }));
+
+    // Act
+    renderCard(post);
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'You' })).toHaveAttribute('href', '/profile');
+    cleanup();
+    resetAuthStore();
   });
 });
 

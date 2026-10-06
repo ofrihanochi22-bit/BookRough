@@ -12,23 +12,25 @@ import { env } from '../config/env.js';
  * Never log a password, a token, or raw PII — and note that this project stores
  * no email address at all (CLAUDE.md §5).
  */
+/**
+ * Removed from every log line. The referer is a page URL: on one origin it
+ * would carry an invite token (/invite/<token>) or a searched name
+ * (/search?q=) — docs/features/find-people.md §4.
+ */
+export const REDACTED_LOG_PATHS = [
+  'req.headers.cookie',
+  'req.headers.authorization',
+  'req.headers.referer',
+  'res.headers["set-cookie"]',
+] as const;
+
 export const logger = pino({
   // Tests assert on behaviour, not on log output; a silent logger keeps the
   // runner's output readable.
   level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
   base: null,
   timestamp: pino.stdTimeFunctions.isoTime,
-  // The referer is a page URL: on one origin it would carry an invite token
-  // (/invite/<token>) or a searched name (/search?q=) — find-people.md §4.
-  redact: {
-    paths: [
-      'req.headers.cookie',
-      'req.headers.authorization',
-      'req.headers.referer',
-      'res.headers["set-cookie"]',
-    ],
-    remove: true,
-  },
+  redact: { paths: [...REDACTED_LOG_PATHS], remove: true },
 });
 
 /** A child logger tagged with the module that owns it. */
