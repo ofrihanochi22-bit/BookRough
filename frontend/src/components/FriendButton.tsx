@@ -83,7 +83,7 @@ export function FriendButton({
           name={name}
           online={online}
           onClose={() => setSheet(null)}
-          onRemoved={() => onChanged('NONE')}
+          onRemoved={onChanged}
           onGone={onStale}
         />
       )}

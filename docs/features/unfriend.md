@@ -8,7 +8,7 @@
 | **Use cases** | UC-8 (remove a friend); UC-8 amended (§9)                          |
 | **Phase**     | 5 — Step 5.3 of `DEVELOPMENT.md` (see `find-people.md` §0)         |
 | **Branch**    | `feat/unfriend`                                                    |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged |
 
 ---
 
@@ -123,9 +123,10 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                  | Reason                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 2026-10-06 | Unfriending is silent and resets to no relation; either may re-request (option A)         | Mirrors Ignore; no schema change; no soft block                                          |
-| 2026-10-06 | From a ⋯ on the Friends row and from the profile's Friends button, one confirmation sheet | UC-8 names both places; one component                                                    |
-| 2026-10-06 | Idempotent `200`; only an accepted row is ever deleted                                    | Two tabs or both people removing at once are harmless; requests have their own endpoints |
-| 2026-10-06 | UC-8's failure message as a toast, not a banner                                           | Consistent with every other friend action                                                |
+| Date       | Decision                                                                                  | Reason                                                                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | Unfriending is silent and resets to no relation; either may re-request (option A)         | Mirrors Ignore; no schema change; no soft block                                                                                       |
+| 2026-10-06 | From a ⋯ on the Friends row and from the profile's Friends button, one confirmation sheet | UC-8 names both places; one component                                                                                                 |
+| 2026-10-06 | Idempotent `200`; only an accepted row is ever deleted                                    | Two tabs or both people removing at once are harmless; requests have their own endpoints                                              |
+| 2026-10-06 | UC-8's failure message as a toast, not a banner                                           | Consistent with every other friend action                                                                                             |
+| 2026-10-06 | Stage 3: the profile shows the relation the remove call returns, not a guessed `NONE`     | `/code-review`: on a stale profile, a removal that found a new incoming request showed Add Friend, whose tap would silently accept it |

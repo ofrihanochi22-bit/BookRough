@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
-import { removeFriend } from '../api/friends';
+import { type Friendship, removeFriend } from '../api/friends';
 import { ACTION_FAILED, removedFriend, removeFriendBody } from '../lib/friendCopy';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
@@ -12,8 +12,8 @@ interface RemoveFriendSheetProps {
   name: string;
   online: boolean;
   onClose: () => void;
-  /** The friendship is gone (or already was). */
-  onRemoved: () => void;
+  /** The friendship is gone (or already was); the server's relation afterwards. */
+  onRemoved: (friendship: Friendship) => void;
   /** The person no longer exists: the server said 404. */
   onGone: () => void;
 }
@@ -35,9 +35,9 @@ export function RemoveFriendSheet({
   async function remove() {
     setBusy(true);
     try {
-      await removeFriend(userId);
+      const friendship = await removeFriend(userId);
       toast.success(removedFriend(name));
-      onRemoved();
+      onRemoved(friendship);
     } catch (error) {
       if (isAxiosError<{ message?: string }>(error) && error.response?.status === 404) {
         toast.error(error.response.data?.message ?? ACTION_FAILED);
