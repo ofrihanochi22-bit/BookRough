@@ -6,12 +6,13 @@ import type { PublicPost } from '../api/posts';
 import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
 import { RatingSheet } from './RatingSheet';
 
-const { ratePost, toastSuccess, toastError } = vi.hoisted(() => ({
+const { ratePost, editRating, toastSuccess, toastError } = vi.hoisted(() => ({
   ratePost: vi.fn(),
+  editRating: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
-vi.mock('../api/ratings', () => ({ ratePost }));
+vi.mock('../api/ratings', () => ({ ratePost, editRating }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 function renderSheet(post: PublicPost = makePost(), online = true) {
@@ -189,5 +190,74 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
 
     // Assert
     expect(submit()).toBeDisabled();
+  });
+});
+
+describe('RatingSheet editing (post-detail.md §5.2)', () => {
+  function renderEdit() {
+    const onClose = vi.fn();
+    const onDone = vi.fn();
+    const onGone = vi.fn();
+    render(
+      <RatingSheet
+        post={makePost()}
+        online
+        onClose={onClose}
+        onDone={onDone}
+        onGone={onGone}
+        editing={{ score: 6, comment: 'nise song' }}
+      />,
+    );
+    return { onClose, onDone, onGone };
+  }
+
+  it('starts filled in, titled "Edit your rating", and saves the changes', async () => {
+    // Arrange
+    editRating.mockResolvedValue({});
+    const { onDone } = renderEdit();
+    expect(screen.getByRole('dialog', { name: 'Edit your rating' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '6' })).toHaveAttribute('aria-checked', 'true');
+    expect(comment()).toHaveValue('nise song');
+
+    // Act
+    await userEvent.click(screen.getByRole('radio', { name: '9' }));
+    await userEvent.clear(comment());
+    await userEvent.type(comment(), 'nice song');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // Assert
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalledWith(makePost().id));
+    expect(editRating).toHaveBeenCalledWith(makePost().id, { score: 9, comment: 'nice song' });
+    expect(ratePost).not.toHaveBeenCalled();
+    expect(toastSuccess).toHaveBeenCalledWith('Rating updated');
+  });
+
+  it('a 404 while editing means the post or your access is gone', async () => {
+    // Arrange
+    editRating.mockRejectedValue(httpError(404, 'Post not found.'));
+    const { onGone, onDone } = renderEdit();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // Assert
+    await vi.waitFor(() => expect(onGone).toHaveBeenCalled());
+    expect(onDone).not.toHaveBeenCalled();
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('a network failure while editing stays inline with the draft', async () => {
+    // Arrange
+    editRating.mockRejectedValue(networkError());
+    renderEdit();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't submit your rating. Check your connection and try again.",
+    );
+    expect(comment()).toHaveValue('nise song');
   });
 });

@@ -1,6 +1,7 @@
 import type { CommunityRole } from '@prisma/client';
 
 import { type PublicPost, type PostWithAuthor, toPublicPost } from './publicPost.js';
+import type { RatingSummary } from './ratingSummary.js';
 
 /** One row of My List (docs/features/bookmarks-my-list.md §4). */
 export interface SavedPost {
@@ -27,12 +28,13 @@ export function toSavedPost(
   bookmark: BookmarkWithPost,
   viewerId: string,
   viewerModerates: boolean,
+  ratingSummary: RatingSummary,
 ): SavedPost {
   const { community } = bookmark.post;
   return {
     savedAt: bookmark.createdAt.toISOString(),
     community: { id: community.id, name: community.name },
     isMember: community.members.length > 0,
-    post: toPublicPost(bookmark.post, viewerId, viewerModerates),
+    post: toPublicPost(bookmark.post, viewerId, viewerModerates, ratingSummary),
   };
 }

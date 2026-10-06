@@ -429,6 +429,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'links',
         'myScore',
         'originalUrl',
+        'ratingSummary',
         'sourceService',
         'title',
       ].sort(),

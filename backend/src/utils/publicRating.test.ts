@@ -12,6 +12,7 @@ describe('toPublicRating', () => {
       score: 8,
       comment: null,
       createdAt: new Date('2026-10-05T10:00:00.000Z'),
+      updatedAt: new Date('2026-10-05T10:00:00.000Z'),
     });
 
     // Assert

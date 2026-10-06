@@ -2,7 +2,7 @@ import { AxiosHeaders, type AxiosAdapter, type InternalAxiosRequestConfig } from
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { api } from './client';
-import { ratePost } from './ratings';
+import { editRating, listPostRatings, ratePost } from './ratings';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -37,5 +37,40 @@ describe('ratings API module', () => {
       skipErrorToast: true,
     });
     expect(JSON.parse(seen[0]!.data as string)).toEqual({ score: 7, comment: null });
+  });
+
+  it("listPostRatings reads the post's ratings quietly", async () => {
+    // Arrange
+    const data = { ratingSummary: { average: 7.5, count: 2 }, ratings: [] };
+    const seen = respondWith({ status: 'success', data });
+
+    // Act
+    const result = await listPostRatings(POST_ID);
+
+    // Assert
+    expect(result).toEqual(data);
+    expect(seen[0]).toMatchObject({
+      method: 'get',
+      url: `/posts/${POST_ID}/ratings`,
+      skipErrorToast: true,
+    });
+  });
+
+  it('editRating patches your rating and unwraps it', async () => {
+    // Arrange
+    const rating = { id: 'r', score: 9, comment: 'nice', createdAt: '', isMine: true };
+    const seen = respondWith({ status: 'success', data: { rating } });
+
+    // Act
+    const result = await editRating(POST_ID, { score: 9, comment: 'nice' });
+
+    // Assert
+    expect(result).toEqual(rating);
+    expect(seen[0]).toMatchObject({
+      method: 'patch',
+      url: `/posts/${POST_ID}/rating`,
+      skipErrorToast: true,
+    });
+    expect(JSON.parse(seen[0]!.data as string)).toEqual({ score: 9, comment: 'nice' });
   });
 });

@@ -22,7 +22,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     communityMember: { findUnique: vi.fn() },
     post: { findUnique: vi.fn() },
-    rating: { findUnique: vi.fn() },
+    rating: { findUnique: vi.fn(), groupBy: vi.fn() },
     bookmark: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
   },
 }));
@@ -83,6 +83,7 @@ beforeEach(() => {
   db.bookmark.createMany.mockResolvedValue({ count: 1 });
   db.bookmark.deleteMany.mockResolvedValue({ count: 1 });
   db.bookmark.findMany.mockResolvedValue([]);
+  db.rating.groupBy.mockResolvedValue([]);
 });
 
 describe('saveBookmark', () => {
@@ -260,5 +261,27 @@ describe('listBookmarks', () => {
     // Act & Assert
     await expectAppError(listBookmarks(USER, 'not-a-cursor'), 422);
     expect(db.bookmark.findMany).not.toHaveBeenCalled();
+  });
+
+  it('summarises ratings only for posts in communities you are still in', async () => {
+    // Arrange
+    const at = new Date('2026-10-05T10:00:00.000Z');
+    const left = '77777777-7777-4777-8777-777777777777';
+    db.bookmark.findMany.mockResolvedValue([row(POST_ID, at, 'MEMBER'), row(left, at, null)]);
+    db.rating.groupBy.mockResolvedValue([
+      { postId: POST_ID, _sum: { score: 15 }, _count: { _all: 2 } },
+    ]);
+
+    // Act
+    const { items } = await listBookmarks(USER);
+
+    // Assert
+    expect(db.rating.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { postId: { in: [POST_ID] } } }),
+    );
+    expect(items.map((item) => item.post.ratingSummary)).toEqual([
+      { average: 7.5, count: 2 },
+      { average: null, count: 0 },
+    ]);
   });
 });

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
@@ -7,6 +9,9 @@ import { CONVERTING_COPY } from '../lib/postText';
 import type { StreamingService } from '../stores/auth';
 import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
 import { PostCard } from './PostCard';
+
+/** The card links to Post Detail, so it renders inside a router. */
+const inRouter = (ui: ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
 
 const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess, toastError } =
   vi.hoisted(() => ({
@@ -30,7 +35,7 @@ function renderCard(
   const onStale = vi.fn();
   const onDeleted = vi.fn();
   const onBookmarkChanged = vi.fn();
-  render(
+  inRouter(
     <PostCard
       post={post}
       viewerService={viewerService}
@@ -103,7 +108,7 @@ describe('PostCard — converted', () => {
 
   it('replaces a cover that fails to load with the placeholder', () => {
     // Arrange
-    const { container } = render(
+    const { container } = inRouter(
       <PostCard
         post={makePost()}
         viewerService="SPOTIFY"
@@ -490,5 +495,38 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     expect(onStale).toHaveBeenCalled();
     expect(onBookmarkChanged).not.toHaveBeenCalled();
     expect(save()).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('shows the average and count, and links the title and View ratings to Post Detail', () => {
+    // Arrange & Act
+    renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 } }));
+
+    // Assert
+    expect(screen.getByText('★ 7.5 · 4 ratings')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View ratings' })).toHaveAttribute(
+      'href',
+      `/posts/${makePost().id}`,
+    );
+    expect(screen.getByRole('link', { name: 'Bohemian Rhapsody' })).toHaveAttribute(
+      'href',
+      `/posts/${makePost().id}`,
+    );
+  });
+
+  it('says "1 rating", and shows no average before anyone rates', () => {
+    // Arrange & Act
+    renderCard(makePost({ ratingSummary: { average: 9, count: 1 } }));
+
+    // Assert
+    expect(screen.getByText('★ 9 · 1 rating')).toBeInTheDocument();
+  });
+
+  it('shows no average when nobody has rated, but still links to the ratings', () => {
+    // Arrange & Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.queryByText(/★/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View ratings' })).toBeInTheDocument();
   });
 });

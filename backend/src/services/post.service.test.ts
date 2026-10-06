@@ -10,6 +10,7 @@ import {
   decodeCursor,
   deletePost,
   encodeCursor,
+  getPost,
   POST_NOT_FOUND,
   retryConversion,
 } from './post.service.js';
@@ -223,5 +224,17 @@ describe('deletePost', () => {
 
     // Act & Assert
     await expectAppError(deletePost(USER, POST_ID), 404, POST_NOT_FOUND);
+  });
+});
+
+describe('getPost', () => {
+  it('is a 404 when the post is deleted between the access check and the read', async () => {
+    // Arrange: it exists for the check, then is gone.
+    db.post.findUnique
+      .mockResolvedValueOnce({ authorId: USER.id, communityId: COMMUNITY })
+      .mockResolvedValueOnce(null);
+
+    // Act & Assert
+    await expectAppError(getPost(USER, POST_ID), 404, POST_NOT_FOUND);
   });
 });

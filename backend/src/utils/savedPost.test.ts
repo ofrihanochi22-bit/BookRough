@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type BookmarkWithPost, toSavedPost } from './savedPost.js';
+import { NO_RATINGS } from './ratingSummary.js';
 
 function bookmark(members: BookmarkWithPost['post']['community']['members']): BookmarkWithPost {
   const at = new Date('2026-10-05T10:00:00.000Z');
@@ -36,7 +37,7 @@ function bookmark(members: BookmarkWithPost['post']['community']['members']): Bo
 describe('toSavedPost', () => {
   it('sends exactly the public keys, and the community as id and name only', () => {
     // Act
-    const view = toSavedPost(bookmark([{ role: 'MEMBER' }]), 'viewer-1', false);
+    const view = toSavedPost(bookmark([{ role: 'MEMBER' }]), 'viewer-1', false, NO_RATINGS);
 
     // Assert
     expect(Object.keys(view).sort()).toEqual(['community', 'isMember', 'post', 'savedAt']);
@@ -47,7 +48,9 @@ describe('toSavedPost', () => {
 
   it('is not a member once the viewer has no membership there', () => {
     // Act & Assert
-    expect(toSavedPost(bookmark([]), 'viewer-1', false).isMember).toBe(false);
-    expect(toSavedPost(bookmark([{ role: 'ADMIN' }]), 'viewer-1', true).post.canDelete).toBe(true);
+    expect(toSavedPost(bookmark([]), 'viewer-1', false, NO_RATINGS).isMember).toBe(false);
+    expect(
+      toSavedPost(bookmark([{ role: 'ADMIN' }]), 'viewer-1', true, NO_RATINGS).post.canDelete,
+    ).toBe(true);
   });
 });

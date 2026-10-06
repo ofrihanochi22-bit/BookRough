@@ -8,7 +8,7 @@
 | **Use cases** | UC-13 (rate a bookmarked recommendation); UC-12 touched (a rated post can't be saved) |
 | **Phase**     | 4 — Step 4.2 of `DEVELOPMENT.md` (absorbs former 4.3; see `bookmarks-my-list.md` §0)  |
 | **Branch**    | `feat/rate-post`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                    |
 
 ---
 
@@ -232,15 +232,16 @@ My List's loading, empty, error and offline states are unchanged (bookmarks-my-l
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                       | Reason                                                                                        |
-| ---------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| 2026-10-05 | Rate from My List only (option A)                                                              | Developer's choice; exactly UC-13                                                             |
-| 2026-10-05 | Only current members can rate (option B)                                                       | A removed member must not keep writing into the community; consistent with every other action |
-| 2026-10-05 | A rated post can't be saved again (`409`); the feed shows "You rated n/10" instead             | Nothing would be left to do with it in My List; the label explains the missing icon           |
-| 2026-10-05 | A rating is final in this PR                                                                   | No UI place to edit it (it leaves My List); feature 3 may revisit                             |
-| 2026-10-05 | The API does not require a bookmark to rate                                                    | My List is a UI choice; a later entry point needs no API change                               |
-| 2026-10-05 | Rating and bookmark delete in one transaction; the stub after commit, never failing the rating | The rating is the user's content; a notification problem must not lose it                     |
-| 2026-10-05 | Score 1–10 enforced by Zod and a hand-written `CHECK`                                          | Defence in depth; the database never holds an impossible score                                |
-| 2026-10-05 | Comment rules = post-comment rules (≤ 280 graphemes, line breaks kept)                         | One set of text rules for short user text                                                     |
-| 2026-10-05 | The notification stub logs ids and score only                                                  | No comment text or names in logs (CLAUDE.md §4)                                               |
-| 2026-10-05 | Stage 2: the rating comment reuses `postText` on both sides; no `ratingText` module            | The rules are identical to a post comment's; a second mirror would only drift                 |
+| Date       | Decision                                                                                                              | Reason                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 2026-10-05 | Rate from My List only (option A)                                                                                     | Developer's choice; exactly UC-13                                                             |
+| 2026-10-05 | Only current members can rate (option B)                                                                              | A removed member must not keep writing into the community; consistent with every other action |
+| 2026-10-05 | A rated post can't be saved again (`409`); the feed shows "You rated n/10" instead                                    | Nothing would be left to do with it in My List; the label explains the missing icon           |
+| 2026-10-05 | A rating is final in this PR                                                                                          | No UI place to edit it (it leaves My List); feature 3 may revisit                             |
+| 2026-10-05 | The API does not require a bookmark to rate                                                                           | My List is a UI choice; a later entry point needs no API change                               |
+| 2026-10-05 | Rating and bookmark delete in one transaction; the stub after commit, never failing the rating                        | The rating is the user's content; a notification problem must not lose it                     |
+| 2026-10-05 | Score 1–10 enforced by Zod and a hand-written `CHECK`                                                                 | Defence in depth; the database never holds an impossible score                                |
+| 2026-10-05 | Comment rules = post-comment rules (≤ 280 graphemes, line breaks kept)                                                | One set of text rules for short user text                                                     |
+| 2026-10-05 | The notification stub logs ids and score only                                                                         | No comment text or names in logs (CLAUDE.md §4)                                               |
+| 2026-10-05 | Stage 2: the rating comment reuses `postText` on both sides; no `ratingText` module                                   | The rules are identical to a post comment's; a second mirror would only drift                 |
+| 2026-10-05 | Superseded by `post-detail.md`: a rating can be edited from Post Detail; removal deletes the removed member's ratings | Decided in feature 3's spec session, where ratings are shown                                  |

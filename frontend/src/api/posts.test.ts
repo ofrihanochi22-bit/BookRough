@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { makePost } from '../test/fixtures';
 import { api } from './client';
-import { createPost, deletePost, listPosts, retryConversion } from './posts';
+import { createPost, deletePost, getPost, listPosts, retryConversion } from './posts';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -83,5 +83,18 @@ describe('posts API module', () => {
       url: '/posts/post-1',
       skipErrorToast: true,
     });
+  });
+
+  it('getPost reads one post with its community, quietly', async () => {
+    // Arrange
+    const data = { post: makePost(), community: { id: ID, name: 'Friday Jazz' } };
+    const seen = respondWith(ok(data));
+
+    // Act
+    const result = await getPost(data.post.id);
+
+    // Assert
+    expect(result).toEqual(data);
+    expect(seen[0]).toMatchObject({ url: `/posts/${data.post.id}`, skipErrorToast: true });
   });
 });

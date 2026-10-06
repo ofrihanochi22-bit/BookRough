@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 import { deletePost, type PublicPost, retryConversion } from '../api/posts';
 import { allLinks, mainLink, relativeTime } from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
+import { ratingSummaryLine } from '../lib/ratingCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
@@ -25,6 +27,8 @@ interface PostCardProps {
   onDeleted: (postId: string) => void;
   /** Saved to or removed from Listen Later here. */
   onBookmarkChanged: (postId: string, isBookmarked: boolean) => void;
+  /** False on Post Detail, which is where the link leads (post-detail.md §5.2). */
+  linkToDetail?: boolean;
 }
 
 const linkButton =
@@ -106,7 +110,8 @@ function DeletePostSheet({
  * and its author can try the conversion again. Its author and the
  * community's admins can delete it from the ⋯ menu (posts-delete.md §5).
  * Anyone else can save it to Listen Later (bookmarks-my-list.md §5.1) until
- * they rate it; then it shows their score (rate-post.md §5.3).
+ * they rate it; then it shows their score (rate-post.md §5.3). The average and
+ * View ratings lead to Post Detail (post-detail.md §5.1).
  */
 export function PostCard({
   post,
@@ -116,6 +121,7 @@ export function PostCard({
   onStale,
   onDeleted,
   onBookmarkChanged,
+  linkToDetail = true,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -123,6 +129,8 @@ export function PostCard({
   const [retrying, setRetrying] = useState(false);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const main = mainLink(post, viewerService);
+  const detailPath = `/posts/${post.id}`;
+  const summary = ratingSummaryLine(post.ratingSummary);
 
   async function retry() {
     setRetrying(true);
@@ -212,7 +220,9 @@ export function PostCard({
             </>
           ) : (
             <>
-              <p className="break-words font-medium">{post.title}</p>
+              <p className="break-words font-medium">
+                {linkToDetail ? <Link to={detailPath}>{post.title}</Link> : post.title}
+              </p>
               {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
               {post.kind === 'ALBUM' && (
                 <p className="w-fit rounded-full border border-line px-2 text-xs text-muted">
@@ -225,6 +235,17 @@ export function PostCard({
       </div>
 
       {post.comment && <p className="whitespace-pre-line break-words text-sm">{post.comment}</p>}
+
+      {(summary || linkToDetail) && (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="text-muted">{summary}</span>
+          {linkToDetail && (
+            <Link to={detailPath} className="flex min-h-11 items-center font-medium text-accent">
+              View ratings
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <a

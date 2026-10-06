@@ -24,6 +24,14 @@ export interface PublicPost {
   isBookmarked: boolean;
   /** The viewer's own score, if they rated it (rate-post.md §4). */
   myScore: number | null;
+  /** Every member's ratings at a glance (post-detail.md §4). */
+  ratingSummary: RatingSummary;
+}
+
+export interface RatingSummary {
+  /** One decimal; null when nobody has rated. */
+  average: number | null;
+  count: number;
 }
 
 export interface PostsPage {
@@ -71,4 +79,18 @@ export async function retryConversion(postId: string): Promise<PublicPost> {
 /** The confirmation sheet shows its own outcome, so no toast. */
 export async function deletePost(postId: string): Promise<void> {
   await api.delete(`/posts/${encodeURIComponent(postId)}`, { skipErrorToast: true });
+}
+
+export interface PostWithCommunity {
+  post: PublicPost;
+  community: { id: string; name: string };
+}
+
+/** Post Detail shows the not-found page or its own retry, so no toast. */
+export async function getPost(postId: string): Promise<PostWithCommunity> {
+  const response = await api.get<SuccessBody<PostWithCommunity>>(
+    `/posts/${encodeURIComponent(postId)}`,
+    { skipErrorToast: true },
+  );
+  return response.data.data;
 }

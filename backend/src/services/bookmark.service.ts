@@ -4,9 +4,11 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { createLogger } from '../utils/logger.js';
 import { postInclude } from '../utils/publicPost.js';
+import { NO_RATINGS } from '../utils/ratingSummary.js';
 import { type SavedPost, toSavedPost } from '../utils/savedPost.js';
 import { isAdminRole } from './communityAccess.js';
 import { decodeCursor, encodeCursor, PAGE_SIZE, POST_NOT_FOUND } from './post.service.js';
+import { ratingSummaries, summaryFor } from './ratingSummary.js';
 
 const log = createLogger('bookmark.service');
 
@@ -109,10 +111,19 @@ export async function listBookmarks(
 
   const page = rows.slice(0, PAGE_SIZE);
   const last = page.at(-1);
+  // Ratings are for current members only (post-detail.md §6): a song saved from
+  // a community you left keeps no live view of them.
+  const isMember = (row: (typeof page)[number]) => row.post.community.members.length > 0;
+  const summaries = await ratingSummaries(page.filter(isMember).map((row) => row.postId));
   return {
     items: page.map((row) => {
       const role = row.post.community.members[0]?.role;
-      return toSavedPost(row, user.id, role !== undefined && isAdminRole(role));
+      return toSavedPost(
+        row,
+        user.id,
+        role !== undefined && isAdminRole(role),
+        isMember(row) ? summaryFor(summaries, row.postId) : NO_RATINGS,
+      );
     }),
     nextCursor:
       rows.length > PAGE_SIZE && last

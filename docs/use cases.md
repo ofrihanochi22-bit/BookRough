@@ -190,7 +190,7 @@
 
 - **Description:** A user accesses their "My List" screen, listens to a saved song, submits a rating with optional text feedback, and the system notifies the friend who recommended it.
 - **Pre-conditions:** The user is logged in and has at least one unrated, saved song residing in their "My List" screen, and is still a member of that song's Community. A song from a Community the user has left or been removed from shows "You're no longer in {Community}" instead of the rate button.
-- **Post-conditions:** A Rating object (containing the score and optional comment) is appended to the original Post. The song is removed from the user's active "Listen Later" queue. A notification is dispatched to the author of the original post (for now a logged stub; a real channel arrives later, `docs/features/rate-post.md` §4.2). The rating is final, and the feed shows the rater "You rated n/10" on the post.
+- **Post-conditions:** A Rating object (containing the score and optional comment) is appended to the original Post. The song is removed from the user's active "Listen Later" queue. A notification is dispatched to the author of the original post (for now a logged stub; a real channel arrives later, `docs/features/rate-post.md` §4.2). The rater can later edit the score and comment from Post Detail (UC-16), and the feed shows the rater "You rated n/10" on the post.
 - **Trigger:** The user taps the "Rate" or "Mark as Listened" button on a song within their "My List" screen.
 - **Step-by-step scenario (Success):**
   - The user navigates to the dedicated "My List" view to see their bookmarked songs.
@@ -207,7 +207,7 @@
 
 - **Description:** A user with administrative privileges in a Community revokes another user's membership, removing their access to the group's feed and shared music.
 - **Pre-conditions:** The acting user is logged in, holds Admin status within the specific Community, and the target user is currently listed in the Community's members array.
-- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen. Their posts in this Community are deleted with the removal, permanently; leaving voluntarily (UC-10) keeps a member's posts. Songs the removed user had already saved from this Community stay in their My List (`docs/features/bookmarks-my-list.md` §3.2).
+- **Post-conditions:** The target user is removed from the Community and blocked: they lose access to its feed, and no invite link lets them rejoin (they see the UC-15 invalid-link message) until an Admin unblocks them from the Community Settings & Members screen. Their posts in this Community are deleted with the removal, permanently; leaving voluntarily (UC-10) keeps a member's posts. Songs the removed user had already saved from this Community stay in their My List (`docs/features/bookmarks-my-list.md` §3.2). Their ratings in this Community are deleted with the removal too, permanently; leaving keeps them (`docs/features/post-detail.md` §3.1).
 - **Trigger:** The Admin taps the "Remove User" or "Kick" button next to a specific member's name in the Community's member management screen.
 - **Step-by-step scenario (Success):**
   - The Admin navigates to the specific Community's settings and opens the "Members" list.
@@ -239,16 +239,16 @@
 ### UC-16: User Views Post Feedback (Ratings and Comments)
 
 - **Description:** A user expands a specific music recommendation post to view the accumulated star ratings and text comments left by other community members.
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and the target post has at least one rating attached to it.
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and is a current member of the post's Community. Ratings are visible to every member, whether or not they have rated themselves.
 - **Post-conditions:** The user interface displays a detailed breakdown of the post's feedback, including the average score and individual member reviews.
-- **Trigger:** The user taps on the body of a specific post card (avoiding the external music link itself) or taps a dedicated "View Ratings" button.
+- **Trigger:** The user taps on the body of a specific post card (avoiding the external music link itself) or taps a dedicated "View Ratings" button. The feed card also shows the average and the number of ratings.
 - **Step-by-step scenario (Success):**
   - The user scrolls through the Community feed and identifies a post of interest.
   - The user taps the post to open the detailed view.
   - The system queries the database for the ratings array associated with that specific Post ID.
   - The UI renders the detailed view, displaying the calculated average star rating prominently at the top.
   - Below the average, the system lists individual rating entries, displaying the rater's display name, their specific star score (1-10), their optional text comment, and the timestamp.
-- **Fail description (Alternative Scenario):** A database lag occurs while fetching the ratings array for a highly popular post. The system displays a loading skeleton or spinner for 3 seconds. If the fetch times out, the system displays a placeholder: "Could not load comments at this time. Pull to refresh."
+- **Fail description (Alternative Scenario):** A database lag occurs while fetching the ratings array for a highly popular post. The system displays a loading skeleton or spinner for 3 seconds. If the fetch times out, the system displays a placeholder: "Could not load comments at this time." with Try again, while the post card stays visible. On this screen the user can edit their own rating, score and comment, with no "edited" marker (`docs/features/post-detail.md`).
 
 ### UC-17: *(withdrawn)* User Resets Password
 
