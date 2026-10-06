@@ -29,7 +29,8 @@ const noSearch = (): Promise<SearchResults | null> => Promise.resolve(null);
  */
 export function Search() {
   const [params, setParams] = useSearchParams();
-  const query = params.get('q') ?? '';
+  // Trimmed, so a hand-edited ?q=%20 reads as no search rather than a 422.
+  const query = (params.get('q') ?? '').trim();
   const [value, setValue] = useState(query);
   const online = useOnlineStatus();
   const viewerId = useAuthStore((state) => state.user?.id);

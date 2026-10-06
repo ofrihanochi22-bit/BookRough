@@ -1367,7 +1367,7 @@ Tasks:
 - [x] DB: migration `ratings_by_user_newest` — the ratings user index gains `created_at DESC, id DESC`.
 - [x] Backend: `GET /api/users/search?q=`, `GET /api/users/:userId`, `GET /api/users/:userId/ratings`; `redactPath` drops query strings; the request log drops `query`, `params` and `referer`.
 - [x] Frontend: the Search screen replacing Coming soon, the Public Profile screen, names linking to profiles on posts, ratings and members.
-- [ ] Review: `/code-review` and `/security-review`.
+- [x] Review: `/code-review` (1 finding, fixed) and `/security-review` (clean).
 - [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:

@@ -8,7 +8,7 @@
 | **Use cases** | UC-5 (search users, view their profile and rating history); UC-5 amended (§9) |
 | **Phase**     | 5 — Step 5.1 of `DEVELOPMENT.md` (re-sliced, §0)                              |
 | **Branch**    | `feat/find-people`                                                            |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged            |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged            |
 
 ---
 
@@ -205,6 +205,7 @@ A shared helper (`lib/profileLinks.ts`) gives `/profile` for the viewer's own id
 - ✅ Search includes the caller when they match.
 - ✅ Search treats `%` and `_` literally.
 - ✅ Search finds nobody for a query no name contains (emoji, punctuation).
+- ✅ Search finds nobody — no `422` — for a query of only combining marks or joiners (its key is empty).
 - ❌ Search skips users who have not finished onboarding.
 - ❌ Search with a blank query (after cleaning) throws `422` "Type a name to search."
 - ❌ Search, profile and history throw `403` "Finish your profile first." for a caller mid-onboarding.
@@ -294,3 +295,4 @@ A shared helper (`lib/profileLinks.ts`) gives `/profile` for the viewer's own id
 | 2026-10-06 | Stage 2: the request log also drops pino-http's parsed `query` and `params`, and the `referer` header                                      | Seen in the browser check: the URL was redacted but `query: { q }` still logged the name. A same-origin referer would carry the search page's `?q=` and the invite page's token |
 | 2026-10-06 | Stage 2: `GET /api/users/<anything>` is now the profile route, so a signed-out request for an unknown one-segment path is `401`, not `404` | The route's purpose; the existing "unknown /users path" test moves to a two-segment path                                                                                        |
 | 2026-10-06 | Stage 2: names link through one `PersonLink` component (avatar + name, ≥ 44 px)                                                            | The same link in four places                                                                                                                                                    |
+| 2026-10-06 | Stage 3: `422` only for a blank cleaned query; a query whose key is empty finds nobody; the Search screen trims `?q=`                      | `/code-review`: a lone accent or ZWJ, or `?q=%20`, hit a 422 and an error screen that Try again could never clear                                                               |

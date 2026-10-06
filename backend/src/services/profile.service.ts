@@ -46,9 +46,14 @@ export async function searchUsers(
   rawQuery: string,
 ): Promise<{ users: MemberUser[]; hasMore: boolean }> {
   requireOnboarded(user);
-  const key = displayNameKey(cleanLine(rawQuery));
-  if (key === '') {
+  const cleaned = cleanLine(rawQuery);
+  if (cleaned === '') {
     throw new AppError(EMPTY_QUERY, 422);
+  }
+  // Only marks or joiners: no name's key can contain nothing (UC-5's fail path).
+  const key = displayNameKey(cleaned);
+  if (key === '') {
+    return { users: [], hasMore: false };
   }
   const pattern = escapeLike(key);
 
