@@ -172,6 +172,29 @@ export async function ignoreRequest(user: User, requesterId: string): Promise<vo
   }
 }
 
+/**
+ * DELETE /friends/:userId — UC-8 (docs/features/unfriend.md §4). Deletes only
+ * an accepted friendship, in either direction; pending requests have their own
+ * endpoints. Silent and idempotent.
+ */
+export async function removeFriend(user: User, friendId: string): Promise<Friendship> {
+  requireOnboarded(user);
+  await findProfileUser(friendId);
+  const { count } = await prisma.friend.deleteMany({
+    where: {
+      status: 'ACCEPTED',
+      OR: [
+        { requesterId: user.id, addresseeId: friendId },
+        { requesterId: friendId, addresseeId: user.id },
+      ],
+    },
+  });
+  if (count > 0) {
+    log.info({ userId: user.id, friendId }, 'Friend removed');
+  }
+  return friendshipOf(user.id, friendId);
+}
+
 const otherUserSelect = { ...memberUserSelect, displayNameKey: true } as const;
 
 /** GET /friends — every accepted friendship, either direction, alphabetical. */

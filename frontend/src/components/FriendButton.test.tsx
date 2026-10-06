@@ -63,8 +63,7 @@ describe('FriendButton', () => {
     rerender(<Harness key="received" initial="REQUEST_RECEIVED" />);
     expect(button('Respond')).toBeEnabled();
     rerender(<Harness key="friends" initial="FRIENDS" />);
-    expect(screen.getByText('✓ Friends')).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(button('✓ Friends')).toBeEnabled();
   });
 
   it('Add Friend sends and becomes Request sent', async () => {

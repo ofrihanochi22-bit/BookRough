@@ -1499,9 +1499,9 @@ Goal: A user removes a friend, with a confirmation, from the Friends list or the
 
 Tasks:
 
-- [ ] Spec: docs/features/unfriend.md written and approved (silent, back to no relation).
-- [ ] Backend: `DELETE /api/friends/:userId`.
-- [ ] Frontend: the remove sheet, from the Friends row's ⋯ and the profile's Friends button.
+- [x] Spec: docs/features/unfriend.md written and approved (silent, back to no relation).
+- [x] Backend: `DELETE /api/friends/:userId`.
+- [x] Frontend: the remove sheet, from the Friends row's ⋯ and the profile's Friends button.
 - [ ] Review: `/code-review` and `/security-review`.
 - [ ] Tests: unit, integration, component and E2E per spec §7.
 

@@ -9,6 +9,7 @@ import {
   ignoreRequest,
   listFriends,
   listRequests,
+  removeFriend,
   sendRequest,
   SENDER_GONE,
 } from '../services/friend.service.js';
@@ -66,6 +67,16 @@ export const ignore: RequestHandler = async (req, res, next) => {
   try {
     await ignoreRequest(sessionUser(req), parseUserId(req.params.userId));
     res.status(200).json(success(null));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/friends/:userId — UC-8: remove a friend, silently. */
+export const remove: RequestHandler = async (req, res, next) => {
+  try {
+    const friendship = await removeFriend(sessionUser(req), parseUserId(req.params.userId));
+    res.status(200).json(success({ friendship }));
   } catch (error) {
     next(error);
   }

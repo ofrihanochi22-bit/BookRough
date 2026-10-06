@@ -62,3 +62,12 @@ export async function countFriendRequests(): Promise<number> {
   const response = await api.get<SuccessBody<{ count: number }>>('/friends/requests/count', quiet);
   return response.data.data.count;
 }
+
+/** UC-8: remove a friend, silently. Returns the relation afterwards. */
+export async function removeFriend(userId: string): Promise<Friendship> {
+  const response = await api.delete<SuccessBody<{ friendship: Friendship }>>(
+    `/friends/${path(userId)}`,
+    quiet,
+  );
+  return response.data.data.friendship;
+}
