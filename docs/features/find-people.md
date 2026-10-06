@@ -8,7 +8,7 @@
 | **Use cases** | UC-5 (search users, view their profile and rating history); UC-5 amended (§9) |
 | **Phase**     | 5 — Step 5.1 of `DEVELOPMENT.md` (re-sliced, §0)                              |
 | **Branch**    | `feat/find-people`                                                            |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged            |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged            |
 
 ---
 

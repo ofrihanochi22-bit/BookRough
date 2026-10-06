@@ -1424,10 +1424,20 @@ npm test --prefix e2e                                     # 37 runs (+3 skipped)
 
 ### Step 5.2 — Friend requests (Phase 5 — UC-6, UC-7)
 
-Status: ☐ Not started
+Status: 🟡 In progress
 Branch: feat/friend-requests
+Spec: docs/features/friend-requests.md
 
-Goal: A user sends a friend request from a Public Profile, and the other accepts or ignores it on a Friends screen that also lists their friends. Absorbs former 5.1 (the `friends` table), the request halves of 5.2, and the profile button and Friends screen of 5.3. Details in its own spec session.
+Goal: A user sends a friend request from a Public Profile, and the other accepts or ignores it on a new Friends tab, whose badge counts pending requests and which also lists their friends. Friendships are private. Absorbs former 5.1 (the `friends` table), the request halves of 5.2, and the profile button and Friends screen of 5.3.
+
+Tasks:
+
+- [ ] Spec: docs/features/friend-requests.md written and approved (anyone may send, Ignore deletes, Friends tab with a badge, cancel from the profile, private friendships, the picker as Step 5.5).
+- [ ] DB: migration `add_friends` — `friends` with the hand-written `friends_one_per_pair` index and `friends_not_self` check.
+- [ ] Backend: send, cancel, accept, ignore, list friends, list and count requests; `friendship` on the profile; the notification stub.
+- [ ] Frontend: the Friends tab and badge, the Friends screen, the profile's friend button.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
@@ -1449,6 +1459,18 @@ How to view & test:
 ### Step 5.4 — _(dissolved)_ Phase 5 test coverage
 
 Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belongs to Step 5.2.
+
+---
+
+### Step 5.5 — Invite friends to a community (Phase 5 — UC-9's picker)
+
+Status: ☐ Not started
+Branch: feat/invite-friends
+
+Goal: Replaces Create Community's static "Invite friends" card with a picker of the creator's friends, giving friendship its purpose (UC-7: "Both users can now easily invite each other to Communities"). Added 2026-10-06 in Step 5.2's spec session (`docs/features/friend-requests.md` §0). Details in its own spec session.
+
+What I did:
+How to view & test:
 
 ---
 
