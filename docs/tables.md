@@ -126,8 +126,17 @@ The history of settings changes. Rows are inserted, never updated or deleted by 
 - **changed_by_id** (UUID, Nullable, Foreign Key referencing users(id), set to null if that admin's account is deleted): who changed it; the entry outlives the account.
 - **changed_at** (TIMESTAMP, Default Current Time). Indexed newest first, for "the last 20 changes".
 
+### 11. community_invitations Table
+
+Pending invitations to join a community, sent by its Admins to their friends (UC-9's picker, `docs/features/invite-friends.md` §3). A row is deleted once accepted or declined.
+- **community_id** (UUID, Foreign Key referencing communities(id), cascade on delete).
+- **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the invited person.
+- **invited_by_id** (UUID, Nullable, Foreign Key referencing users(id), set to null if that admin's account is deleted): who invited them; the invitation outlives the inviter's role and account.
+- **created_at** (TIMESTAMP, Default Current Time).
+- (Composite Primary Key: community_id, user_id, so a person is invited at most once per community. Indexed on user_id and created_at, newest first, for their invitations and the Friends tab badge; and on invited_by_id, for the set-null. Joining by the invite link or being removed from the community deletes a pending invitation.)
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is ten tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`.
+> **The schema is eleven tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

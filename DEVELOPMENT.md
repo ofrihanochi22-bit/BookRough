@@ -1351,6 +1351,8 @@ Every feature ships its own tests (CLAUDE.md §15).
 
 ## Phase 5 — Social Discovery (UC-5, UC-6, UC-7, UC-8)
 
+> **Phase 5 complete (2026-10-06):** Steps 5.1 (find people), 5.2 (friend requests), 5.3 (unfriend) and 5.5 (inviting friends to a community) are built; 5.5 merges with its PR.
+
 > **Re-sliced 2026-10-06.** The original Steps 5.1–5.4 split Phase 5 by layer (schema, routes, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/find-people.md` §0. The original step numbers are kept so references stay valid.
 
 ### Step 5.1 — Find people (Phase 5 — UC-5)
@@ -1557,13 +1559,67 @@ Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belon
 
 ### Step 5.5 — Invite friends to a community (Phase 5 — UC-9's picker)
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: feat/invite-friends
+Spec: docs/features/invite-friends.md
 
-Goal: Replaces Create Community's static "Invite friends" card with a picker of the creator's friends, giving friendship its purpose (UC-7: "Both users can now easily invite each other to Communities"). Added 2026-10-06 in Step 5.2's spec session (`docs/features/friend-requests.md` §0). Details in its own spec session.
+Goal: Admins invite their friends from the Create Community form and the Invite friends panel; the friend accepts or declines on the Friends tab, whose badge counts invitations too. Added 2026-10-06 in Step 5.2's spec session (`docs/features/friend-requests.md` §0).
+
+Tasks:
+
+- [x] Spec: docs/features/invite-friends.md written and approved (accept or decline, on the Friends tab, admins invite).
+- [x] DB: migration `add_community_invitations`.
+- [x] Backend: candidates, invite, cancel, my invitations, count, accept, decline; the link's accept and removal clear an invitation.
+- [x] Frontend: the friends picker on the Create form and in the Invite panel; Invitations on the Friends tab; the combined badge.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built inviting friends to a community (UC-9's picker; UC-7's "invite each other to Communities") per `docs/features/invite-friends.md`.
+
+- **DB:** migration `add_community_invitations` — `community_invitations` (`community_id`, `user_id`, `invited_by_id`, `created_at`), composite primary key, indexes for "my invitations" and the inviter's set-null; cascades from the community and the invitee. The schema is now eleven tables.
+- **Backend:**
+  - `services/invitation.service.ts`: the picker's candidates (each friend as MEMBER, BLOCKED, INVITED or INVITABLE), inviting (only invitable friends; others skipped silently), cancelling, the invitee's list and count, accepting (the invitation used up and a MEMBER membership created together; a later block wins, unannounced) and declining.
+  - `controllers/invitation.controller.ts`; admin routes under `/api/communities/:id/invitations`, invitee routes under `/api/invitations`.
+  - The link's accept and member removal now clear a pending invitation. `utils/invitationViews.ts` serialises field by field; `services/invitationNotification.ts` is a log-only stub.
+- **Frontend:**
+  - `components/FriendPicker.tsx`: checkboxes on the Create form (replacing the static card), Invite / Invited (tap to cancel) in the Invite friends panel, with Member and Blocked as labels.
+  - `pages/Friends.tsx`: an Invitations section above Requests; Join opens the community, Decline is silent.
+  - The Friends badge counts requests plus invitations ("Friends, 3 waiting"). `CommunityCover` gained a `thumb` size.
+- **Decisions (Stage 1):** an invitation the friend accepts or declines; shown on the Friends tab; admins invite, from the form and the panel.
+- **Found along the way:**
+  - When the browser pane closed, the app stopped the dev servers; restarting them finished the check.
+  - The link and removal clean-ups were each proven by a test that fails without its line. `/code-review` and `/security-review`: clean.
+  - Two older test files opened the Invite panel without mocking the new API and printed network errors; they now mock it.
+- **Docs:** `tables` (table 11; eleven tables), `use cases` (UC-9, UC-15's note), `frontend screens` (2.1, 2.3, 3.2, 3.3) (.md + .docx); CLAUDE.md §6; `communities-create.md` (the card superseded); `unfriend.md` Merged ticked; Phase 5 marked complete.
+- **Tests:** backend 822 (98.9% lines over both suites), frontend 565 (98.8%), E2E 41 + 3 skipped (new: two users become friends, one creates a community ticking the other, who joins from the Friends tab — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts A and B who are friends (see Step 5.2). Open `http://localhost:5173/` at 375px width.
+
+1. As A, **Create community** → under **Invite friends** tick B → **Create** → the Invite friends panel opens with B as **Invited**.
+2. As B, switch tabs → the **Friends** badge reads 1 waiting. Open it → under **Invitations**: the community, "A invited you · 1 member". Tap **Join** → you land in the community ("You joined …").
+3. As A, open the community's **Invite friends** → B is now **Member**. Invite another friend, then tap **Invited** to cancel it.
+4. Remove a member who is also your friend (Settings) → in the panel they show as **Blocked**.
+5. As B, ask A for a second invitation and tap **Decline** → it disappears; A's panel shows **Invite** again.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/invitation.service.test.ts src/utils/invitationViews.test.ts
+cd backend && npm run test:integration -- invitations
+cd frontend && npm run test:unit                          # FriendPicker, CreateCommunity, InvitePanel, Friends, TabLayout, api/invitations
+npm test --prefix e2e                                     # 41 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 

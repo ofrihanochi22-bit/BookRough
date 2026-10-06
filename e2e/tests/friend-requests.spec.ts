@@ -34,7 +34,7 @@ test('a user sends a request; the other accepts it from the Friends tab, then re
 
   // Act — the receiver navigates, sees the badge, and opens Friends.
   await tab(receiver, 'Search').click();
-  await tab(receiver, 'Friends, 1 request').click();
+  await tab(receiver, 'Friends, 1 waiting').click();
   const requests = receiver.getByRole('region', { name: 'Requests' });
   await expect(requests.getByRole('link', { name: sender.displayName })).toBeVisible();
   await requests.getByRole('button', { name: `Accept ${sender.displayName}` }).click();

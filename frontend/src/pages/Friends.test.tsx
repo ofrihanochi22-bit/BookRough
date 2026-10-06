@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FriendView } from '../api/friends';
@@ -28,6 +28,12 @@ vi.mock('../api/friends', () => ({
   countFriendRequests: api.countFriendRequests,
   removeFriend: api.removeFriend,
 }));
+const invitationsApi = vi.hoisted(() => ({
+  listMyInvitations: vi.fn(),
+  acceptInvitation: vi.fn(),
+  declineInvitation: vi.fn(),
+}));
+vi.mock('../api/invitations', () => invitationsApi);
 vi.mock('react-hot-toast', () => ({
   default: { success: api.toastSuccess, error: api.toastError },
 }));
@@ -68,6 +74,7 @@ beforeEach(() => {
   api.listFriendRequests.mockResolvedValue([DANA, NOA]);
   api.listFriends.mockResolvedValue([YAEL]);
   api.countFriendRequests.mockResolvedValue(0);
+  invitationsApi.listMyInvitations.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -272,5 +279,112 @@ describe('Friends', () => {
     expect(screen.getByRole('button', { name: 'Actions for Yael Ben' })).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent(FRIENDS_OFFLINE);
     expect(names(friends())).toEqual(['YBYael Ben']);
+  });
+});
+
+describe('Friends — invitations (invite-friends.md §5.4)', () => {
+  const invitation = {
+    community: { id: 'club', name: 'Dana Club', memberCount: 3 },
+    invitedBy: { id: 'dana', displayName: 'Dana Levi', profilePictureUrl: null },
+    sentAt: '2026-10-06T10:00:00.000Z',
+  };
+
+  function renderWithCommunity() {
+    return render(
+      <MemoryRouter initialEntries={['/friends']}>
+        <Routes>
+          <Route path="/friends" element={<Friends />} />
+          <Route path="/communities/:id" element={<p>Community page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it('lists invitations above requests, with the inviter and member count', async () => {
+    // Arrange
+    invitationsApi.listMyInvitations.mockResolvedValue([
+      invitation,
+      { ...invitation, community: { id: 'c2', name: 'Orphan', memberCount: 1 }, invitedBy: null },
+    ]);
+
+    // Act
+    renderWithCommunity();
+
+    // Assert
+    const section = await screen.findByRole('region', { name: 'Invitations' });
+    expect(within(section).getByText('Dana Levi invited you · 3 members')).toBeInTheDocument();
+    expect(within(section).getByText("You're invited · 1 member")).toBeInTheDocument();
+    const order = [...document.querySelectorAll('section h2')].map((h) => h.textContent);
+    expect(order.slice(0, 2)).toEqual(['Invitations', 'Requests']);
+  });
+
+  it('Join opens the community and toasts', async () => {
+    // Arrange
+    invitationsApi.listMyInvitations.mockResolvedValue([invitation]);
+    invitationsApi.acceptInvitation.mockResolvedValue(undefined);
+    renderWithCommunity();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Join Dana Club' }));
+
+    // Assert
+    expect(invitationsApi.acceptInvitation).toHaveBeenCalledWith('club');
+    expect(await screen.findByText('Community page')).toBeInTheDocument();
+    expect(api.toastSuccess).toHaveBeenCalledWith('You joined Dana Club.');
+    expect(api.countFriendRequests).toHaveBeenCalled();
+  });
+
+  it('Decline removes the row without a toast and lowers the badge', async () => {
+    // Arrange
+    invitationsApi.listMyInvitations.mockResolvedValue([invitation]);
+    invitationsApi.declineInvitation.mockResolvedValue(undefined);
+    renderWithCommunity();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Decline Dana Club' }));
+
+    // Assert: one invitation plus two requests made 3; declining leaves 2.
+    expect(screen.queryByRole('region', { name: 'Invitations' })).not.toBeInTheDocument();
+    expect(api.toastSuccess).not.toHaveBeenCalled();
+    expect(useFriendRequests.getState().count).toBe(2);
+  });
+
+  it('a Join answered 404 removes the row and says it is gone', async () => {
+    // Arrange
+    invitationsApi.listMyInvitations.mockResolvedValue([invitation]);
+    invitationsApi.acceptInvitation.mockRejectedValue(
+      httpError(404, 'This invitation is no longer available.'),
+    );
+    renderWithCommunity();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Join Dana Club' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith('This invitation is no longer available.');
+    expect(screen.queryByRole('region', { name: 'Invitations' })).not.toBeInTheDocument();
+  });
+
+  it('a network failure keeps the row; offline disables Join and Decline', async () => {
+    // Arrange
+    invitationsApi.listMyInvitations.mockResolvedValue([invitation]);
+    invitationsApi.declineInvitation.mockRejectedValue(networkError());
+    const { unmount } = renderWithCommunity();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Decline Dana Club' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith(ACTION_FAILED);
+    expect(screen.getByRole('region', { name: 'Invitations' })).toBeInTheDocument();
+    unmount();
+
+    // Act — offline
+    setOnline(false);
+    renderWithCommunity();
+
+    // Assert
+    expect(await screen.findByRole('button', { name: 'Join Dana Club' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Decline Dana Club' })).toBeDisabled();
   });
 });

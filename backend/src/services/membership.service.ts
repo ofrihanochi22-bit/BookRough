@@ -128,6 +128,8 @@ export async function removeMember(
       create: { communityId, userId: targetUserId, bannedById: user.id },
       update: { bannedById: user.id },
     });
+    // A blocked person keeps no invitation here (invite-friends.md §4).
+    await tx.communityInvitation.deleteMany({ where: { communityId, userId: targetUserId } });
     return { postsDeleted: posts.count, ratingsDeleted: ratings.count };
   });
   if (!removed) {

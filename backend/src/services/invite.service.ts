@@ -159,6 +159,9 @@ export async function acceptInvite(user: User, token: unknown): Promise<AcceptRe
     }
   }
 
+  // In now: a pending in-app invitation has nothing left to do (invite-friends.md §4).
+  await prisma.communityInvitation.deleteMany({ where: { communityId, userId: user.id } });
+
   const membership = await prisma.communityMember.findUniqueOrThrow({
     where: { userId_communityId: { userId: user.id, communityId } },
     include: { community: { include: withMemberCount } },

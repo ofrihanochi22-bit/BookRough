@@ -13,6 +13,12 @@ const { getCommunity, getInvite, listPosts } = vi.hoisted(() => ({
 }));
 vi.mock('../api/communities', () => ({ getCommunity }));
 vi.mock('../api/posts', () => ({ listPosts }));
+// The invite panel lists friends to invite (invite-friends.md §5.3): none here.
+vi.mock('../api/invitations', () => ({
+  listCandidates: () => Promise.resolve([]),
+  inviteFriends: vi.fn(),
+  cancelInvitation: vi.fn(),
+}));
 vi.mock('../api/invites', () => ({ getInvite, inviteUrl: (token: string) => `/invite/${token}` }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
