@@ -1557,10 +1557,20 @@ Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belon
 
 ### Step 5.5 — Invite friends to a community (Phase 5 — UC-9's picker)
 
-Status: ☐ Not started
+Status: 🟡 In progress
 Branch: feat/invite-friends
+Spec: docs/features/invite-friends.md
 
-Goal: Replaces Create Community's static "Invite friends" card with a picker of the creator's friends, giving friendship its purpose (UC-7: "Both users can now easily invite each other to Communities"). Added 2026-10-06 in Step 5.2's spec session (`docs/features/friend-requests.md` §0). Details in its own spec session.
+Goal: Admins invite their friends from the Create Community form and the Invite friends panel; the friend accepts or declines on the Friends tab, whose badge counts invitations too. Added 2026-10-06 in Step 5.2's spec session (`docs/features/friend-requests.md` §0).
+
+Tasks:
+
+- [ ] Spec: docs/features/invite-friends.md written and approved (accept or decline, on the Friends tab, admins invite).
+- [ ] DB: migration `add_community_invitations`.
+- [ ] Backend: candidates, invite, cancel, my invitations, count, accept, decline; the link's accept and removal clear an invitation.
+- [ ] Frontend: the friends picker on the Create form and in the Invite panel; Invitations on the Friends tab; the combined badge.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
