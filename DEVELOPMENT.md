@@ -1424,7 +1424,7 @@ npm test --prefix e2e                                     # 37 runs (+3 skipped)
 
 ### Step 5.2 — Friend requests (Phase 5 — UC-6, UC-7)
 
-Status: 🟡 In progress
+Status: ✅ Done
 Branch: feat/friend-requests
 Spec: docs/features/friend-requests.md
 
@@ -1440,7 +1440,52 @@ Tasks:
 - [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built friend requests (UC-6, UC-7) per `docs/features/friend-requests.md`.
+
+- **DB:** migration `add_friends` — `friends` (`requester_id`, `addressee_id`, `status` PENDING / ACCEPTED, `created_at`, `updated_at`), composite primary key, an index on `(addressee_id, status, created_at DESC)` for incoming requests and the badge, both foreign keys cascading. Hand-written: the unique index `friends_one_per_pair` (LEAST / GREATEST of the two ids) and the CHECK `friends_not_self`.
+- **Backend:**
+  - `services/friend.service.ts`: `sendRequest` (idempotent; sending to someone who asked you accepts theirs; a racing opposite insert is retried through the pair index; a request withdrawn mid-send becomes a plain request), `cancelRequest`, `acceptRequest` (UC-7's message when the sender's account is gone, "no longer available" otherwise), `ignoreRequest` (deletes), `listFriends`, `listRequests`, `countRequests`, `friendshipOf`.
+  - `controllers/friend.controller.ts`, `routes/friends.ts` under `/api/friends`; `GET /api/users/:userId` gains the viewer's `friendship`.
+  - `utils/friendView.ts` (field by field, `MemberUser` + `since`); `services/friendNotification.ts`, a log-only stub with ids only.
+- **Frontend:**
+  - A fifth **Friends** tab with a pending-request badge ("9+" above nine), its count in `stores/friendRequests.ts`, refreshed on load and navigation.
+  - `pages/Friends.tsx`: Requests (Accept / Ignore) then Your friends, with the loading, empty, error and offline states.
+  - `components/FriendButton.tsx` on the Public Profile: Add Friend, Request sent (cancel in a sheet), Respond (Accept / Ignore in a sheet), or a Friends label.
+- **Decisions (Stage 1):** UC-9's picker became Step 5.5; anyone signed in may send; Ignore deletes and re-sending is allowed; a Friends tab with a badge; cancel from the profile only; friendships are private.
+- **Found along the way:**
+  - `/code-review`: sending back while the other person cancelled threw P2025 (a 500); Add Friend that accepted their request left the badge stale. Both fixed. `/security-review`: clean.
+  - Stage 4: the withdrawn-request, P2002-retry and badge-refresh tests were each proven to fail with their fix removed.
+- **Docs:** `tables` (friends), `use cases` (UC-6, UC-7), `frontend screens` (2.1, 2.3, 2.4) (.md + .docx); CLAUDE.md §6 (the two hand-written objects); `find-people.md` Merged ticked and its §0 pointer; the new Step 5.5.
+- **Tests:** backend 784 (98.8% lines over both suites), frontend 537 (98.8%), E2E 39 + 3 skipped (new: one user finds another and sends a request, the other accepts from the badged Friends tab, both see each other — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts, A and B (separate browsers or profiles). Open `http://localhost:5173/` at 375px width.
+
+1. As A, **Search** for B and open B's profile → **Add Friend** → it becomes **Request sent** ("Request sent" toast).
+2. Tap **Request sent** → **Cancel request** → back to **Add Friend**. Tap **Add Friend** again.
+3. As B, switch tabs → the **Friends** tab shows a badge of 1. Open it → A under **Requests**. Tap **Accept** → "You're now friends with A."; A moves to **Your friends**; the badge is gone.
+4. As A, reload B's profile → **✓ Friends**; A's Friends tab lists B.
+5. Ignore: as a third account C, send A a request; as A, open C's profile → **Respond** → **Ignore** → **Add Friend**. C's profile of A shows **Add Friend** again.
+6. Mutual: C and A each tap **Add Friend** on the other's profile → the second tap makes them friends at once.
+7. Go offline (DevTools) → Accept, Ignore and the profile button are disabled, with the offline banner on Friends.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/friend.service.test.ts src/utils/friendView.test.ts
+cd backend && npm run test:integration -- friends
+cd frontend && npm run test:unit                          # Friends, FriendButton, TabLayout, PublicProfile, api/friends
+npm test --prefix e2e                                     # 39 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 

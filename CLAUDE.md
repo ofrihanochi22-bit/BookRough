@@ -202,6 +202,7 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
+- `friends` holds one row per pair of users in either direction, guarded by two hand-written objects in the `add_friends` migration: the unique index `friends_one_per_pair` (on the LEAST and GREATEST of the two ids) and the CHECK `friends_not_self` — likewise invisible to Prisma (docs/features/friend-requests.md §3).
 - `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).

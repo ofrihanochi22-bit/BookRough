@@ -22,7 +22,7 @@
 | 2   | Friend requests (UC-6, UC-7) | 5.1 (`friends`), 5.2 (request, accept, ignore), 5.3 (profile button, Friends) | its own session |
 | 3   | Unfriend (UC-8)              | 5.2 (unfriend), 5.3 (Remove Friend)                                           | its own session |
 
-Step 5.4 dissolves: every feature ships its own tests (§15). The `friends` table is created by feature 2, the first feature that writes it. UC-9's friends picker on Create Community is not in any of the three; it is raised in feature 2's session.
+Step 5.4 dissolves: every feature ships its own tests (§15). The `friends` table is created by feature 2, the first feature that writes it. UC-9's friends picker on Create Community is not in any of the three; it is raised in feature 2's session — where it became a fourth feature, Step 5.5 (`friend-requests.md` §0).
 
 ## 1. Goal
 
