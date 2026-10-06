@@ -10,7 +10,7 @@ import { ratingSummaryLine } from '../lib/ratingCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
-import { Avatar } from './ui/Avatar';
+import { PersonLink } from './PersonLink';
 import { Button } from './ui/Button';
 import { CoverArt } from './ui/CoverArt';
 import { Sheet } from './ui/Sheet';
@@ -156,16 +156,11 @@ export function PostCard({
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
       <header className="flex items-center gap-3">
-        <Avatar
-          id={post.author.id}
-          name={post.author.displayName}
-          pictureUrl={post.author.profilePictureUrl}
-          size={32}
-          decorative
+        <PersonLink
+          user={post.author}
+          label={post.isMine ? 'You' : post.author.displayName}
+          className="text-sm font-medium"
         />
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">
-          {post.isMine ? 'You' : post.author.displayName}
-        </p>
         <time dateTime={post.createdAt} className="text-xs text-muted">
           {relativeTime(post.createdAt)}
         </time>

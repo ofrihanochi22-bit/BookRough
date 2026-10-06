@@ -270,8 +270,8 @@ describe('GET /api/users/display-name-availability', () => {
   });
 
   it('still answers 404 for an unknown /users path without a session', async () => {
-    // Act
-    const response = await request(app).get('/api/users/no-such-thing');
+    // Act — one segment is a profile id now (find-people.md §4), so two.
+    const response = await request(app).get('/api/users/no-such/thing');
 
     // Assert
     expect(response.status).toBe(404);

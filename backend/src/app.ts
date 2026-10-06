@@ -22,9 +22,13 @@ export function createApp(): Express {
     app.use(
       pinoHttp({
         logger,
-        // Request lines carry the URL; an invite token in it must not reach the log.
+        // Request lines carry the URL; an invite token or a searched name in it
+        // must not reach the log, nor through the parsed query and params.
         serializers: {
-          req: (req: { url: string }) => ({ ...req, url: redactPath(req.url) }),
+          req: ({ query: _query, params: _params, ...req }: Record<string, unknown>) => ({
+            ...req,
+            url: redactPath(String(req.url)),
+          }),
         },
       }),
     );

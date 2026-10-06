@@ -64,9 +64,9 @@ const TABS: readonly Tab[] = [
 ];
 
 /**
- * The app's tab bar — docs/features/communities-create.md §6.3. Search opens a
- * Coming soon screen until Phase 5; My List is docs/features/bookmarks-my-list.md §5.2. Padded for the iPhone
- * home indicator when the PWA runs full-screen.
+ * The app's tab bar — docs/features/communities-create.md §6.3. Search is
+ * docs/features/find-people.md §5.1; My List is docs/features/bookmarks-my-list.md §5.2.
+ * Padded for the iPhone home indicator when the PWA runs full-screen.
  */
 export function BottomNav() {
   return (

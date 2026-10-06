@@ -18,8 +18,15 @@ export const logger = pino({
   level: env.NODE_ENV === 'test' ? 'silent' : env.LOG_LEVEL,
   base: null,
   timestamp: pino.stdTimeFunctions.isoTime,
+  // The referer is a page URL: on one origin it would carry an invite token
+  // (/invite/<token>) or a searched name (/search?q=) — find-people.md §4.
   redact: {
-    paths: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
+    paths: [
+      'req.headers.cookie',
+      'req.headers.authorization',
+      'req.headers.referer',
+      'res.headers["set-cookie"]',
+    ],
     remove: true,
   },
 });

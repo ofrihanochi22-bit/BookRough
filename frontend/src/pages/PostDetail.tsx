@@ -6,7 +6,7 @@ import { getPost, type PostWithCommunity, type PublicPost } from '../api/posts';
 import { listPostRatings, type PublicPostRating } from '../api/ratings';
 import { PostCard } from '../components/PostCard';
 import { RatingSheet } from '../components/RatingSheet';
-import { Avatar } from '../components/ui/Avatar';
+import { PersonLink } from '../components/PersonLink';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
@@ -138,16 +138,11 @@ export function PostDetail() {
                 className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4"
               >
                 <div className="flex items-center gap-3">
-                  <Avatar
-                    id={rating.rater.id}
-                    name={rating.rater.displayName}
-                    pictureUrl={rating.rater.profilePictureUrl}
-                    size={32}
-                    decorative
+                  <PersonLink
+                    user={rating.rater}
+                    label={rating.isMine ? 'You' : rating.rater.displayName}
+                    className="text-sm font-medium"
                   />
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {rating.isMine ? 'You' : rating.rater.displayName}
-                  </p>
                   <p className="text-sm font-medium">{rating.score}/10</p>
                   <time dateTime={rating.createdAt} className="text-xs text-muted">
                     {relativeTime(rating.createdAt)}

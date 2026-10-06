@@ -32,11 +32,11 @@ describe('hasInviteTokenShape', () => {
 });
 
 describe('redactPath', () => {
-  it('replaces the token in invite paths and leaves everything else alone', () => {
+  it('replaces the token in invite paths and leaves other paths alone', () => {
     // Act & Assert
     expect(redactPath('/api/invites/qEP_iUKg0kWils3eSHVHZQ')).toBe('/api/invites/:token');
     expect(redactPath('/api/invites/qEP_iUKg0kWils3eSHVHZQ/accept?x=1')).toBe(
-      '/api/invites/:token/accept?x=1',
+      '/api/invites/:token/accept?…',
     );
     expect(redactPath('/api/communities/abc/invite')).toBe('/api/communities/abc/invite');
   });
