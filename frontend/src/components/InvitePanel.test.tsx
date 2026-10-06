@@ -236,3 +236,55 @@ describe('InvitePanel', () => {
     expect(await screen.findByDisplayValue(`${ORIGIN}/invite/tok-1`)).toBeInTheDocument();
   });
 });
+
+describe('InvitePanel — friends (invite-friends.md §5.3)', () => {
+  const dov = { id: 'dov', displayName: 'Dov', profilePictureUrl: null };
+
+  it('Invite sends one invitation and shows Invited from the answer', async () => {
+    // Arrange
+    invitationsApi.listCandidates.mockResolvedValue([{ user: dov, status: 'INVITABLE' }]);
+    invitationsApi.inviteFriends.mockResolvedValue([{ user: dov, status: 'INVITED' }]);
+    renderPanel();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite Dov' }));
+
+    // Assert
+    expect(invitationsApi.inviteFriends).toHaveBeenCalledWith('c-1', ['dov']);
+    expect(
+      await screen.findByRole('button', { name: 'Invited Dov, tap to cancel' }),
+    ).toBeInTheDocument();
+  });
+
+  it('tapping Invited cancels it', async () => {
+    // Arrange
+    invitationsApi.listCandidates.mockResolvedValue([{ user: dov, status: 'INVITED' }]);
+    invitationsApi.cancelInvitation.mockResolvedValue([{ user: dov, status: 'INVITABLE' }]);
+    renderPanel();
+
+    // Act
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Invited Dov, tap to cancel' }),
+    );
+
+    // Assert
+    expect(invitationsApi.cancelInvitation).toHaveBeenCalledWith('c-1', 'dov');
+    expect(await screen.findByRole('button', { name: 'Invite Dov' })).toBeInTheDocument();
+  });
+
+  it('a failure toasts and keeps the row as it was', async () => {
+    // Arrange
+    invitationsApi.listCandidates.mockResolvedValue([{ user: dov, status: 'INVITABLE' }]);
+    invitationsApi.inviteFriends.mockRejectedValue(new Error('offline'));
+    renderPanel();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite Dov' }));
+
+    // Assert
+    expect(invitationsApi.toastError).toHaveBeenCalledWith(
+      'Action failed. Please check your internet connection and try again.',
+    );
+    expect(screen.getByRole('button', { name: 'Invite Dov' })).toBeEnabled();
+  });
+});

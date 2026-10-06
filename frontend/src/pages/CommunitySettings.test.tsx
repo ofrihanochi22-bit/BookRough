@@ -42,6 +42,12 @@ vi.mock('../api/membership', () => ({
   updateCommunity: api.updateCommunity,
   deleteCommunity: api.deleteCommunity,
 }));
+// The invite panel lists friends to invite (invite-friends.md §5.3): none here.
+vi.mock('../api/invitations', () => ({
+  listCandidates: () => Promise.resolve([]),
+  inviteFriends: vi.fn(),
+  cancelInvitation: vi.fn(),
+}));
 vi.mock('../api/invites', () => ({
   getInvite: api.getInvite,
   inviteUrl: (token: string) => `/invite/${token}`,

@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 
 describe('CreateCommunity — rendering', () => {
-  it('shows the fields, counters, a neutral cover preview, the static invite card, and a disabled Create', () => {
+  it('shows the fields, counters, a neutral cover preview, the friends picker, and a disabled Create', async () => {
     // Act
     renderForm();
 
@@ -60,6 +60,7 @@ describe('CreateCommunity — rendering', () => {
     expect(screen.getByText('0/280')).toBeInTheDocument();
     expect(screen.getByTestId('community-cover')).toHaveTextContent('♪');
     expect(screen.getByRole('heading', { name: 'Invite friends' })).toBeInTheDocument();
+    expect(await screen.findByText(/You don't have friends on BookRough yet/)).toBeInTheDocument();
     expect(createButton()).toBeDisabled();
   });
 
@@ -149,6 +150,77 @@ describe('CreateCommunity — submitting', () => {
     expect(createCommunity).toHaveBeenCalledWith({ name: 'Friday Jazz', description: null });
     expect(screen.getByRole('button', { name: 'Creating…' })).toBeDisabled();
     resolve(makeCommunity({ id: 'new-id' }));
+    expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
+  });
+
+  it('invites the ticked friends after creating, then lands on the community (invite-friends.md §5.2)', async () => {
+    // Arrange
+    picker.listFriends.mockResolvedValue([
+      { user: { id: 'dana', displayName: 'Dana', profilePictureUrl: null }, since: 'x' },
+      { user: { id: 'yael', displayName: 'Yael', profilePictureUrl: null }, since: 'x' },
+    ]);
+    createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));
+    picker.inviteFriends.mockResolvedValue([]);
+    renderForm();
+    await userEvent.type(nameInput(), 'Friday Jazz');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Invite Yael' }));
+
+    // Act
+    await userEvent.click(createButton());
+
+    // Assert
+    expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
+    expect(picker.inviteFriends).toHaveBeenCalledWith('new-id', ['yael']);
+    expect(picker.toastError).not.toHaveBeenCalled();
+  });
+
+  it('sends no invitations when nobody is ticked', async () => {
+    // Arrange
+    createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));
+    renderForm();
+    await userEvent.type(nameInput(), 'Friday Jazz');
+
+    // Act
+    await userEvent.click(createButton());
+
+    // Assert
+    expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
+    expect(picker.inviteFriends).not.toHaveBeenCalled();
+  });
+
+  it('still lands on the new community when the invitations fail, and says so', async () => {
+    // Arrange
+    picker.listFriends.mockResolvedValue([
+      { user: { id: 'dana', displayName: 'Dana', profilePictureUrl: null }, since: 'x' },
+    ]);
+    createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));
+    picker.inviteFriends.mockRejectedValue(networkError());
+    renderForm();
+    await userEvent.type(nameInput(), 'Friday Jazz');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Invite Dana' }));
+
+    // Act
+    await userEvent.click(createButton());
+
+    // Assert
+    expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
+    expect(picker.toastError).toHaveBeenCalledWith(
+      "Your community is ready, but the invitations weren't sent. Try again from Invite friends.",
+    );
+  });
+
+  it('lets you create even when your friends fail to load', async () => {
+    // Arrange
+    picker.listFriends.mockRejectedValue(networkError());
+    createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));
+    renderForm();
+    await userEvent.type(nameInput(), 'Friday Jazz');
+    expect(await screen.findByText("Couldn't load your friends.")).toBeInTheDocument();
+
+    // Act
+    await userEvent.click(createButton());
+
+    // Assert
     expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
   });
 

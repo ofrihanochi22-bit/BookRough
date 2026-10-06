@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (the friends picker); UC-7's "invite each other to Communities"; UC-9 amended (§9) |
 | **Phase**     | 5 — Step 5.5 of `DEVELOPMENT.md` (added in `friend-requests.md` §0)                     |
 | **Branch**    | `feat/invite-friends`                                                                   |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                      |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                      |
 
 ---
 

@@ -99,6 +99,20 @@ describe('TabLayout and BottomNav', () => {
     ).toBeInTheDocument();
   });
 
+  it('counts friend requests plus community invitations (invite-friends.md §5.5)', async () => {
+    // Arrange
+    countFriendRequests.mockResolvedValue(1);
+    countMyInvitations.mockResolvedValue(2);
+
+    // Act
+    renderAt('/home');
+
+    // Assert
+    expect(
+      await within(nav()).findByRole('link', { name: 'Friends, 3 waiting' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows no badge at zero, or when the count cannot be fetched', async () => {
     // Arrange
     countFriendRequests.mockRejectedValue(new Error('offline'));
