@@ -1569,7 +1569,7 @@ Tasks:
 - [x] DB: migration `add_community_invitations`.
 - [x] Backend: candidates, invite, cancel, my invitations, count, accept, decline; the link's accept and removal clear an invitation.
 - [x] Frontend: the friends picker on the Create form and in the Invite panel; Invitations on the Friends tab; the combined badge.
-- [ ] Review: `/code-review` and `/security-review`.
+- [x] Review: `/code-review` (clean) and `/security-review` (clean).
 - [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
