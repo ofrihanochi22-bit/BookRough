@@ -8,7 +8,7 @@
 | **Use cases** | UC-6 (send a friend request), UC-7 (accept / ignore); UC-6 and UC-7 amended (§9) |
 | **Phase**     | 5 — Step 5.2 of `DEVELOPMENT.md` (see `find-people.md` §0)                       |
 | **Branch**    | `feat/friend-requests`                                                           |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged               |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged               |
 
 ---
 

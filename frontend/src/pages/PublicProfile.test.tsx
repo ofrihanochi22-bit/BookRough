@@ -101,6 +101,18 @@ describe('PublicProfile', () => {
     expect(listProfileRatings).toHaveBeenCalledWith(DANA.id);
   });
 
+  it("shows the friend button for the viewer's friendship (friend-requests.md §5.3)", async () => {
+    // Arrange
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'REQUEST_RECEIVED' });
+    listProfileRatings.mockResolvedValue({ items: [], nextCursor: null });
+
+    // Act
+    renderProfile();
+
+    // Assert
+    expect(await screen.findByRole('button', { name: 'Respond' })).toBeEnabled();
+  });
+
   it('reads "Shared from …" for a pending post', async () => {
     // Arrange
     getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });

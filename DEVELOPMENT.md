@@ -1437,7 +1437,7 @@ Tasks:
 - [x] Backend: send, cancel, accept, ignore, list friends, list and count requests; `friendship` on the profile; the notification stub.
 - [x] Frontend: the Friends tab and badge, the Friends screen, the profile's friend button.
 - [x] Review: `/code-review` (2 findings, fixed) and `/security-review` (clean).
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
