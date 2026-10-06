@@ -1503,7 +1503,7 @@ Tasks:
 - [x] Backend: `DELETE /api/friends/:userId`.
 - [x] Frontend: the remove sheet, from the Friends row's ⋯ and the profile's Friends button.
 - [x] Review: `/code-review` (1 finding, fixed) and `/security-review` (clean).
-- [ ] Tests: unit, integration, component and E2E per spec §7.
+- [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:

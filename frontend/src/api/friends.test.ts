@@ -9,6 +9,7 @@ import {
   ignoreFriendRequest,
   listFriendRequests,
   listFriends,
+  removeFriend,
   sendFriendRequest,
 } from './friends';
 
@@ -72,6 +73,19 @@ describe('friends API module', () => {
       `/friends/requests/${ID}/ignore`,
     ]);
     expect(seen.every((config) => config.skipErrorToast)).toBe(true);
+  });
+
+  it('removeFriend DELETEs the friendship and returns the relation', async () => {
+    // Arrange
+    const seen = respondWith(ok({ friendship: 'NONE' }));
+
+    // Act & Assert
+    await expect(removeFriend(ID)).resolves.toBe('NONE');
+    expect(seen[0]).toMatchObject({
+      method: 'delete',
+      url: `/friends/${ID}`,
+      skipErrorToast: true,
+    });
   });
 
   it('the lists and the count unwrap their payloads', async () => {

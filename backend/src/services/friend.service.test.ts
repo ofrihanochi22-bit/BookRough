@@ -10,6 +10,7 @@ import {
   ignoreRequest,
   listFriends,
   listRequests,
+  removeFriend,
   REQUEST_GONE,
   SELF_REQUEST,
   SENDER_GONE,
@@ -330,6 +331,53 @@ describe('ignoreRequest', () => {
   it('throws 403 mid-onboarding', async () => {
     // Act & Assert
     await expectAppError(ignoreRequest(ONBOARDING, DANA), 403);
+  });
+});
+
+describe('removeFriend (unfriend.md §7)', () => {
+  it('deletes only the accepted row, in either direction, and returns NONE', async () => {
+    // Arrange
+    db.friend.deleteMany.mockResolvedValue({ count: 1 });
+    db.friend.findFirst.mockResolvedValue(null);
+
+    // Act
+    const friendship = await removeFriend(ME, DANA);
+
+    // Assert
+    expect(db.friend.deleteMany).toHaveBeenCalledWith({
+      where: {
+        status: 'ACCEPTED',
+        OR: [
+          { requesterId: ME.id, addresseeId: DANA },
+          { requesterId: DANA, addresseeId: ME.id },
+        ],
+      },
+    });
+    expect(friendship).toBe('NONE');
+    expect(notify.notifyFriendAccepted).not.toHaveBeenCalled();
+    expect(notify.notifyFriendRequest).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent and reports a pending request it left alone', async () => {
+    // Arrange: not friends; they have asked the caller.
+    db.friend.deleteMany.mockResolvedValue({ count: 0 });
+    db.friend.findFirst
+      .mockResolvedValueOnce(pending(DANA, ME.id))
+      .mockResolvedValueOnce(pending(ME.id, DANA));
+
+    // Act & Assert
+    await expect(removeFriend(ME, DANA)).resolves.toBe('REQUEST_RECEIVED');
+    await expect(removeFriend(ME, DANA)).resolves.toBe('REQUEST_SENT');
+  });
+
+  it('throws 404 for an unknown or mid-onboarding user, 403 mid-onboarding', async () => {
+    // Arrange
+    db.user.findFirst.mockResolvedValue(null);
+
+    // Act & Assert
+    await expectAppError(removeFriend(ME, DANA), 404, USER_NOT_FOUND);
+    await expectAppError(removeFriend(ONBOARDING, DANA), 403);
+    expect(db.friend.deleteMany).not.toHaveBeenCalled();
   });
 });
 

@@ -11,7 +11,7 @@ import { friendPage, onboardedAccount } from '../support/flows';
 const tab = (page: Page, name: string | RegExp) =>
   page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name });
 
-test('a user finds someone and sends a request; they accept it from the Friends tab', async ({
+test('a user sends a request; the other accepts it from the Friends tab, then removes them', async ({
   page,
   browser,
 }) => {
@@ -55,6 +55,20 @@ test('a user finds someone and sends a request; they accept it from the Friends 
       .getByRole('region', { name: 'Your friends' })
       .getByRole('link', { name: receiverAccount.displayName }),
   ).toBeVisible();
+
+  // Act — the receiver removes the sender (UC-8, docs/features/unfriend.md §7).
+  await receiver.getByRole('button', { name: `Actions for ${sender.displayName}` }).click();
+  const sheet = receiver.getByRole('dialog', { name: 'Remove friend?' });
+  await sheet.getByRole('button', { name: 'Remove friend' }).click();
+
+  // Assert — gone for both, silently: the sender's profile of them offers Add Friend again.
+  await expect(
+    receiver.getByText(`Removed ${sender.displayName} from your friends.`),
+  ).toBeVisible();
+  await expect(receiver.getByText('No friends yet')).toBeVisible();
+  await page.goBack();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Add Friend' })).toBeVisible();
 
   await receiver.context().close();
 });

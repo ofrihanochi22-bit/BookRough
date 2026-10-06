@@ -8,7 +8,7 @@
 | **Use cases** | UC-8 (remove a friend); UC-8 amended (§9)                          |
 | **Phase**     | 5 — Step 5.3 of `DEVELOPMENT.md` (see `find-people.md` §0)         |
 | **Branch**    | `feat/unfriend`                                                    |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 

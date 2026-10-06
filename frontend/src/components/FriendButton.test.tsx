@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   acceptFriendRequest: vi.fn(),
   ignoreFriendRequest: vi.fn(),
   countFriendRequests: vi.fn(),
+  removeFriend: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -23,6 +24,7 @@ vi.mock('../api/friends', () => ({
   acceptFriendRequest: api.acceptFriendRequest,
   ignoreFriendRequest: api.ignoreFriendRequest,
   countFriendRequests: api.countFriendRequests,
+  removeFriend: api.removeFriend,
 }));
 vi.mock('react-hot-toast', () => ({
   default: { success: api.toastSuccess, error: api.toastError },
@@ -172,6 +174,63 @@ describe('FriendButton', () => {
     expect(api.toastError).toHaveBeenCalledWith(ACTION_FAILED);
     expect(button('Add Friend')).toBeEnabled();
     expect(onStale).not.toHaveBeenCalled();
+  });
+
+  it('Friends → Remove friend returns to Add Friend (unfriend.md §5.3)', async () => {
+    // Arrange
+    api.removeFriend.mockResolvedValue('NONE');
+    render(<Harness initial="FRIENDS" />);
+
+    // Act
+    await userEvent.click(button('✓ Friends'));
+    await userEvent.click(button('Remove friend'));
+
+    // Assert
+    expect(api.removeFriend).toHaveBeenCalledWith(DANA);
+    expect(api.toastSuccess).toHaveBeenCalledWith('Removed Dana from your friends.');
+    expect(button('Add Friend')).toBeInTheDocument();
+  });
+
+  it('shows the relation the removal reports, not a guess', async () => {
+    // Arrange: they had removed us and asked again meanwhile.
+    api.removeFriend.mockResolvedValue('REQUEST_RECEIVED');
+    render(<Harness initial="FRIENDS" />);
+
+    // Act
+    await userEvent.click(button('✓ Friends'));
+    await userEvent.click(button('Remove friend'));
+
+    // Assert
+    expect(button('Respond')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Friend' })).not.toBeInTheDocument();
+  });
+
+  it('a failed removal keeps Friends and toasts', async () => {
+    // Arrange
+    api.removeFriend.mockRejectedValue(networkError());
+    render(<Harness initial="FRIENDS" />);
+
+    // Act
+    await userEvent.click(button('✓ Friends'));
+    await userEvent.click(button('Remove friend'));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith(ACTION_FAILED);
+    expect(button('✓ Friends')).toBeInTheDocument();
+  });
+
+  it('a removal answered 404 asks for a reload', async () => {
+    // Arrange
+    api.removeFriend.mockRejectedValue(httpError(404, 'User not found.'));
+    render(<Harness initial="FRIENDS" />);
+
+    // Act
+    await userEvent.click(button('✓ Friends'));
+    await userEvent.click(button('Remove friend'));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith('User not found.');
+    expect(onStale).toHaveBeenCalled();
   });
 
   it('is disabled offline', () => {
