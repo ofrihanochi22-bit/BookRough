@@ -1351,75 +1351,57 @@ Every feature ships its own tests (CLAUDE.md §15).
 
 ## Phase 5 — Social Discovery (UC-5, UC-6, UC-7, UC-8)
 
-### Step 5.1 — Friends schema (Phase 5)
+> **Re-sliced 2026-10-06.** The original Steps 5.1–5.4 split Phase 5 by layer (schema, routes, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/find-people.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-friends-schema
+### Step 5.1 — Find people (Phase 5 — UC-5)
 
-Goal: Migration adds the `friends` table with the `(requester_id, addressee_id)` composite PK and `status` enum.
+Status: 🟡 In progress
+Branch: feat/find-people
+Spec: docs/features/find-people.md
+
+Goal: A signed-in user searches the whole directory by part of a display name on the Search tab, and opens a Public Profile — avatar, name, service, and their ratings in communities the viewer is in — from search or from any name already shown. Absorbs the search halves of former 5.2 and 5.3.
 
 Tasks:
 
-- [ ] DB: Add `Friend` model + migration.
-- [ ] DB: Application-level guard that prevents reverse-direction duplicates per `tables.docx`.
+- [ ] Spec: docs/features/find-people.md written and approved (re-slice of Phase 5, whole directory, shared-community ratings, names link to profiles).
+- [ ] DB: migration `ratings_by_user_newest` — the ratings user index gains `created_at DESC, id DESC`.
+- [ ] Backend: `GET /api/users/search?q=`, `GET /api/users/:userId`, `GET /api/users/:userId/ratings`; `redactPath` drops query strings.
+- [ ] Frontend: the Search screen replacing Coming soon, the Public Profile screen, names linking to profiles on posts, ratings and members.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 5.2 — Search + friend routes (Phase 5 — UC-5, UC-6, UC-7, UC-8)
+### Step 5.2 — Friend requests (Phase 5 — UC-6, UC-7)
 
 Status: ☐ Not started
-Branch: feat/friends-api
+Branch: feat/friend-requests
 
-Goal: APIs cover global user search, sending requests, accept/ignore, and unfriending.
-
-Tasks:
-
-- [ ] Backend: `GET /api/users?q=` partial match on `username` + `display_name`.
-- [ ] Backend: `POST /api/friends/requests` (creates PENDING).
-- [ ] Backend: `POST /api/friends/requests/:id/accept` and `.../ignore`.
-- [ ] Backend: `DELETE /api/friends/:userId` (unfriend).
-- [ ] Tests: Integration: lifecycle from request → accept → unfriend; ghost-request handling per UC-7 fail path.
+Goal: A user sends a friend request from a Public Profile, and the other accepts or ignores it on a Friends screen that also lists their friends. Absorbs former 5.1 (the `friends` table), the request halves of 5.2, and the profile button and Friends screen of 5.3. Details in its own spec session.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 5.3 — Discovery UI (Phase 5 — UC-5, UC-6, UC-7, UC-8)
+### Step 5.3 — Unfriend (Phase 5 — UC-8)
 
 Status: ☐ Not started
-Branch: feat/friends-ui
+Branch: feat/unfriend
 
-Goal: Global search bar, public profile screen, and Friends & Requests tab work end-to-end.
-
-Tasks:
-
-- [ ] Frontend: `pages/Search.tsx` global search results.
-- [ ] Frontend: `pages/PublicProfile.tsx` with dynamic Add Friend / Pending / Friends / blocked-or-hidden states per UC-6.
-- [ ] Frontend: `pages/Friends.tsx` with My Friends + Pending Requests tabs.
-- [ ] Tests: RTL on the dynamic friend button rendering for each state.
+Goal: A user removes a friend, with a confirmation, from the Friends list or the friend's profile. Absorbs the unfriend halves of former 5.2 and 5.3. Details in its own spec session.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 5.4 — Phase 5 test coverage (Phase 5)
+### Step 5.4 — _(dissolved)_ Phase 5 test coverage
 
-Status: ☐ Not started
-Branch: test/friends
-
-Goal: Friend lifecycle covered by integration + a single happy-path E2E.
-
-Tasks:
-
-- [ ] Tests: E2E: two users, one sends a request, the other accepts.
-
-What I did:
-How to view & test:
+Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belongs to Step 5.2.
 
 ---
 
