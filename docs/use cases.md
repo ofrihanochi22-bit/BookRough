@@ -134,9 +134,9 @@
   - The user taps the "Create Community" button.
   - The system presents a creation form.
   - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
-  - Once friends exist (Phase 5), the system presents the user's friends list, allowing them to select friends to invite. Until then, a static "Invite friends" card holds that place on the form.
+  - The system presents the user's friends list, allowing them to select friends to invite.
   - The user submits the form.
-  - The backend creates the Community and makes the creator its Owner. (Invite links for selected friends arrive with the friends picker; meanwhile an Admin shares an invite link, UC-15.)
+  - The backend creates the Community and makes the creator its Owner. The selected friends each receive an invitation on their Friends tab, which they accept (joining as Members) or decline; nobody is added without saying yes. Admins can invite more friends later from the community's Invite friends panel (`docs/features/invite-friends.md`).
   - The user is redirected to the newly created Community's page (its feed, once posts exist in Phase 3).
 - **Fail description (Alternative Scenario):** The user attempts to create the group without providing a required "Name" field. The system disables the final submit button, highlights the empty Name field in red, and displays helper text: "A Community name is required."
 
@@ -234,7 +234,7 @@
   - The system redirects the user directly into the newly joined Community's page (its feed, once posts exist in Phase 3).
 - **Fail description (Alternative Scenario):** The user clicks an invite link that an Admin has since reset. The preview screen displays an error state instead: "This invite link is invalid or has expired. Please request a new link from the Community Admin."
 
-> **Who has the link.** Each community has one invite link. Only its Admins can see it, share it, and reset it; resetting is what "revoked" means, and there is no expiry date. Joining twice is harmless: an existing member is told they are already in and taken to the community. Specified in docs/features/communities-invites.md.
+> **Who has the link.** Each community has one invite link. Only its Admins can see it, share it, and reset it; resetting is what "revoked" means, and there is no expiry date. Joining twice is harmless: an existing member is told they are already in and taken to the community. Specified in docs/features/communities-invites.md. Alongside the link, Admins can invite their friends in the app; a pending invitation is cleared when the person joins by the link or is removed (`docs/features/invite-friends.md`).
 
 ### UC-16: User Views Post Feedback (Ratings and Comments)
 

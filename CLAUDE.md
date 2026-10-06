@@ -196,14 +196,15 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Ten tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Eleven tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
 - `friends` holds one row per pair of users in either direction, guarded by two hand-written objects in the `add_friends` migration: the unique index `friends_one_per_pair` (on the LEAST and GREATEST of the two ids) and the CHECK `friends_not_self` — likewise invisible to Prisma (docs/features/friend-requests.md §3).
 - `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
+- `community_invitations` holds pending in-app invitations from a community's admins to their friends; a ban blocks them too (docs/features/invite-friends.md).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
