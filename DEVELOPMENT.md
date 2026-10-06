@@ -1491,10 +1491,19 @@ npm test --prefix e2e                                     # 39 runs (+3 skipped)
 
 ### Step 5.3 — Unfriend (Phase 5 — UC-8)
 
-Status: ☐ Not started
+Status: 🟡 In progress
 Branch: feat/unfriend
+Spec: docs/features/unfriend.md
 
-Goal: A user removes a friend, with a confirmation, from the Friends list or the friend's profile. Absorbs the unfriend halves of former 5.2 and 5.3. Details in its own spec session.
+Goal: A user removes a friend, with a confirmation, from the Friends list or the friend's profile. Silent; either may re-request later. Absorbs the unfriend halves of former 5.2 and 5.3.
+
+Tasks:
+
+- [ ] Spec: docs/features/unfriend.md written and approved (silent, back to no relation).
+- [ ] Backend: `DELETE /api/friends/:userId`.
+- [ ] Frontend: the remove sheet, from the Friends row's ⋯ and the profile's Friends button.
+- [ ] Review: `/code-review` and `/security-review`.
+- [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
 How to view & test:
