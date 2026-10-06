@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { ComingSoon } from '../pages/ComingSoon';
 import { TabLayout } from './TabLayout';
 
 function renderAt(path: string) {
@@ -12,10 +11,7 @@ function renderAt(path: string) {
       <Routes>
         <Route element={<TabLayout />}>
           <Route path="/home" element={<h1>Home screen</h1>} />
-          <Route
-            path="/search"
-            element={<ComingSoon title="Search" description="Find friends. Coming soon." />}
-          />
+          <Route path="/search" element={<h1>Search screen</h1>} />
           <Route path="/my-list" element={<h1>My List screen</h1>} />
           <Route path="/profile" element={<h1>Profile screen</h1>} />
         </Route>
@@ -39,7 +35,7 @@ describe('TabLayout and BottomNav', () => {
     expect(tabs[1]).not.toHaveAttribute('aria-current');
   });
 
-  it('switches screens through the tabs; Search shows Coming soon', async () => {
+  it('switches screens through the tabs', async () => {
     // Arrange
     renderAt('/home');
 
@@ -47,8 +43,7 @@ describe('TabLayout and BottomNav', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Search' }));
 
     // Assert
-    expect(screen.getByRole('heading', { name: 'Search' })).toBeInTheDocument();
-    expect(screen.getByText('Find friends. Coming soon.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Search screen' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page');
   });
 });

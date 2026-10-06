@@ -180,6 +180,24 @@ describe('CommunitySettings — what each role sees', () => {
   });
 });
 
+describe('CommunitySettings — member links (find-people.md §5.3)', () => {
+  it("links each member's name to their profile, yours to My Profile, beside the ⋯ menu", async () => {
+    // Arrange
+    seenAs('OWNER');
+
+    // Act
+    renderSettings();
+
+    // Assert
+    const ada = await screen.findByRole('link', { name: 'Ada' });
+    expect(ada).toHaveAttribute('href', '/users/ada');
+    expect(screen.getByRole('link', { name: 'Ofri · You' })).toHaveAttribute('href', '/profile');
+    await openActions('Ada');
+    expect(screen.getByRole('button', { name: 'Make member' })).toBeInTheDocument();
+    expect(screen.getByText('Members · 3 members')).toBeInTheDocument();
+  });
+});
+
 describe('CommunitySettings — member actions', () => {
   it('Make admin changes the role at once, without a confirmation, and reloads the list', async () => {
     // Arrange

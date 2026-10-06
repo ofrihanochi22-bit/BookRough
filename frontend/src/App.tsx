@@ -5,7 +5,6 @@ import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './compone
 import { TabLayout } from './components/TabLayout';
 import { AdminCommunities, AdminLayout, AdminUsers } from './pages/Admin';
 import { AdminSettingsTab } from './pages/AdminSettings';
-import { ComingSoon } from './pages/ComingSoon';
 import { Community } from './pages/Community';
 import { CommunitySettings } from './pages/CommunitySettings';
 import { CompleteProfile } from './pages/CompleteProfile';
@@ -16,6 +15,8 @@ import { MyList } from './pages/MyList';
 import { NotFound } from './pages/NotFound';
 import { PostDetail } from './pages/PostDetail';
 import { Profile } from './pages/Profile';
+import { PublicProfile } from './pages/PublicProfile';
+import { Search } from './pages/Search';
 import { Welcome } from './pages/Welcome';
 
 /**
@@ -64,12 +65,8 @@ export function App() {
             <Route path="/communities/:id" element={<Community />} />
             <Route path="/communities/:id/settings" element={<CommunitySettings />} />
             <Route path="/posts/:postId" element={<PostDetail />} />
-            <Route
-              path="/search"
-              element={
-                <ComingSoon title="Search" description="Find friends on BookRough. Coming soon." />
-              }
-            />
+            <Route path="/search" element={<Search />} />
+            <Route path="/users/:userId" element={<PublicProfile />} />
             <Route path="/my-list" element={<MyList />} />
             <Route path="/profile" element={<Profile />} />
           </Route>

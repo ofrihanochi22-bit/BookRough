@@ -244,7 +244,8 @@ model Rating {
 
   /// One rating per user per post; also serves "the ratings of a post".
   @@unique([postId, userId])
-  /// The rater's own ratings, for `myScore` and the account cascade.
-  @@index([userId])
+  /// A user's ratings, newest first: the profile's history
+  /// (docs/features/find-people.md §3), `myScore`, and the account cascade.
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("ratings")
 }

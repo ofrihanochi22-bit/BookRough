@@ -1351,75 +1351,104 @@ Every feature ships its own tests (CLAUDE.md §15).
 
 ## Phase 5 — Social Discovery (UC-5, UC-6, UC-7, UC-8)
 
-### Step 5.1 — Friends schema (Phase 5)
+> **Re-sliced 2026-10-06.** The original Steps 5.1–5.4 split Phase 5 by layer (schema, routes, all UI, tests), and none of them could merge alone under CLAUDE.md §11. They became three PRs, each with its own spec session — see `docs/features/find-people.md` §0. The original step numbers are kept so references stay valid.
 
-Status: ☐ Not started
-Branch: feat/db-friends-schema
+### Step 5.1 — Find people (Phase 5 — UC-5)
 
-Goal: Migration adds the `friends` table with the `(requester_id, addressee_id)` composite PK and `status` enum.
+Status: ✅ Done
+Branch: feat/find-people
+Spec: docs/features/find-people.md
+
+Goal: A signed-in user searches the whole directory by part of a display name on the Search tab, and opens a Public Profile — avatar, name, service, and their ratings in communities the viewer is in — from search or from any name already shown. Absorbs the search halves of former 5.2 and 5.3.
 
 Tasks:
 
-- [ ] DB: Add `Friend` model + migration.
-- [ ] DB: Application-level guard that prevents reverse-direction duplicates per `tables.docx`.
+- [x] Spec: docs/features/find-people.md written and approved (re-slice of Phase 5, whole directory, shared-community ratings, names link to profiles).
+- [x] DB: migration `ratings_by_user_newest` — the ratings user index gains `created_at DESC, id DESC`.
+- [x] Backend: `GET /api/users/search?q=`, `GET /api/users/:userId`, `GET /api/users/:userId/ratings`; `redactPath` drops query strings; the request log drops `query`, `params` and `referer`.
+- [x] Frontend: the Search screen replacing Coming soon, the Public Profile screen, names linking to profiles on posts, ratings and members.
+- [x] Review: `/code-review` (1 finding, fixed) and `/security-review` (clean).
+- [x] Tests: unit, integration, component and E2E per spec §7.
+
+What I did:
+
+Built finding people and their public profiles (UC-5) per `docs/features/find-people.md`.
+
+- **DB:** migration `ratings_by_user_newest` — the ratings index on `user_id` becomes `(user_id, created_at DESC, id DESC)`, serving a profile's history as well as `myScore` and the account cascade.
+- **Backend:**
+  - `services/profile.service.ts`: `searchUsers` (the whole directory of onboarded users, matched on the display-name key so case, spacing and accents don't matter; names that start with the query first; at most 20 with `hasMore`; `LIKE` wildcards escaped), `getProfile`, and `listProfileRatings` (the target's ratings only on posts in communities the viewer is in now, keyset-paginated; empty for a stranger).
+  - `controllers/profile.controller.ts`; routes `GET /api/users/search`, `/api/users/:userId`, `/api/users/:userId/ratings` after the literal `/users` paths.
+  - `utils/profileUser.ts` and `utils/profileRating.ts`, field by field. `ProfileUser` is the first shape that shows another user's preferred service.
+  - Logs: `redactPath` drops query strings, `serializeRequest` drops pino-http's parsed `query` and `params`, and the logger removes the `referer` header — a searched name never reaches a log line.
+- **Frontend:**
+  - `pages/Search.tsx` replaces the tab's Coming soon: searches 300 ms after typing pauses, keeps the query in the URL (Back restores it), newest answer wins; hint, skeleton, UC-5 empty, "first 20", error and offline states.
+  - `pages/PublicProfile.tsx` at `/users/:userId`: avatar, name, "Listens on …", and the ratings with Load more, each opening Post Detail; your own id redirects to My Profile.
+  - `components/PersonLink.tsx` makes the avatar and name one 44 px link on feed cards and Post Detail (author), Post Detail's ratings, and Community Settings' members. `ComingSoon` deleted.
+- **Decisions (Stage 1):** Phase 5 re-sliced into three features; the whole directory is searchable by partial name; the profile shows ratings from shared communities only; profiles open from every name already shown.
+- **Found along the way:**
+  - Stage 2's browser check showed pino-http still logging `query: { q }` after the URL was redacted; the referer would have leaked the same on a single-origin deployment (and the invite page's token with it).
+  - `/code-review`: a query of only accents or joiners got a `422` and an error screen Try again could not clear; it now finds nobody. `/security-review`: clean.
+  - Stage 4: the late-answer test was proven to fail with `useRequest`'s guard removed. Tests that reset the auth store under a mounted screen now unmount first, which also cut CommunityFeed's old act warnings from 18 to 5.
+- **Docs:** `use cases` (UC-5), `frontend screens` (2.1, 2.2, 2.4), `tables` (ratings index) (.md + .docx); the Phase 5 re-slice above; `post-detail.md` Merged ticked.
+- **Tests:** backend 745 (98.7% lines over both suites), frontend 510 (98.7%), E2E 37 + 3 skipped (new: a member finds a friend by part of their name, sees their rating and opens it; a stranger finds them by full name and sees no ratings — Chromium and iPhone WebKit).
+
+How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts in one community, as in Step 4.2: A shared a song and B rated it from My List. Open `http://localhost:5173/` at 375px width.
+
+1. As A, tap the **Search** tab and type part of B's name in any case → B appears; your own name, if it matches, reads "· You".
+2. Tap B → B's profile: avatar, name, "Listens on …", and B's rating with the song, score, comment and community. Tap it → Post Detail.
+3. Go Back twice → the search is still there. Tap the Search tab again → the field empties.
+4. On Post Detail, the feed and Community Settings, tap any name → that person's profile (your own → My Profile).
+5. Search for something nobody is called (`zzzz`) → "No users found matching this search. Try a different name."
+6. As a third account in no shared community, open B's profile → "No ratings to show".
+7. Go offline (DevTools) → the search field is disabled with the offline banner.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/profile.service.test.ts src/utils/profileUser.test.ts src/utils/profileRating.test.ts src/utils/redactPath.test.ts
+cd backend && npm run test:integration -- profiles
+cd frontend && npm run test:unit                          # Search, PublicProfile, PostCard, PostDetail, CommunitySettings, api/profiles
+npm test --prefix e2e                                     # 37 runs (+3 skipped), needs Docker Postgres
+```
+
+---
+
+### Step 5.2 — Friend requests (Phase 5 — UC-6, UC-7)
+
+Status: ☐ Not started
+Branch: feat/friend-requests
+
+Goal: A user sends a friend request from a Public Profile, and the other accepts or ignores it on a Friends screen that also lists their friends. Absorbs former 5.1 (the `friends` table), the request halves of 5.2, and the profile button and Friends screen of 5.3. Details in its own spec session.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 5.2 — Search + friend routes (Phase 5 — UC-5, UC-6, UC-7, UC-8)
+### Step 5.3 — Unfriend (Phase 5 — UC-8)
 
 Status: ☐ Not started
-Branch: feat/friends-api
+Branch: feat/unfriend
 
-Goal: APIs cover global user search, sending requests, accept/ignore, and unfriending.
-
-Tasks:
-
-- [ ] Backend: `GET /api/users?q=` partial match on `username` + `display_name`.
-- [ ] Backend: `POST /api/friends/requests` (creates PENDING).
-- [ ] Backend: `POST /api/friends/requests/:id/accept` and `.../ignore`.
-- [ ] Backend: `DELETE /api/friends/:userId` (unfriend).
-- [ ] Tests: Integration: lifecycle from request → accept → unfriend; ghost-request handling per UC-7 fail path.
+Goal: A user removes a friend, with a confirmation, from the Friends list or the friend's profile. Absorbs the unfriend halves of former 5.2 and 5.3. Details in its own spec session.
 
 What I did:
 How to view & test:
 
 ---
 
-### Step 5.3 — Discovery UI (Phase 5 — UC-5, UC-6, UC-7, UC-8)
+### Step 5.4 — _(dissolved)_ Phase 5 test coverage
 
-Status: ☐ Not started
-Branch: feat/friends-ui
-
-Goal: Global search bar, public profile screen, and Friends & Requests tab work end-to-end.
-
-Tasks:
-
-- [ ] Frontend: `pages/Search.tsx` global search results.
-- [ ] Frontend: `pages/PublicProfile.tsx` with dynamic Add Friend / Pending / Friends / blocked-or-hidden states per UC-6.
-- [ ] Frontend: `pages/Friends.tsx` with My Friends + Pending Requests tabs.
-- [ ] Tests: RTL on the dynamic friend button rendering for each state.
-
-What I did:
-How to view & test:
-
----
-
-### Step 5.4 — Phase 5 test coverage (Phase 5)
-
-Status: ☐ Not started
-Branch: test/friends
-
-Goal: Friend lifecycle covered by integration + a single happy-path E2E.
-
-Tasks:
-
-- [ ] Tests: E2E: two users, one sends a request, the other accepts.
-
-What I did:
-How to view & test:
+Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belongs to Step 5.2.
 
 ---
 

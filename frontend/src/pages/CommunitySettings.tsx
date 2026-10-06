@@ -20,6 +20,7 @@ import {
 import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { InvitePanel } from '../components/InvitePanel';
+import { PersonLink } from '../components/PersonLink';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
@@ -256,17 +257,17 @@ export function CommunitySettings() {
                 return (
                   <li key={member.user.id} className="flex flex-col gap-2 px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <Avatar
-                        id={member.user.id}
-                        name={member.user.displayName}
-                        pictureUrl={member.user.profilePictureUrl}
-                        size={36}
-                        decorative
+                      <PersonLink
+                        user={member.user}
+                        avatarSize={36}
+                        className="text-sm"
+                        label={
+                          <>
+                            {member.user.displayName}
+                            {isSelf && <span className="text-muted"> · You</span>}
+                          </>
+                        }
                       />
-                      <span className="min-w-0 flex-1 truncate text-sm">
-                        {member.user.displayName}
-                        {isSelf && <span className="text-muted"> · You</span>}
-                      </span>
                       {label && <span className="text-xs text-accent">{label}</span>}
                       {actions.length > 0 && (
                         <button
