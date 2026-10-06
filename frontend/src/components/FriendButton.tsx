@@ -82,7 +82,13 @@ export function FriendButton({
             void run(
               'send',
               () => sendFriendRequest(userId),
-              (next) => toast.success(next === 'FRIENDS' ? nowFriends(name) : REQUEST_SENT),
+              (next) => {
+                toast.success(next === 'FRIENDS' ? nowFriends(name) : REQUEST_SENT);
+                // Sending back accepted their request: it leaves the badge.
+                if (next === 'FRIENDS') {
+                  void refreshCount();
+                }
+              },
             )
           }
         >

@@ -64,11 +64,16 @@ function attemptSend(userId: string, targetId: string): Promise<SendResult> {
     if (existing.status === 'ACCEPTED' || existing.requesterId === userId) {
       return 'unchanged';
     }
-    // They asked first: sending back is accepting (§6).
-    await tx.friend.update({
-      where: { requesterId_addresseeId: { requesterId: targetId, addresseeId: userId } },
+    // They asked first: sending back is accepting (§6). If they withdrew it
+    // meanwhile, there is nothing to accept, and this becomes a plain request.
+    const { count } = await tx.friend.updateMany({
+      where: { requesterId: targetId, addresseeId: userId, status: 'PENDING' },
       data: { status: 'ACCEPTED' },
     });
+    if (count === 0) {
+      await tx.friend.create({ data: { requesterId: userId, addresseeId: targetId } });
+      return 'sent';
+    }
     return 'accepted-mutual';
   });
 }

@@ -1436,7 +1436,7 @@ Tasks:
 - [x] DB: migration `add_friends` — `friends` with the hand-written `friends_one_per_pair` index and `friends_not_self` check.
 - [x] Backend: send, cancel, accept, ignore, list friends, list and count requests; `friendship` on the profile; the notification stub.
 - [x] Frontend: the Friends tab and badge, the Friends screen, the profile's friend button.
-- [ ] Review: `/code-review` and `/security-review`.
+- [x] Review: `/code-review` (2 findings, fixed) and `/security-review` (clean).
 - [ ] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
