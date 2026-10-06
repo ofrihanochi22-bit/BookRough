@@ -72,14 +72,14 @@
 - **Description:** A user searches the platform's directory to find other individuals using their display name.
 - **Pre-conditions:** The user is logged into the application.
 - **Post-conditions:** The system displays a list of user profiles that match the search query, allowing the searching user to view them or take further action.
-- **Trigger:** The user taps the search icon/bar, types a query, and submits the search.
+- **Trigger:** The user opens the Search tab and types part of a name; the search runs as they type.
 - **Step-by-step scenario (Success):**
-  - The user taps the global search bar in the application header.
+  - The user opens the Search tab in the bottom tab bar.
   - The user types a name (e.g., "Danny").
-  - The system queries the database for User records where the display name partially or fully matches the input.
+  - The system looks through every user who has finished onboarding for a display name that contains the input, ignoring case, spacing and accents. Names that start with the input come first; at most 20 are shown, with a hint to type more.
   - The system populates a results list displaying the matching users' profile pictures and names.
-  - The user taps on a specific result to view that person's full profile and rating history.
-- **Fail description (Alternative Scenario):** The user searches for a name that does not exist in the database or contains invalid special characters. The system completes the search but returns an empty state graphic with the text: "No users found matching this search. Try a different name."
+  - The user taps on a specific result to view that person's profile: their avatar, name and streaming service, and their ratings in the communities the two of them share — never ratings from a community the searching user is not in. The same profile opens from any name on a post, a rating or a community's member list (`docs/features/find-people.md`).
+- **Fail description (Alternative Scenario):** The user searches for a name that does not exist in the database or contains characters no name can contain. The system completes the search without an error and returns an empty state graphic with the text: "No users found matching this search. Try a different name."
 
 ### UC-6: User Sends Friendship Request
 

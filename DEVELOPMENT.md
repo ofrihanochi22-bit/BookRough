@@ -1355,7 +1355,7 @@ Every feature ships its own tests (CLAUDE.md §15).
 
 ### Step 5.1 — Find people (Phase 5 — UC-5)
 
-Status: 🟡 In progress
+Status: ✅ Done
 Branch: feat/find-people
 Spec: docs/features/find-people.md
 
@@ -1371,7 +1371,54 @@ Tasks:
 - [x] Tests: unit, integration, component and E2E per spec §7.
 
 What I did:
+
+Built finding people and their public profiles (UC-5) per `docs/features/find-people.md`.
+
+- **DB:** migration `ratings_by_user_newest` — the ratings index on `user_id` becomes `(user_id, created_at DESC, id DESC)`, serving a profile's history as well as `myScore` and the account cascade.
+- **Backend:**
+  - `services/profile.service.ts`: `searchUsers` (the whole directory of onboarded users, matched on the display-name key so case, spacing and accents don't matter; names that start with the query first; at most 20 with `hasMore`; `LIKE` wildcards escaped), `getProfile`, and `listProfileRatings` (the target's ratings only on posts in communities the viewer is in now, keyset-paginated; empty for a stranger).
+  - `controllers/profile.controller.ts`; routes `GET /api/users/search`, `/api/users/:userId`, `/api/users/:userId/ratings` after the literal `/users` paths.
+  - `utils/profileUser.ts` and `utils/profileRating.ts`, field by field. `ProfileUser` is the first shape that shows another user's preferred service.
+  - Logs: `redactPath` drops query strings, `serializeRequest` drops pino-http's parsed `query` and `params`, and the logger removes the `referer` header — a searched name never reaches a log line.
+- **Frontend:**
+  - `pages/Search.tsx` replaces the tab's Coming soon: searches 300 ms after typing pauses, keeps the query in the URL (Back restores it), newest answer wins; hint, skeleton, UC-5 empty, "first 20", error and offline states.
+  - `pages/PublicProfile.tsx` at `/users/:userId`: avatar, name, "Listens on …", and the ratings with Load more, each opening Post Detail; your own id redirects to My Profile.
+  - `components/PersonLink.tsx` makes the avatar and name one 44 px link on feed cards and Post Detail (author), Post Detail's ratings, and Community Settings' members. `ComingSoon` deleted.
+- **Decisions (Stage 1):** Phase 5 re-sliced into three features; the whole directory is searchable by partial name; the profile shows ratings from shared communities only; profiles open from every name already shown.
+- **Found along the way:**
+  - Stage 2's browser check showed pino-http still logging `query: { q }` after the URL was redacted; the referer would have leaked the same on a single-origin deployment (and the invite page's token with it).
+  - `/code-review`: a query of only accents or joiners got a `422` and an error screen Try again could not clear; it now finds nobody. `/security-review`: clean.
+  - Stage 4: the late-answer test was proven to fail with `useRequest`'s guard removed. Tests that reset the auth store under a mounted screen now unmount first, which also cut CommunityFeed's old act warnings from 18 to 5.
+- **Docs:** `use cases` (UC-5), `frontend screens` (2.1, 2.2, 2.4), `tables` (ratings index) (.md + .docx); the Phase 5 re-slice above; `post-detail.md` Merged ticked.
+- **Tests:** backend 745 (98.7% lines over both suites), frontend 510 (98.7%), E2E 37 + 3 skipped (new: a member finds a friend by part of their name, sees their rating and opens it; a stranger finds them by full name and sees no ratings — Chromium and iPhone WebKit).
+
 How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npx prisma migrate deploy && npm run dev
+cd frontend && npm run dev
+```
+
+Two Google accounts in one community, as in Step 4.2: A shared a song and B rated it from My List. Open `http://localhost:5173/` at 375px width.
+
+1. As A, tap the **Search** tab and type part of B's name in any case → B appears; your own name, if it matches, reads "· You".
+2. Tap B → B's profile: avatar, name, "Listens on …", and B's rating with the song, score, comment and community. Tap it → Post Detail.
+3. Go Back twice → the search is still there. Tap the Search tab again → the field empties.
+4. On Post Detail, the feed and Community Settings, tap any name → that person's profile (your own → My Profile).
+5. Search for something nobody is called (`zzzz`) → "No users found matching this search. Try a different name."
+6. As a third account in no shared community, open B's profile → "No ratings to show".
+7. Go offline (DevTools) → the search field is disabled with the offline banner.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/services/profile.service.test.ts src/utils/profileUser.test.ts src/utils/profileRating.test.ts src/utils/redactPath.test.ts
+cd backend && npm run test:integration -- profiles
+cd frontend && npm run test:unit                          # Search, PublicProfile, PostCard, PostDetail, CommunitySettings, api/profiles
+npm test --prefix e2e                                     # 37 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 
