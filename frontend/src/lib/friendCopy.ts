@@ -16,3 +16,11 @@ export function requestFrom(name: string): string {
 export function badgeText(count: number): string {
   return count > 9 ? '9+' : String(count);
 }
+
+export function removeFriendBody(name: string): string {
+  return `Remove ${name} from your friends? They won't be notified.`;
+}
+
+export function removedFriend(name: string): string {
+  return `Removed ${name} from your friends.`;
+}

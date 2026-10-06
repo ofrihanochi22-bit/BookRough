@@ -11,6 +11,7 @@ import {
   listFriends,
 } from '../api/friends';
 import { PersonLink } from '../components/PersonLink';
+import { RemoveFriendSheet } from '../components/RemoveFriendSheet';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
@@ -31,6 +32,8 @@ interface LocalChanges {
   base: FriendsData;
   answered: string[];
   accepted: FriendView[];
+  /** Friends removed here (UC-8, unfriend.md §5.2). */
+  removed: string[];
 }
 
 async function loadFriends(): Promise<FriendsData> {
@@ -44,7 +47,7 @@ const byName = (a: FriendView, b: FriendView) =>
 /**
  * Friends & Requests — docs/features/friend-requests.md §5.2 (UC-7). Pending
  * requests to you, newest first, with Accept and Ignore; then your friends,
- * alphabetical. Removing a friend arrives with Unfriend (UC-8).
+ * alphabetical, each removable behind a confirmation (UC-8, unfriend.md §5.2).
  */
 export function Friends() {
   const loaded = useRequest(loadFriends);
@@ -53,26 +56,40 @@ export function Friends() {
   const refreshCount = useFriendRequests((state) => state.refresh);
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<FriendView | null>(null);
 
   const data = loaded.status === 'ready' ? loaded.data : null;
   const changes = data && local?.base === data ? local : null;
   const requests = data
     ? data.requests.filter((request) => !changes?.answered.includes(request.user.id))
     : [];
-  const friends = data ? [...data.friends, ...(changes?.accepted ?? [])].sort(byName) : [];
+  const friends = data
+    ? [...data.friends, ...(changes?.accepted ?? [])]
+        .filter((friend) => !changes?.removed.includes(friend.user.id))
+        .sort(byName)
+    : [];
 
-  /** Applied against the latest state, so two quick answers both stick. */
-  function record(base: FriendsData, userId: string, friend?: FriendView) {
+  /** Applied against the latest state, so two quick changes both stick. */
+  function change(base: FriendsData, update: (current: LocalChanges) => Partial<LocalChanges>) {
     setLocal((previous) => {
-      const current =
-        previous?.base === base ? previous : { base, answered: [], accepted: [] as FriendView[] };
-      return {
-        base,
-        answered: [...current.answered, userId],
-        accepted: friend ? [...current.accepted, friend] : current.accepted,
-      };
+      const current: LocalChanges =
+        previous?.base === base ? previous : { base, answered: [], accepted: [], removed: [] };
+      return { ...current, ...update(current) };
     });
+  }
+
+  function record(base: FriendsData, userId: string, friend?: FriendView) {
+    change(base, (current) => ({
+      answered: [...current.answered, userId],
+      accepted: friend ? [...current.accepted, friend] : current.accepted,
+    }));
     setCount(requests.length - 1);
+  }
+
+  function dropFriend(userId: string) {
+    if (data) {
+      change(data, (current) => ({ removed: [...current.removed, userId] }));
+    }
   }
 
   async function answer(request: FriendView, action: 'accept' | 'ignore') {
@@ -188,8 +205,19 @@ export function Friends() {
             ) : (
               <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
                 {friends.map((friend) => (
-                  <li key={friend.user.id} className="flex px-4 py-1">
+                  <li key={friend.user.id} className="flex items-center gap-2 px-4 py-1">
                     <PersonLink user={friend.user} className="text-sm" />
+                    <button
+                      type="button"
+                      aria-label={`Actions for ${friend.user.displayName}`}
+                      disabled={!online}
+                      onClick={() => setRemoving(friend)}
+                      className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
+                    >
+                      <span aria-hidden="true" className="text-lg leading-none">
+                        ⋯
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -197,6 +225,17 @@ export function Friends() {
           </section>
         )}
       </div>
+
+      {removing && (
+        <RemoveFriendSheet
+          userId={removing.user.id}
+          name={removing.user.displayName}
+          online={online}
+          onClose={() => setRemoving(null)}
+          onRemoved={() => dropFriend(removing.user.id)}
+          onGone={() => dropFriend(removing.user.id)}
+        />
+      )}
     </ScreenLayout>
   );
 }

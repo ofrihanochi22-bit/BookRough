@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
   acceptFriendRequest: vi.fn(),
   ignoreFriendRequest: vi.fn(),
   countFriendRequests: vi.fn(),
+  removeFriend: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock('../api/friends', () => ({
   acceptFriendRequest: api.acceptFriendRequest,
   ignoreFriendRequest: api.ignoreFriendRequest,
   countFriendRequests: api.countFriendRequests,
+  removeFriend: api.removeFriend,
 }));
 vi.mock('react-hot-toast', () => ({
   default: { success: api.toastSuccess, error: api.toastError },
@@ -197,6 +199,66 @@ describe('Friends', () => {
     expect(await screen.findByRole('link', { name: 'Yael Ben' })).toBeInTheDocument();
   });
 
+  it('⋯ → Remove friend removes them from Your friends and toasts (unfriend.md §5.2)', async () => {
+    // Arrange
+    api.removeFriend.mockResolvedValue('NONE');
+    renderFriends();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Yael Ben' }));
+    const sheet = screen.getByRole('dialog', { name: 'Remove friend?' });
+    expect(sheet).toHaveTextContent("Remove Yael Ben from your friends? They won't be notified.");
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Remove friend' }));
+
+    // Assert
+    expect(api.removeFriend).toHaveBeenCalledWith('yael');
+    expect(api.toastSuccess).toHaveBeenCalledWith('Removed Yael Ben from your friends.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(names(friends())).toEqual([]);
+  });
+
+  it("a failed removal keeps the friend and toasts UC-8's message", async () => {
+    // Arrange
+    api.removeFriend.mockRejectedValue(networkError());
+    renderFriends();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Yael Ben' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove friend' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith(ACTION_FAILED);
+    expect(names(friends())).toEqual(['YBYael Ben']);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it("a removal answered 404 drops the row and toasts the server's message", async () => {
+    // Arrange
+    api.removeFriend.mockRejectedValue(httpError(404, 'User not found.'));
+    renderFriends();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Yael Ben' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Remove friend' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith('User not found.');
+    expect(names(friends())).toEqual([]);
+  });
+
+  it('Cancel closes the sheet without a request', async () => {
+    // Arrange
+    renderFriends();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Actions for Yael Ben' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.removeFriend).not.toHaveBeenCalled();
+  });
+
   it('offline: the banner, and Accept and Ignore disabled; the lists stay', async () => {
     // Arrange
     setOnline(false);
@@ -207,6 +269,7 @@ describe('Friends', () => {
     // Assert
     expect(await screen.findByRole('button', { name: 'Accept Dana Levi' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Ignore Noa' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Actions for Yael Ben' })).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent(FRIENDS_OFFLINE);
     expect(names(friends())).toEqual(['YBYael Ben']);
   });

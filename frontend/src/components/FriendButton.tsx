@@ -11,6 +11,7 @@ import {
 } from '../api/friends';
 import { ACTION_FAILED, nowFriends, REQUEST_SENT, requestFrom } from '../lib/friendCopy';
 import { useFriendRequests } from '../stores/friendRequests';
+import { RemoveFriendSheet } from './RemoveFriendSheet';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
 
@@ -28,7 +29,7 @@ interface FriendButtonProps {
 /**
  * The Public Profile's friend control — docs/features/friend-requests.md §5.3:
  * Add Friend, Request sent (cancel in a sheet), Respond (Accept / Ignore in a
- * sheet), or a plain "Friends" label.
+ * sheet), or Friends (remove in a sheet, docs/features/unfriend.md §5.3).
  */
 export function FriendButton({
   userId,
@@ -40,7 +41,7 @@ export function FriendButton({
 }: FriendButtonProps) {
   const refreshCount = useFriendRequests((state) => state.refresh);
   const [busy, setBusy] = useState<'send' | 'cancel' | 'accept' | 'ignore' | null>(null);
-  const [sheet, setSheet] = useState<'sent' | 'respond' | null>(null);
+  const [sheet, setSheet] = useState<'sent' | 'respond' | 'remove' | null>(null);
 
   async function run(
     action: NonNullable<typeof busy>,
@@ -68,12 +69,25 @@ export function FriendButton({
     }
   }
 
-  if (friendship === 'FRIENDS') {
-    return <p className="flex min-h-11 items-center text-sm font-medium text-accent">✓ Friends</p>;
-  }
-
   return (
     <>
+      {friendship === 'FRIENDS' && (
+        <Button variant="secondary" disabled={!online} onClick={() => setSheet('remove')}>
+          ✓ Friends
+        </Button>
+      )}
+
+      {sheet === 'remove' && (
+        <RemoveFriendSheet
+          userId={userId}
+          name={name}
+          online={online}
+          onClose={() => setSheet(null)}
+          onRemoved={onChanged}
+          onGone={onStale}
+        />
+      )}
+
       {friendship === 'NONE' && (
         <Button
           busy={busy === 'send'}

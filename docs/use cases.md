@@ -113,16 +113,16 @@
 
 - **Description:** A user removes an existing friend from their connections list, severing the bidirectional social link between them.
 - **Pre-conditions:** The user is logged in and currently has an established "Friend" relationship with the target user.
-- **Post-conditions:** The relationship record is removed from the database. The users are no longer connected, which may restrict direct interactions depending on privacy settings.
-- **Trigger:** The user navigates to their friends list or the target user's profile and taps the "Remove Friend" or "Unfriend" button.
+- **Post-conditions:** The relationship record is removed from the database. The users are no longer connected. The other person is not told; either of them may send a new request later (`docs/features/unfriend.md`).
+- **Trigger:** The user taps the ⋯ next to the friend on the Friends tab, or the "Friends" button on the friend's profile.
 - **Step-by-step scenario (Success):**
-  - The user navigates to their dedicated "Friends" list.
-  - The user selects the "Remove Friend" option next to the target user's name.
+  - The user opens the Friends tab (or the friend's profile).
+  - The user taps the ⋯ next to the friend's name (or the "Friends" button on the profile).
   - The system prompts the user with a confirmation dialog to prevent accidental deletions.
   - The user confirms the action.
   - The backend severs the connection in the database.
   - The UI updates instantly, removing the user from the friends list.
-- **Fail description (Alternative Scenario):** A network connectivity drop occurs exactly as the user confirms the deletion. The backend request fails or times out. The system catches the timeout, leaves the friend in the list, and displays a temporary error banner: "Action failed. Please check your internet connection and try again."
+- **Fail description (Alternative Scenario):** A network connectivity drop occurs exactly as the user confirms the deletion. The backend request fails or times out. The system catches the timeout, leaves the friend in the list, and displays a temporary error toast: "Action failed. Please check your internet connection and try again."
 
 ### UC-9: User Creates a Group (Community)
 

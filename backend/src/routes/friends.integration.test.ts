@@ -229,6 +229,81 @@ describe('the friend-request lifecycle', () => {
   });
 });
 
+describe('removing a friend (unfriend.md §7)', () => {
+  const unfriend = (who: Person, friend: string) =>
+    request(app).delete(`/api/friends/${friend}`).set('Cookie', who.cookie);
+
+  it('removes the friendship for both, silently; either can send a new request', async () => {
+    // Arrange
+    const ofri = await person('sub-ofri', 'Ofri');
+    const dana = await person('sub-dana', 'Dana Levi');
+    await send(ofri, dana.id);
+    await accept(dana, ofri.id);
+
+    // Act
+    const removed = await unfriend(ofri, dana.id);
+
+    // Assert
+    expect(removed.status).toBe(200);
+    expect(removed.body.data).toEqual({ friendship: 'NONE' });
+    expect((await friendsOf(ofri)).body.data.friends).toEqual([]);
+    expect((await friendsOf(dana)).body.data.friends).toEqual([]);
+    expect(await relation(dana, ofri)).toBe('NONE');
+    expect(await countOf(dana)).toBe(0);
+    expect((await send(dana, ofri.id)).body.data.friendship).toBe('REQUEST_SENT');
+  });
+
+  it('works for either party, whichever direction the friendship was created in', async () => {
+    // Arrange: Ofri asked, Dana accepted; Dana removes.
+    const ofri = await person('sub-ofri', 'Ofri');
+    const dana = await person('sub-dana', 'Dana Levi');
+    await send(ofri, dana.id);
+    await accept(dana, ofri.id);
+
+    // Act
+    const removed = await unfriend(dana, ofri.id);
+
+    // Assert
+    expect(removed.body.data.friendship).toBe('NONE');
+    expect(await prisma.friend.count()).toBe(0);
+  });
+
+  it('is 200 NONE for a non-friend, and leaves a pending request alone', async () => {
+    // Arrange
+    const ofri = await person('sub-ofri', 'Ofri');
+    const dana = await person('sub-dana', 'Dana Levi');
+    const yael = await person('sub-yael', 'Yael');
+    await send(dana, ofri.id);
+
+    // Act
+    const stranger = await unfriend(ofri, yael.id);
+    const pendingOne = await unfriend(ofri, dana.id);
+
+    // Assert
+    expect(stranger.body.data).toEqual({ friendship: 'NONE' });
+    expect(pendingOne.body.data).toEqual({ friendship: 'REQUEST_RECEIVED' });
+    expect(await countOf(ofri)).toBe(1);
+  });
+
+  it('404 malformed or unknown id; 401 signed out; 403 mid-onboarding', async () => {
+    // Arrange
+    const ofri = await person('sub-ofri', 'Ofri');
+    const pendingUser = await person('sub-pending', null);
+
+    // Act
+    const malformed = await unfriend(ofri, 'nope');
+    const unknown = await unfriend(ofri, UNKNOWN_UUID);
+    const signedOut = await request(app).delete(`/api/friends/${ofri.id}`);
+    const onboarding = await unfriend(pendingUser, ofri.id);
+
+    // Assert
+    expect([malformed.status, unknown.status]).toEqual([404, 404]);
+    expect(unknown.body.message).toBe('User not found.');
+    expect(signedOut.status).toBe(401);
+    expect(onboarding.status).toBe(403);
+  });
+});
+
 describe('the database guards', () => {
   it('refuses a reverse-direction row and a row to yourself', async () => {
     // Arrange
