@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes reachable on a public HTTPS URL (CLAUDE.md §1, §16) |
 | **Phase**     | 6 — Step 6.3 of `DEVELOPMENT.md`, shipped first (re-slice, §0)                       |
 | **Branch**    | `chore/production-deploy`                                                            |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                   |
+| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                   |
 
 ---
 
@@ -135,7 +135,7 @@ Production therefore updates right after a merge, before `main.yml`'s E2E and Do
 
 ### 3.4 Proof deployment — the first task of Stage 2
 
-Both Beta features and one unknown are tested before the rest is built. The developer creates the accounts and the project (§3.6); Claude pushes the branch; the preview deployment is the proof.
+Both Beta features and one unknown are tested before the rest is built. The developer creates the accounts and the project (§3.6); Claude pushes the branch; the branch's **preview deployment** is the proof. M3 needs a Google sign-in on the preview, so the branch's stable alias (`bookrough-git-chore-production-deploy-<scope>.vercel.app`, shown in the deployment's Domains) is added to the OAuth client's JavaScript origins for the proof and removed after the merge. The developer runs M2–M5 in a desktop browser already signed in to Vercel, since previews sit behind Vercel's Standard Protection.
 
 | #   | Criterion                                                  | Pass                                                      |
 | --- | ---------------------------------------------------------- | --------------------------------------------------------- |
