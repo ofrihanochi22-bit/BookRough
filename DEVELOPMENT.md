@@ -1629,6 +1629,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **Re-sliced 2026-10-10.** The PWA steps' manual checks (a real iPhone, airplane mode, deploying a second build) need a live HTTPS origin, so Phase 6 now ships in this order: **6.3 production deploy → 6.1 PWA installable → 6.2 PWA offline → 6.4 hardening → 6.5 README**. Step numbers are kept so references stay valid. The site is public from 6.3, but its address is not shared with friends until 6.4 merges — see `docs/features/production-deploy.md` §0.
+
 ### Step 6.1 — PWA: installable (Phase 6)
 
 Status: ☐ Not started
@@ -1675,24 +1677,23 @@ How to view & test:
 
 ---
 
-### Step 6.3 — Hosting decision + production deploy (Phase 6)
+### Step 6.3 — Hosting decision + production deploy (Phase 6) — shipped first
 
-Status: ☐ Not started
+Status: 🟡 In progress — spec written, awaiting approval
 Branch: chore/production-deploy
+Spec: docs/features/production-deploy.md
 
 Goal: A public HTTPS URL, with the provider chosen against free-tier terms that are current at this moment — not the ones assumed months earlier.
 
 Tasks:
 
-- [ ] Docs: Verify each candidate's **current** free-tier terms (memory ceiling, idle spin-down, free-database lifetime) and record the decision and its date in `docs/deployment.md` §3.
-- [ ] Infra: Provision production Postgres; set `DATABASE_URL`; run Prisma migrations against it.
-- [ ] Infra: Generate an independent production `JWT_SECRET`. It must not match any development value.
-- [ ] Infra: Add the production origin to the Google OAuth client's authorised origins and redirect URIs.
-- [ ] Infra: Deploy the backend from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
-- [ ] Infra: Build and deploy the frontend with the production `VITE_API_BASE_URL`.
-- [ ] Infra: CORS locked to the exact production frontend origin — not a wildcard.
-- [ ] Tests: Verify the auth cookie is `HttpOnly`, `Secure`, and correctly `SameSite` for the final origin layout.
-- [ ] Tests: **Verify link conversion end-to-end in production.** This is the step most likely to fail — Chromium's memory footprint on a small instance is not reproducible locally. If it fails, lower the `p-limit` cap to 1 before anything more elaborate.
+- [x] Docs: Verify each candidate's **current** free-tier terms and measure Chromium under each CPU cap — Vercel Hobby (Container Runtime + Services) and Neon Free chosen on 2026-10-10, Cloud Run as the fallback (spec §3.1).
+- [ ] Spec: docs/features/production-deploy.md approved.
+- [ ] Infra: Proof deployment — image builds, health, a real conversion, registry storage, cold start (spec §3.4).
+- [ ] Infra: `vercel.json` — the `api` (Dockerfile) and `web` (Vite) services on one origin.
+- [ ] Infra (developer): Neon `main` + `preview` branches; Vercel project, region `fra1`, environment variables; an independent production `JWT_SECRET`; the production origin in the Google OAuth client (spec §3.6).
+- [ ] Frontend: the API base URL defaults to `/api` in production builds.
+- [ ] Tests: unit per spec §7; the production smoke test P1–P10, including cookie flags, a real conversion and the four hand-written database objects.
 
 What I did:
 How to view & test:
@@ -1707,6 +1708,8 @@ Branch: chore/production-hardening
 Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.
 
 Tasks:
+
+> ⚠️ **Stale, flagged 2026-10-10:** the rate-limiting line below predates Google-only sign-in — the only auth endpoint is `POST /api/auth/google`. Resolved in this step's spec. This step also switches production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker` (`production-deploy.md` §3.3), and the address is shared with friends only after it merges.
 
 - [ ] Backend: Rate limiting on auth endpoints (login, register, password reset) and on post creation.
 - [ ] Backend: Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
