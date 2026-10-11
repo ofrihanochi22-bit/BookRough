@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes reachable on a public HTTPS URL (CLAUDE.md §1, §16) |
 | **Phase**     | 6 — Step 6.3 of `DEVELOPMENT.md`, shipped first (re-slice, §0)                       |
 | **Branch**    | `chore/production-deploy`                                                            |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                   |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                   |
 
 ---
 
