@@ -35,10 +35,11 @@ const envSchema = z
         { message: 'CORS_ORIGIN must be a bare http(s) origin, e.g. http://localhost:5173' },
       )
       .default('http://localhost:5173'),
-    // Case and surrounding spaces are forgiven: a level typed as "Info" at a
-    // host's dashboard once stopped the whole API (production-deploy.md §9).
+    // Case and surrounding spaces are forgiven, and blank means "not set": a
+    // level typed as "Info" at a host's dashboard once stopped the whole API
+    // (production-deploy.md §9).
     LOG_LEVEL: z.preprocess(
-      (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+      (value) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value),
       z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     ),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands

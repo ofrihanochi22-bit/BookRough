@@ -49,6 +49,14 @@ describe('parseEnv', () => {
     expect(parsed.LOG_LEVEL).toBe('info');
   });
 
+  it('treats a blank LOG_LEVEL as not set and uses the default', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, LOG_LEVEL: '  ' });
+
+    // Assert
+    expect(parsed.LOG_LEVEL).toBe('info');
+  });
+
   it('still rejects a LOG_LEVEL that is not a level', () => {
     // Act & Assert
     expect(() => parseEnv({ ...validEnv, LOG_LEVEL: 'verbose' })).toThrowError(/LOG_LEVEL/);

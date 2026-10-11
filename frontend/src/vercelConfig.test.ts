@@ -1,11 +1,13 @@
-// @vitest-environment node
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+
+import vercelJson from '../../vercel.json';
 
 /*
  * The production routing contract (docs/features/production-deploy.md §3.2).
  * Nothing else exercises vercel.json before production: E2E serves the build
  * itself, so a reordered or widened rule would first show up on the live site.
+ * Imported as JSON rather than read with node:fs, because the frontend has no
+ * Node type definitions (CI and the Vercel build type-check this file too).
  */
 interface Rewrite {
   source: string;
@@ -18,11 +20,14 @@ interface VercelConfig {
   [key: string]: unknown;
 }
 
-const config = JSON.parse(
-  readFileSync(new URL('../../vercel.json', import.meta.url), 'utf-8'),
-) as VercelConfig;
+const config = vercelJson as VercelConfig;
 
-/** A Vercel source such as "/api/:path*" or "/([^.]*)", as an anchored RegExp. */
+/**
+ * A Vercel source such as "/api/:path*" or "/([^.]*)", as an anchored RegExp.
+ * This emulates only the syntax vercel.json uses today; Vercel's own matching
+ * of `/api` and of a missing asset (404) was checked on a real preview
+ * deployment (production-deploy.md §9). Extend it if a rule adopts new syntax.
+ */
 function matcher(source: string): RegExp {
   const pattern = source.replace('/:path*', '(?:/.*)?');
   return new RegExp(`^${pattern}$`);

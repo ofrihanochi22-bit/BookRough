@@ -142,7 +142,7 @@ Register the service worker **only in production builds**. A service worker runn
 - [x] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
 - [x] Frontend built and deployed on the same origin; production builds default the API base URL to `/api`.
 - [x] CORS configured to allow exactly the production origin — not a wildcard (unused in practice: every call is same-origin).
-- [ ] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite=Lax`, which requires the frontend and the API on the same site (one registrable domain, or the API proxied under the frontend origin). See `docs/features/google-auth.md` §4.
+- [x] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite=Lax` in production (2026-10-11) — possible because the frontend and the API share one origin (§3.6). See `docs/features/google-auth.md` §4.
 - [x] Link conversion verified end-to-end in production — the step most likely to fail; it converted in 5.3 s on 2026-10-11.
 - [ ] PWA installed on a real iPhone from Safari and launched from the home screen.
 - [ ] Offline behaviour verified in airplane mode: feed readable, write actions clearly blocked.

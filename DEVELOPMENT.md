@@ -1693,7 +1693,7 @@ Tasks:
 - [x] Infra: `vercel.json` — the `api` (Dockerfile) and `web` (Vite) services on one origin.
 - [x] Infra (developer): Neon `main` + `preview` branches; Vercel project, region `fra1`, environment variables; an independent production `JWT_SECRET`; the production origin in the Google OAuth client (spec §3.6).
 - [x] Frontend: the API base URL defaults to `/api` in production builds; conversion requests wait 30 s.
-- [x] Review: `/code-review` (6 findings, all fixed) and `/security-review` (clean).
+- [x] Review: `/code-review` (6 findings, all fixed), `/code-review max` on the PR (5 findings, all addressed) and `/security-review` (clean).
 - [x] Tests: unit per spec §7; the production smoke test P1–P7 and P9; P8 partly (see below); P10 (quota after a week) is due 2026-10-18.
 
 What I did:
@@ -1711,9 +1711,9 @@ Put BookRough on a public HTTPS address, `https://bookrough.vercel.app`, per `do
   - `backend/src/config/env.ts`: `LOG_LEVEL` is accepted in any case (`Info` stopped the API once in production).
 - **Proof and smoke test (2026-10-10/11):** M1 build ✅, M2 `/api/health` 200 over HTTPS ✅, M3 a real Spotify → Apple Music conversion in **5.3 s** ✅, M4 registry storage 3.12 GB, no charge possible ✅, M5 cold start **8.1 s** (warm ~0.3 s) ✅. P2 sign-in on two browsers, P3 cookie `HttpOnly` + `Secure` + `SameSite=Lax`, P4–P5 community, invite, post and Apple Music link, P6 the four hand-written objects and 14 migrations in Neon (admin role set), P7 deep links, P9 sign-out — all ✅. P8 partly: the branch preview builds and serves (routing checked there), but signing in on a preview needs its address in the OAuth client, which feature 2 decides — so its use of the `preview` database is not yet seen. P10 pending (reminder set for 2026-10-18).
 - **Found along the way:** the import page cannot select a branch with `/` (imported from a slash-free copy, since deleted); a Neon project first created in Ohio was recreated in Frankfurt; the function region had stayed `iad1`; the OAuth origin belongs under JavaScript origins, not redirect URIs (`origin_mismatch`); Neon's onboarding sample table `playing_with_neon` was dropped from production.
-- **Review:** `/code-review` — SPA fallback serving HTML for missing assets, `/api` itself reaching the SPA, case-sensitive `LOG_LEVEL`, the shared preview database (documented), this entry, and the missing client tests; all fixed. `/security-review`: clean.
+- **Review:** `/code-review` — SPA fallback serving HTML for missing assets, `/api` itself reaching the SPA, case-sensitive `LOG_LEVEL`, the shared preview database (documented), this entry, and the missing client tests; all fixed. `/code-review max` on PR #33 (the free alternative to `ultra`): the routing test imported `node:fs`, which the frontend has no types for — CI's typecheck and Vercel's build failed while local checks passed on a stray `@types/node` above the repository; now a JSON import. Also a blank `LOG_LEVEL` now means the default, the cookie item in `deployment.md` §7 is ticked, and the routing test says what it does not prove. `/security-review`: clean.
 - **Docs:** `deployment`, `tech stack` (Vercel and Neon in §5), `development strategy` (.md + .docx); CLAUDE.md §2, §3, §16; `google-auth.md` (the one-site constraint resolved); `invite-friends.md` Merged ticked; the Phase 6 re-slice above.
-- **Tests:** backend 828 (98.85% lines over both suites), frontend 573 (98.75%), E2E 41 + 3 skipped. New: the header allowlist, `LOG_LEVEL` and `CORS_ORIGIN` parsing, the base-URL resolution, the conversion timeouts, and a `vercel.json` routing contract — the routing and serializer tests were each proven to fail against the broken version.
+- **Tests:** backend 829 (98.85% lines over both suites), frontend 573 (98.75%), E2E 41 + 3 skipped. New: the header allowlist, `LOG_LEVEL` and `CORS_ORIGIN` parsing, the base-URL resolution, the conversion timeouts, and a `vercel.json` routing contract — the routing and serializer tests were each proven to fail against the broken version.
 
 How to view & test:
 
