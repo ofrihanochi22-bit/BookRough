@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#151413" media="(prefers-color-scheme: dark)" />
+    <!-- Installable PWA (docs/features/pwa-installable.md §3.3). Safari reads the
+         apple-* tags; no service worker until Step 6.2. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BookRough" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>BookRough</title>
   </head>
   <body>
