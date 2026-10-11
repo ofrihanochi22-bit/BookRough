@@ -88,6 +88,21 @@ describe('parseEnv', () => {
     expect(message).toContain('.env.example');
   });
 
+  it('accepts an https production origin for CORS_ORIGIN', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, CORS_ORIGIN: 'https://bookrough.vercel.app' });
+
+    // Assert
+    expect(parsed.CORS_ORIGIN).toBe('https://bookrough.vercel.app');
+  });
+
+  it('rejects a CORS_ORIGIN with a path, which is not an origin', () => {
+    // Act & Assert
+    expect(() =>
+      parseEnv({ ...validEnv, CORS_ORIGIN: 'https://bookrough.vercel.app/app' }),
+    ).toThrowError(/CORS_ORIGIN/);
+  });
+
   it('rejects a CORS_ORIGIN that is not a URL, which would silently break the cookie', () => {
     expect(() => parseEnv({ ...validEnv, CORS_ORIGIN: 'localhost:5173' })).toThrowError(
       /CORS_ORIGIN/,

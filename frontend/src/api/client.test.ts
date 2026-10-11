@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../stores/auth';
-import { api, onUnauthorized } from './client';
+import { api, onUnauthorized, resolveApiBaseUrl } from './client';
 
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
@@ -166,5 +166,25 @@ describe('onUnauthorized', () => {
 
     // Assert
     expect(useAuthStore.getState().status).toBe('signedOut');
+  });
+});
+
+describe('resolveApiBaseUrl', () => {
+  it('uses VITE_API_BASE_URL when it is set', () => {
+    // Act & Assert
+    expect(resolveApiBaseUrl({ VITE_API_BASE_URL: 'http://localhost:4100/api', PROD: true })).toBe(
+      'http://localhost:4100/api',
+    );
+  });
+
+  it('defaults to the same-origin /api in a production build', () => {
+    // Act & Assert: unset, and set but empty, as a host's dashboard can leave it.
+    expect(resolveApiBaseUrl({ PROD: true })).toBe('/api');
+    expect(resolveApiBaseUrl({ VITE_API_BASE_URL: '', PROD: true })).toBe('/api');
+  });
+
+  it('defaults to the local API in development', () => {
+    // Act & Assert
+    expect(resolveApiBaseUrl({ PROD: false })).toBe('http://localhost:4000/api');
   });
 });
