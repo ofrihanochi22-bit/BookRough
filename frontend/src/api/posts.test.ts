@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { makePost } from '../test/fixtures';
 import { api } from './client';
-import { createPost, deletePost, getPost, listPosts, retryConversion } from './posts';
+import {
+  CONVERSION_REQUEST_TIMEOUT_MS,
+  createPost,
+  deletePost,
+  getPost,
+  listPosts,
+  retryConversion,
+} from './posts';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -37,6 +44,7 @@ describe('posts API module', () => {
       method: 'post',
       url: `/communities/${ID}/posts`,
       skipErrorToast: true,
+      timeout: CONVERSION_REQUEST_TIMEOUT_MS,
     });
     expect(JSON.parse(seen[0]!.data as string)).toEqual({ url: post.originalUrl, comment: null });
   });
@@ -67,7 +75,11 @@ describe('posts API module', () => {
 
     // Assert
     expect(result).toEqual(post);
-    expect(seen[0]).toMatchObject({ method: 'post', url: `/posts/${post.id}/conversion` });
+    expect(seen[0]).toMatchObject({
+      method: 'post',
+      url: `/posts/${post.id}/conversion`,
+      timeout: CONVERSION_REQUEST_TIMEOUT_MS,
+    });
   });
 
   it('deletePost sends a quiet DELETE to the post', async () => {
