@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
+import { clearSavedApiAnswers } from '../lib/offlineCache';
 import { pendingInvite } from '../lib/pendingInvite';
+import { clearSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -31,7 +33,12 @@ interface AuthState {
   user: PublicUser | null;
   needsOnboarding: boolean;
   isAdmin: boolean;
-  setSession: (session: Session) => void;
+  /**
+   * Opened from the remembered session because the server was unreachable
+   * (docs/features/pwa-offline.md §3.3). Read-only until /auth/me confirms it.
+   */
+  offline: boolean;
+  setSession: (session: Session, options?: { offline?: boolean }) => void;
   clear: () => void;
 }
 
@@ -40,9 +47,26 @@ export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   needsOnboarding: false,
   isAdmin: false,
-  setSession: ({ user, needsOnboarding, isAdmin }) =>
-    set({ status: 'signedIn', user, needsOnboarding, isAdmin }),
-  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false, isAdmin: false }),
+  offline: false,
+  setSession: (session, { offline = false } = {}) => {
+    if (!offline) {
+      saveSessionSnapshot(session);
+    }
+    const { user, needsOnboarding, isAdmin } = session;
+    set({ status: 'signedIn', user, needsOnboarding, isAdmin, offline });
+  },
+  // Sign-out and every 401: nothing of this user is left readable on the device.
+  clear: () => {
+    clearSessionSnapshot();
+    clearSavedApiAnswers();
+    set({
+      status: 'signedOut',
+      user: null,
+      needsOnboarding: false,
+      isAdmin: false,
+      offline: false,
+    });
+  },
 }));
 
 /**

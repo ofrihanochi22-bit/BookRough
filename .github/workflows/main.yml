@@ -50,7 +50,10 @@ jobs:
       # The frontend is served from the preview port, so that is the origin the
       # API must accept.
       CORS_ORIGIN: http://localhost:4173
-      VITE_API_BASE_URL: http://localhost:4000/api
+      # Same-origin, as in production: vite preview proxies /api to the API
+      # (frontend/vite.config.ts), which the service worker's API cache needs.
+      VITE_API_BASE_URL: /api
+      PREVIEW_API_PROXY: http://localhost:4000
       VITE_GOOGLE_CLIENT_ID: ci-only-client-id.apps.googleusercontent.com
       E2E_BASE_URL: http://localhost:4173
 

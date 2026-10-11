@@ -91,6 +91,7 @@ function LinkActions({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canShare = typeof navigator.share === 'function';
+  const online = useOnlineStatus();
 
   useEffect(() => {
     if (!copied) {
@@ -192,7 +193,7 @@ function LinkActions({
             <Button variant="secondary" onClick={() => setConfirming(false)} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={reset} busy={resetting} className="flex-1">
+            <Button onClick={reset} busy={resetting} disabled={!online} className="flex-1">
               {resetting ? 'Resetting…' : 'Reset'}
             </Button>
           </div>
@@ -201,10 +202,16 @@ function LinkActions({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="min-h-11 self-center px-4 text-sm text-muted underline-offset-4 hover:underline"
+          disabled={!online}
+          className="min-h-11 self-center px-4 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
         >
           Reset link
         </button>
+      )}
+      {!online && (
+        <p role="note" className="self-center text-xs text-muted">
+          You&apos;re offline. Connect to reset the link.
+        </p>
       )}
     </div>
   );

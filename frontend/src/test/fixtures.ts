@@ -21,7 +21,13 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
 
 /** Back to the app-load state: session not yet resolved. */
 export function resetAuthStore(): void {
-  useAuthStore.setState({ status: 'unknown', user: null, needsOnboarding: false, isAdmin: false });
+  useAuthStore.setState({
+    status: 'unknown',
+    user: null,
+    needsOnboarding: false,
+    isAdmin: false,
+    offline: false,
+  });
 }
 
 export function makeCommunity(overrides: Partial<PublicCommunity> = {}): PublicCommunity {

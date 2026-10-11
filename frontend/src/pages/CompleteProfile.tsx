@@ -146,11 +146,16 @@ export function CompleteProfile() {
           <button
             type="button"
             onClick={signOut}
-            disabled={signingOut}
-            className="min-h-11 px-4 text-sm text-muted underline-offset-4 hover:underline"
+            disabled={signingOut || !online}
+            className="min-h-11 px-4 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
           >
             {signingOut ? 'Signing out…' : 'Sign out'}
           </button>
+          {!online && (
+            <p role="note" className="text-xs text-muted">
+              You&apos;re offline. Connect to sign out.
+            </p>
+          )}
         </div>
       </form>
     </ScreenLayout>

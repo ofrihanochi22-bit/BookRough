@@ -3,35 +3,51 @@ import { Navigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { fetchSession } from '../api/auth';
+import { readSessionSnapshot } from '../lib/sessionSnapshot';
 import { NotFound } from '../pages/NotFound';
 import { homePathFor, useAuthStore } from '../stores/auth';
 import { Button } from './ui/Button';
 import { ScreenLayout } from './ui/ScreenLayout';
 import { Spinner } from './ui/Spinner';
 
+type GateFailure = 'offline' | 'unreachable';
+
+/** No response at all — offline, DNS, a dropped connection — as opposed to an answer. */
+function isNoResponse(error: unknown): boolean {
+  return isAxiosError(error) && !error.response;
+}
+
 /**
  * Resolves the session once, on app load, before any route renders. Until it
  * answers, a spinner fills the screen — never Welcome, which would flash for a
  * user who is in fact signed in.
  *
- * Only a 401 means "signed out". Any other failure (offline, timeout, a 5xx
- * while the API restarts) says nothing about the session, so it gets a retry
- * screen instead of throwing away a cookie that may well still be valid.
+ * Only a 401 means "signed out". With no response at all, the remembered
+ * session (lib/sessionSnapshot.ts) opens the app read-only, so the installed
+ * app works offline (docs/features/pwa-offline.md §3.3); without one, an
+ * offline screen. Any other failure (a 5xx while the API restarts) says
+ * nothing about the session, so it gets a retry screen instead of throwing
+ * away a cookie that may well still be valid.
  */
 export function SessionGate({ children }: { children: ReactNode }) {
   const status = useAuthStore((state) => state.status);
-  const [unreachable, setUnreachable] = useState(false);
+  const [failure, setFailure] = useState<GateFailure | null>(null);
   const started = useRef(false);
 
   const resolveSession = useCallback(() => {
-    setUnreachable(false);
+    setFailure(null);
     fetchSession()
       .then((session) => useAuthStore.getState().setSession(session))
       .catch((error: unknown) => {
         if (isAxiosError(error) && error.response?.status === 401) {
           useAuthStore.getState().clear();
+          return;
+        }
+        const remembered = isNoResponse(error) ? readSessionSnapshot() : null;
+        if (remembered) {
+          useAuthStore.getState().setSession(remembered, { offline: true });
         } else {
-          setUnreachable(true);
+          setFailure(isNoResponse(error) ? 'offline' : 'unreachable');
         }
       });
   }, []);
@@ -46,13 +62,39 @@ export function SessionGate({ children }: { children: ReactNode }) {
     resolveSession();
   }, [resolveSession]);
 
+  // Back online: an offline launch tries again, and a remembered session is
+  // confirmed with the server — a 401 then signs out like any other.
+  useEffect(() => {
+    function recheck() {
+      const { status: current, offline } = useAuthStore.getState();
+      if (current === 'unknown') {
+        // Only after a failure: while the first request is in flight, it will answer.
+        if (failure) {
+          resolveSession();
+        }
+      } else if (offline) {
+        fetchSession()
+          .then((session) => useAuthStore.getState().setSession(session))
+          .catch((error: unknown) => {
+            if (isAxiosError(error) && error.response?.status === 401) {
+              useAuthStore.getState().clear();
+            }
+          });
+      }
+    }
+    window.addEventListener('online', recheck);
+    return () => window.removeEventListener('online', recheck);
+  }, [failure, resolveSession]);
+
   if (status === 'unknown') {
     return (
       <ScreenLayout centered>
-        {unreachable ? (
+        {failure ? (
           <div role="alert" className="flex flex-col items-center gap-4 text-center">
             <p className="text-sm text-muted">
-              Can&apos;t reach BookRough right now. Check your connection and try again.
+              {failure === 'offline'
+                ? "You're offline. Connect to open BookRough."
+                : "Can't reach BookRough right now. Check your connection and try again."}
             </p>
             <Button onClick={resolveSession}>Try again</Button>
           </div>

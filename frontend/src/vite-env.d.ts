@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/react" />
 
 interface ImportMetaEnv {
   // Optional on purpose: a developer with no .env should hit the documented
