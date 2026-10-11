@@ -121,7 +121,7 @@ Built field by field in `toPublicUser`. `googleSub`, `displayNameKey`, `role` an
 
 `Secure` is off in development because Safari refuses `Secure` cookies on `http://localhost`. `localhost:5173` and `localhost:4000` are the same _site_ (ports are ignored), so `Lax` works in dev.
 
-**Constraint handed to Phase 6:** frontend and API must be deployed on the **same site** (same registrable domain, or the API proxied under the frontend's origin). A `Lax` cookie is not sent on cross-site API calls. Record this in `docs/deployment.md`.
+**Constraint handed to Phase 6:** frontend and API must be deployed on the **same site** (same registrable domain, or the API proxied under the frontend's origin). A `Lax` cookie is not sent on cross-site API calls. Record this in `docs/deployment.md`. Resolved in Phase 6: production serves both from one origin on Vercel (`production-deploy.md` §3.2).
 
 The token carries only the user id. `requireAuth` loads the user row on every request, so a deleted user or a changed role takes effect immediately.
 

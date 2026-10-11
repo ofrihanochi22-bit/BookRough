@@ -61,9 +61,12 @@ Polish the remaining social discovery features.
 ### Phase 6: Shipping It
 
 Feature-complete is not shipped. This phase turns a working local application into something a friend group can actually use.
+
+**Order (re-sliced 2026-10-10):** deploy first, then the installable PWA, offline support with the update prompt, hardening, and the README. The PWA's checks on a real iPhone need a live HTTPS address, so the deployment comes first; the address is shared with friends only after hardening. Detail: `docs/features/production-deploy.md` §0.
+
 - **CI:** Already in place since Phase 0 - confirm the nightly E2E run is green and that branch protection still requires every `pr.yml` check.
 - **PWA:** Manifest, full icon set including the iOS sizes, service worker with app-shell precaching and an offline fallback, and the version-update prompt. Verify by installing on a real iPhone from Safari — not by trusting a Lighthouse score.
-- **Hosting:** Make the provider decision that was deliberately deferred, against the free-tier terms in force at that moment. Work through the deployment checklist in `docs/deployment.md` §7.
+- **Hosting:** Decided 2026-10-10 against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the fallback (`docs/deployment.md` §3.6). Work through the deployment checklist in `docs/deployment.md` §7.
 - **Production hardening:** Rate limiting on the auth and posting endpoints, CORS locked to the production origin rather than a wildcard, secrets configured at the provider, and a verified end-to-end link conversion in production — the step most likely to fail, because Chromium's memory footprint on a small instance is not reproducible locally.
 - **Result:** A public URL that works in a desktop browser and installs as a full-screen app on a phone.
 

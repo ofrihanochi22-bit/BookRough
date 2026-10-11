@@ -61,6 +61,7 @@ This file is the working contract between the developer and Claude. Read it befo
 
 - Docker (backend image is based on `mcr.microsoft.com/playwright:v1.63.0-noble` so Chromium dependencies are available; the tag moves with the `playwright` version; non-root, `tini` as PID 1, migrations on start — docs/deployment.md §3.5)
 - GitHub Actions for CI — see §10 for exactly what gates a merge
+- Vercel (Hobby) hosts the site on one origin — the Vite build plus the backend `Dockerfile` on its Container Runtime, routed by `vercel.json` — and Neon (Free) holds production Postgres, both in Frankfurt (§16)
 
 **Explicitly rejected alternatives** (do not reintroduce without a new decision):
 
@@ -108,6 +109,7 @@ This file is the working contract between the developer and Claude. Read it befo
 ├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E and the Docker image) — see §10
 ├── .husky/                 ← pre-commit (lint-staged) + commit-msg (commitlint)
 ├── docker-compose.yml      ← local Postgres only; never a deployment artifact
+├── vercel.json             ← production routing: /api/* to the backend container, the rest to the Vite build (§16)
 ├── package.json            ← root: quality tooling only, not an npm workspace
 ├── CLAUDE.md               ← you are here
 ├── DEVELOPMENT.md          ← step-by-step roadmap (UPDATE THIS)
@@ -519,8 +521,8 @@ The full specification is in [docs/deployment.md](docs/deployment.md) (companion
 ### Deployment
 
 - The target is a **real, publicly reachable deployment**, on the simplest option available, with a strong preference for free tiers.
-- **The specific provider is deliberately not chosen yet — it is a Phase 6 decision.** Free-tier terms change often, so the candidates are compared and the final call is made when Phase 6 is actually reached, against the terms in force at that time.
-- Until then, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit.
+- **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; other branches get previews on the Neon `preview` branch. Full record: docs/deployment.md §3.6 and docs/features/production-deploy.md.
+- Still, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit, so moving to the fallback stays a configuration change. `vercel.json` is the only Vercel-specific file.
 - The hard constraint that drives the eventual choice: the backend runs headless Chromium, which needs meaningfully more memory than a plain Node service, and free tiers are tight. §7's `p-limit(2)` cap exists for this reason.
 
 ### PWA — full, including offline
