@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes usable from the iPhone home screen (CLAUDE.md §1, §16)     |
 | **Phase**     | 6 — Step 6.1 of `DEVELOPMENT.md`, second in the re-sliced order (`production-deploy.md` §0) |
 | **Branch**    | `feat/pwa-installable`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                          |
 
 ---
 
@@ -115,6 +115,8 @@ Two obstacles to remove, both dashboard settings (Claude never changes them):
 
 1. **Vercel → project `bookrough` → Settings → Deployment Protection → Vercel Authentication: off.** Previews sit behind Standard Protection, and the installed app has its own cookie jar and opens `start_url` without a Shareable Link's query parameter. It would land on Vercel's login page instead of BookRough. Hobby has no password protection (Vercel docs, read 2026-10-11). While protection is off, every preview address is public but unshared — the same exposure production already has.
 2. **Google Cloud Console → the Web client → Authorized JavaScript origins:** add the branch's stable alias `https://bookrough-git-feat-pwa-installable-<scope>.vercel.app` (the deployment's Domains list shows it). This is the same step as the 6.3 proof (`production-deploy.md` §3.4).
+
+**As run (2026-10-11):** protection stayed off for both iPhone rounds and was switched back on right after the second, before the merge.
 
 **After the merge**, both are reverted: protection back to Standard Protection with Vercel Authentication, and the alias removed from the JavaScript origins. If the fallback in §4 is built, its redirect URI on the alias is removed too, and the production one stays. Claude reminds the developer in the merge report. Step 6.2 decides in its own spec whether to reuse this setup.
 
@@ -243,16 +245,16 @@ Pages:
 
 **Manual — on a real iPhone, on this branch's preview (the developer, §3.4)**
 
-- I1. In Safari, open the preview → the install hint shows on Welcome.
-- I2. Share → Add to Home Screen → the icon is the purple vinyl mark and the name under it is **BookRough**.
-- I3. Launch from the icon → no address bar. **Continue with Google** signs in inside the installed app, and onboarding follows. _(This is the probe from §3.5; if it fails, stop and go to §4.)_
-- I4. The status bar is readable in light and dark mode. The bottom navigation sits above the home indicator; nothing is hidden under the notch.
-- I5. The golden loop inside the installed app: create a community, post a Spotify link (it converts), rate the post.
-- I6. Navigating between screens stays inside the app. A post's music-service link opens the music app or Safari.
-- I7. Close the app fully and relaunch → still signed in, on `/home`.
-- I8. Inside the installed app the hint never shows. In Safari, ✕ hides it, and it stays hidden after a reload.
-- I9. Tap an invite link from Messages while the app is installed → it opens in Safari (expected); after joining there, the community appears in the installed app on its next load.
-- I10. Desktop Chrome on the preview: DevTools → Application → Manifest is valid, and the manifest's response is `application/manifest+json`.
+- I1. In Safari, open the preview → the install hint shows on Welcome. ✅
+- I2. Share → Add to Home Screen → the icon is the purple vinyl mark and the name under it is **BookRough**. ✅
+- I3. Launch from the icon → no address bar. **Continue with Google** signs in inside the installed app, and onboarding follows. _(This is the probe from §3.5; if it fails, stop and go to §4.)_ ✅
+- I4. The status bar is readable in light and dark mode. The bottom navigation sits above the home indicator; nothing is hidden under the notch. ✅
+- I5. The golden loop inside the installed app: create a community, post a Spotify link (it converts), rate the post. ⏭ Skipped (developer, 2026-10-11): posting worked in the round, but rating needs a second Google account; the rating code is unchanged and its E2E test passes on `mobile-safari`.
+- I6. Navigating between screens stays inside the app. A post's music-service link opens the music app or Safari. ✅
+- I7. Close the app fully and relaunch → still signed in, on `/home`. ✅
+- I8. Inside the installed app the hint never shows. In Safari, ✕ hides it, and it stays hidden after a reload. ✅ (in the app; ✕ in Safari hid it)
+- I9. Tap an invite link from Messages while the app is installed → it opens in Safari (expected); after joining there, the community appears in the installed app on its next load. ⏭ Skipped (developer, 2026-10-11): iOS behaviour, already accepted in `communities-invites.md` §8.
+- I10. Desktop Chrome on the preview: DevTools → Application → Manifest is valid, and the manifest's response is `application/manifest+json`. ✅ (checked with `curl`: `application/manifest+json`; every icon `200` with its image type)
 
 ## 8. Open questions
 
@@ -271,6 +273,7 @@ None at approval. One question is decided by the device in Stage 2, not by the d
 | 2026-10-11 | Probe passed on a real iPhone (iOS 26) on the preview: installed from Safari, purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (§4) is not built       | I2 ✅ and I3 ✅; resolves `google-auth.md` §8                                                                                                                                                    |
 | 2026-10-11 | The hint reads "tap Share (in Safari it's under •••)" rather than "tap Share"                                                                                                                                                  | iOS 26 Safari moved Share into the ••• menu, which the developer could not find during the probe; Chrome and Firefox on iOS keep Share elsewhere, so the copy names Safari only for the ••• part |
 | 2026-10-11 | Stage 3 `/code-review`: no hint in in-app browsers (`Safari/` token required); `DismissibleBar` and `lib/deviceStorage` shared with `AnnouncementBanner`; the maskable entry reuses `icon-512.png` (the duplicate PNG removed) | The hint would have told Instagram/Facebook WebView users to do something impossible; the bar and its storage were a near copy of the announcement; the two 512 PNGs were byte-identical         |
+| 2026-10-11 | Second iPhone round: I1, I4, I6, I7, I8 ✅; I10 ✅ by `curl`; I5 and I9 skipped by the developer                                                                                                                               | Rating needs a second account and its code is unchanged (E2E covers it); I9 is iOS behaviour, already accepted                                                                                   |
 
 ## 10. Doc updates (same PR)
 

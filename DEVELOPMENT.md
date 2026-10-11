@@ -1633,7 +1633,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 
 ### Step 6.1 — PWA: installable (Phase 6)
 
-Status: 🟡 In progress — built, reviewed and unit-tested; the second iPhone round (spec §7: I1, I4–I10) is still to run on the preview
+Status: ✅ Done
 Branch: feat/pwa-installable
 Spec: docs/features/pwa-installable.md
 
@@ -1649,7 +1649,7 @@ Tasks:
 - [x] Review: `/code-review` (5 findings, all fixed) and `/security-review` (clean).
 - [x] Tests: unit, component and contract tests per spec §7; E2E unchanged and green.
 - [x] Tests: Manual — the sign-in probe: installed from Safari on a real iPhone, launched from the home screen, signed in with Google inside the app (I2, I3).
-- [ ] Tests: Manual — the rest of the iPhone round on the preview (I1, I4–I10).
+- [x] Tests: Manual — the second iPhone round on the preview: I1, I4, I6, I7, I8 ✅, I10 ✅ (`curl`); I5 (rating) and I9 (invite link from Messages) skipped by the developer — rating needs a second account and its code is unchanged; I9 is accepted iOS behaviour.
 
 > `vite-plugin-pwa` moved to Step 6.2 (decided 2026-10-11): installing needs no service worker, and the plugin would have built one a step early.
 
@@ -1661,6 +1661,7 @@ Made BookRough installable to the iPhone home screen, per `docs/features/pwa-ins
 - **`frontend/index.html`:** the manifest link, the SVG favicon, `apple-touch-icon`, and the `apple-mobile-web-app-*` / `mobile-web-app-capable` tags (`status-bar-style: default`). No service worker.
 - **Install hint:** `lib/installHint.ts` decides (an iOS browser with a `Safari/` token, not already standalone); `components/InstallHint.tsx` shows "Install BookRough: tap Share (in Safari it's under •••), then Add to Home Screen." on Welcome and the invite preview, dismissible per device. The bar and its storage are now shared with the announcement banner: `components/ui/DismissibleBar.tsx` and `lib/deviceStorage.ts`.
 - **Sign-in probe (2026-10-11):** on a real iPhone (iOS 26), installed from the preview: purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (spec §4) was not needed; `google-auth.md` §8 marked resolved. iOS 26 Safari keeps Share under •••, which changed the hint's copy.
+- **Second iPhone round (2026-10-11):** the hint shows in Safari and ✕ hides it; inside the installed app no hint, the status bar and bottom navigation are clear, a music-service link leaves the app, and a full relaunch stays signed in. Preview protection was switched back on afterwards.
 - **Review:** `/code-review` — no hint in in-app browsers (Instagram, Facebook WebViews cannot install), copy that fits Chrome and Firefox on iOS, the duplicated bar and storage helpers extracted, a byte-identical maskable PNG removed, a redundant script option. `/security-review`: no findings.
 - **Docs:** `deployment` §6.1, `frontend screens` (Welcome, Join Community) and `tech stack` (`vite-plugin-pwa` arrives in 6.2), .md + .docx; `google-auth.md` §8; `production-deploy.md` Merged ticked; `.claude/launch.json` gains `frontend-preview` (`vite preview` on 4173).
 - **Tests:** frontend 600 (98.76% lines). New: `lib/installHint` (9), `InstallHint` (6), the manifest and `index.html` contract (8 — each proven to fail against a broken file), the `vercel.json` rule for the manifest and icons, and the hint on Welcome and the invite preview. E2E 41 + 3 skipped, unchanged (the `mobile-safari` project now shows the hint and still passes).
