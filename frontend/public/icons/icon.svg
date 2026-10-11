@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Placeholder identity (docs/features/pwa-installable.md §3.2): the Wordmark's
+       vinyl mark in --on-accent on a full-bleed --accent square. The mark stays
+       inside the maskable safe zone, so one source serves every icon. -->
+  <rect width="512" height="512" fill="#534ab7" />
+  <g fill="none" stroke="#ffffff" stroke-width="20">
+    <circle cx="256" cy="256" r="112.5" />
+    <circle cx="256" cy="256" r="68.75" opacity="0.5" />
+    <circle cx="256" cy="256" r="20" fill="#ffffff" stroke="none" />
+  </g>
+</svg>

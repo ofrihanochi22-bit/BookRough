@@ -94,6 +94,14 @@ export default tseslint.config(
     },
   },
 
+  // Hand-run Node scripts (frontend/scripts): Node globals, no DOM.
+  {
+    files: ['frontend/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+
   // Must stay last: turns off every rule that would fight Prettier.
   prettier,
 );

@@ -6,6 +6,7 @@ Google Sign-In is the only authentication method, so this group collapsed from f
   - **Purpose:** The single entry point for unauthenticated users. Handles both registration and login.
   - **Key UI:** App logo, brief value proposition, and one **"Continue with Google"** button. Below it, a short line of copy setting expectations: that the app never asks for a password and never stores an email address.
   - **States:** idle; signing-in (button disabled with spinner while the popup is open and the token is being verified); error ("Sign-in failed. Please try again.").
+  - **Install hint:** on an iPhone or iPad browser — not in apps' in-app browsers, never inside the installed app — a dismissible bar at the top: "Install BookRough: tap Share (in Safari it's under •••), then Add to Home Screen." A dismissal is remembered on the device (`docs/features/pwa-installable.md` §5.1).
   - **No** "Log In" / "Sign Up" split, **no** email or password fields, **no** "Forgot Password?" link.
 - **1.2. Complete Your Profile Screen (UC-1)**
   - **Purpose:** Collect the fields Google cannot supply. Shown immediately after a first successful sign-in, and again on any later sign-in where onboarding was abandoned.
@@ -59,6 +60,7 @@ These are the most heavily trafficked screens where the primary value exchange h
   - **Purpose:** What a friend sees when they open an invite link — signed in or not, with an account or not.
   - **Key UI:** The community's generated cover, name and member count under "You're invited to". Signed out: the Google sign-in with "Continue with Google to join"; a new user completes their profile and returns here. Signed in: a "Join community" button, or "You're already in this community." with an Open link.
   - **States:** loading skeleton; joining ("Joining…"); invalid or reset link (the UC-15 message, with a link home); other load failure (Try again); offline (Join disabled).
+  - **Install hint:** the same dismissible bar as on Welcome (1.1).
 
 ### 4. Personal Management Flows
 

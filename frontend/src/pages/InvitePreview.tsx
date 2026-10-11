@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 
 import { acceptInvite, previewInvite, type InvitePreview as Preview } from '../api/invites';
 import { GoogleSignIn } from '../components/GoogleSignIn';
+import { InstallHint } from '../components/InstallHint';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { LoadError } from '../components/ui/LoadError';
@@ -66,6 +67,7 @@ function InviteContent({ token }: { token: string }) {
 
   return (
     <ScreenLayout>
+      <InstallHint />
       <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
         <Wordmark />
 

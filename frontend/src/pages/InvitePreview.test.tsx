@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { pendingInvite } from '../lib/pendingInvite';
 import { useAuthStore } from '../stores/auth';
@@ -14,6 +14,7 @@ import {
   resetAuthStore,
   setOnline,
 } from '../test/fixtures';
+import { emulateDevice, resetDevice, USER_AGENTS } from '../test/userAgents';
 import { InvitePreview } from './InvitePreview';
 
 const { previewInvite, acceptInvite, signInWithGoogle } = vi.hoisted(() => ({
@@ -82,6 +83,26 @@ beforeEach(() => {
   sessionStorage.clear();
   setOnline(true);
   useAuthStore.getState().clear();
+});
+
+afterEach(() => {
+  resetDevice();
+  window.localStorage.clear();
+});
+
+describe('InvitePreview — install hint', () => {
+  it('shows the install hint in Safari on an iPhone', async () => {
+    // Arrange
+    emulateDevice(USER_AGENTS.iphoneSafari, { maxTouchPoints: 5 });
+    previewInvite.mockResolvedValue(preview());
+
+    // Act
+    renderPreview();
+
+    // Assert
+    expect(await screen.findByRole('heading', { name: 'Friday Jazz' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent('Add to Home Screen');
+  });
 });
 
 describe('InvitePreview — signed out', () => {
