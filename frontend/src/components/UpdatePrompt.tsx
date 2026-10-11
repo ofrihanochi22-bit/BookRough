@@ -16,7 +16,11 @@ export function UpdatePrompt() {
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW({ onRegisteredSW: (_url, registered) => setRegistration(registered) });
+  } = useRegisterSW({
+    onRegisteredSW: (_url, registered) => setRegistration(registered),
+    // A newer version than the one dismissed is offered again.
+    onNeedRefresh: () => setDismissed(false),
+  });
 
   // An installed iPhone app can sit in the background for days; look for a
   // new version each time it comes back to the foreground. No timer.

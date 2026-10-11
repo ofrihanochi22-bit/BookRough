@@ -35,15 +35,27 @@ export function readSessionSnapshot(): Session | null {
   return null;
 }
 
+const isStringOrNull = (value: unknown) => value === null || typeof value === 'string';
+
+/** Every PublicUser field is checked: a snapshot of another shape must not reach the screens. */
 function isSession(value: unknown): value is Session {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
   const { user, needsOnboarding, isAdmin } = value as Record<string, unknown>;
+  if (typeof user !== 'object' || user === null) {
+    return false;
+  }
+  const { id, displayName, profilePictureUrl, preferredService, createdAt } = user as Record<
+    string,
+    unknown
+  >;
   return (
-    typeof user === 'object' &&
-    user !== null &&
-    typeof (user as Record<string, unknown>).id === 'string' &&
+    typeof id === 'string' &&
+    isStringOrNull(displayName) &&
+    isStringOrNull(profilePictureUrl) &&
+    isStringOrNull(preferredService) &&
+    typeof createdAt === 'string' &&
     typeof needsOnboarding === 'boolean' &&
     typeof isAdmin === 'boolean'
   );

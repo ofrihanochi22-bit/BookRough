@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { clearSavedApiAnswers } from '../lib/offlineCache';
+import { claimSavedApiAnswers, clearSavedApiAnswers } from '../lib/offlineCache';
 import { pendingInvite } from '../lib/pendingInvite';
 import { clearSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
 
@@ -39,10 +39,12 @@ interface AuthState {
    */
   offline: boolean;
   setSession: (session: Session, options?: { offline?: boolean }) => void;
+  /** The server answered 403 to an admin request: the role was taken away. */
+  revokeAdmin: () => void;
   clear: () => void;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   status: 'unknown',
   user: null,
   needsOnboarding: false,
@@ -51,9 +53,18 @@ export const useAuthStore = create<AuthState>()((set) => ({
   setSession: (session, { offline = false } = {}) => {
     if (!offline) {
       saveSessionSnapshot(session);
+      claimSavedApiAnswers(session.user.id);
     }
     const { user, needsOnboarding, isAdmin } = session;
     set({ status: 'signedIn', user, needsOnboarding, isAdmin, offline });
+  },
+  revokeAdmin: () => {
+    const { user, needsOnboarding, offline } = get();
+    set({ isAdmin: false });
+    // Keep the remembered session in step, or an offline launch would restore the role.
+    if (user && !offline) {
+      saveSessionSnapshot({ user, needsOnboarding, isAdmin: false });
+    }
   },
   // Sign-out and every 401: nothing of this user is left readable on the device.
   clear: () => {

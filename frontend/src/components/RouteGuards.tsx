@@ -18,6 +18,22 @@ function isNoResponse(error: unknown): boolean {
 }
 
 /**
+ * Asks the server who is signed in: an answer becomes the session, a 401
+ * signs out. Any other failure goes to `onFailure`, which decides what it means.
+ */
+function checkSession(onFailure: (error: unknown) => void = () => {}): Promise<void> {
+  return fetchSession()
+    .then((session) => useAuthStore.getState().setSession(session))
+    .catch((error: unknown) => {
+      if (isAxiosError(error) && error.response?.status === 401) {
+        useAuthStore.getState().clear();
+      } else {
+        onFailure(error);
+      }
+    });
+}
+
+/**
  * Resolves the session once, on app load, before any route renders. Until it
  * answers, a spinner fills the screen — never Welcome, which would flash for a
  * user who is in fact signed in.
@@ -36,20 +52,14 @@ export function SessionGate({ children }: { children: ReactNode }) {
 
   const resolveSession = useCallback(() => {
     setFailure(null);
-    fetchSession()
-      .then((session) => useAuthStore.getState().setSession(session))
-      .catch((error: unknown) => {
-        if (isAxiosError(error) && error.response?.status === 401) {
-          useAuthStore.getState().clear();
-          return;
-        }
-        const remembered = isNoResponse(error) ? readSessionSnapshot() : null;
-        if (remembered) {
-          useAuthStore.getState().setSession(remembered, { offline: true });
-        } else {
-          setFailure(isNoResponse(error) ? 'offline' : 'unreachable');
-        }
-      });
+    void checkSession((error) => {
+      const remembered = isNoResponse(error) ? readSessionSnapshot() : null;
+      if (remembered) {
+        useAuthStore.getState().setSession(remembered, { offline: true });
+      } else {
+        setFailure(isNoResponse(error) ? 'offline' : 'unreachable');
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -62,50 +72,78 @@ export function SessionGate({ children }: { children: ReactNode }) {
     resolveSession();
   }, [resolveSession]);
 
-  // Back online: an offline launch tries again, and a remembered session is
-  // confirmed with the server — a 401 then signs out like any other.
+  // An offline launch tries again when the connection returns.
   useEffect(() => {
-    function recheck() {
-      const { status: current, offline } = useAuthStore.getState();
-      if (current === 'unknown') {
-        // Only after a failure: while the first request is in flight, it will answer.
-        if (failure) {
-          resolveSession();
-        }
-      } else if (offline) {
-        fetchSession()
-          .then((session) => useAuthStore.getState().setSession(session))
-          .catch((error: unknown) => {
-            if (isAxiosError(error) && error.response?.status === 401) {
-              useAuthStore.getState().clear();
-            }
-          });
-      }
+    if (!failure) {
+      return;
     }
-    window.addEventListener('online', recheck);
-    return () => window.removeEventListener('online', recheck);
+    window.addEventListener('online', resolveSession);
+    return () => window.removeEventListener('online', resolveSession);
   }, [failure, resolveSession]);
 
-  if (status === 'unknown') {
-    return (
-      <ScreenLayout centered>
-        {failure ? (
-          <div role="alert" className="flex flex-col items-center gap-4 text-center">
-            <p className="text-sm text-muted">
-              {failure === 'offline'
-                ? "You're offline. Connect to open BookRough."
-                : "Can't reach BookRough right now. Check your connection and try again."}
-            </p>
-            <Button onClick={resolveSession}>Try again</Button>
-          </div>
-        ) : (
-          <Spinner label="Opening BookRough…" />
-        )}
-      </ScreenLayout>
-    );
-  }
+  return (
+    <>
+      <ConfirmRememberedSession />
+      {status === 'unknown' ? (
+        <ScreenLayout centered>
+          {failure ? (
+            <div role="alert" className="flex flex-col items-center gap-4 text-center">
+              <p className="text-sm text-muted">
+                {failure === 'offline'
+                  ? "You're offline. Connect to open BookRough."
+                  : "Can't reach BookRough right now. Check your connection and try again."}
+              </p>
+              <Button onClick={resolveSession}>Try again</Button>
+            </div>
+          ) : (
+            <Spinner label="Opening BookRough…" />
+          )}
+        </ScreenLayout>
+      ) : (
+        children
+      )}
+    </>
+  );
+}
 
-  return children;
+/** How often an unconfirmed session asks the server again while the app is in view. */
+const CONFIRM_INTERVAL_MS = 15_000;
+
+/**
+ * While the session came from the snapshot (read-only), asks /auth/me again
+ * when the connection returns, when the app comes back to the foreground, and
+ * every 15 s — the browser may already think it is online (a timeout, a
+ * captive portal), so no `online` event would come. Success confirms the
+ * session; a 401 signs out like any other.
+ */
+function ConfirmRememberedSession() {
+  const unconfirmed = useAuthStore((state) => state.offline);
+
+  useEffect(() => {
+    if (!unconfirmed) {
+      return;
+    }
+    let inFlight = false;
+    function confirm() {
+      if (inFlight || !navigator.onLine || document.visibilityState !== 'visible') {
+        return;
+      }
+      inFlight = true;
+      void checkSession().finally(() => {
+        inFlight = false;
+      });
+    }
+    const timer = window.setInterval(confirm, CONFIRM_INTERVAL_MS);
+    window.addEventListener('online', confirm);
+    document.addEventListener('visibilitychange', confirm);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('online', confirm);
+      document.removeEventListener('visibilitychange', confirm);
+    };
+  }, [unconfirmed]);
+
+  return null;
 }
 
 /** Welcome is for signed-out visitors only; anyone else is sent onward. */

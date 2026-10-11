@@ -138,7 +138,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
       setSaving(false);
       if (isAxiosError(caught) && caught.response?.status === 403) {
         // The role was removed mid-session: the guard turns the area into NotFound.
-        useAuthStore.setState({ isAdmin: false });
+        useAuthStore.getState().revokeAdmin();
         return;
       }
       setError(messageOf(caught));

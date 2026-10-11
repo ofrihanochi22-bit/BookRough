@@ -26,7 +26,9 @@ createRoot(rootElement).render(
         {/* The service worker's update bar and the offline bar (docs/features/pwa-offline.md §5). */}
         <UpdatePrompt />
         <OfflineBar />
-        <App />
+        <div className="min-h-0 flex-1">
+          <App />
+        </div>
       </BrowserRouter>
     </ErrorBoundary>
     {/* Top-centre: clears the notch and stays out from under a thumb. */}
