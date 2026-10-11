@@ -41,6 +41,19 @@ describe('parseEnv', () => {
     expect(parsed.LOG_LEVEL).toBe('info');
   });
 
+  it('accepts LOG_LEVEL in any case and with surrounding spaces', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, LOG_LEVEL: ' Info ' });
+
+    // Assert
+    expect(parsed.LOG_LEVEL).toBe('info');
+  });
+
+  it('still rejects a LOG_LEVEL that is not a level', () => {
+    // Act & Assert
+    expect(() => parseEnv({ ...validEnv, LOG_LEVEL: 'verbose' })).toThrowError(/LOG_LEVEL/);
+  });
+
   it('throws and names the variable when DATABASE_URL is missing', () => {
     // Arrange
     const { DATABASE_URL: _omitted, ...withoutDatabaseUrl } = validEnv;

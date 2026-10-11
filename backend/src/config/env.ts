@@ -35,7 +35,12 @@ const envSchema = z
         { message: 'CORS_ORIGIN must be a bare http(s) origin, e.g. http://localhost:5173' },
       )
       .default('http://localhost:5173'),
-    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    // Case and surrounding spaces are forgiven: a level typed as "Info" at a
+    // host's dashboard once stopped the whole API (production-deploy.md §9).
+    LOG_LEVEL: z.preprocess(
+      (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+      z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+    ),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
     // one line. Empty means "not set".

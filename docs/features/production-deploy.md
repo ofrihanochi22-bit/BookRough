@@ -106,17 +106,17 @@ https://bookrough.vercel.app
       "framework": "vite",
       "buildCommand": "npm run build",
       "outputDirectory": "dist",
-      "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+      "rewrites": [{ "source": "/([^.]*)", "destination": "/index.html" }]
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/api/:path*", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
   ]
 }
 ```
 
-The exact keys are confirmed by the proof deployment (§3.4); any difference goes into §9.
+The keys were confirmed by the proof deployment. Two refinements from Stage 3 (§9): the API rule `/api/:path*` also matches `/api` itself, and the SPA fallback applies only to paths without a dot, so a missing file such as an old `/assets/*.js` after a deploy gets a 404 instead of `index.html` served as a script.
 
 Consequences:
 
@@ -217,6 +217,7 @@ States, unchanged in code but now exercised for real:
 - **squigly.link changes or is down:** unchanged — the post saves as `conversion_pending` (CLAUDE.md §7).
 - **Neon free compute quota** (100 CU-hours a month): at 0.25 CU awake only while queried, about 400 awake hours — far above use. If exhausted, compute suspends until the next month; the API answers `500`s with the standard envelope.
 - **Preview deployments of docs-only branches** still build; harmless.
+- **One `preview` database for every preview.** Each preview runs `prisma migrate deploy` against the same Neon `preview` branch, so a migration in one open PR is applied for all of them, and an abandoned PR's migration stays there. If a preview breaks for that reason, reset the `preview` branch from `main` in Neon (Branches → `preview` → Reset from parent); nothing in it is real data.
 - **The Beta features change terms.** The Dockerfile remains the deployment unit, so moving to the fallback is configuration, not code (CLAUDE.md §16).
 
 ## 7. Test scenarios
@@ -276,6 +277,7 @@ None. Two items are decided in later specs on purpose: signing in on previews an
 | 2026-10-11 | Function region must be set to `fra1` explicitly; it had stayed `iad1`                                                                                                                                                        | Seen in the invocation ids; with the database in Frankfurt each query crossed the Atlantic                                                                                                                                           |
 | 2026-10-11 | Two setup errors worth recording: `LOG_LEVEL` must be lowercase, and the production address goes under the OAuth client's **JavaScript origins**, not its redirect URIs (`origin_mismatch` otherwise)                         | Found during the proof deployment                                                                                                                                                                                                    |
 | 2026-10-11 | M5 cold start 8.1 s (warm about 0.3 s); about 2.7 s of it is `prisma migrate deploy`. Migrations stay on start; instead, the two requests that run a conversion (create a post, retry a conversion) get a 30 s client timeout | Moving migrations would save only ~3 s and still leave cold start + the 12 s ceiling above 15 s; a longer timeout on exactly those requests removes the error-then-duplicate case, and the 12 s server ceiling still bounds the wait |
+| 2026-10-11 | Stage 3 `/code-review`: SPA fallback limited to paths without a dot; `/api/:path*` also routes `/api`; `LOG_LEVEL` accepted in any case; the shared preview database documented (§6)                                          | A stale asset would have been served as HTML; the exact `/api` path reached the SPA; a capitalised level stopped the API in production                                                                                               |
 
 ## 10. Doc updates (same PR)
 
