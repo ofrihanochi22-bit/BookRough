@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes usable from the iPhone home screen (CLAUDE.md §1, §16)     |
 | **Phase**     | 6 — Step 6.1 of `DEVELOPMENT.md`, second in the re-sliced order (`production-deploy.md` §0) |
 | **Branch**    | `feat/pwa-installable`                                                                      |
-| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                          |
 
 ---
 
@@ -127,9 +127,9 @@ Two obstacles to remove, both dashboard settings (Claude never changes them):
 
 ## 4. API
 
-**No endpoint changes** — unless the probe in §3.5 shows that Google's popup fails inside the installed app (the risk recorded in `google-auth.md` §8).
+**No endpoint changes.** The probe in §3.5 ran on 2026-10-11: Google's popup signs in inside the installed app on iOS 26 (I3 ✅), so the fallback below was **not built**. It stays here as the recorded plan should a later iOS or Google change break the popup.
 
-**Contingent fallback — outline only, specified in full only if needed:**
+**Contingent fallback — outline only, not built (see above):**
 
 - `<GoogleLogin ux_mode="redirect" login_uri="<origin>/api/auth/google/redirect">`, either inside the installed app only (`navigator.standalone` / `display-mode: standalone`) or everywhere, decided in the amendment.
 - **`POST /api/auth/google/redirect`** — public. Google POSTs a form (`credential`, `g_csrf_token`). The endpoint checks the `g_csrf_token` double-submit (form field against cookie), verifies the ID token through the same service as `POST /api/auth/google`, sets the same `token` cookie, and answers `303` to `/onboarding` or `/home`. On failure it answers `303` to `/?signin=failed`, which Welcome shows as its existing Google-side error.
@@ -153,7 +153,7 @@ On iOS the hint shows in any browser, since Chrome and Firefox on iOS also offer
 
 **Content (phone first, 375 px):** one slim bar of plain text, built like `AnnouncementBanner`:
 
-> Install BookRough: tap **Share**, then **Add to Home Screen**.
+> Install BookRough: open **Share** (under ••• in newer Safari), then **Add to Home Screen**.
 
 plus a ✕ button (44×44 px, `aria-label="Dismiss install hint"`). It is placeholder styling from the existing tokens (`bg-accent-soft`, `text-accent-ink`), `role="note"`. The visual design comes later.
 
@@ -260,14 +260,16 @@ None at approval. One question is decided by the device in Stage 2, not by the d
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                                                                                                                              | Reason                                                                                                                                                                                |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-11 | The iPhone acceptance test runs on this branch's preview before merge, with Vercel Authentication off and the preview alias in the OAuth JavaScript origins; both reverted after the merge (option A) | The only option where the step's real test runs before merge. A Shareable Link's query parameter does not reach the installed app's `start_url`, and Hobby has no password protection |
-| 2026-10-11 | Test Google's popup in the installed app first; if it fails, the redirect fallback is built in this feature after a spec amendment (option A)                                                         | An installed app nobody can sign into does not meet the goal. Designing the fallback only if the device proves it necessary avoids designing the wrong thing                          |
-| 2026-10-11 | Manifest: `BookRough` / `BookRough`, `start_url` = `scope` = `id` = `/`, `standalone`, no `orientation` (option A)                                                                                    | Welcome already routes a signed-in user; the first launch is always signed out; iOS ignores orientation                                                                               |
-| 2026-10-11 | No new dependency in 6.1: a hand-written manifest and PNGs rendered once with the existing Playwright Chromium; `vite-plugin-pwa` moves to 6.2 (option A)                                             | No service worker is needed to install. The plugin would build an unregistered `sw.js` early (CLAUDE.md §16's warning). 6.2 can reuse the file with `manifest: false`                 |
-| 2026-10-11 | A dismissible install hint on Welcome and the invite preview, iOS only, hidden inside the installed app (option B)                                                                                    | iOS has no install prompt, and invite links always open in Safari, which is where friends land                                                                                        |
-| 2026-10-11 | Placeholders without a question: the vinyl mark on the accent purple, `#fbfaf7` colours, `status-bar-style: default`, no splash screens                                                               | Visual design is deferred (developer's standing preference); the simplest options that reuse existing tokens                                                                          |
+| Date       | Decision                                                                                                                                                                                                                 | Reason                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-11 | The iPhone acceptance test runs on this branch's preview before merge, with Vercel Authentication off and the preview alias in the OAuth JavaScript origins; both reverted after the merge (option A)                    | The only option where the step's real test runs before merge. A Shareable Link's query parameter does not reach the installed app's `start_url`, and Hobby has no password protection |
+| 2026-10-11 | Test Google's popup in the installed app first; if it fails, the redirect fallback is built in this feature after a spec amendment (option A)                                                                            | An installed app nobody can sign into does not meet the goal. Designing the fallback only if the device proves it necessary avoids designing the wrong thing                          |
+| 2026-10-11 | Manifest: `BookRough` / `BookRough`, `start_url` = `scope` = `id` = `/`, `standalone`, no `orientation` (option A)                                                                                                       | Welcome already routes a signed-in user; the first launch is always signed out; iOS ignores orientation                                                                               |
+| 2026-10-11 | No new dependency in 6.1: a hand-written manifest and PNGs rendered once with the existing Playwright Chromium; `vite-plugin-pwa` moves to 6.2 (option A)                                                                | No service worker is needed to install. The plugin would build an unregistered `sw.js` early (CLAUDE.md §16's warning). 6.2 can reuse the file with `manifest: false`                 |
+| 2026-10-11 | A dismissible install hint on Welcome and the invite preview, iOS only, hidden inside the installed app (option B)                                                                                                       | iOS has no install prompt, and invite links always open in Safari, which is where friends land                                                                                        |
+| 2026-10-11 | Placeholders without a question: the vinyl mark on the accent purple, `#fbfaf7` colours, `status-bar-style: default`, no splash screens                                                                                  | Visual design is deferred (developer's standing preference); the simplest options that reuse existing tokens                                                                          |
+| 2026-10-11 | Probe passed on a real iPhone (iOS 26) on the preview: installed from Safari, purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (§4) is not built | I2 ✅ and I3 ✅; resolves `google-auth.md` §8                                                                                                                                         |
+| 2026-10-11 | The hint reads "open Share (under ••• in newer Safari)" rather than "tap Share"                                                                                                                                          | iOS 26 Safari moved Share into the ••• menu; the developer could not find it during the probe                                                                                         |
 
 ## 10. Doc updates (same PR)
 

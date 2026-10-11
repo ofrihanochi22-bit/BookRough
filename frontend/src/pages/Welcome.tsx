@@ -1,4 +1,5 @@
 import { GoogleSignIn } from '../components/GoogleSignIn';
+import { InstallHint } from '../components/InstallHint';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Wordmark } from '../components/ui/Wordmark';
 import { useSettingsStore } from '../stores/settings';
@@ -14,6 +15,7 @@ export function Welcome() {
 
   return (
     <ScreenLayout>
+      <InstallHint />
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
         <Wordmark />
         <p className="max-w-xs text-base text-muted">{tagline}</p>
