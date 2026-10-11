@@ -7,6 +7,7 @@ import { DEFAULT_TAGLINE } from '../lib/appSettings';
 import { useAuthStore } from '../stores/auth';
 import { useSettingsStore } from '../stores/settings';
 import { makeSession, resetAuthStore } from '../test/fixtures';
+import { emulateDevice, resetDevice, USER_AGENTS } from '../test/userAgents';
 import { Welcome } from './Welcome';
 
 const { google, signInWithGoogle } = vi.hoisted(() => ({
@@ -79,6 +80,32 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetDevice();
+  window.localStorage.clear();
+});
+
+describe('Welcome — install hint', () => {
+  it('shows the install hint in Safari on an iPhone', () => {
+    // Arrange
+    emulateDevice(USER_AGENTS.iphoneSafari, { maxTouchPoints: 5 });
+
+    // Act
+    render(<Welcome />);
+
+    // Assert
+    expect(screen.getByRole('note')).toHaveTextContent('Add to Home Screen');
+  });
+
+  it('shows no install hint on a desktop browser', () => {
+    // Arrange
+    emulateDevice(USER_AGENTS.windowsChrome);
+
+    // Act
+    render(<Welcome />);
+
+    // Assert
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
 });
 
 describe('Welcome', () => {

@@ -7,7 +7,8 @@ import { DismissibleBar } from './ui/DismissibleBar';
 const DISMISSED_KEY = 'bookrough.installHintDismissed';
 
 function offerInstall(): boolean {
-  return shouldOfferInstall(navigator, (query) => window.matchMedia(query));
+  // matchMedia is missing in some embedded engines; then only `standalone` decides.
+  return shouldOfferInstall(navigator, (query) => window.matchMedia?.(query) ?? { matches: false });
 }
 
 /**

@@ -1633,7 +1633,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 
 ### Step 6.1 — PWA: installable (Phase 6)
 
-Status: ☐ Not started
+Status: 🟡 In progress — built, reviewed and unit-tested; the second iPhone round (spec §7: I1, I4–I10) is still to run on the preview
 Branch: feat/pwa-installable
 Spec: docs/features/pwa-installable.md
 
@@ -1641,14 +1641,59 @@ Goal: The site installs to an iPhone home screen from Safari and launches full-s
 
 Tasks:
 
-- [ ] Frontend: `vite-plugin-pwa` installed and configured.
-- [ ] Frontend: `manifest.webmanifest` — name, short_name, start_url, `display: standalone`, theme and background colours.
-- [ ] Frontend: Full icon set — 192px, 512px, 512px maskable, plus the iOS `apple-touch-icon` sizes.
-- [ ] Frontend: iOS-specific meta tags (Safari does not read everything from the manifest).
-- [ ] Tests: Manual — install on a real iPhone from Safari and launch from the home screen. A Lighthouse score is not sufficient evidence.
+- [x] Spec: docs/features/pwa-installable.md approved (test on the branch preview before merge; probe Google sign-in first; no new dependency; iOS install hint).
+- [x] Frontend: `manifest.webmanifest` — name, short_name, start_url, `display: standalone`, theme and background colours.
+- [x] Frontend: Full icon set — 192px, 512px (also the maskable entry), the 180px `apple-touch-icon`, and an SVG favicon.
+- [x] Frontend: iOS-specific meta tags (Safari does not read everything from the manifest).
+- [x] Frontend: iOS install hint on Welcome and the invite preview (spec §5.1).
+- [x] Review: `/code-review` (5 findings, all fixed) and `/security-review` (clean).
+- [x] Tests: unit, component and contract tests per spec §7; E2E unchanged and green.
+- [x] Tests: Manual — the sign-in probe: installed from Safari on a real iPhone, launched from the home screen, signed in with Google inside the app (I2, I3).
+- [ ] Tests: Manual — the rest of the iPhone round on the preview (I1, I4–I10).
+
+> `vite-plugin-pwa` moved to Step 6.2 (decided 2026-10-11): installing needs no service worker, and the plugin would have built one a step early.
 
 What I did:
+
+Made BookRough installable to the iPhone home screen, per `docs/features/pwa-installable.md`. No UC of its own: every UC becomes usable from the installed app.
+
+- **Manifest and icons (`frontend/public/`):** a hand-written `manifest.webmanifest` (`BookRough`, `start_url` = `scope` = `id` = `/`, `standalone`, colours from the light `--canvas` token, no `orientation`). Icons are the placeholder vinyl mark on the accent purple: `icons/icon.svg` is the source and the favicon; `icon-192.png`, `icon-512.png` (also the maskable entry, since the mark sits inside the safe zone) and `apple-touch-icon.png` (180) are rendered from it by `frontend/scripts/render-icons.mjs` with the Chromium `e2e/` already installs. No new dependency.
+- **`frontend/index.html`:** the manifest link, the SVG favicon, `apple-touch-icon`, and the `apple-mobile-web-app-*` / `mobile-web-app-capable` tags (`status-bar-style: default`). No service worker.
+- **Install hint:** `lib/installHint.ts` decides (an iOS browser with a `Safari/` token, not already standalone); `components/InstallHint.tsx` shows "Install BookRough: tap Share (in Safari it's under •••), then Add to Home Screen." on Welcome and the invite preview, dismissible per device. The bar and its storage are now shared with the announcement banner: `components/ui/DismissibleBar.tsx` and `lib/deviceStorage.ts`.
+- **Sign-in probe (2026-10-11):** on a real iPhone (iOS 26), installed from the preview: purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (spec §4) was not needed; `google-auth.md` §8 marked resolved. iOS 26 Safari keeps Share under •••, which changed the hint's copy.
+- **Review:** `/code-review` — no hint in in-app browsers (Instagram, Facebook WebViews cannot install), copy that fits Chrome and Firefox on iOS, the duplicated bar and storage helpers extracted, a byte-identical maskable PNG removed, a redundant script option. `/security-review`: no findings.
+- **Docs:** `deployment` §6.1, `frontend screens` (Welcome, Join Community) and `tech stack` (`vite-plugin-pwa` arrives in 6.2), .md + .docx; `google-auth.md` §8; `production-deploy.md` Merged ticked; `.claude/launch.json` gains `frontend-preview` (`vite preview` on 4173).
+- **Tests:** frontend 600 (98.76% lines). New: `lib/installHint` (9), `InstallHint` (6), the manifest and `index.html` contract (8 — each proven to fail against a broken file), the `vercel.json` rule for the manifest and icons, and the hint on Welcome and the invite preview. E2E 41 + 3 skipped, unchanged (the `mobile-safari` project now shows the hint and still passes).
+
 How to view & test:
+
+Locally (production build — never judge PWA work on the dev server):
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+Open `http://localhost:4173/` in Chrome → DevTools → Application → Manifest: name BookRough, `standalone`, three icons, no errors; Service workers: none. Welcome itself needs the backend (`cd backend && npm run dev`).
+
+On a real iPhone (spec §3.4, §7):
+
+1. Vercel → `bookrough` → Settings → Deployment Protection → **Require Log In** off → Save. The branch preview's address must be in the OAuth client's **Authorized JavaScript origins**.
+2. Safari → `https://bookrough-git-feat-pwa-installable-bookrough.vercel.app` → the install hint shows on Welcome (I1).
+3. ••• → Share → Add to Home Screen, **Open as Web App** on → the purple vinyl icon named BookRough (I2).
+4. Launch it → no address bar; Continue with Google signs in; onboarding follows (I3). The preview has its own database, so production accounts are not there.
+5. Status bar readable in light and dark; bottom navigation above the home indicator (I4). Create a community, post a Spotify link, rate it (I5). Links to music services leave the app (I6). Close and relaunch → still signed in (I7). No hint inside the app; ✕ in Safari hides it for good (I8). An invite link from Messages opens in Safari (I9). Desktop Chrome on the preview: the manifest is `application/manifest+json` (I10).
+6. Switch **Require Log In** back on → Save.
+
+After merge: remove the preview address from the OAuth client's JavaScript origins.
+
+Tests:
+
+```bash
+cd frontend && npm run test:unit                    # 600 tests, 80% floor
+cd frontend && npx vitest run src/lib/installHint.test.ts src/components/InstallHint.test.tsx src/manifest.test.ts src/vercelConfig.test.ts
+npm test --prefix e2e                               # 41 runs (+3 skipped), needs Docker Postgres
+node frontend/scripts/render-icons.mjs              # only when icon.svg changes
+```
 
 ---
 
@@ -1664,6 +1709,7 @@ Goal: With no connection, the app opens and previously loaded content is readabl
 
 Tasks:
 
+- [ ] Frontend: `vite-plugin-pwa` installed and configured, reusing Step 6.1's `manifest.webmanifest` (`manifest: false`). Moved here from Step 6.1.
 - [ ] Frontend: Workbox precache of the app shell — HTML, JS, CSS, fonts, icons.
 - [ ] Frontend: Runtime cache (stale-while-revalidate) for feed responses and album art. **Never cache auth endpoints or mutations.**
 - [ ] Frontend: Designed offline fallback page, not the browser error screen.

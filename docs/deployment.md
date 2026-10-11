@@ -105,6 +105,9 @@ The PWA is **in full scope, including offline support**.
 - A complete icon set: 192px and 512px standard icons, a 512px maskable icon for Android, and the `apple-touch-icon` sizes iOS requires.
 - iOS-specific meta tags, because Safari does not read everything from the manifest.
 - Result: **Share → Add to Home Screen** in Safari produces a full-screen app with no address bar.
+- **Built in Step 6.1 as static files:** `frontend/public/manifest.webmanifest` and an icon set rendered once from `icons/icon.svg`, with no service worker. `vite-plugin-pwa` arrives in Step 6.2 and reuses the same manifest file (`docs/features/pwa-installable.md` §3).
+- **Install hint:** iOS has no install prompt, and in iOS 26 Safari, Share sits under the ••• menu. iPhone and iPad visitors therefore see a dismissible hint on Welcome and the invite preview — never inside the installed app or in apps' in-app browsers (`docs/features/pwa-installable.md` §5.1).
+- **Testing an install before merge** happens on the branch preview: Vercel Authentication switched off for the test and the preview's address under the OAuth client's JavaScript origins. Google's popup sign-in was confirmed to work inside the installed app on iOS 26 (`docs/features/pwa-installable.md` §3.4).
 
 #### 6.2. Service worker
 

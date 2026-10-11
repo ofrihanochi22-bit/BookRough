@@ -73,6 +73,18 @@ describe('vercel.json', () => {
     expect(deepLink.test('/favicon.ico')).toBe(false);
   });
 
+  it('serves the manifest and the icons as files, never as index.html', () => {
+    // Arrange
+    const fallback = config.services.web?.rewrites?.find((r) => r.destination === '/index.html');
+    const deepLink = matcher(fallback!.source);
+
+    // Act & Assert
+    for (const path of ['/manifest.webmanifest', '/apple-touch-icon.png', '/icons/icon-192.png']) {
+      expect(serviceFor(path)).toBe('web');
+      expect(deepLink.test(path)).toBe(false);
+    }
+  });
+
   it('keeps build settings out of the top level, where services mode rejects them', () => {
     // Assert
     for (const key of [

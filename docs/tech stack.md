@@ -12,7 +12,7 @@ The user-facing application where communities, feeds, and profiles live.
 - **Fontsource (`@fontsource-variable/inter`, `@fontsource/space-grotesk`):** Self-hosted web fonts (Inter for text, Space Grotesk for the wordmark), bundled with the app instead of loaded from Google Fonts: the offline PWA needs them in the bundle, and no request reaches Google before the user chooses to sign in. Free (SIL Open Font License); if removed, text falls back to the system font and nothing breaks.
 - **React Router:** Client-side routing.
 - **Axios:** The HTTP client, configured as a single instance with a `401` interceptor and a global error toast.
-- **vite-plugin-pwa:** Generates the service worker and wires up the web app manifest, turning the site into an installable, offline-capable PWA. Built on Workbox. See `docs/deployment.md` §6 for the full PWA scope.
+- **vite-plugin-pwa:** Generates the service worker and wires up the web app manifest, turning the site into an installable, offline-capable PWA. Built on Workbox. See `docs/deployment.md` §6 for the full PWA scope. Added in Step 6.2 together with the service worker; Step 6.1 ships the manifest as a static file without it.
 
 **Not used, deliberately:** no i18n library (`react-i18next` or otherwise) — the UI is English-only; no component library beyond Tailwind; no image-upload or cropping library — avatars are generated.
 
