@@ -1,6 +1,15 @@
 import type { StreamingService } from '../stores/auth';
 import { api, type SuccessBody } from './client';
 
+/**
+ * Requests that run a conversion wait longer than the client's usual 15 s: the
+ * server may spend up to its 12 s ceiling converting (CLAUDE.md §7), plus a
+ * cold start of several seconds in production (docs/features/production-deploy.md
+ * §6). Timing out first would show an error for a post that was saved anyway,
+ * and a retry would post it twice.
+ */
+export const CONVERSION_REQUEST_TIMEOUT_MS = 30_000;
+
 export type PostKind = 'TRACK' | 'ALBUM';
 
 /** Mirrors the backend's PublicPost (docs/features/posts-feed.md §4). */
@@ -52,7 +61,7 @@ export async function createPost(communityId: string, input: NewPost): Promise<P
   const response = await api.post<SuccessBody<{ post: PublicPost }>>(
     `/communities/${encodeURIComponent(communityId)}/posts`,
     input,
-    { skipErrorToast: true },
+    { skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
   return response.data.data.post;
 }
@@ -71,7 +80,7 @@ export async function retryConversion(postId: string): Promise<PublicPost> {
   const response = await api.post<SuccessBody<{ post: PublicPost }>>(
     `/posts/${encodeURIComponent(postId)}/conversion`,
     undefined,
-    { skipErrorToast: true },
+    { skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
   return response.data.data.post;
 }

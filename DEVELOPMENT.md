@@ -1629,6 +1629,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **Re-sliced 2026-10-10.** The PWA steps' manual checks (a real iPhone, airplane mode, deploying a second build) need a live HTTPS origin, so Phase 6 now ships in this order: **6.3 production deploy → 6.1 PWA installable → 6.2 PWA offline → 6.4 hardening → 6.5 README**. Step numbers are kept so references stay valid. The site is public from 6.3, but its address is not shared with friends until 6.4 merges — see `docs/features/production-deploy.md` §0.
+
 ### Step 6.1 — PWA: installable (Phase 6)
 
 Status: ☐ Not started
@@ -1675,27 +1677,64 @@ How to view & test:
 
 ---
 
-### Step 6.3 — Hosting decision + production deploy (Phase 6)
+### Step 6.3 — Hosting decision + production deploy (Phase 6) — shipped first
 
-Status: ☐ Not started
+Status: ✅ Done
 Branch: chore/production-deploy
+Spec: docs/features/production-deploy.md
 
 Goal: A public HTTPS URL, with the provider chosen against free-tier terms that are current at this moment — not the ones assumed months earlier.
 
 Tasks:
 
-- [ ] Docs: Verify each candidate's **current** free-tier terms (memory ceiling, idle spin-down, free-database lifetime) and record the decision and its date in `docs/deployment.md` §3.
-- [ ] Infra: Provision production Postgres; set `DATABASE_URL`; run Prisma migrations against it.
-- [ ] Infra: Generate an independent production `JWT_SECRET`. It must not match any development value.
-- [ ] Infra: Add the production origin to the Google OAuth client's authorised origins and redirect URIs.
-- [ ] Infra: Deploy the backend from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
-- [ ] Infra: Build and deploy the frontend with the production `VITE_API_BASE_URL`.
-- [ ] Infra: CORS locked to the exact production frontend origin — not a wildcard.
-- [ ] Tests: Verify the auth cookie is `HttpOnly`, `Secure`, and correctly `SameSite` for the final origin layout.
-- [ ] Tests: **Verify link conversion end-to-end in production.** This is the step most likely to fail — Chromium's memory footprint on a small instance is not reproducible locally. If it fails, lower the `p-limit` cap to 1 before anything more elaborate.
+- [x] Docs: Verify each candidate's **current** free-tier terms and measure Chromium under each CPU cap — Vercel Hobby (Container Runtime + Services) and Neon Free chosen on 2026-10-10, Cloud Run as the fallback (spec §3.1).
+- [x] Spec: docs/features/production-deploy.md approved (deploy first; Vercel + Neon; GitHub-integration deploys now, Deployment Checks from 6.4; public but unshared until 6.4).
+- [x] Infra: Proof deployment — image builds, health, a real conversion, registry storage, cold start (spec §3.4).
+- [x] Infra: `vercel.json` — the `api` (Dockerfile) and `web` (Vite) services on one origin.
+- [x] Infra (developer): Neon `main` + `preview` branches; Vercel project, region `fra1`, environment variables; an independent production `JWT_SECRET`; the production origin in the Google OAuth client (spec §3.6).
+- [x] Frontend: the API base URL defaults to `/api` in production builds; conversion requests wait 30 s.
+- [x] Review: `/code-review` (6 findings, all fixed), `/code-review max` on the PR (5 findings, all addressed) and `/security-review` (clean).
+- [x] Tests: unit per spec §7; the production smoke test P1–P7 and P9; P8 partly (see below); P10 (quota after a week) is due 2026-10-18.
 
 What I did:
+
+Put BookRough on a public HTTPS address, `https://bookrough.vercel.app`, per `docs/features/production-deploy.md`. No UC of its own: every UC is now reachable outside localhost.
+
+- **Decision (2026-10-10):** Phase 6 re-sliced to deploy first (the PWA's iPhone checks need HTTPS). The production image was timed locally under each host's CPU cap: every conversion timed out at 0.1 CPU (Render Free, Koyeb Free), about 3 s at 1 vCPU. Chosen: **Vercel Hobby** ($0, no card, 1 vCPU / 2 GB, pauses rather than bills over quota) and **Neon Free** (permanent Postgres 16), both in Frankfurt; **Google Cloud Run** is the agreed fallback. Sources and terms with their date: spec §3.1, `docs/deployment.md` §3.6.
+- **Infra:**
+  - `vercel.json` (Vercel Services, Beta): `/api/:path*` → the `api` service built from the unchanged `backend/Dockerfile` (Container Runtime, Beta); everything else → the `web` service (Vite build), falling back to `index.html` only for paths without a dot. One origin, so the `SameSite=Lax` cookie and CORS need no change.
+  - Neon: branch `main` for production, `preview` for every preview deployment. Vercel: GitHub integration (`main` → production, branches → previews), region `fra1`, variables per environment with separate `JWT_SECRET`s. The developer set every account, secret and console setting; nothing secret is in the repository.
+- **Code:**
+  - `frontend/src/api/client.ts`: `resolveApiBaseUrl` — `VITE_API_BASE_URL` when set, else `/api` in production builds, `localhost` in development.
+  - `frontend/src/api/posts.ts`: creating a post and retrying a conversion wait 30 s (`CONVERSION_REQUEST_TIMEOUT_MS`): a cold start (8.1 s measured) plus the 12 s ceiling could pass the usual 15 s and show an error for a saved post.
+  - `backend/src/utils/redactPath.ts`: the request log keeps an **allowlist** of headers (`host`, `user-agent`) and drops the remote address — behind Vercel's proxy the old denylist logged the client's IP, city and coordinates and Vercel's own tokens.
+  - `backend/src/config/env.ts`: `LOG_LEVEL` is accepted in any case (`Info` stopped the API once in production).
+- **Proof and smoke test (2026-10-10/11):** M1 build ✅, M2 `/api/health` 200 over HTTPS ✅, M3 a real Spotify → Apple Music conversion in **5.3 s** ✅, M4 registry storage 3.12 GB, no charge possible ✅, M5 cold start **8.1 s** (warm ~0.3 s) ✅. P2 sign-in on two browsers, P3 cookie `HttpOnly` + `Secure` + `SameSite=Lax`, P4–P5 community, invite, post and Apple Music link, P6 the four hand-written objects and 14 migrations in Neon (admin role set), P7 deep links, P9 sign-out — all ✅. P8 partly: the branch preview builds and serves (routing checked there), but signing in on a preview needs its address in the OAuth client, which feature 2 decides — so its use of the `preview` database is not yet seen. P10 pending (reminder set for 2026-10-18).
+- **Found along the way:** the import page cannot select a branch with `/` (imported from a slash-free copy, since deleted); a Neon project first created in Ohio was recreated in Frankfurt; the function region had stayed `iad1`; the OAuth origin belongs under JavaScript origins, not redirect URIs (`origin_mismatch`); Neon's onboarding sample table `playing_with_neon` was dropped from production.
+- **Review:** `/code-review` — SPA fallback serving HTML for missing assets, `/api` itself reaching the SPA, case-sensitive `LOG_LEVEL`, the shared preview database (documented), this entry, and the missing client tests; all fixed. `/code-review max` on PR #33 (the free alternative to `ultra`): the routing test imported `node:fs`, which the frontend has no types for — CI's typecheck and Vercel's build failed while local checks passed on a stray `@types/node` above the repository; now a JSON import. Also a blank `LOG_LEVEL` now means the default, the cookie item in `deployment.md` §7 is ticked, and the routing test says what it does not prove. `/security-review`: clean.
+- **Docs:** `deployment`, `tech stack` (Vercel and Neon in §5), `development strategy` (.md + .docx); CLAUDE.md §2, §3, §16; `google-auth.md` (the one-site constraint resolved); `invite-friends.md` Merged ticked; the Phase 6 re-slice above.
+- **Tests:** backend 829 (98.85% lines over both suites), frontend 573 (98.75%), E2E 41 + 3 skipped. New: the header allowlist, `LOG_LEVEL` and `CORS_ORIGIN` parsing, the base-URL resolution, the conversion timeouts, and a `vercel.json` routing contract — the routing and serializer tests were each proven to fail against the broken version.
+
 How to view & test:
+
+Production: open `https://bookrough.vercel.app` (desktop or iPhone Safari). Do not share the address yet — it goes to friends after Step 6.4.
+
+1. `https://bookrough.vercel.app/api/health` → `{"status":"success","data":{"status":"ok",…}}`.
+2. **Continue with Google** → onboarding → dashboard. DevTools → Application → Cookies → `token`: HttpOnly ✓, Secure ✓, SameSite Lax.
+3. Create a community, invite a second Google account (another browser) with the link, post `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv` → links to the other services within ~10 s; the Apple Music user's link opens Apple Music.
+4. Open `/communities/<id>` directly → the page loads; `/assets/missing.js` → Vercel's 404.
+5. After ≥ 6 idle minutes, the first load takes ~8 s (cold start); then ~0.3 s.
+
+Operations: Vercel → project `bookrough` (Deployments, Logs — kept 1 hour, Usage); Neon → `bookrough-frankfurt` (SQL Editor, branch `production` / `preview`). Variables and settings: spec §3.6. If a preview breaks after another PR's migration, reset the `preview` branch from its parent in Neon.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                       # unit + integration, 80% floor
+cd backend && npx vitest run src/utils/redactPath.test.ts src/config/env.test.ts
+cd frontend && npm run test:unit                          # vercelConfig, api/client, api/posts
+npm test --prefix e2e                                     # 41 runs (+3 skipped), needs Docker Postgres
+```
 
 ---
 
@@ -1707,6 +1746,8 @@ Branch: chore/production-hardening
 Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.
 
 Tasks:
+
+> ⚠️ **Stale, flagged 2026-10-10:** the rate-limiting line below predates Google-only sign-in — the only auth endpoint is `POST /api/auth/google`. Resolved in this step's spec. This step also switches production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker` (`production-deploy.md` §3.3), and the address is shared with friends only after it merges.
 
 - [ ] Backend: Rate limiting on auth endpoints (login, register, password reset) and on post creation.
 - [ ] Backend: Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.

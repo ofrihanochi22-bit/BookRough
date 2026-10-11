@@ -36,8 +36,17 @@ declare module 'axios' {
   }
 }
 
+/**
+ * Production serves the frontend and the API from one origin
+ * (docs/features/production-deploy.md §3.2), so a production build defaults to
+ * the same-origin path and can never call localhost by accident.
+ */
+export function resolveApiBaseUrl(env: { VITE_API_BASE_URL?: string; PROD: boolean }): string {
+  return env.VITE_API_BASE_URL || (env.PROD ? '/api' : 'http://localhost:4000/api');
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api',
+  baseURL: resolveApiBaseUrl(import.meta.env),
   // The session is an HttpOnly cookie, so every request must carry credentials.
   withCredentials: true,
   timeout: 15_000,

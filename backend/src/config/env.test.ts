@@ -41,6 +41,27 @@ describe('parseEnv', () => {
     expect(parsed.LOG_LEVEL).toBe('info');
   });
 
+  it('accepts LOG_LEVEL in any case and with surrounding spaces', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, LOG_LEVEL: ' Info ' });
+
+    // Assert
+    expect(parsed.LOG_LEVEL).toBe('info');
+  });
+
+  it('treats a blank LOG_LEVEL as not set and uses the default', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, LOG_LEVEL: '  ' });
+
+    // Assert
+    expect(parsed.LOG_LEVEL).toBe('info');
+  });
+
+  it('still rejects a LOG_LEVEL that is not a level', () => {
+    // Act & Assert
+    expect(() => parseEnv({ ...validEnv, LOG_LEVEL: 'verbose' })).toThrowError(/LOG_LEVEL/);
+  });
+
   it('throws and names the variable when DATABASE_URL is missing', () => {
     // Arrange
     const { DATABASE_URL: _omitted, ...withoutDatabaseUrl } = validEnv;
@@ -73,6 +94,21 @@ describe('parseEnv', () => {
     expect(message).toContain('DATABASE_URL');
     expect(message).toContain('GOOGLE_CLIENT_ID');
     expect(message).toContain('.env.example');
+  });
+
+  it('accepts an https production origin for CORS_ORIGIN', () => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, CORS_ORIGIN: 'https://bookrough.vercel.app' });
+
+    // Assert
+    expect(parsed.CORS_ORIGIN).toBe('https://bookrough.vercel.app');
+  });
+
+  it('rejects a CORS_ORIGIN with a path, which is not an origin', () => {
+    // Act & Assert
+    expect(() =>
+      parseEnv({ ...validEnv, CORS_ORIGIN: 'https://bookrough.vercel.app/app' }),
+    ).toThrowError(/CORS_ORIGIN/);
   });
 
   it('rejects a CORS_ORIGIN that is not a URL, which would silently break the cookie', () => {

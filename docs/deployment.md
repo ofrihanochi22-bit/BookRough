@@ -17,11 +17,11 @@ Three constraints shape every decision in this document:
 - **Simplicity.** Fewer moving parts wins over marginally better performance. The developer should be able to explain the whole deployment in a minute.
 - **Chromium.** The backend runs headless Chromium via Playwright to scrape squigly.link. Chromium needs substantially more memory than a plain Node process, and free tiers are memory-constrained. This is the constraint that the others must bend around.
 
-### 3. Provider selection — deliberately deferred to Phase 6
+### 3. Provider selection — decided 2026-10-10
 
-**No hosting provider has been chosen, and one will not be chosen until Phase 6 is reached.**
+**Chosen on 2026-10-10: Vercel (Hobby) for the frontend and the API, Neon (Free) for Postgres, both in Frankfurt, with Google Cloud Run as the agreed fallback.** The decision is summarised in §3.6; the measurements, every candidate's terms on that date and the sources are in `docs/features/production-deploy.md` §3.1.
 
-This is a deliberate decision, not an oversight. Free-tier terms change frequently — memory allowances, idle-spin-down behaviour, and especially the lifetime of free managed databases. Committing now to terms that may not hold months from now would mean planning against stale facts. The comparison below records the shape of the decision; the actual terms must be re-verified against each provider's current pricing page at the moment the decision is made.
+The choice was deferred to Phase 6 on purpose: free-tier terms change frequently — memory allowances, idle spin-down, and especially the lifetime of free managed databases — so they were verified at the moment of deciding rather than months earlier. §3.1–§3.4 record how the decision was framed beforehand.
 
 #### 3.1. What the backend needs
 
@@ -45,7 +45,7 @@ This is a deliberate decision, not an oversight. Free-tier terms change frequent
 - **Idle spin-down.** Free container tiers commonly sleep after a period of inactivity, producing a long cold start on the next request. For a friend group posting a few times a day, this means a slow first load. Acceptable, but it should be a known trade-off rather than a surprise.
 - **Memory ceiling versus Chromium.** A 512 MB instance running Node plus Chromium is tight. If the chosen tier proves too small, the mitigations, in order of preference, are: lower the `p-limit` concurrency cap to 1, then move the scraper to a separate worker, then pay.
 
-#### 3.4. Rule until Phase 6
+#### 3.4. Provider-agnostic code (still the rule)
 
 **Keep the code provider-agnostic.** Specifically:
 
@@ -54,7 +54,7 @@ This is a deliberate decision, not an oversight. Free-tier terms change frequent
 - The backend `Dockerfile` is the deployment unit and must stay runnable on any container host.
 - Database access only through Prisma, so the Postgres instance can be moved by changing `DATABASE_URL`.
 
-Written this way, the Phase 6 decision is a configuration change, not a rewrite.
+Written this way, the Phase 6 decision was a configuration change, not a rewrite — and moving to the fallback still is.
 #### 3.5. The backend image (built in Phase 3)
 `backend/Dockerfile` is the deployment unit (Step 3.4, `docs/features/backend-docker.md`). What any host needs to know:
 - **Build:** `docker build -t bookrough-api backend`. Base `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright); a multi-stage build whose runtime stage holds production dependencies, `dist/` and the Prisma migrations only.
@@ -64,6 +64,17 @@ Written this way, the Phase 6 decision is a configuration change, not a rewrite.
 - **Health:** a Docker `HEALTHCHECK` on `GET /api/health`, which deliberately does not touch the database.
 - **Measured (Docker Desktop, 2026-10-05):** image 2.85 GB (2.51 GB of it the base, which also carries unused Firefox and WebKit); about 83 MB of memory idle and about 234 MB at the peak of one real conversion. A 512 MB instance looks workable with `p-limit(2)`; verify under load in Phase 6.
 - **CI:** `test:docker` in `main.yml` builds the image and runs it against an empty Postgres after every merge and nightly (`docs/tests.md` §4.2).
+- **On Vercel:** the Container Runtime builds this `Dockerfile` unchanged, as the `api` service in `vercel.json`. `PORT=4000` is set at the host because the runtime's default is 80; the `HEALTHCHECK` is ignored there and stays for other hosts and `test:docker`. Each deployment's image is kept in Vercel's Container Registry.
+
+#### 3.6. The decision (2026-10-10)
+
+- **CPU decided it.** The production image was timed under each candidate's CPU cap: at 0.1 CPU (Render Free, Koyeb Free) every conversion timed out; at 1 vCPU one conversion took about 3 s and two at once about 7 s.
+- **Vercel Hobby:** $0 with no card; 2 GB / 1 vCPU; scales to zero after 5 minutes; 4 hours of active CPU and 360 GB-hours of provisioned memory a month; over quota the project pauses rather than bills. The Container Runtime and Services are Beta. Region `fra1`.
+- **One origin:** `https://bookrough.vercel.app` — `/api/*` to the container, everything else to the Vite build (`vercel.json`). The `SameSite=Lax` cookie needs no change and CORS is not exercised. `*.vercel.app` is on the Public Suffix List, so a split `api.` / `web.` layout would have broken the cookie.
+- **Neon Free:** permanent, no card, Postgres 16 in AWS `eu-central-1`; branch `main` for production, branch `preview` for preview deployments.
+- **Deploys:** Vercel's GitHub integration — `main` to production, other branches to previews. Phase 6's hardening step makes production wait for `test:e2e` and `test:docker` (Vercel Deployment Checks).
+- **Measured in production (2026-10-11):** a real Spotify → Apple Music conversion in 5.3 s.
+- **Rejected:** Render Free and Koyeb Free (0.1 CPU), Render Starter ($7 a month), Fly.io and Railway (no ongoing free tier), Netlify (no containers); the free databases of Render (deleted after 30 days) and Supabase (paused after 7 idle days).
 
 ### 4. Environments
 
@@ -71,7 +82,7 @@ Written this way, the Phase 6 decision is a configuration change, not a rewrite.
 |---|---|---|
 | Local development | Day-to-day work | Local `postgres:16` container via `docker-compose.yml` |
 | Test | Automated tests, local and in CI | `music_app_test_db`, wiped and migrated per suite |
-| Production | The live site | Managed Postgres at the chosen provider |
+| Production | The live site | Neon Free, Frankfurt, branch `main` (preview deployments: branch `preview`) |
 
 There is deliberately **no staging environment**. For a project this size it would be overhead without a corresponding benefit; `main` is the release branch and is kept deployable at all times.
 
@@ -80,7 +91,8 @@ There is deliberately **no staging environment**. For a project this size it wou
 - Secrets live in the hosting provider's environment-variable store. **Never in the repository**, and never in a committed `.env`.
 - `.env.example` files are committed with every required key present and every value blank or obviously fake. They are the contract for what must be configured.
 - The production `JWT_SECRET` must be independently generated and must never match a development value.
-- The Google OAuth client must list the production origin in its authorised JavaScript origins and redirect URIs; this is a manual step in the Google Cloud Console at deploy time and is easy to forget.
+- The Google OAuth client must list the production origin (`https://bookrough.vercel.app`) under **Authorized JavaScript origins** — not under redirect URIs, which this sign-in flow does not use; an origin entered there instead produces `origin_mismatch`. This is a manual step in the Google Cloud Console and is easy to get wrong.
+- Production variables are set in Vercel per environment: `DATABASE_URL` and `JWT_SECRET` (secrets, different for Production and Preview), `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `PORT=4000`, `LOG_LEVEL=info` (lowercase). Never `E2E_GOOGLE_PUBLIC_KEY` or `E2E_SCRAPER_FIXTURES`. The full table is in `docs/features/production-deploy.md` §3.6.
 - Rotating a secret is a configuration change at the provider, not a code change or a redeploy of new source.
 
 ### 6. The Progressive Web App
@@ -122,16 +134,16 @@ Register the service worker **only in production builds**. A service worker runn
 
 ### 7. Deployment checklist (Phase 6)
 
-- [ ] Provider chosen, with current free-tier terms verified and recorded in this document.
-- [ ] Production Postgres provisioned; `DATABASE_URL` set as a secret.
-- [ ] Prisma migrations run against production — automatic: the container runs `prisma migrate deploy` on start (§3.5).
-- [ ] `JWT_SECRET` independently generated and set.
-- [ ] Google OAuth client updated with the production origin and redirect URI.
-- [ ] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
-- [ ] Frontend built with the production `VITE_API_BASE_URL` and deployed.
-- [ ] CORS configured to allow exactly the production frontend origin — not a wildcard.
-- [ ] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite=Lax`, which requires the frontend and the API on the same site (one registrable domain, or the API proxied under the frontend origin). See `docs/features/google-auth.md` §4.
-- [ ] Link conversion verified end-to-end in production — this is the step most likely to fail, because Chromium's memory footprint on a small instance is not reproducible locally.
+- [x] Provider chosen, with current free-tier terms verified and recorded in this document (§3.6, 2026-10-10).
+- [x] Production Postgres provisioned; `DATABASE_URL` set as a secret.
+- [x] Prisma migrations run against production — automatic: the container runs `prisma migrate deploy` on start (§3.5).
+- [x] `JWT_SECRET` independently generated and set.
+- [x] Google OAuth client updated with the production origin (JavaScript origins only, §5).
+- [x] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
+- [x] Frontend built and deployed on the same origin; production builds default the API base URL to `/api`.
+- [x] CORS configured to allow exactly the production origin — not a wildcard (unused in practice: every call is same-origin).
+- [x] Auth cookie verified as `HttpOnly`, `Secure`, and `SameSite=Lax` in production (2026-10-11) — possible because the frontend and the API share one origin (§3.6). See `docs/features/google-auth.md` §4.
+- [x] Link conversion verified end-to-end in production — the step most likely to fail; it converted in 5.3 s on 2026-10-11.
 - [ ] PWA installed on a real iPhone from Safari and launched from the home screen.
 - [ ] Offline behaviour verified in airplane mode: feed readable, write actions clearly blocked.
 - [ ] Service-worker update prompt verified by deploying a second build.
