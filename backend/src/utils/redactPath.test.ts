@@ -45,6 +45,52 @@ describe('serializeRequest', () => {
     });
     expect(JSON.stringify(logged)).not.toContain('Dana');
   });
+
+  it('keeps only the host and user-agent headers and drops the remote address', () => {
+    // Arrange: what a request looks like behind a hosting proxy.
+    const req = {
+      id: 8,
+      method: 'PUT',
+      url: '/api/posts/p1/bookmark',
+      remoteAddress: '203.0.113.7',
+      remotePort: 36424,
+      headers: {
+        host: 'bookrough.example',
+        'user-agent': 'Mozilla/5.0',
+        'x-forwarded-for': '203.0.113.7',
+        'x-real-ip': '203.0.113.7',
+        forwarded: 'for=203.0.113.7;proto=https',
+        'x-vercel-ip-city': 'Somewhere',
+        'x-vercel-ip-latitude': '32.1',
+        'x-vercel-oidc-token': 'eyJ.platform.token',
+        'x-vercel-proxy-signature': 'Bearer abc',
+        origin: 'https://bookrough.example',
+      },
+    };
+
+    // Act
+    const logged = serializeRequest(req);
+
+    // Assert
+    expect(logged).toEqual({
+      id: 8,
+      method: 'PUT',
+      url: '/api/posts/p1/bookmark',
+      headers: { host: 'bookrough.example', 'user-agent': 'Mozilla/5.0' },
+    });
+    const line = JSON.stringify(logged);
+    expect(line).not.toContain('203.0.113.7');
+    expect(line).not.toContain('Somewhere');
+    expect(line).not.toContain('eyJ.platform.token');
+  });
+
+  it('logs no headers when the request has none', () => {
+    // Act
+    const logged = serializeRequest({ id: 1, method: 'GET', url: '/api/health' });
+
+    // Assert
+    expect(logged).toEqual({ id: 1, method: 'GET', url: '/api/health', headers: {} });
+  });
 });
 
 describe('REDACTED_LOG_PATHS', () => {
