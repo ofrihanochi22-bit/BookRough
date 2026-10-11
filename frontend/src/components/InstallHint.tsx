@@ -1,25 +1,10 @@
 import { useState } from 'react';
 
+import { readDeviceValue, writeDeviceValue } from '../lib/deviceStorage';
 import { shouldOfferInstall } from '../lib/installHint';
+import { DismissibleBar } from './ui/DismissibleBar';
 
 const DISMISSED_KEY = 'bookrough.installHintDismissed';
-
-/** Storage can be missing or throw (private mode, blocked site data); the hint then just shows. */
-function readDismissed(): boolean {
-  try {
-    return window.localStorage.getItem(DISMISSED_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function rememberDismissed(): void {
-  try {
-    window.localStorage.setItem(DISMISSED_KEY, '1');
-  } catch {
-    // Dismissed for this visit only.
-  }
-}
 
 function offerInstall(): boolean {
   return shouldOfferInstall(navigator, (query) => window.matchMedia(query));
@@ -27,36 +12,30 @@ function offerInstall(): boolean {
 
 /**
  * "Add to Home Screen" instructions for iPhone and iPad visitors, on the
- * screens a friend lands on in Safari — docs/features/pwa-installable.md §5.1.
+ * screens a friend lands on in the browser — docs/features/pwa-installable.md §5.1.
  * Never shown inside the installed app; a dismissal is remembered on this device.
  */
 export function InstallHint() {
-  const [visible, setVisible] = useState(() => offerInstall() && !readDismissed());
+  const [visible, setVisible] = useState(
+    () => offerInstall() && readDeviceValue(DISMISSED_KEY) !== '1',
+  );
 
   if (!visible) {
     return null;
   }
 
   return (
-    <div
+    <DismissibleBar
       role="note"
-      className="mb-6 flex items-start gap-2 rounded-xl bg-accent-soft py-2 pr-1 pl-4 text-sm text-accent-ink"
+      dismissLabel="Dismiss install hint"
+      onDismiss={() => {
+        writeDeviceValue(DISMISSED_KEY, '1');
+        setVisible(false);
+      }}
+      className="mb-6 rounded-xl text-left"
     >
-      <p className="min-w-0 flex-1 self-center text-left">
-        Install BookRough: open <strong>Share</strong> (under ••• in newer Safari), then{' '}
-        <strong>Add to Home Screen</strong>.
-      </p>
-      <button
-        type="button"
-        aria-label="Dismiss install hint"
-        onClick={() => {
-          rememberDismissed();
-          setVisible(false);
-        }}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full text-lg leading-none"
-      >
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
+      Install BookRough: tap <strong>Share</strong> (in Safari it&apos;s under •••), then{' '}
+      <strong>Add to Home Screen</strong>.
+    </DismissibleBar>
   );
 }

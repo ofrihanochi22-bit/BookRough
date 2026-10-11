@@ -61,7 +61,7 @@ Decided 2026-10-11, option A:
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     {
-      "src": "/icons/icon-512-maskable.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -80,13 +80,12 @@ Decided 2026-10-11, option A:
 
 The vinyl mark from `components/ui/Wordmark.tsx`, drawn in `--on-accent` white on a full-bleed `--accent` purple (`#534ab7`) square. No look-and-feel decision is asked here; the real logo replaces these files and nothing else.
 
-| File (`frontend/public/`)     | Size   | Notes                                                                                |
-| ----------------------------- | ------ | ------------------------------------------------------------------------------------ |
-| `icons/icon.svg`              | vector | The source. Every PNG is rendered from it. Also the favicon (`<link rel="icon">`).   |
-| `icons/icon-192.png`          | 192    | Manifest, `any`                                                                      |
-| `icons/icon-512.png`          | 512    | Manifest, `any`                                                                      |
-| `icons/icon-512-maskable.png` | 512    | Manifest, `maskable`: the mark inside the central 80% safe zone, purple to the edges |
-| `apple-touch-icon.png`        | 180    | iPhone home screen. Opaque, no rounded corners: iOS applies its own mask             |
+| File (`frontend/public/`) | Size   | Notes                                                                                                                                |
+| ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `icons/icon.svg`          | vector | The source. Every PNG is rendered from it. Also the favicon (`<link rel="icon">`).                                                   |
+| `icons/icon-192.png`      | 192    | Manifest, `any`                                                                                                                      |
+| `icons/icon-512.png`      | 512    | Manifest, `any` and `maskable`: the mark already sits inside the central 80% safe zone, purple to the edges, so one file serves both |
+| `apple-touch-icon.png`    | 180    | iPhone home screen. Opaque, no rounded corners: iOS applies its own mask                                                             |
 
 **How they are made.** Rendered once with the Chromium that `e2e/`'s Playwright already installs: a small committed script, `frontend/scripts/render-icons.mjs`, loads `icon.svg` at each size and saves a screenshot. It imports `chromium` from `e2e`'s existing `@playwright/test`, so it adds no dependency; it is run by hand when the SVG changes, never in CI or the build. The PNGs are committed.
 
@@ -149,15 +148,15 @@ Two obstacles to remove, both dashboard settings (Claude never changes them):
 - The page is **not already installed**: `navigator.standalone !== true` and `matchMedia('(display-mode: standalone)')` does not match.
 - The hint was **not dismissed** on this device.
 
-On iOS the hint shows in any browser, since Chrome and Firefox on iOS also offer Add to Home Screen from their Share menu. It never shows on desktop or Android.
+On iOS the hint shows in Safari, Chrome and Firefox, which all offer Add to Home Screen from their Share menu and all carry a `Safari/` token in the user agent. It does **not** show in apps' in-app browsers (Instagram, Facebook and the like), which are bare WebViews without that token and cannot install. It never shows on desktop or Android.
 
-**Content (phone first, 375 px):** one slim bar of plain text, built like `AnnouncementBanner`:
+**Content (phone first, 375 px):** one slim bar of plain text, the shared `components/ui/DismissibleBar` primitive, which `AnnouncementBanner` now uses too:
 
-> Install BookRough: open **Share** (under ••• in newer Safari), then **Add to Home Screen**.
+> Install BookRough: tap **Share** (in Safari it's under •••), then **Add to Home Screen**.
 
 plus a ✕ button (44×44 px, `aria-label="Dismiss install hint"`). It is placeholder styling from the existing tokens (`bg-accent-soft`, `text-accent-ink`), `role="note"`. The visual design comes later.
 
-**Dismissal:** the ✕ hides it immediately and stores `bookrough.installHintDismissed = "1"` in `localStorage`, so it stays hidden on that device. If storage is unavailable or throws (private mode, blocked site data), the hint still shows, and the ✕ hides it for the current visit only — the same pattern as `AnnouncementBanner`.
+**Dismissal:** the ✕ hides it immediately and stores `bookrough.installHintDismissed = "1"` in `localStorage`, so it stays hidden on that device. If storage is unavailable or throws (private mode, blocked site data), the hint still shows, and the ✕ hides it for the current visit only — through `lib/deviceStorage`, shared with `AnnouncementBanner`.
 
 **States:** no loading, empty or error states. The hint is synchronous and local, renders nothing when its conditions fail, and never blocks or shifts the Google button.
 
@@ -196,6 +195,7 @@ Changes as in §3.3. No visible change on desktop beyond the favicon.
 - ✅ iPhone Safari user agent, not standalone → offer.
 - ✅ iPad (desktop-class agent with `maxTouchPoints` 5) → offer.
 - ✅ Chrome on iOS (`CriOS`) → offer.
+- ❌ Instagram's in-app browser on an iPhone (no `Safari/` token) → no offer.
 - ❌ `navigator.standalone === true` → no offer.
 - ❌ `display-mode: standalone` matches → no offer.
 - ❌ Desktop Safari on a Mac (`Macintosh`, `maxTouchPoints` 0) → no offer.
@@ -260,16 +260,17 @@ None at approval. One question is decided by the device in Stage 2, not by the d
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                                                                                                                                                 | Reason                                                                                                                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-11 | The iPhone acceptance test runs on this branch's preview before merge, with Vercel Authentication off and the preview alias in the OAuth JavaScript origins; both reverted after the merge (option A)                    | The only option where the step's real test runs before merge. A Shareable Link's query parameter does not reach the installed app's `start_url`, and Hobby has no password protection |
-| 2026-10-11 | Test Google's popup in the installed app first; if it fails, the redirect fallback is built in this feature after a spec amendment (option A)                                                                            | An installed app nobody can sign into does not meet the goal. Designing the fallback only if the device proves it necessary avoids designing the wrong thing                          |
-| 2026-10-11 | Manifest: `BookRough` / `BookRough`, `start_url` = `scope` = `id` = `/`, `standalone`, no `orientation` (option A)                                                                                                       | Welcome already routes a signed-in user; the first launch is always signed out; iOS ignores orientation                                                                               |
-| 2026-10-11 | No new dependency in 6.1: a hand-written manifest and PNGs rendered once with the existing Playwright Chromium; `vite-plugin-pwa` moves to 6.2 (option A)                                                                | No service worker is needed to install. The plugin would build an unregistered `sw.js` early (CLAUDE.md §16's warning). 6.2 can reuse the file with `manifest: false`                 |
-| 2026-10-11 | A dismissible install hint on Welcome and the invite preview, iOS only, hidden inside the installed app (option B)                                                                                                       | iOS has no install prompt, and invite links always open in Safari, which is where friends land                                                                                        |
-| 2026-10-11 | Placeholders without a question: the vinyl mark on the accent purple, `#fbfaf7` colours, `status-bar-style: default`, no splash screens                                                                                  | Visual design is deferred (developer's standing preference); the simplest options that reuse existing tokens                                                                          |
-| 2026-10-11 | Probe passed on a real iPhone (iOS 26) on the preview: installed from Safari, purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (§4) is not built | I2 ✅ and I3 ✅; resolves `google-auth.md` §8                                                                                                                                         |
-| 2026-10-11 | The hint reads "open Share (under ••• in newer Safari)" rather than "tap Share"                                                                                                                                          | iOS 26 Safari moved Share into the ••• menu; the developer could not find it during the probe                                                                                         |
+| Date       | Decision                                                                                                                                                                                                                       | Reason                                                                                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-11 | The iPhone acceptance test runs on this branch's preview before merge, with Vercel Authentication off and the preview alias in the OAuth JavaScript origins; both reverted after the merge (option A)                          | The only option where the step's real test runs before merge. A Shareable Link's query parameter does not reach the installed app's `start_url`, and Hobby has no password protection            |
+| 2026-10-11 | Test Google's popup in the installed app first; if it fails, the redirect fallback is built in this feature after a spec amendment (option A)                                                                                  | An installed app nobody can sign into does not meet the goal. Designing the fallback only if the device proves it necessary avoids designing the wrong thing                                     |
+| 2026-10-11 | Manifest: `BookRough` / `BookRough`, `start_url` = `scope` = `id` = `/`, `standalone`, no `orientation` (option A)                                                                                                             | Welcome already routes a signed-in user; the first launch is always signed out; iOS ignores orientation                                                                                          |
+| 2026-10-11 | No new dependency in 6.1: a hand-written manifest and PNGs rendered once with the existing Playwright Chromium; `vite-plugin-pwa` moves to 6.2 (option A)                                                                      | No service worker is needed to install. The plugin would build an unregistered `sw.js` early (CLAUDE.md §16's warning). 6.2 can reuse the file with `manifest: false`                            |
+| 2026-10-11 | A dismissible install hint on Welcome and the invite preview, iOS only, hidden inside the installed app (option B)                                                                                                             | iOS has no install prompt, and invite links always open in Safari, which is where friends land                                                                                                   |
+| 2026-10-11 | Placeholders without a question: the vinyl mark on the accent purple, `#fbfaf7` colours, `status-bar-style: default`, no splash screens                                                                                        | Visual design is deferred (developer's standing preference); the simplest options that reuse existing tokens                                                                                     |
+| 2026-10-11 | Probe passed on a real iPhone (iOS 26) on the preview: installed from Safari, purple icon named BookRough, no address bar, and Google's popup signs in inside the installed app. The redirect fallback (§4) is not built       | I2 ✅ and I3 ✅; resolves `google-auth.md` §8                                                                                                                                                    |
+| 2026-10-11 | The hint reads "tap Share (in Safari it's under •••)" rather than "tap Share"                                                                                                                                                  | iOS 26 Safari moved Share into the ••• menu, which the developer could not find during the probe; Chrome and Firefox on iOS keep Share elsewhere, so the copy names Safari only for the ••• part |
+| 2026-10-11 | Stage 3 `/code-review`: no hint in in-app browsers (`Safari/` token required); `DismissibleBar` and `lib/deviceStorage` shared with `AnnouncementBanner`; the maskable entry reuses `icon-512.png` (the duplicate PNG removed) | The hint would have told Instagram/Facebook WebView users to do something impossible; the bar and its storage were a near copy of the announcement; the two 512 PNGs were byte-identical         |
 
 ## 10. Doc updates (same PR)
 

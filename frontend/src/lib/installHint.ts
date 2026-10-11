@@ -19,12 +19,21 @@ export function isIos({ userAgent, maxTouchPoints }: InstallEnvironment): boolea
   return /Macintosh/.test(userAgent) && maxTouchPoints > 1;
 }
 
-/** True on iOS when the page is not already running as the installed app. */
+/**
+ * Safari, Chrome and Firefox on iOS all carry a `Safari/` token; the in-app
+ * browsers of Instagram, Facebook and similar apps are bare WebViews without
+ * it, and offer no Add to Home Screen.
+ */
+function isFullBrowser({ userAgent }: InstallEnvironment): boolean {
+  return /Safari\//.test(userAgent);
+}
+
+/** True in an iOS browser that can install, when the page is not already the installed app. */
 export function shouldOfferInstall(
   environment: InstallEnvironment,
   matchMedia: (query: string) => { matches: boolean },
 ): boolean {
-  if (!isIos(environment)) {
+  if (!isIos(environment) || !isFullBrowser(environment)) {
     return false;
   }
   const installed =

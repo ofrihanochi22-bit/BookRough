@@ -20,7 +20,6 @@ const svg = await readFile(`${publicDir}icons/icon.svg`, 'utf8');
 const outputs = [
   { file: 'icons/icon-192.png', size: 192 },
   { file: 'icons/icon-512.png', size: 512 },
-  { file: 'icons/icon-512-maskable.png', size: 512 },
   { file: 'apple-touch-icon.png', size: 180 },
 ];
 
@@ -31,7 +30,7 @@ try {
     await page.setContent(
       `<style>html,body{margin:0}svg{display:block;width:${size}px;height:${size}px}</style>${svg}`,
     );
-    await page.screenshot({ path: `${publicDir}${file}`, omitBackground: false });
+    await page.screenshot({ path: `${publicDir}${file}` });
     await page.close();
     console.info(`wrote ${file} (${size}×${size})`);
   }
