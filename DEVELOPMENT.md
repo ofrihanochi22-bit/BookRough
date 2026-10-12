@@ -1026,7 +1026,7 @@ What I did:
 
 Built the backend's deployment unit per `docs/features/backend-docker.md`. No application code changed.
 
-- **Image:** `backend/Dockerfile` is a multi-stage build on `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright 1.63.0). The runtime stage holds production dependencies, `dist/` and the Prisma migrations only. It runs as the non-root `pwuser`, with `tini` as PID 1, and its start command is `prisma migrate deploy && exec node dist/index.js`. A `HEALTHCHECK` calls `/api/health`. `backend/.dockerignore` keeps `.env` and build output out of the context.
+- **Image:** `backend/Dockerfile` is a multi-stage build on `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright 1.63.0) — replaced on 2026-10-11 by `node:24.21.0-bookworm-slim` with Chromium's headless shell only, user `node` (Step 6.3a). The runtime stage holds production dependencies, `dist/` and the Prisma migrations only. It runs as the non-root `pwuser`, with `tini` as PID 1, and its start command is `prisma migrate deploy && exec node dist/index.js`. A `HEALTHCHECK` calls `/api/health`. `backend/.dockerignore` keeps `.env` and build output out of the context.
 - **Dependencies (approved):** `prisma` moved from `devDependencies` to `dependencies` (same version), because the container migrates; `tini` installed in the image.
 - **CI:** `test:docker` in `main.yml` (after merge and nightly, not on PRs). It builds the image, runs it against an empty Postgres, waits for health, proves the migrations through `/api/settings`, checks for a graceful stop with exit code 0, and fails on any error-level log line.
 - **Smoke-tested locally:**
@@ -1053,7 +1053,7 @@ docker run --rm --name api-smoke -p 4500:4000 -e DATABASE_URL=postgresql://bookr
 
 1. The logs list the 8 migrations being applied, then "API listening".
 2. Open `http://localhost:4500/api/health` → `{"status":"success",…}`; `http://localhost:4500/api/settings` → the default settings.
-3. In another terminal, run `docker exec api-smoke whoami` → `pwuser`.
+3. In another terminal, run `docker exec api-smoke whoami` → `node` (it was `pwuser` until the slim image of 2026-10-11, `docs/features/deployment-storage.md`).
 4. Press Ctrl+C → "Shutting down" and a clean exit.
 5. Clean up: `docker exec bookrough-postgres psql -U bookrough -d postgres -c "DROP DATABASE music_app_docker_smoke"` and `docker rmi bookrough-api`.
 
@@ -1695,6 +1695,49 @@ cd frontend && npx vitest run src/lib/installHint.test.ts src/components/Install
 npm test --prefix e2e                               # 41 runs (+3 skipped), needs Docker Postgres
 node frontend/scripts/render-icons.mjs              # only when icon.svg changes
 ```
+
+---
+
+### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
+
+Status: ✅ Done (post-merge checks S1–S4 in the spec)
+Branch: chore/vercel-storage
+Spec: docs/features/deployment-storage.md
+
+Goal: Vercel warned that the Hobby team had used 75% of its 10 GB of deployment storage — every kept deployment holds its own 3.12 GB backend image. After this, the worst case is about 3 × 1.2 GB, however often we deploy.
+
+Tasks:
+
+- [x] Spec: docs/features/deployment-storage.md (the developer asked for the safest option and approved the plan in advance, 2026-10-11).
+- [x] Infra: `backend/Dockerfile` on `node:24.21.0-bookworm-slim` with only Chromium's headless shell and its libraries; user `node`; `HEALTHCHECK` with Node's `fetch`.
+- [x] Infra: `vercel.json` — only `main` deploys; a branch opts in to a preview by its exact name.
+- [x] CI: `test:docker` launches Chromium inside the image.
+- [x] Review: `/code-review` (3 fixed — Node tag pinned, opt-in fallback documented, stale `pwuser` docs; 2 skipped — layer caching, Node health probe) and `/security-review` (clean).
+- [x] Tests: the `vercel.json` contract; local Docker smoke test with a real conversion.
+
+What I did:
+
+No UC of its own: it keeps the deployment every UC runs on inside the free tier.
+
+- **Image:** 2.85 GB → **1.17 GB** (browser and libraries 589 MB, production `node_modules` 345 MB). The browser is installed by the `playwright` package in the lockfile, so there is no image tag to keep in step any more. `openssl` and `ca-certificates` for Prisma.
+- **Previews:** `"git": { "deploymentEnabled": { "**": false, "main": true } }`. A branch that needs a preview (Step 6.2's iPhone checks) adds `"<its branch>": true` in its own `vercel.json` and removes it before the merge.
+- **One PR, not two:** a previews-only PR would itself have deployed one more 3.1 GB production image.
+- **Docs:** `deployment` §3.5–3.6, `tech stack`, `tests`, `link converter implementation guide` (.md + .docx); `CLAUDE.md` §2, §7, §16; `backend-docker.md` superseded notes; `production-deploy.md` — M4 ("no limit") corrected.
+
+How to view & test:
+
+```bash
+docker build -t bookrough-api backend          # ~1.2 GB: docker images bookrough-api
+cd frontend && npx vitest run src/vercelConfig.test.ts
+```
+
+Smoke test as in Step 3.4, plus one real conversion inside the running container:
+
+```bash
+docker exec api-smoke node --input-type=module -e "import { convertLink } from '/app/dist/services/linkScraper.service.js'; console.log(await convertLink('https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv', 'SPOTIFY')); process.exit(0);"
+```
+
+→ `converted` with five links. After the merge: production builds, `/api/health` is 200, a real post converts, and Vercel → Usage → Function Storage falls (spec §8, S1–S4).
 
 ---
 

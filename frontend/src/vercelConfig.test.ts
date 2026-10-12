@@ -85,6 +85,21 @@ describe('vercel.json', () => {
     }
   });
 
+  it('deploys main, and no other branch unless it is opted in by its exact name', () => {
+    // Arrange — docs/features/deployment-storage.md §3.1: every deployment
+    // stores a backend image, so previews are off unless a branch asks for one.
+    const enabled = (config.git as { deploymentEnabled: Record<string, boolean> })
+      .deploymentEnabled;
+    const optedIn = Object.entries(enabled).filter(([branch, on]) => on && branch !== 'main');
+
+    // Act & Assert
+    expect(enabled['**']).toBe(false);
+    expect(enabled.main).toBe(true);
+    for (const [branch] of optedIn) {
+      expect(branch).toMatch(/^[a-z]+\/[a-z0-9-]+$/);
+    }
+  });
+
   it('keeps build settings out of the top level, where services mode rejects them', () => {
     // Assert
     for (const key of [

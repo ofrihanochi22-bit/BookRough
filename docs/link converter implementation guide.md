@@ -164,6 +164,9 @@ return res.status(500).json({ error: "Could not process the music link." });
 
 Because Playwright requires underlying OS libraries (like libnss3, libasound2) to run Chromium, you cannot easily deploy this to standard lightweight Node environments without a custom Dockerfile.
 Here is a Dockerfile utilizing Playwright's official image, which comes pre-loaded with all the necessary system dependencies.
+
+**Note (2026-10-11):** the project's actual `backend/Dockerfile` no longer uses this image. It uses a slim Node base with only Chromium's headless shell and its libraries, to keep each deployment's image small — see `docs/deployment.md` §3.5 and `docs/features/deployment-storage.md`.
+
 Dockerfile
 
 # Use the official Playwright image as the base

@@ -113,7 +113,7 @@ jobs:
 
   # The backend image (docs/features/backend-docker.md §5): it must keep
   # building and serving, so the Phase 6 deploy is configuration, not work.
-  # Kept off pr.yml on purpose: the base image alone is ~2 GB.
+  # Kept off pr.yml on purpose: building it (~1.2 GB) breaks the PR budget.
   test-docker:
     name: test:docker
     runs-on: ubuntu-latest
@@ -158,6 +158,22 @@ jobs:
       # /api/settings reads app_settings, which exists only once migrated.
       - name: Prove the migrations ran
         run: curl -fsS http://localhost:4000/api/settings
+      # The slim image installs only Chromium's headless shell and its
+      # libraries (docs/features/deployment-storage.md): a missing library
+      # would break every conversion while health stays green, so launch the
+      # browser the converter launches, with its flags, and render a page.
+      - name: Chromium launches inside the image
+        run: >-
+          docker exec api node --input-type=module -e "
+          import { chromium } from 'playwright';
+          import { LAUNCH_ARGS } from '/app/dist/services/linkScraper.service.js';
+          const browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
+          const page = await browser.newPage();
+          await page.setContent('<p>ok</p>');
+          const text = await page.textContent('p');
+          await browser.close();
+          if (text !== 'ok') process.exit(1);
+          process.exit(0);"
       # Exit code 0 means Node handled SIGTERM through tini; a kill after the
       # 10 s grace period would be 137.
       - name: Stop gracefully
