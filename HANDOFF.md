@@ -57,7 +57,7 @@ Phase 6 was re-sliced on 2026-10-10 to ship in this order: 6.3 → 6.1 → **6.2
    - It branched from `c7da76b` (PR #34), **before** PR #35 — bring it up to date with `main` first.
    - Remaining: Stage 4 tests from the spec's scenario list, `/security-review` if the spec asks for it, the iPhone/airplane-mode and second-deploy checks, then `DEVELOPMENT.md` and the PR.
    - For an iPhone check the branch must opt in to a Vercel preview by adding its exact name to `vercel.json` → `git.deploymentEnabled`, and remove it before merge. The service worker is registered in production builds only.
-2. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`). Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`. **The address goes to friends only after this merges.**
+2. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`). Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
 3. **Step 6.5 — README** (`docs/readme-deploy`).
 
 ---

@@ -1845,6 +1845,7 @@ Tasks:
 - [ ] Backend: Audit logs for leaked secrets or PII before they go anywhere persistent.
 - [ ] Infra: Confirm no secret is committed anywhere in the repository history.
 - [ ] Infra: Nightly E2E workflow is running and its failures are visible.
+- [ ] Infra: Cap Vercel storage with a fixed ceiling, decided 2026-11-02 (`deployment-storage.md` §1.2). **Only once Images Storage has been seen to fall after the 2026-11-02 deletion** — otherwise deleting images frees nothing. A GitHub Action after each merge to `main` keeps the 4 newest images in `api` (`vercel vcr image ls` / `image rm --yes`), about 1.6 GB, never the one production runs. It needs the Vercel CLI (a new tool, recorded per CLAUDE.md §18) and a `VERCEL_TOKEN` repository secret, which the developer creates. The developer also sets a short Preview retention, such as 7 days, in the project's Build and Deployment settings. Function Storage then tops out near 4.8 GB. The pre-merge meter check (CLAUDE.md §16) stays.
 
 What I did:
 How to view & test:
