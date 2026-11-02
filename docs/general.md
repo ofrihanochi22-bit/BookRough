@@ -40,9 +40,10 @@ These are settled decisions, not options. The full reference is in `docs/tech st
 
 - **Post Recommendation:** A user pastes a link to a song/album from their service (e.g., Spotify).
 - **Automated Processing (Backend):** The server identifies the song, fetches metadata (Artist, Title, Cover Art), and generates a **"Universal Link"** (or retrieves IDs for all other platforms).
-- **Recipient View:** When another community member clicks the song, they are automatically directed to the specific service they defined in their preferences (e.g., an Apple Music user clicks a link sent from Spotify but is redirected to Apple Music).
+- **Recipient View:** When another community member, or the friend it was sent to, clicks the song, they are automatically directed to the specific service they defined in their preferences (e.g., an Apple Music user clicks a link sent from Spotify but is redirected to Apple Music).
 - **Posting experience:** Conversion is **synchronous and blocking**. The user presses Submit, waits behind a spinner with explanatory copy, and the post appears fully converted. The post is never published in a half-finished state that fills in later.
 - **Graceful failure:** If conversion fails or exceeds its time ceiling, the post is still saved with the original link and a quiet note that other services were unavailable. The user's content is never dropped.
+- **Direct recommendations:** Two friends can send each other a song or album directly, with no community in common (UC-20). It gets the same conversion, the same blocking wait and the same fallback as a post, each person sees their own service, and it is visible only to those two. One friend per send, no replies: this is not a chat.
 
 ### 4.4. Interaction & Rating
 

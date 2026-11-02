@@ -54,13 +54,20 @@ export interface RatingWithPost {
     songArtist: string | null;
     songCoverArtUrl: string | null;
     conversionPending: boolean;
-    community: { id: string; name: string };
+    community: { id: string; name: string } | null;
   };
 }
 
-/** Field by field, never a spread. */
+/**
+ * Field by field, never a spread. The profile query only reads ratings through
+ * community membership: a direct item here is a bug, and fails rather than shows
+ * (direct-recommendations.md §4.7).
+ */
 export function toProfileRating(rating: RatingWithPost): ProfileRating {
   const { post } = rating;
+  if (!post.community) {
+    throw new Error('A profile rating must belong to a community.');
+  }
   return {
     id: rating.id,
     score: rating.score,

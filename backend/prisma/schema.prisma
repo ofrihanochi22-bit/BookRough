@@ -56,37 +56,41 @@ enum PostKind {
 /// The three profile columns are null until onboarding finishes — the row is
 /// created at first sign-in, before the user has chosen anything.
 model User {
-  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                      String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// The account key: Google's opaque, stable `sub` claim.
-  googleSub              String                @unique @map("google_sub")
+  googleSub               String                @unique @map("google_sub")
   /// Shown exactly as typed — any language, editable.
-  displayName            String?               @map("display_name") @db.VarChar(50)
+  displayName             String?               @map("display_name") @db.VarChar(50)
   /// Server-derived normalised form of displayName. Carries the uniqueness, so
   /// "Ofri" and "ofri " collide while each is still shown as typed. Never sent
   /// to a client.
-  displayNameKey         String?               @unique @map("display_name_key") @db.VarChar(50)
+  displayNameKey          String?               @unique @map("display_name_key") @db.VarChar(50)
   /// Google's photo URL. Kept only before onboarding (to offer it as a
   /// choice) or when the user chose it (docs/features/onboarding.md §3).
-  profilePictureUrl      String?               @map("profile_picture_url")
+  profilePictureUrl       String?               @map("profile_picture_url")
   /// The user chose their Google photo as their avatar. False until they do.
-  useGooglePicture       Boolean               @default(false) @map("use_google_picture")
+  useGooglePicture        Boolean               @default(false) @map("use_google_picture")
   /// No default: "has not chosen" must stay distinguishable from "chose Spotify".
-  preferredService       StreamingService?     @map("preferred_service")
+  preferredService        StreamingService?     @map("preferred_service")
   /// Set directly in the database, never through an API (CLAUDE.md §17).
-  role                   UserRole              @default(USER)
-  createdAt              DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  memberships            CommunityMember[]
-  bans                   CommunityBan[]        @relation("BannedUser")
-  bansIssued             CommunityBan[]        @relation("BannedBy")
-  settingChanges         SettingChange[]
-  posts                  Post[]
-  bookmarks              Bookmark[]
-  ratings                Rating[]
-  friendRequestsSent     Friend[]              @relation("FriendRequester")
-  friendRequestsReceived Friend[]              @relation("FriendAddressee")
-  invitations            CommunityInvitation[] @relation("InvitationInvitee")
-  invitationsSent        CommunityInvitation[] @relation("InvitationInviter")
+  role                    UserRole              @default(USER)
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// When Received was last opened; null until then. Never sent to a client
+  /// (docs/features/direct-recommendations.md §3.1).
+  recommendationsSeenAt   DateTime?             @map("recommendations_seen_at") @db.Timestamptz(3)
+  memberships             CommunityMember[]
+  bans                    CommunityBan[]        @relation("BannedUser")
+  bansIssued              CommunityBan[]        @relation("BannedBy")
+  settingChanges          SettingChange[]
+  posts                   Post[]                @relation("PostAuthor")
+  recommendationsReceived Post[]                @relation("PostRecipient")
+  bookmarks               Bookmark[]
+  ratings                 Rating[]
+  friendRequestsSent      Friend[]              @relation("FriendRequester")
+  friendRequestsReceived  Friend[]              @relation("FriendAddressee")
+  invitations             CommunityInvitation[] @relation("InvitationInvitee")
+  invitationsSent         CommunityInvitation[] @relation("InvitationInviter")
 
   @@map("users")
 }
@@ -147,7 +151,12 @@ model CommunityBan {
   @@map("community_bans")
 }
 
-/// A music recommendation (UC-11, docs/features/posts-feed.md §3).
+/// A music recommendation: to a community (UC-11, docs/features/posts-feed.md §3)
+/// or to one friend (UC-20, docs/features/direct-recommendations.md §3). Exactly
+/// one of `communityId` and `recipientId` is set, enforced by the hand-written
+/// CHECK `posts_one_target`; `posts_not_self` stops a send to yourself (both in
+/// the add_direct_recommendations migration; Prisma cannot express them, and
+/// `prisma migrate diff` does not see them).
 ///
 /// Metadata and links come from the link converter; all of them are null while
 /// `conversionPending` is true. Every viewer is sent to their own service's
@@ -155,7 +164,12 @@ model CommunityBan {
 model Post {
   id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   authorId             String           @map("author_id") @db.Uuid
-  communityId          String           @map("community_id") @db.Uuid
+  communityId          String?          @map("community_id") @db.Uuid
+  /// The friend a direct recommendation was sent to.
+  recipientId          String?          @map("recipient_id") @db.Uuid
+  /// The recipient removed it from Received. Never serialised: the sender must
+  /// not learn it. It affects Received only (§3.5).
+  recipientHiddenAt    DateTime?        @map("recipient_hidden_at") @db.Timestamptz(3)
   /// Exactly as pasted (trimmed). Always present — the fallback link.
   originalUrl          String           @map("original_url") @db.VarChar(2048)
   /// The service the original link belongs to, derived from its host.
@@ -175,8 +189,10 @@ model Post {
   conversionPending    Boolean          @default(false) @map("conversion_pending")
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  author               User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  community            Community        @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author               User             @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  community            Community?       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  /// Cascade, because SetNull would break `posts_one_target`.
+  recipient            User?            @relation("PostRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   bookmarks            Bookmark[]
   ratings              Rating[]
 
@@ -184,6 +200,10 @@ model Post {
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
   /// Removing a member deletes their posts in that community.
   @@index([authorId, communityId])
+  /// Received: newest first, keyset-paginated; also the recipient's cascade.
+  @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
+  /// Sent: newest first, keyset-paginated.
+  @@index([authorId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("posts")
 }
 

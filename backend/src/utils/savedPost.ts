@@ -6,7 +6,8 @@ import type { RatingSummary } from './ratingSummary.js';
 /** One row of My List (docs/features/bookmarks-my-list.md §4). */
 export interface SavedPost {
   savedAt: string;
-  community: { id: string; name: string };
+  /** Null for a direct recommendation (direct-recommendations.md §4). */
+  community: { id: string; name: string } | null;
   /** The viewer is still in that community; a bookmark outlives membership (§3.2). */
   isMember: boolean;
   post: PublicPost;
@@ -16,7 +17,7 @@ export interface BookmarkWithPost {
   createdAt: Date;
   post: PostWithAuthor & {
     /** `members` holds at most the viewer's own membership. */
-    community: { id: string; name: string; members: Array<{ role: CommunityRole }> };
+    community: { id: string; name: string; members: Array<{ role: CommunityRole }> } | null;
   };
 }
 
@@ -29,12 +30,13 @@ export function toSavedPost(
   viewerId: string,
   viewerModerates: boolean,
   ratingSummary: RatingSummary,
+  friendIds?: ReadonlySet<string>,
 ): SavedPost {
   const { community } = bookmark.post;
   return {
     savedAt: bookmark.createdAt.toISOString(),
-    community: { id: community.id, name: community.name },
-    isMember: community.members.length > 0,
-    post: toPublicPost(bookmark.post, viewerId, viewerModerates, ratingSummary),
+    community: community && { id: community.id, name: community.name },
+    isMember: community !== null && community.members.length > 0,
+    post: toPublicPost(bookmark.post, viewerId, viewerModerates, ratingSummary, friendIds),
   };
 }

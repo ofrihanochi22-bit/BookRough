@@ -236,4 +236,36 @@ describe('PublicProfile', () => {
     // Assert
     expect(await screen.findByText('My Profile screen')).toBeInTheDocument();
   });
+
+  it('offers Send a song to a friend only, opening the sheet with them chosen', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'FRIENDS' });
+    listProfileRatings.mockResolvedValue({ items: [], nextCursor: null });
+    renderProfile();
+
+    // Act
+    await user.click(await screen.findByRole('button', { name: 'Send a song' }));
+
+    // Assert
+    const sheet = screen.getByRole('dialog', { name: 'Send a song' });
+    expect(within(sheet).getByText('Dana Levi')).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Change' })).not.toBeInTheDocument();
+  });
+
+  it.each(['NONE', 'REQUEST_SENT', 'REQUEST_RECEIVED'])(
+    'offers no Send a song while the relation is %s',
+    async (friendship) => {
+      // Arrange
+      getProfile.mockResolvedValue({ user: DANA, friendship });
+      listProfileRatings.mockResolvedValue({ items: [], nextCursor: null });
+
+      // Act
+      renderProfile();
+      await screen.findByRole('heading', { name: 'Dana Levi' });
+
+      // Assert
+      expect(screen.queryByRole('button', { name: 'Send a song' })).not.toBeInTheDocument();
+    },
+  );
 });

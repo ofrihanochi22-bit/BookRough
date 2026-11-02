@@ -1,6 +1,6 @@
 # HANDOFF.md — Where BookRough Stands
 
-A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35); production status and §4 updated **2026-11-02**.
+A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35); production status, §3 and §4 updated **2026-11-02**.
 
 It summarises; it does not replace. The binding documents are:
 
@@ -29,7 +29,7 @@ Stack in one line: React + Vite + TS + Tailwind + Zustand / Express + TS + Prism
 
 ## 2. Progress
 
-**Feature-complete for every use case.** Phases 0–5 are done; Phase 6 (shipping) is half done.
+Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommendations between friends, is new** and is built on `feat/direct-recommendations` (Step 6.1a).
 
 | Phase                    | Steps                                                                                                                                    | PRs      | Status |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
@@ -40,32 +40,33 @@ Stack in one line: React + Vite + TS + Tailwind + Zustand / Express + TS + Prism
 | 4 — Engagement           | Bookmarks / My List (UC-12), rate (UC-13), post detail (UC-16)                                                                           | #26–#28  | ✅     |
 | 5 — Social discovery     | Find people (UC-5), friend requests (UC-6/7), unfriend (UC-8), invite friends to a community (UC-9)                                      | #29–#32  | ✅     |
 | 6 — Shipping             | 6.3 production deploy, 6.1 installable PWA, 6.3a deployment-storage fix                                                                  | #33–#35  | ✅     |
-| 6 — Shipping (remaining) | **6.2 PWA offline** (on a branch, untested), **6.4 production hardening**, **6.5 README**                                                | —        | 🟡 / ☐ |
+| 6 — Shipping (remaining) | **6.1a direct recommendations (UC-20)**, **6.2 PWA offline** (on a branch, untested), **6.4 production hardening**, **6.5 README**       | —        | 🟡 / ☐ |
 
 UC-17 (password reset) is withdrawn; its number is not reused.
 
-Last measured (Step 6.3/6.1): backend 829 tests at 98.85% lines, frontend 600 tests at 98.76%, E2E 41 runs (+3 skipped). CI floor is 80%.
+Last measured (Step 6.1a): backend 930 tests at 98.93% lines, frontend 659 tests at 98.67%, E2E 43 runs (+3 skipped). CI floor is 80%.
 
 ---
 
 ## 3. What comes next, in order
 
-Phase 6 was re-sliced on 2026-10-10 to ship in this order: 6.3 → 6.1 → **6.2 → 6.4 → 6.5**.
+Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships in this order: 6.3 → 6.1 → 6.3a → **6.1a → 6.2 → 6.4 → 6.5**.
 
 0. **Get production back up** (§4) — nothing else can be checked on an iPhone until it is.
-1. **Step 6.2 — PWA offline — Stages 1–3 done, Stage 4 not started.** Branch `feat/pwa-offline` (pushed, **no PR yet**, last commit `fa0d46f`, 2026-10-11). Its spec `docs/features/pwa-offline.md` is approved and marks ☑ Spec · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged. The branch holds the spec, the implementation (`vite-plugin-pwa` 1.3.0 pinned — approved 2026-10-11; network-first `GET /api/*`, cache-first album art, remembered session for offline launch, `OfflineBar`, `UpdatePrompt`, sign-out wipes the caches) and one code-review fix-up commit. Its `DEVELOPMENT.md` entry is still ☐ — not yet updated.
-   - It branched from `c7da76b` (PR #34), **before** PR #35 — bring it up to date with `main` first.
+1. **Step 6.1a — Direct recommendations (UC-20).** Built and tested on `feat/direct-recommendations`; its PR waits for the developer's word and the storage check (CLAUDE.md §16). Merging runs a migration on Neon when the next deployment starts, so it is expected after the pause ends.
+2. **Step 6.2 — PWA offline — Stages 1–3 done, Stage 4 not started.** Branch `feat/pwa-offline` (pushed, **no PR yet**, last commit `fa0d46f`, 2026-10-11). Its spec `docs/features/pwa-offline.md` is approved and marks ☑ Spec · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged. The branch holds the spec, the implementation (`vite-plugin-pwa` 1.3.0 pinned — approved 2026-10-11; network-first `GET /api/*`, cache-first album art, remembered session for offline launch, `OfflineBar`, `UpdatePrompt`, sign-out wipes the caches) and one code-review fix-up commit. Its `DEVELOPMENT.md` entry is still ☐ — not yet updated.
+   - It branched from `c7da76b` (PR #34), **before** PR #35 and Step 6.1a — bring it up to date with `main` first, after 6.1a merges.
    - Remaining: Stage 4 tests from the spec's scenario list, `/security-review` if the spec asks for it, the iPhone/airplane-mode and second-deploy checks, then `DEVELOPMENT.md` and the PR.
    - For an iPhone check the branch must opt in to a Vercel preview by adding its exact name to `vercel.json` → `git.deploymentEnabled`, and remove it before merge. The service worker is registered in production builds only.
-2. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`). Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
-3. **Step 6.5 — README** (`docs/readme-deploy`).
+3. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`), and it must also cover `POST /api/recommendations`. Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
+4. **Step 6.5 — README** (`docs/readme-deploy`).
 
 ---
 
 ## 4. Open loose ends the developer owes (dashboard actions)
 
 - [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
-- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
+- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, then 15.25 GB later that day, with Function Storage at 2.37 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 

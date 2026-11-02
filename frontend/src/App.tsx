@@ -17,6 +17,7 @@ import { NotFound } from './pages/NotFound';
 import { PostDetail } from './pages/PostDetail';
 import { Profile } from './pages/Profile';
 import { PublicProfile } from './pages/PublicProfile';
+import { Recommendations } from './pages/Recommendations';
 import { Search } from './pages/Search';
 import { Welcome } from './pages/Welcome';
 
@@ -68,6 +69,7 @@ export function App() {
             <Route path="/posts/:postId" element={<PostDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/friends" element={<Friends />} />
+            <Route path="/recommendations" element={<Recommendations />} />
             <Route path="/users/:userId" element={<PublicProfile />} />
             <Route path="/my-list" element={<MyList />} />
             <Route path="/profile" element={<Profile />} />

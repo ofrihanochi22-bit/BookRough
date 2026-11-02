@@ -312,4 +312,81 @@ describe('MyList', () => {
     expect(titles()).toEqual(['Song 1']);
     expect(ratePost).not.toHaveBeenCalled();
   });
+
+  it('a direct recommendation names its sender, with no community link, and rates while friends', async () => {
+    // Arrange
+    listBookmarks.mockResolvedValue({
+      items: [
+        saved(1, {
+          community: null,
+          isMember: false,
+          post: makePost({
+            id: 'post-1',
+            title: 'Song 1',
+            direct: {
+              recipient: { id: 'me', displayName: 'Me', profilePictureUrl: null },
+              isFriend: true,
+            },
+          }),
+        }),
+      ],
+      nextCursor: null,
+    });
+
+    // Act
+    renderList();
+
+    // Assert
+    const card = (await screen.findByText('Song 1')).closest('article')!;
+    expect(within(card).getByText(/Sent by Dana/)).toBeInTheDocument();
+    expect(within(card).queryByText(/Shared by/)).not.toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: /Rate & Review/ })).toBeInTheDocument();
+  });
+
+  it('after unfriending a saved direct recommendation stays, with no rate button', async () => {
+    // Arrange
+    listBookmarks.mockResolvedValue({
+      items: [
+        saved(1, {
+          community: null,
+          isMember: false,
+          post: makePost({
+            id: 'post-1',
+            title: 'Song 1',
+            direct: {
+              recipient: { id: 'me', displayName: 'Me', profilePictureUrl: null },
+              isFriend: false,
+            },
+          }),
+        }),
+      ],
+      nextCursor: null,
+    });
+
+    // Act
+    renderList();
+
+    // Assert
+    const card = (await screen.findByText('Song 1')).closest('article')!;
+    expect(within(card).getByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
+  });
+
+  it('a refused rating closes the sheet and reloads the list', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    listBookmarks.mockResolvedValue({ items: [saved(1)], nextCursor: null });
+    ratePost.mockRejectedValue(httpError(403, 'You can only rate songs from friends.'));
+    renderList();
+
+    // Act
+    await user.click(await screen.findByRole('button', { name: /Rate & Review/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
+    await user.click(within(sheet).getByRole('radio', { name: '8' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
+
+    // Assert
+    await vi.waitFor(() => expect(listBookmarks).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

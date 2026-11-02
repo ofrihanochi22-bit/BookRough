@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** The My List-only rule holds for community posts. A direct recommendation's recipient may also rate it from Received, and needs current friendship to rate or edit.
+
 ## 1. Goal
 
 On My List, a member taps **Rate & Review** on a song they saved, picks a score from 1 to 10, optionally writes a comment, and submits. The rating is saved, the song leaves their My List, and the post's author is "notified" — for now a structured log line, the hook where a real channel will plug in later (former Step 4.3). If the post was deleted while it sat in the list, the row disappears with UC-13's message. In the feed, the rater sees "You rated 8/10" on the post. Everyone else sees ratings from feature 3 (Post Detail, UC-16).

@@ -10,6 +10,10 @@ const { countFriendRequests } = vi.hoisted(() => ({ countFriendRequests: vi.fn()
 vi.mock('../api/friends', () => ({ countFriendRequests }));
 const { countMyInvitations } = vi.hoisted(() => ({ countMyInvitations: vi.fn() }));
 vi.mock('../api/invitations', () => ({ countMyInvitations }));
+const { countUnseenRecommendations } = vi.hoisted(() => ({
+  countUnseenRecommendations: vi.fn(),
+}));
+vi.mock('../api/recommendations', () => ({ countUnseenRecommendations }));
 
 function renderAt(path: string) {
   return render(
@@ -34,6 +38,7 @@ beforeEach(() => {
   useFriendRequests.setState({ count: 0 });
   countFriendRequests.mockResolvedValue(0);
   countMyInvitations.mockResolvedValue(0);
+  countUnseenRecommendations.mockResolvedValue(0);
 });
 
 describe('TabLayout and BottomNav', () => {
@@ -124,5 +129,20 @@ describe('TabLayout and BottomNav', () => {
     // Assert
     const friends = within(nav()).getByRole('link', { name: 'Friends' });
     expect(within(friends).queryByText(/\d/)).not.toBeInTheDocument();
+  });
+
+  it('the badge adds unseen recommendations to requests and invitations', async () => {
+    // Arrange
+    countFriendRequests.mockResolvedValue(1);
+    countMyInvitations.mockResolvedValue(1);
+    countUnseenRecommendations.mockResolvedValue(2);
+
+    // Act
+    renderAt('/home');
+
+    // Assert
+    expect(
+      await within(nav()).findByRole('link', { name: 'Friends, 4 waiting' }),
+    ).toBeInTheDocument();
   });
 });

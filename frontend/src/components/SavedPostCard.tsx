@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 import type { SavedPost } from '../api/bookmarks';
 import { mainLink, relativeTime } from '../lib/postLinks';
+import { noLongerFriends } from '../lib/recommendationCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { Button } from './ui/Button';
@@ -20,7 +21,8 @@ interface SavedPostCardProps {
  * One song on My List — docs/features/bookmarks-my-list.md §5.2. Opens in the
  * viewer's own service, like the feed; the community links to its page only
  * while the viewer is still a member, and only a member can rate it
- * (rate-post.md §5.1).
+ * (rate-post.md §5.1). A direct recommendation names its sender instead, and can
+ * be rated while the two are friends (direct-recommendations.md §5.5).
  */
 export function SavedPostCard({
   saved,
@@ -31,6 +33,7 @@ export function SavedPostCard({
 }: SavedPostCardProps) {
   const { post, community } = saved;
   const main = mainLink(post, viewerService);
+  const canRate = saved.isMember || post.direct?.isFriend === true;
 
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
@@ -54,18 +57,24 @@ export function SavedPostCard({
       </div>
 
       <p className="text-xs text-muted">
-        Shared by {post.author.displayName} in{' '}
-        {saved.isMember ? (
-          <Link to={`/communities/${community.id}`} className="font-medium underline">
-            {community.name}
-          </Link>
+        {community ? (
+          <>
+            Shared by {post.author.displayName} in{' '}
+            {saved.isMember ? (
+              <Link to={`/communities/${community.id}`} className="font-medium underline">
+                {community.name}
+              </Link>
+            ) : (
+              <span className="font-medium">{community.name}</span>
+            )}
+          </>
         ) : (
-          <span className="font-medium">{community.name}</span>
+          <>Sent by {post.author.displayName}</>
         )}{' '}
         · Saved <time dateTime={saved.savedAt}>{relativeTime(saved.savedAt)}</time>
       </p>
 
-      {saved.isMember ? (
+      {canRate ? (
         <Button
           disabled={!online}
           onClick={() => onRate(saved)}
@@ -74,7 +83,13 @@ export function SavedPostCard({
           Rate &amp; Review
         </Button>
       ) : (
-        <p className="text-xs text-muted">You&apos;re no longer in {community.name}</p>
+        <p className="text-xs text-muted">
+          {community ? (
+            <>You&apos;re no longer in {community.name}</>
+          ) : (
+            noLongerFriends(post.author.displayName)
+          )}
+        </p>
       )}
 
       <div className="flex flex-wrap gap-3">

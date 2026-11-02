@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** `SavedPost.community` can be `null` for a direct recommendation, which shows "Sent by {sender}". Saving one stays allowed after unfriending.
+
 ## 0. How Phase 4 was re-sliced
 
 `DEVELOPMENT.md` split Phase 4 by layer: schema (4.1), routes (4.2), notification stub (4.3), all UI (4.4), tests (4.5). None of those could merge alone under CLAUDE.md §11. They become three PRs (decided 2026-10-05, option A), each with its own spec session:
