@@ -7,7 +7,9 @@ import { postInclude } from '../utils/publicPost.js';
 import { NO_RATINGS } from '../utils/ratingSummary.js';
 import { type SavedPost, toSavedPost } from '../utils/savedPost.js';
 import { isAdminRole } from './communityAccess.js';
+import { friendsOnPosts } from './friendship.js';
 import { decodeCursor, encodeCursor, PAGE_SIZE, POST_NOT_FOUND } from './post.service.js';
+import { requirePostAccess } from './postAccess.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
 
 const log = createLogger('bookmark.service');
@@ -17,24 +19,12 @@ export const ALREADY_RATED = 'You already rated this post.';
 
 /**
  * PUT /posts/:postId/bookmark — UC-12. A member saves someone else's post.
- * Idempotent: saving twice is one bookmark. A post in a community the caller
- * is not in is a 404, like the post itself (docs/features/bookmarks-my-list.md §4).
+ * Idempotent: saving twice is one bookmark. A post the caller cannot reach is a
+ * 404, like a missing one (docs/features/bookmarks-my-list.md §4); saving a
+ * direct item stays allowed after unfriending, because it reaches nobody.
  */
 export async function saveBookmark(user: User, postId: string): Promise<void> {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { authorId: true, communityId: true },
-  });
-  if (!post) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
+  const post = await requirePostAccess(user, postId);
   if (post.authorId === user.id) {
     throw new AppError(OWN_POST, 403);
   }
@@ -112,17 +102,26 @@ export async function listBookmarks(
   const page = rows.slice(0, PAGE_SIZE);
   const last = page.at(-1);
   // Ratings are for current members only (post-detail.md §6): a song saved from
-  // a community you left keeps no live view of them.
-  const isMember = (row: (typeof page)[number]) => row.post.community.members.length > 0;
-  const summaries = await ratingSummaries(page.filter(isMember).map((row) => row.postId));
+  // a community you left keeps no live view of them. A direct item's two people
+  // may always see its rating.
+  const seesRatings = ({ post }: (typeof page)[number]) =>
+    post.community === null || post.community.members.length > 0;
+  const [summaries, friends] = await Promise.all([
+    ratingSummaries(page.filter(seesRatings).map((row) => row.postId)),
+    friendsOnPosts(
+      user.id,
+      page.map((row) => row.post),
+    ),
+  ]);
   return {
     items: page.map((row) => {
-      const role = row.post.community.members[0]?.role;
+      const role = row.post.community?.members[0]?.role;
       return toSavedPost(
         row,
         user.id,
         role !== undefined && isAdminRole(role),
-        isMember(row) ? summaryFor(summaries, row.postId) : NO_RATINGS,
+        seesRatings(row) ? summaryFor(summaries, row.postId) : NO_RATINGS,
+        friends,
       );
     }),
     nextCursor:

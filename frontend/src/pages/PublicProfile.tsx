@@ -11,6 +11,7 @@ import {
   type ProfileRatingsPage,
 } from '../api/profiles';
 import { FriendButton } from '../components/FriendButton';
+import { SendRecommendationSheet } from '../components/SendRecommendationSheet';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { CoverArt } from '../components/ui/CoverArt';
@@ -52,6 +53,7 @@ export function PublicProfile() {
   const [friendship, setFriendship] = useState<{ base: ProfileData; value: Friendship } | null>(
     null,
   );
+  const [sending, setSending] = useState(false);
   const online = useOnlineStatus();
   // The page whose Load more failed, so the message never follows to another profile.
   const [moreFailed, setMoreFailed] = useState<ProfileRatingsPage | null>(null);
@@ -126,7 +128,7 @@ export function PublicProfile() {
       )}
 
       {loadedProfile && user && (
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-3">
           <FriendButton
             userId={user.id}
             name={user.displayName}
@@ -135,7 +137,22 @@ export function PublicProfile() {
             onChanged={(value) => setFriendship({ base: loadedProfile, value })}
             onStale={profile.reload}
           />
+          {currentFriendship === 'FRIENDS' && (
+            <Button disabled={!online} onClick={() => setSending(true)}>
+              Send a song
+            </Button>
+          )}
         </div>
+      )}
+
+      {sending && user && (
+        <SendRecommendationSheet
+          friend={user}
+          online={online}
+          onClose={() => setSending(false)}
+          onSent={() => setSending(false)}
+          onStale={profile.reload}
+        />
       )}
 
       {profile.status !== 'error' && (

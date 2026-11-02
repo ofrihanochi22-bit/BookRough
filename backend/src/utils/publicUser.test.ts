@@ -11,6 +11,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     displayNameKey: 'ofri h.',
     profilePictureUrl: 'https://lh3.googleusercontent.com/a/photo',
     useGooglePicture: false,
+    recommendationsSeenAt: null,
     preferredService: 'SPOTIFY',
     role: 'ADMIN',
     createdAt: new Date('2026-10-01T10:00:00.000Z'),

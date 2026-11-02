@@ -169,6 +169,10 @@ export function MyList() {
           online={online}
           onClose={() => setRating(null)}
           onDone={rated}
+          onStale={() => {
+            setRating(null);
+            first.reload();
+          }}
         />
       )}
     </ScreenLayout>

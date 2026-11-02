@@ -28,6 +28,8 @@ interface RatingSheetProps {
   editing?: { score: number; comment: string | null };
   /** While editing, the post or your access is gone (404). */
   onGone?: () => void;
+  /** No longer allowed to rate (unfriended, direct-recommendations.md §6): reload. */
+  onStale?: () => void;
 }
 
 const inputClass =
@@ -39,7 +41,15 @@ const inputClass =
  * (the sheet closes with them); problems the user can fix stay inline. With
  * `editing`, the same sheet edits your rating (post-detail.md §5.2).
  */
-export function RatingSheet({ post, online, onClose, onDone, editing, onGone }: RatingSheetProps) {
+export function RatingSheet({
+  post,
+  online,
+  onClose,
+  onDone,
+  editing,
+  onGone,
+  onStale,
+}: RatingSheetProps) {
   const [score, setScore] = useState<number | null>(editing?.score ?? null);
   const [comment, setComment] = useState(editing?.comment ?? '');
   const title = editing ? 'Edit your rating' : 'Rate & Review';
@@ -76,7 +86,7 @@ export function RatingSheet({ post, online, onClose, onDone, editing, onGone }: 
         onDone(post.id);
       } else if (response?.status === 403) {
         toast.error(response.data?.message ?? RATE_FAILED);
-        onClose();
+        (onStale ?? onClose)();
       } else if (response?.status === 422) {
         setBusy(false);
         setError(response.data?.message ?? RATE_FAILED);

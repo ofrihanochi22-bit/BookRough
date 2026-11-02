@@ -60,6 +60,8 @@ export function PostDetail() {
     }
   }
 
+  const backPath = data?.community ? `/communities/${data.community.id}` : '/recommendations';
+
   function reloadAll() {
     loaded.reload();
     ratings.reload();
@@ -69,10 +71,10 @@ export function PostDetail() {
     <ScreenLayout>
       {data ? (
         <Link
-          to={`/communities/${data.community.id}`}
+          to={backPath}
           className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
         >
-          ← {data.community.name}
+          ← {data.community?.name ?? 'Recommendations'}
         </Link>
       ) : (
         <div className="mb-4 min-h-11" />
@@ -96,7 +98,7 @@ export function PostDetail() {
           linkToDetail={false}
           onUpdated={replace}
           onStale={reloadAll}
-          onDeleted={() => navigate(`/communities/${data.community.id}`, { replace: true })}
+          onDeleted={() => navigate(backPath, { replace: true })}
           onBookmarkChanged={(_, isBookmarked) => replace({ ...post, isBookmarked })}
         />
       )}
@@ -151,7 +153,7 @@ export function PostDetail() {
                 {rating.comment && (
                   <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
                 )}
-                {rating.isMine && (
+                {rating.isMine && post?.direct?.isFriend !== false && (
                   <Button
                     variant="secondary"
                     disabled={!online || !post}
@@ -178,6 +180,10 @@ export function PostDetail() {
             reloadAll();
           }}
           onGone={() => setGoneId(postId)}
+          onStale={() => {
+            setEditing(null);
+            reloadAll();
+          }}
         />
       )}
     </ScreenLayout>

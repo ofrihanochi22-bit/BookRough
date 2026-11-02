@@ -11,7 +11,9 @@ import {
 import { type PublicRating, toPublicRating } from '../utils/publicRating.js';
 import { type RatingSummary, summarize } from '../utils/ratingSummary.js';
 import { ALREADY_RATED } from './bookmark.service.js';
-import { POST_NOT_FOUND, requirePostMember } from './communityAccess.js';
+import { POST_NOT_FOUND } from './communityAccess.js';
+import { areFriends } from './friendship.js';
+import { type PostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
 import { notifyAuthorOfRating } from './ratingNotification.js';
 
@@ -20,6 +22,7 @@ const log = createLogger('rating.service');
 export const OWN_POST_RATING = "You can't rate your own post.";
 export const SCORE_RANGE = 'Choose a score from 1 to 10.';
 export const NOT_RATED = "You haven't rated this post.";
+export const RATE_FRIENDS_ONLY = 'You can only rate songs from friends.';
 
 export interface NewRating {
   /** Validated here, not by the controller's schema, so it gets its own message. */
@@ -29,6 +32,22 @@ export interface NewRating {
 
 function isScore(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 10;
+}
+
+/**
+ * A rating is text that reaches the other person, so on a direct item only the
+ * recipient writes one, and only while they are friends (direct-recommendations.md §3.4).
+ */
+async function requireDirectRater(user: User, post: PostAccess): Promise<void> {
+  if (post.scope === 'COMMUNITY') {
+    return;
+  }
+  if (!post.isRecipient) {
+    throw new AppError(OWN_POST_RATING, 403);
+  }
+  if (!(await areFriends(user.id, post.authorId))) {
+    throw new AppError(RATE_FRIENDS_ONLY, 403);
+  }
 }
 
 /**
@@ -43,10 +62,11 @@ export async function ratePost(
   postId: string,
   input: NewRating,
 ): Promise<PublicRating> {
-  const post = await requirePostMember(user, postId);
+  const post = await requirePostAccess(user, postId);
   if (post.authorId === user.id) {
     throw new AppError(OWN_POST_RATING, 403);
   }
+  await requireDirectRater(user, post);
   if (!isScore(input.score)) {
     throw new AppError(SCORE_RANGE, 422);
   }
@@ -97,7 +117,7 @@ export async function listPostRatings(
   user: User,
   postId: string,
 ): Promise<{ ratingSummary: RatingSummary; ratings: PublicPostRating[] }> {
-  await requirePostMember(user, postId);
+  await requirePostAccess(user, postId);
   const rows = await prisma.rating.findMany({
     where: { postId },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -125,7 +145,7 @@ export async function editRating(
   postId: string,
   changes: RatingChanges,
 ): Promise<PublicPostRating> {
-  await requirePostMember(user, postId);
+  await requireDirectRater(user, await requirePostAccess(user, postId));
   const existing = await prisma.rating.findUnique({
     where: { postId_userId: { postId, userId: user.id } },
     select: { id: true },

@@ -7,6 +7,7 @@ import { deletePost, type PublicPost, retryConversion } from '../api/posts';
 import { allLinks, mainLink, relativeTime } from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
 import { ratingSummaryLine } from '../lib/ratingCopy';
+import { deleteDirectBody, noLongerFriends } from '../lib/recommendationCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
@@ -29,6 +30,10 @@ interface PostCardProps {
   onBookmarkChanged: (postId: string, isBookmarked: boolean) => void;
   /** False on Post Detail, which is where the link leads (post-detail.md §5.2). */
   linkToDetail?: boolean;
+  /** On Received: rate a direct recommendation here (direct-recommendations.md §5.2). */
+  onRate?: (post: PublicPost) => void;
+  /** On Received: open the Hide confirmation. */
+  onHide?: (post: PublicPost) => void;
 }
 
 const linkButton =
@@ -82,9 +87,11 @@ function DeletePostSheet({
     <Sheet title="Delete post" onClose={onClose} dismissible={!busy}>
       <div className="flex flex-col gap-4">
         <p className="text-sm">
-          {post.isMine
-            ? 'Are you sure you want to delete this recommendation? This will also delete all ratings and comments associated with it.'
-            : `Delete ${author}'s recommendation? This will also delete all ratings and comments on it. ${author} won't be notified.`}
+          {post.direct
+            ? deleteDirectBody(post.direct.recipient.displayName)
+            : post.isMine
+              ? 'Are you sure you want to delete this recommendation? This will also delete all ratings and comments associated with it.'
+              : `Delete ${author}'s recommendation? This will also delete all ratings and comments on it. ${author} won't be notified.`}
         </p>
         {error && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -111,7 +118,9 @@ function DeletePostSheet({
  * community's admins can delete it from the ⋯ menu (posts-delete.md §5).
  * Anyone else can save it to Listen Later (bookmarks-my-list.md §5.1) until
  * they rate it; then it shows their score (rate-post.md §5.3). The average and
- * View ratings lead to Post Detail (post-detail.md §5.1).
+ * View ratings lead to Post Detail (post-detail.md §5.1). A direct recommendation
+ * names the other person instead, and its recipient can rate or hide it on
+ * Received (direct-recommendations.md §5.2).
  */
 export function PostCard({
   post,
@@ -122,6 +131,8 @@ export function PostCard({
   onDeleted,
   onBookmarkChanged,
   linkToDetail = true,
+  onRate,
+  onHide,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -131,6 +142,8 @@ export function PostCard({
   const main = mainLink(post, viewerService);
   const detailPath = `/posts/${post.id}`;
   const summary = ratingSummaryLine(post.ratingSummary);
+  const hasMenu = post.canDelete || onHide !== undefined;
+  const person = post.direct && post.isMine ? post.direct.recipient : post.author;
 
   async function retry() {
     setRetrying(true);
@@ -156,9 +169,10 @@ export function PostCard({
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
       <header className="flex items-center gap-3">
+        {post.direct && <span className="text-xs text-muted">{post.isMine ? 'To' : 'From'}</span>}
         <PersonLink
-          user={post.author}
-          label={post.isMine ? 'You' : post.author.displayName}
+          user={person}
+          label={post.isMine && !post.direct ? 'You' : person.displayName}
           className="text-sm font-medium"
         />
         <time dateTime={post.createdAt} className="text-xs text-muted">
@@ -176,7 +190,7 @@ export function PostCard({
             />
           )
         )}
-        {post.canDelete && (
+        {hasMenu && (
           <button
             type="button"
             aria-label="Post options"
@@ -190,18 +204,32 @@ export function PostCard({
           </button>
         )}
       </header>
-      {menuOpen && post.canDelete && (
-        <div className="flex justify-end">
-          <Button
-            variant="secondary"
-            disabled={!online}
-            onClick={() => {
-              setMenuOpen(false);
-              setDeleting(true);
-            }}
-          >
-            Delete post
-          </Button>
+      {menuOpen && hasMenu && (
+        <div className="flex justify-end gap-3">
+          {onHide && (
+            <Button
+              variant="secondary"
+              disabled={!online}
+              onClick={() => {
+                setMenuOpen(false);
+                onHide(post);
+              }}
+            >
+              Hide
+            </Button>
+          )}
+          {post.canDelete && (
+            <Button
+              variant="secondary"
+              disabled={!online}
+              onClick={() => {
+                setMenuOpen(false);
+                setDeleting(true);
+              }}
+            >
+              Delete post
+            </Button>
+          )}
         </div>
       )}
 
@@ -241,6 +269,21 @@ export function PostCard({
           )}
         </div>
       )}
+
+      {onRate &&
+        !post.isMine &&
+        post.myScore === null &&
+        (post.direct?.isFriend ? (
+          <Button
+            disabled={!online}
+            onClick={() => onRate(post)}
+            aria-label={`Rate & Review ${post.title ?? 'this song'}`}
+          >
+            Rate &amp; Review
+          </Button>
+        ) : (
+          <p className="text-xs text-muted">{noLongerFriends(post.author.displayName)}</p>
+        ))}
 
       <div className="flex flex-wrap gap-3">
         <a

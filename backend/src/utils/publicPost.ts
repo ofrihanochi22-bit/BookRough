@@ -3,6 +3,8 @@ import type { Post, PostKind, StreamingService } from '@prisma/client';
 import { type MemberUser, memberUserSelect, toMemberUser } from './communityMember.js';
 import type { RatingSummary } from './ratingSummary.js';
 
+const NO_FRIENDS: ReadonlySet<string> = new Set();
+
 /** The only post shape that ever leaves the server (docs/features/posts-feed.md §4). */
 export interface PublicPost {
   id: string;
@@ -27,10 +29,13 @@ export interface PublicPost {
   myScore: number | null;
   /** Every member's ratings at a glance (post-detail.md §4). */
   ratingSummary: RatingSummary;
+  /** Set on a direct recommendation; null on a community post (direct-recommendations.md §4). */
+  direct: { recipient: MemberUser; isFriend: boolean } | null;
 }
 
 export type PostWithAuthor = Post & {
   author: { id: string; displayName: string | null; profilePictureUrl: string | null };
+  recipient: { id: string; displayName: string | null; profilePictureUrl: string | null } | null;
   /** The viewer's own bookmark, if any — never anyone else's. */
   bookmarks: Array<{ userId: string }>;
   /** The viewer's own rating, if any — never anyone else's. */
@@ -45,6 +50,7 @@ export type PostWithAuthor = Post & {
 export function postInclude(viewerId: string) {
   return {
     author: { select: memberUserSelect },
+    recipient: { select: memberUserSelect },
     bookmarks: { where: { userId: viewerId }, select: { userId: true } },
     ratings: { where: { userId: viewerId }, select: { userId: true, score: true } },
   } as const;
@@ -53,13 +59,15 @@ export function postInclude(viewerId: string) {
 /**
  * Field by field, never a spread: a column added to `posts` later must not
  * reach a client until someone adds it here on purpose. `communityId`,
- * `authorId` and `updatedAt` are deliberately absent.
+ * `authorId`, `recipientId`, `recipientHiddenAt` and `updatedAt` are
+ * deliberately absent. `friendIds` holds who the viewer is friends with now.
  */
 export function toPublicPost(
   post: PostWithAuthor,
   viewerId: string,
   viewerModerates: boolean,
   ratingSummary: RatingSummary,
+  friendIds: ReadonlySet<string> = NO_FRIENDS,
 ): PublicPost {
   const candidates: Array<[StreamingService, string | null]> = [
     ['SPOTIFY', post.universalLinkSpotify],
@@ -93,5 +101,9 @@ export function toPublicPost(
     isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),
     myScore: post.ratings.find((rating) => rating.userId === viewerId)?.score ?? null,
     ratingSummary: { average: ratingSummary.average, count: ratingSummary.count },
+    direct: post.recipient && {
+      recipient: toMemberUser(post.recipient),
+      isFriend: friendIds.has(post.authorId === viewerId ? post.recipient.id : post.author.id),
+    },
   };
 }
