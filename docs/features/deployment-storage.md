@@ -33,8 +33,8 @@ Sources: [Hobby projects now retain fewer deployments](https://vercel.com/change
 The team was paused on **2026-10-12**, until 2026-11-11, for exceeding the Hobby limits. Vercel's usage page showed **Images Storage at 17.16 GB of 10 GB** and Function Storage at 2.37 GB.
 
 - **Two meters, not one.** Images Storage is the Vercel Container Registry; Function Storage is deployment storage. This spec, written from a warning about Function Storage, treated them as one. The worst case in §1 holds for Function Storage only, and §1.1 describes deployments, not registry images.
-- **How it filled.** GitHub records 15 deployments on 2026-10-10 to 12 (4 production, 11 preview), all but one built from the 3.12 GB image. Function Storage fell as Vercel retired deployments; Images Storage did not.
-- **Open question.** Vercel's documentation does not say whether registry images are removed when their deployment is. If they are not, each merge to `main` adds about 1.2 GB and the allowance fills after about 7 merges.
+- **How it filled.** The registry held 18 images on 2026-11-02: 17 of 986 MB and the slim `9821d7a` of 395 MB, which is exactly the 17.16 GB shown. The registry counts compressed size, so these are the images measured at 2.85 GB and 1.17 GB locally. 14 carry a commit tag and 4 have no tag. GitHub records 15 deployments on 2026-10-10 to 12 (4 production, 11 preview). Function Storage fell as Vercel retired deployments; Images Storage did not.
+- **Open question.** Vercel's documentation does not say whether registry images are removed when their deployment is. If they are not, each merge to `main` adds about 0.4 GB and the allowance fills after about 24 merges.
 - **Response.** The developer deletes old images in the project's Images tab, keeping the current production image. Before each merge to `main` both meters are read in Vercel → Usage (CLAUDE.md §16). S5 below answers the open question.
 - **If images are not removed automatically:** delete old images by hand after each merge, or skip deployments for documentation-only commits with Vercel's Ignored Build Step. The fallback, Cloud Run, needs a card and bills overage.
 
