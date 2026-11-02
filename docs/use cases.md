@@ -113,7 +113,7 @@
 
 - **Description:** A user removes an existing friend from their connections list, severing the bidirectional social link between them.
 - **Pre-conditions:** The user is logged in and currently has an established "Friend" relationship with the target user.
-- **Post-conditions:** The relationship record is removed from the database. The users are no longer connected. The other person is not told; either of them may send a new request later (`docs/features/unfriend.md`).
+- **Post-conditions:** The relationship record is removed from the database. The users are no longer connected. Direct recommendations between them stay visible to both; nothing new can be sent, and a new rating or an edit is refused until they are friends again (UC-20). The other person is not told; either of them may send a new request later (`docs/features/unfriend.md`).
 - **Trigger:** The user taps the ⋯ next to the friend on the Friends tab, or the "Friends" button on the friend's profile.
 - **Step-by-step scenario (Success):**
   - The user opens the Friends tab (or the friend's profile).
@@ -156,9 +156,9 @@
   - The user is automatically redirected back to their main Communities list or dashboard.
 - **Fail description (Alternative Scenario):** The user is the community's Owner and attempts to leave. The system blocks the action so the community is never left without an owner: "You're the owner. Transfer ownership to another member or delete the community before leaving." Admins and members can always leave; leaving never blocks them from rejoining.
 
-### UC-11: User Sends a Message to a Friend/Group Chat (Post Recommendation)
+### UC-11: User Posts a Recommendation to a Community
 
-- **Description:** A user shares a music recommendation — a song or album link from Spotify, Apple Music, YouTube, Tidal or Deezer, with an optional comment of up to 280 characters — to a Community feed.
+- **Description:** A user shares a music recommendation — a song or album link from Spotify, Apple Music, YouTube, Tidal or Deezer, with an optional comment of up to 280 characters — to a Community feed. Sending one to a single friend is UC-20.
 - **Pre-conditions:** The user is logged in and is an active member of the Community where they are attempting to post.
 - **Post-conditions:** A new Post record is added to the database containing the authorId, communityId, and songMetadata. The post is pushed to the posts array of the Community.
 - **Trigger:** The user pastes a URL into the Community's input field and taps "Post" or "Send".
@@ -175,7 +175,7 @@
 ### UC-12: User Adds a Recommendation to Bookmarks ("Listen Later")
 
 - **Description:** A user saves a music recommendation posted by a friend or community member to their personal "Listen Later" list for future listening.
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and sees a song recommendation post that they have not already bookmarked, written by someone else: a user cannot bookmark their own post.
+- **Pre-conditions:** The user is logged in, viewing a Community feed or a direct recommendation (UC-20), and sees a song recommendation post that they have not already bookmarked, written by someone else: a user cannot bookmark their own post.
 - **Post-conditions:** The specific Post ID is added to the user's bookmarks list in the database. The user interface updates to reflect that the song is saved. The bookmark is private: nobody else can see who saved a post. It stays in the user's list if they later leave the Community or are removed from it. Once the user has rated a post, it can no longer be bookmarked (UC-13).
 - **Trigger:** The user taps the "Bookmark" or "Save for Later" icon located on a specific music recommendation post.
 - **Step-by-step scenario (Success):**
@@ -189,7 +189,7 @@
 ### UC-13: User Processes a Bookmarked Recommendation (Rate & Feedback)
 
 - **Description:** A user accesses their "My List" screen, listens to a saved song, submits a rating with optional text feedback, and the system notifies the friend who recommended it.
-- **Pre-conditions:** The user is logged in and has at least one unrated, saved song residing in their "My List" screen, and is still a member of that song's Community. A song from a Community the user has left or been removed from shows "You're no longer in {Community}" instead of the rate button.
+- **Pre-conditions:** The user is logged in and has at least one unrated, saved song residing in their "My List" screen, and is still a member of that song's Community, or for a direct recommendation still friends with its sender (UC-20), who may also rate it from Received. A song from a Community the user has left or been removed from shows "You're no longer in {Community}" instead of the rate button.
 - **Post-conditions:** A Rating object (containing the score and optional comment) is appended to the original Post. The song is removed from the user's active "Listen Later" queue. A notification is dispatched to the author of the original post (for now a logged stub; a real channel arrives later, `docs/features/rate-post.md` §4.2). The rater can later edit the score and comment from Post Detail (UC-16), and the feed shows the rater "You rated n/10" on the post.
 - **Trigger:** The user taps the "Rate" or "Mark as Listened" button on a song within their "My List" screen.
 - **Step-by-step scenario (Success):**
@@ -239,7 +239,7 @@
 ### UC-16: User Views Post Feedback (Ratings and Comments)
 
 - **Description:** A user expands a specific music recommendation post to view the accumulated star ratings and text comments left by other community members.
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and is a current member of the post's Community. Ratings are visible to every member, whether or not they have rated themselves.
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and is a current member of the post's Community, or one of the two people a direct recommendation is between (UC-20). Ratings are visible to every member, whether or not they have rated themselves.
 - **Post-conditions:** The user interface displays a detailed breakdown of the post's feedback, including the average score and individual member reviews.
 - **Trigger:** The user taps on the body of a specific post card (avoiding the external music link itself) or taps a dedicated "View Ratings" button. The feed card also shows the average and the number of ratings.
 - **Step-by-step scenario (Success):**
@@ -261,7 +261,7 @@
 ### UC-18: User Deletes a Post (Song Recommendation)
 
 - **Description:** The original author of a music recommendation permanently removes their post from a Community feed. A Community's Admins and its Owner can delete any post in that Community the same way — a member's, a fellow Admin's, the Owner's, or a former member's (`docs/features/posts-delete.md`).
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community.
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community. A direct recommendation is deleted by its sender only, for both people; its recipient hides it instead (UC-20).
 - **Post-conditions:** The Post record, including its associated ratings array, is permanently deleted from the database and removed from the Community's posts array.
 - **Trigger:** The user taps the "Delete Post" option within the specific post's context menu.
 - **Step-by-step scenario (Success):**
@@ -293,3 +293,20 @@
 > **Honest limit:** this reduces *incidental* exposure. It is not a cryptographic guarantee — the operator runs the server and can change the code. The protection is that there is no personal data in the system to expose in the first place.
 >
 > **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody, and the settings list is fixed in code.
+
+### UC-20: User Sends a Recommendation to a Friend
+
+- **Description:** A user sends a music recommendation — the same song or album link and optional comment as a post — directly to one friend, with no community in common. The recipient sees it in their own streaming service. Posting to a Community (UC-11) is unchanged and exists alongside this.
+- **Pre-conditions:** The user is logged in, has finished onboarding, and has an accepted friendship with the recipient.
+- **Post-conditions:** A Post record with a recipient and no community exists, visible only to the two of them. The recipient's badge counts it until they open Received. The item stays visible to both after unfriending; a new rating or an edit then needs friendship again.
+- **Trigger:** The user taps "Send a song" on the Recommendations screen or on a friend's profile.
+- **Step-by-step scenario (Success):**
+  - The user opens Recommendations from the Friends tab and taps "Send a song", then picks one friend. From a friend's profile, that friend is already chosen.
+  - The user pastes a link and optionally adds a comment of up to 280 characters.
+  - The user taps "Send". The backend converts the link exactly as for a post, while the user sees "Finding this track on other services…".
+  - The system saves the item and shows "Sent to {name}". It appears under Sent.
+  - The recipient sees a badge on the Friends tab, opens Recommendations, and finds it under Received. Its main button opens the service they chose, falling back to the original link.
+  - The recipient can rate it there, save it to My List, or hide it. The sender sees the rating under Sent and on Post Detail.
+- **Fail description (Alternative Scenario):** The recipient is not a friend — a stranger, a pending request in either direction, or someone who unfriended the sender, even during the conversion. The system refuses with "You can only send songs to friends.", saves nothing, and keeps the draft. A link that is invalid is refused as in UC-11. If the conversion cannot run, the item is still saved with the original link and a quiet "Other services unavailable" note, and the sender can tap "Find on other services" later.
+
+> **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient hides an item for themselves only, and the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md.

@@ -83,7 +83,7 @@ const TABS: readonly Tab[] = [
  * Padded for the iPhone home indicator when the PWA runs full-screen.
  */
 export function BottomNav() {
-  const requests = useFriendRequests((state) => state.count);
+  const requests = useFriendRequests((state) => state.count + state.unseen);
 
   return (
     <nav

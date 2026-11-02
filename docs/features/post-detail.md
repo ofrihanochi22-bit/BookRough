@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Post Detail also opens a direct recommendation for its two people, with `community: null` and a back link to Recommendations. Editing a rating there needs current friendship.
+
 ## 1. Goal
 
 Every member sees how a recommendation landed: the feed card shows the average score and how many people rated it, and **View ratings** opens a Post Detail screen with the song, the average, and every member's rating — name, score, comment and when. A member who rated a post can edit their rating there. Removing a member now also removes their ratings in that community, so an admin can clear abusive feedback the same way they clear abusive posts.

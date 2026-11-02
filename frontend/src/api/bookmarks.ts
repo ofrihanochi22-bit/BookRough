@@ -4,7 +4,8 @@ import type { PublicPost } from './posts';
 /** Mirrors the backend's SavedPost (docs/features/bookmarks-my-list.md §4). */
 export interface SavedPost {
   savedAt: string;
-  community: { id: string; name: string };
+  /** Null for a direct recommendation (direct-recommendations.md §4). */
+  community: { id: string; name: string } | null;
   /** Still in that community; a bookmark outlives leaving (§3.2). */
   isMember: boolean;
   post: PublicPost;

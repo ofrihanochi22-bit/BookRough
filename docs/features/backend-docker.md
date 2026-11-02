@@ -48,6 +48,8 @@ None.
 
 The image also carries Firefox and WebKit (~2 GB in all). That costs pull time and registry space, not runtime memory, and was accepted to avoid a new decision.
 
+> **Superseded 2026-10-11** (`deployment-storage.md`): registry space turned out to matter — every Vercel deployment stores the image against a 10 GB allowance. The base is now `node:24-bookworm-slim` with only Chromium's headless shell, installed by the `playwright` package; the user is `node`; the `HEALTHCHECK` uses Node's `fetch`. 1.17 GB instead of 2.85 GB.
+
 ### 4.2 Stages
 
 1. **build** — `npm ci` (all dependencies), `prisma generate` (via `postinstall`), `npm run build` (`tsc` to `dist/`).
@@ -55,7 +57,7 @@ The image also carries Firefox and WebKit (~2 GB in all). That costs pull time a
 
 ### 4.3 Runtime details
 
-- **User:** `pwuser` (the base image's non-root user), not root.
+- **User:** `node` (the base image's non-root user), not root — `pwuser` until 2026-10-11 (`deployment-storage.md`).
 - **PID 1:** `tini`, so signals reach Node (our `SIGTERM` handler closes the server and Prisma) and any orphaned Chromium processes are reaped. This is the portable form of Docker's `--init`, which not every host lets us set.
 - **Environment:** `NODE_ENV=production` is set in the image. Everything else comes from the host: `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `PORT` (default 4000), `LOG_LEVEL`. The env schema already refuses to start without the required ones, and refuses both E2E stand-ins outside `NODE_ENV=test`.
 - **Start** (developer's choice, option A in Q2): `prisma migrate deploy && exec node dist/index.js`. A failed migration stops the container before the API serves anything; concurrent starts are safe because Prisma takes an advisory lock. `exec` hands the Node process the signals.
@@ -108,7 +110,7 @@ No application code changes, so there are no new unit, integration or component 
 **Manual, in this PR (results in the PR description)**
 
 - ✅ Build locally; run against the local Docker Postgres with a fresh database; health 200; migrations applied.
-- ✅ The container runs as `pwuser`, with tini as PID 1.
+- ✅ The container runs as `pwuser`, with tini as PID 1 (`node` since 2026-10-11).
 - ✅ One real conversion inside the container: a script run inside it calls the converter on a known Spotify track and gets `converted` with five links.
 - ❌ Start without `DATABASE_URL` → exits with Prisma's "Environment variable not found: DATABASE_URL". Start with `E2E_SCRAPER_FIXTURES` set and `NODE_ENV=production` → refused.
 - ✅ Image size and idle memory recorded (input for the Phase 6 host choice).
@@ -130,12 +132,13 @@ No application code changes, so there are no new unit, integration or component 
 
 ## 10. Decisions log
 
-| Date       | Decision                                                              | Reason                                                                                |
-| ---------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 2026-10-05 | Base image `mcr.microsoft.com/playwright:v1.63.0-noble` (option A)    | Already the recorded choice; Chromium and libraries pinned to our Playwright, Node 24 |
-| 2026-10-05 | The container runs `prisma migrate deploy` on start (option A)        | Works on any host; never new code against an old schema; a failed migration is loud   |
-| 2026-10-05 | CI builds and smoke-tests the image in `main.yml` only (option A)     | Keeps the PR budget; the image never rots unnoticed                                   |
-| 2026-10-05 | Multi-stage build; the runtime stage has production dependencies only | Smaller attack surface; no source or dev tooling in the image                         |
-| 2026-10-05 | Run as `pwuser` with `tini` as PID 1                                  | Non-root by default; signals and orphaned Chromium processes handled on any host      |
-| 2026-10-05 | `prisma` moves to `dependencies`                                      | The runtime stage needs the CLI to migrate                                            |
-| 2026-10-05 | Missing `DATABASE_URL` is reported by Prisma, not the env schema      | Stage 2: the migrate step runs first; its message names the variable, which is enough |
+| Date       | Decision                                                                             | Reason                                                                                |
+| ---------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| 2026-10-05 | Base image `mcr.microsoft.com/playwright:v1.63.0-noble` (option A)                   | Already the recorded choice; Chromium and libraries pinned to our Playwright, Node 24 |
+| 2026-10-05 | The container runs `prisma migrate deploy` on start (option A)                       | Works on any host; never new code against an old schema; a failed migration is loud   |
+| 2026-10-05 | CI builds and smoke-tests the image in `main.yml` only (option A)                    | Keeps the PR budget; the image never rots unnoticed                                   |
+| 2026-10-05 | Multi-stage build; the runtime stage has production dependencies only                | Smaller attack surface; no source or dev tooling in the image                         |
+| 2026-10-05 | Run as `pwuser` with `tini` as PID 1                                                 | Non-root by default; signals and orphaned Chromium processes handled on any host      |
+| 2026-10-05 | `prisma` moves to `dependencies`                                                     | The runtime stage needs the CLI to migrate                                            |
+| 2026-10-05 | Missing `DATABASE_URL` is reported by Prisma, not the env schema                     | Stage 2: the migrate step runs first; its message names the variable, which is enough |
+| 2026-10-11 | Base `node:24-bookworm-slim` + headless shell; user `node` (`deployment-storage.md`) | Vercel's 10 GB deployment storage; the old image filled 75% of it                     |

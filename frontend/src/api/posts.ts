@@ -1,5 +1,6 @@
 import type { StreamingService } from '../stores/auth';
 import { api, type SuccessBody } from './client';
+import type { MemberUser } from './membership';
 
 /**
  * Requests that run a conversion wait longer than the client's usual 15 s: the
@@ -35,6 +36,8 @@ export interface PublicPost {
   myScore: number | null;
   /** Every member's ratings at a glance (post-detail.md §4). */
   ratingSummary: RatingSummary;
+  /** Set on a direct recommendation (direct-recommendations.md §4). */
+  direct: { recipient: MemberUser; isFriend: boolean } | null;
 }
 
 export interface RatingSummary {
@@ -92,7 +95,8 @@ export async function deletePost(postId: string): Promise<void> {
 
 export interface PostWithCommunity {
   post: PublicPost;
-  community: { id: string; name: string };
+  /** Null on a direct recommendation. */
+  community: { id: string; name: string } | null;
 }
 
 /** Post Detail shows the not-found page or its own retry, so no toast. */

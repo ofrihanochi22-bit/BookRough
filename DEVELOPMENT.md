@@ -1026,7 +1026,7 @@ What I did:
 
 Built the backend's deployment unit per `docs/features/backend-docker.md`. No application code changed.
 
-- **Image:** `backend/Dockerfile` is a multi-stage build on `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright 1.63.0). The runtime stage holds production dependencies, `dist/` and the Prisma migrations only. It runs as the non-root `pwuser`, with `tini` as PID 1, and its start command is `prisma migrate deploy && exec node dist/index.js`. A `HEALTHCHECK` calls `/api/health`. `backend/.dockerignore` keeps `.env` and build output out of the context.
+- **Image:** `backend/Dockerfile` is a multi-stage build on `mcr.microsoft.com/playwright:v1.63.0-noble` (Ubuntu 24.04, Node 24, Chromium pinned to our Playwright 1.63.0) — replaced on 2026-10-11 by `node:24.21.0-bookworm-slim` with Chromium's headless shell only, user `node` (Step 6.3a). The runtime stage holds production dependencies, `dist/` and the Prisma migrations only. It runs as the non-root `pwuser`, with `tini` as PID 1, and its start command is `prisma migrate deploy && exec node dist/index.js`. A `HEALTHCHECK` calls `/api/health`. `backend/.dockerignore` keeps `.env` and build output out of the context.
 - **Dependencies (approved):** `prisma` moved from `devDependencies` to `dependencies` (same version), because the container migrates; `tini` installed in the image.
 - **CI:** `test:docker` in `main.yml` (after merge and nightly, not on PRs). It builds the image, runs it against an empty Postgres, waits for health, proves the migrations through `/api/settings`, checks for a graceful stop with exit code 0, and fails on any error-level log line.
 - **Smoke-tested locally:**
@@ -1053,7 +1053,7 @@ docker run --rm --name api-smoke -p 4500:4000 -e DATABASE_URL=postgresql://bookr
 
 1. The logs list the 8 migrations being applied, then "API listening".
 2. Open `http://localhost:4500/api/health` → `{"status":"success",…}`; `http://localhost:4500/api/settings` → the default settings.
-3. In another terminal, run `docker exec api-smoke whoami` → `pwuser`.
+3. In another terminal, run `docker exec api-smoke whoami` → `node` (it was `pwuser` until the slim image of 2026-10-11, `docs/features/deployment-storage.md`).
 4. Press Ctrl+C → "Shutting down" and a clean exit.
 5. Clean up: `docker exec bookrough-postgres psql -U bookrough -d postgres -c "DROP DATABASE music_app_docker_smoke"` and `docker rmi bookrough-api`.
 
@@ -1629,6 +1629,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **UC-20 added 2026-11-02.** Direct recommendations are built as Step 6.1a, before Step 6.2, whose iPhone checks wait for the Vercel pause anyway. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.2 → 6.4 → 6.5.
+
 > **Re-sliced 2026-10-10.** The PWA steps' manual checks (a real iPhone, airplane mode, deploying a second build) need a live HTTPS origin, so Phase 6 now ships in this order: **6.3 production deploy → 6.1 PWA installable → 6.2 PWA offline → 6.4 hardening → 6.5 README**. Step numbers are kept so references stay valid. The site is public from 6.3, but its address is not shared with friends until 6.4 merges — see `docs/features/production-deploy.md` §0.
 
 ### Step 6.1 — PWA: installable (Phase 6)
@@ -1698,9 +1700,114 @@ node frontend/scripts/render-icons.mjs              # only when icon.svg changes
 
 ---
 
+### Step 6.1a — Direct recommendations between friends (Phase 6 — UC-20)
+
+Status: 🟡 Built and tested; merge waits for the developer's word
+Branch: feat/direct-recommendations
+Spec: docs/features/direct-recommendations.md
+
+Goal: Two friends can send each other a song directly, with no community in common, with the same link conversion as a post. Community posting behaves exactly as before.
+
+Tasks:
+
+- [x] Spec: docs/features/direct-recommendations.md approved (extend `Post`; one friend per send; a Recommendations screen from Friends; Received and Sent; items stay after unfriending; recipient hides, sender deletes; no admin change).
+- [x] Backend: migration `add_direct_recommendations`, one `requirePostAccess` rule, six endpoints.
+- [x] Frontend: the Recommendations screen, the send sheet, the Friends row, the badge, Send a song on a friend's profile.
+- [x] Review: `/code-review` (10 findings: 6 fixed, 4 skipped) and `/security-review` (no findings).
+- [x] Tests: unit, integration, regression, component and E2E per spec §7.
+
+What I did:
+
+Delivered UC-20, per `docs/features/direct-recommendations.md`. UC-11's title no longer mentions a chat.
+
+- **Schema:** `posts.community_id` is nullable; new `posts.recipient_id` and `posts.recipient_hidden_at`, and `users.recommendations_seen_at`. Two hand-written CHECKs, `posts_one_target` and `posts_not_self`. No new table.
+- **Access:** `services/postAccess.ts` replaces four separate lookups: a current member of the community, or the two people on a direct item; anyone else gets the same `404`. `services/friendship.ts` holds the friendship checks, including the `FOR SHARE` re-check that runs with the insert, after the conversion.
+- **API:** `POST /api/recommendations`, `GET .../received`, `GET .../sent`, `GET .../unseen-count`, `POST .../seen`, `PUT .../:postId/hidden`. Conversion is shared with posting through `prepareSharedLink`. Rating, bookmarks, Post Detail, retry and delete work on direct items, and a new rating or an edit needs current friendship. `PublicPost.direct` is `null` on a community post.
+- **Frontend:** `pages/Recommendations.tsx` (Received and Sent), `SendRecommendationSheet`, `HideRecommendationSheet`, and `LinkCommentForm`, now shared with `PostComposer`. `PostCard`, `SavedPostCard`, Post Detail, the Public Profile, the Friends screen and the badge handle direct items.
+- **Review:** `/code-review` found the draft lost on Change, a deleted card reappearing after a reload, a stale picker after a refusal, a red key-set test, a fourth copy of the keyset filter and a duplicate constant, all fixed. Skipped: shared list state (it would reshape community screens this PR must leave alone), a server-sent `canRate`, `users.updated_at` moving on mark-seen, and one failed count dropping the whole badge refresh. `/security-review`: no findings.
+- **Docs:** `use cases`, `tables`, `frontend screens`, `general`, `system architecture conventions` (.md + .docx); amendment notes in eight feature specs; CLAUDE.md §6, §8, §9, §12; the Phase 6 order and Step 6.2's status here; `HANDOFF.md`.
+- **Tests:** backend 930 (98.93% lines over both suites), frontend 659 (98.67%), E2E 43 + 3 skipped, on Chromium and iPhone WebKit.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` in two browser profiles, with two Google accounts on different preferred services.
+
+1. Make them friends: Search → the other person → Add Friend; in the other browser, Friends → Accept.
+2. On the friend's profile tap **Send a song**, paste `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`, add a comment, and tap **Send**. A spinner shows "Finding this track on other services…", then "Sent to {name}".
+3. In the other browser, navigate once: the Friends tab shows 1. Open Friends → Recommendations. The song is under Received, with a button for that person's own service, and the badge clears.
+4. Tap **Rate & Review** and give it 8. Back in the first browser, Friends → Recommendations → Sent shows the score.
+5. Bad paths: send to a stranger through the API (`403`); remove the friend, and the song stays while "You're no longer friends with {name}" replaces Rate & Review; ⋯ → **Hide** takes it out of Received only.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                      # 930 tests, 80% floor
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations
+cd frontend && npm run test:unit                         # 659 tests, 80% floor
+npm test --prefix e2e -- tests/recommendations.spec.ts   # the golden loop
+```
+
+---
+
+### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
+
+Status: ✅ Done (post-merge checks S1–S5 in the spec)
+Branch: chore/vercel-storage
+Spec: docs/features/deployment-storage.md
+
+Goal: Vercel warned that the Hobby team had used 75% of its 10 GB of deployment storage — every kept deployment holds its own 3.12 GB backend image. After this, the worst case is about 3 × 1.2 GB, however often we deploy.
+
+Tasks:
+
+- [x] Spec: docs/features/deployment-storage.md (the developer asked for the safest option and approved the plan in advance, 2026-10-11).
+- [x] Infra: `backend/Dockerfile` on `node:24.21.0-bookworm-slim` with only Chromium's headless shell and its libraries; user `node`; `HEALTHCHECK` with Node's `fetch`.
+- [x] Infra: `vercel.json` — only `main` deploys; a branch opts in to a preview by its exact name.
+- [x] CI: `test:docker` launches Chromium inside the image.
+- [x] Review: `/code-review` (3 fixed — Node tag pinned, opt-in fallback documented, stale `pwuser` docs; 2 skipped — layer caching, Node health probe) and `/security-review` (clean).
+- [x] Tests: the `vercel.json` contract; local Docker smoke test with a real conversion.
+
+What I did:
+
+No UC of its own: it keeps the deployment every UC runs on inside the free tier.
+
+- **Image:** 2.85 GB → **1.17 GB** (browser and libraries 589 MB, production `node_modules` 345 MB). The browser is installed by the `playwright` package in the lockfile, so there is no image tag to keep in step any more. `openssl` and `ca-certificates` for Prisma.
+- **Previews:** `"git": { "deploymentEnabled": { "**": false, "main": true } }`. A branch that needs a preview (Step 6.2's iPhone checks) adds `"<its branch>": true` in its own `vercel.json` and removes it before the merge.
+- **One PR, not two:** a previews-only PR would itself have deployed one more 3.1 GB production image.
+- **Docs:** `deployment` §3.5–3.6, `tech stack`, `tests`, `link converter implementation guide` (.md + .docx); `CLAUDE.md` §2, §7, §16; `backend-docker.md` superseded notes; `production-deploy.md` — M4 ("no limit") corrected.
+- **Follow-up (2026-11-02, `docs/vercel-image-storage`):** the team was paused on 2026-10-12, until 2026-11-11, because Images Storage reached 17.16 of 10 GB. That is a separate meter this step had not tracked. Recorded in the spec's §1.2 and in `deployment`, `tech stack` (.md + .docx), `production-deploy.md` and `HANDOFF.md`; `CLAUDE.md` §16 now requires reading both meters before each merge to `main`. No code changed.
+
+How to view & test:
+
+```bash
+docker build -t bookrough-api backend          # ~1.2 GB: docker images bookrough-api
+cd frontend && npx vitest run src/vercelConfig.test.ts
+```
+
+Smoke test as in Step 3.4, plus one real conversion inside the running container:
+
+```bash
+docker exec api-smoke node --input-type=module -e "import { convertLink } from '/app/dist/services/linkScraper.service.js'; console.log(await convertLink('https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv', 'SPOTIFY')); process.exit(0);"
+```
+
+→ `converted` with five links. After the merge: production builds, `/api/health` is 200, a real post converts, and Vercel → Usage → Function Storage falls (spec §8, S1–S4). For the follow-up, read Images Storage and Function Storage in Vercel → Usage before and after the first deploying merge once the pause ends (S5).
+
+---
+
 ### Step 6.2 — PWA: offline support (Phase 6)
 
-Status: ☐ Not started
+Status: 🟡 In progress — Stages 1–3 done on `feat/pwa-offline`, no PR yet; Stage 4 not started. Waits for Step 6.1a to merge, then updates from `main`.
 Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
@@ -1796,11 +1903,12 @@ Tasks:
 
 > ⚠️ **Stale, flagged 2026-10-10:** the rate-limiting line below predates Google-only sign-in — the only auth endpoint is `POST /api/auth/google`. Resolved in this step's spec. This step also switches production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker` (`production-deploy.md` §3.3), and the address is shared with friends only after it merges.
 
-- [ ] Backend: Rate limiting on auth endpoints (login, register, password reset) and on post creation.
+- [ ] Backend: Rate limiting on auth endpoints (login, register, password reset), on post creation and on `POST /api/recommendations`.
 - [ ] Backend: Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
 - [ ] Backend: Audit logs for leaked secrets or PII before they go anywhere persistent.
 - [ ] Infra: Confirm no secret is committed anywhere in the repository history.
 - [ ] Infra: Nightly E2E workflow is running and its failures are visible.
+- [ ] Infra: Cap Vercel storage with a fixed ceiling, decided 2026-11-02 (`deployment-storage.md` §1.2). **Only once Images Storage has been seen to fall after the 2026-11-02 deletion** — otherwise deleting images frees nothing. A GitHub Action after each merge to `main` keeps the 4 newest images in `api` (`vercel vcr image ls` / `image rm --yes`), about 1.6 GB, never the one production runs. It needs the Vercel CLI (a new tool, recorded per CLAUDE.md §18) and a `VERCEL_TOKEN` repository secret, which the developer creates. The developer also sets a short Preview retention, such as 7 days, in the project's Build and Deployment settings. Function Storage then tops out near 4.8 GB. The pre-merge meter check (CLAUDE.md §16) stays.
 
 What I did:
 How to view & test:

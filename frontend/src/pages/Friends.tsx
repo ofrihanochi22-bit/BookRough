@@ -25,7 +25,13 @@ import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
-import { ACTION_FAILED, FRIENDS_LOAD_FAILED, FRIENDS_OFFLINE, nowFriends } from '../lib/friendCopy';
+import {
+  ACTION_FAILED,
+  badgeText,
+  FRIENDS_LOAD_FAILED,
+  FRIENDS_OFFLINE,
+  nowFriends,
+} from '../lib/friendCopy';
 import { INVITATION_GONE, invitedBy, joinedCommunity } from '../lib/invitationCopy';
 import { relativeTime } from '../lib/postLinks';
 import { useFriendRequests } from '../stores/friendRequests';
@@ -64,11 +70,13 @@ const byName = (a: FriendView, b: FriendView) =>
  * invitations first (invite-friends.md §5.4), then pending
  * requests to you, newest first, with Accept and Ignore; then your friends,
  * alphabetical, each removable behind a confirmation (UC-8, unfriend.md §5.2).
+ * A row at the top leads to Recommendations (direct-recommendations.md §5.1).
  */
 export function Friends() {
   const loaded = useRequest(loadFriends);
   const online = useOnlineStatus();
   const setCount = useFriendRequests((state) => state.setCount);
+  const unseen = useFriendRequests((state) => state.unseen);
   const refreshCount = useFriendRequests((state) => state.refresh);
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -184,6 +192,22 @@ export function Friends() {
       <h1 className="mb-6 font-display text-2xl font-medium">Friends</h1>
 
       <div className="flex flex-col gap-6">
+        <Link
+          to="/recommendations"
+          aria-label={unseen > 0 ? `Recommendations, ${unseen} new` : 'Recommendations'}
+          className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 font-medium"
+        >
+          Recommendations
+          {unseen > 0 && (
+            <span
+              aria-hidden="true"
+              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-on-accent"
+            >
+              {badgeText(unseen)}
+            </span>
+          )}
+        </Link>
+
         {!online && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
             {FRIENDS_OFFLINE}

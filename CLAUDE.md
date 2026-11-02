@@ -59,7 +59,7 @@ This file is the working contract between the developer and Claude. Read it befo
 
 **Infra**
 
-- Docker (backend image is based on `mcr.microsoft.com/playwright:v1.63.0-noble` so Chromium dependencies are available; the tag moves with the `playwright` version; non-root, `tini` as PID 1, migrations on start — docs/deployment.md §3.5)
+- Docker (backend image is based on `node:24.21.0-bookworm-slim` plus only Chromium's headless shell and its system libraries, installed by the `playwright` package so the browser always matches it — kept small because every Vercel deployment stores a copy; non-root, `tini` as PID 1, migrations on start — docs/deployment.md §3.5, docs/features/deployment-storage.md)
 - GitHub Actions for CI — see §10 for exactly what gates a merge
 - Vercel (Hobby) hosts the site on one origin — the Vite build plus the backend `Dockerfile` on its Container Runtime, routed by `vercel.json` — and Neon (Free) holds production Postgres, both in Frankfurt (§16)
 
@@ -207,6 +207,7 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `friends` holds one row per pair of users in either direction, guarded by two hand-written objects in the `add_friends` migration: the unique index `friends_one_per_pair` (on the LEAST and GREATEST of the two ids) and the CHECK `friends_not_self` — likewise invisible to Prisma (docs/features/friend-requests.md §3).
 - `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
 - `community_invitations` holds pending in-app invitations from a community's admins to their friends; a ban blocks them too (docs/features/invite-friends.md).
+- `posts` holds community posts and direct recommendations: `community_id` is nullable, and exactly one of it and `recipient_id` is set, guarded by two hand-written CHECKs in the `add_direct_recommendations` migration, `posts_one_target` and `posts_not_self` — likewise invisible to Prisma. `recipient_id` must stay `Cascade`, because `SetNull` would break the first (docs/features/direct-recommendations.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
@@ -225,7 +226,7 @@ Always create migrations via `npx prisma migrate dev --name <descriptive-name>`.
 - Browser is closed in a `finally` block — always.
 - **Fail gracefully**: if scraping throws, save the post with `original_url` only and a `conversion_pending` flag. Don't drop the user's content. Only a link we can tell is wrong is refused (UC-11 `422`): one that is not a track or album on a supported service — checked before Chromium launches — or one squigly.link answers "could not be found" for (docs/features/posts-feed.md §4).
 - **Concurrency cap**: wrap the scrape in `p-limit(2)`. Each Chromium instance costs real memory, and the deployment target is a small/free tier. Two simultaneous posts is the ceiling; the third waits — and its wait counts toward the 12-second ceiling below.
-- Production runs inside the `mcr.microsoft.com/playwright` Docker base image (Chromium system deps preinstalled).
+- Production runs inside the backend Docker image: a slim Node base with Chromium's headless shell and its system libraries, nothing more (docs/features/deployment-storage.md).
 
 ### Latency budget and posting UX
 
@@ -240,10 +241,10 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Fifteen screens**, five groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Sixteen screens**, five groups:
 
 - **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
-- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
+- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile, Recommendations (direct, friend to friend).
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
 - **Administration**: the Admin screen (users, communities, settings) — admins only (§17).
@@ -262,10 +263,11 @@ Registration, Login, Forgot Password, and Create New Password screens were **wit
 
 ## 9. Use cases
 
-The full UC list (UC-1 through UC-19) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
+The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
 
 - **UC-17 is withdrawn** (password reset). Its number is kept, not reused, so UC-18 keeps its identity.
 - **UC-19 is new**: the administrative area — see §17.
+- **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 
 ---
 
@@ -411,7 +413,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends.
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a.
 
 ---
 
@@ -521,7 +523,8 @@ The full specification is in [docs/deployment.md](docs/deployment.md) (companion
 ### Deployment
 
 - The target is a **real, publicly reachable deployment**, on the simplest option available, with a strong preference for free tiers.
-- **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; other branches get previews on the Neon `preview` branch. Full record: docs/deployment.md §3.6 and docs/features/production-deploy.md.
+- **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; another branch gets a preview (on the Neon `preview` branch) only when it opts in by its exact name in `vercel.json` — every deployment stores a backend image against two separate Hobby allowances, 10 GB of Images Storage and 10 GB of Function Storage (docs/features/deployment-storage.md). Full record: docs/deployment.md §3.6 and docs/features/production-deploy.md.
+- **Storage check before every merge to `main`.** Going over Images Storage paused the team for 30 days on 2026-10-12. Claude has no Vercel access and usage alerts need the Pro plan, so before merging Claude reminds the developer to read both meters in Vercel → Usage, and does not merge until the developer has answered.
 - Still, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit, so moving to the fallback stays a configuration change. `vercel.json` is the only Vercel-specific file.
 - The hard constraint that drives the eventual choice: the backend runs headless Chromium, which needs meaningfully more memory than a plain Node service, and free tiers are tight. §7's `p-limit(2)` cap exists for this reason.
 

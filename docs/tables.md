@@ -13,6 +13,7 @@ Stores the core authentication and profile data.
 - **use_google_picture** (BOOLEAN, Not Null, Default false): The user chose their Google photo as their avatar during onboarding. False means the generated avatar.
 - **preferred_service** (ENUM, Nullable until onboarding): 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Deliberately no default, so "has not chosen" stays distinguishable from "chose Spotify".
 - **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
+- **recommendations_seen_at** (TIMESTAMP, Nullable): When the user last opened Received; recommendations newer than this count on the Friends tab badge (UC-20). Never sent to a client.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Not Null): Set on every write. Added in Phase 1; the admin area will use it.
 
@@ -60,10 +61,12 @@ Manages the bidirectional social graph and pending requests (UC-6, UC-7, UC-8).
 
 ### 5. posts Table
 
-The core entity for music recommendations (UC-11, `docs/features/posts-feed.md` §3). Metadata and links come from the link converter (squigly.link); all of them are null while `conversion_pending` is true.
+The core entity for music recommendations, to a community or, with UC-20, to one friend (UC-11, `docs/features/posts-feed.md` §3). Metadata and links come from the link converter (squigly.link); all of them are null while `conversion_pending` is true.
 - **id** (UUID, Primary Key).
 - **author_id** (UUID, Foreign Key referencing users(id)).
-- **community_id** (UUID, Foreign Key referencing communities(id)).
+- **community_id** (UUID, Nullable, Foreign Key referencing communities(id)): Null on a direct recommendation.
+- **recipient_id** (UUID, Nullable, Foreign Key referencing users(id)): The friend a direct recommendation was sent to (UC-20). Exactly one of community_id and recipient_id is set, enforced by the hand-written CHECK posts_one_target; posts_not_self stops a send to yourself. Both are invisible to Prisma and to prisma migrate diff.
+- **recipient_hidden_at** (TIMESTAMP, Nullable): The recipient removed it from Received. Affects Received only, and is never sent to a client.
 - **original_url** (VARCHAR(2048), Not Null): The link the user pasted, trimmed. Always present — the fallback link every viewer can open.
 - **source_service** (ENUM `StreamingService`, Not Null): The service the pasted link belongs to, derived from its host.
 - **kind** (ENUM `PostKind`, Nullable): `TRACK` or `ALBUM`, from squigly's JSON-LD type; null while pending.
@@ -79,7 +82,7 @@ The core entity for music recommendations (UC-11, `docs/features/posts-feed.md` 
 - **created_at** (TIMESTAMP, Default Current Time).
 - **conversion_pending** (BOOLEAN, Default false): True when the conversion could not run (squigly.link down, a timeout, an unreadable page); the author can retry it.
 - **updated_at** (TIMESTAMP): Set on every write.
-- (Indexed on community_id, created_at and id, newest first, for the feed; and on author_id, community_id, for removal. Cascades: deleting the community or the author deletes the posts; removing a member deletes their posts in that community — UC-14.)
+- (Indexed on community_id, created_at and id, newest first, for the feed; on author_id, community_id, for removal; on recipient_id, created_at and id, for Received; and on author_id, created_at and id, for Sent. Cascades: deleting the community, the author or the recipient deletes the posts; removing a member deletes their posts in that community — UC-14.)
 
 ### 6. ratings Table
 

@@ -10,9 +10,10 @@ import {
   isAdminRole,
   POST_NOT_FOUND,
   requireMember,
-  requirePostMember,
 } from './communityAccess.js';
+import { friendsOnPosts } from './friendship.js';
 import { type ConversionResult, convertLink } from './linkScraper.service.js';
+import { checkPostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
 import { INVALID_LINK, parseSupportedLink } from './supportedLinks.js';
@@ -23,6 +24,7 @@ export { POST_NOT_FOUND } from './communityAccess.js';
 export const AUTHOR_ONLY = 'Only the author can do this.';
 export const ALREADY_CONVERTED = 'This post already has its links.';
 export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
+export const SENDER_ONLY = 'Only the sender can delete this.';
 export const PAGE_SIZE = 20;
 
 export interface NewPost {
@@ -51,18 +53,12 @@ function isForeignKeyViolation(error: unknown): boolean {
 }
 
 /**
- * POST /communities/:id/posts — UC-11. Synchronous: it returns once the post is
- * saved, converted or not (CLAUDE.md §7). Only a link we can tell is wrong —
- * its shape, or squigly's explicit "could not be found" — is refused; a
- * conversion that cannot run saves the post as pending.
+ * The columns every new post or direct recommendation shares: validates, then
+ * converts. Only a link we can tell is wrong — its shape, or squigly's explicit
+ * "could not be found" — is refused; a conversion that cannot run gives a
+ * pending post (CLAUDE.md §7).
  */
-export async function createPost(
-  user: User,
-  communityId: string,
-  input: NewPost,
-): Promise<PublicPost> {
-  await requireMember(user, communityId);
-
+export async function prepareSharedLink(input: NewPost) {
   const link = parseSupportedLink(input.url);
   if (!link) {
     throw new AppError(INVALID_LINK, 422);
@@ -76,6 +72,22 @@ export async function createPost(
   if (result.outcome === 'not_found') {
     throw new AppError(INVALID_LINK, 422);
   }
+  return {
+    originalUrl: link.url,
+    sourceService: link.service,
+    textComment: comment.value,
+    ...(result.outcome === 'converted' ? conversionData(result) : { conversionPending: true }),
+  };
+}
+
+/** POST /communities/:id/posts — UC-11. Synchronous: it returns once the post is saved. */
+export async function createPost(
+  user: User,
+  communityId: string,
+  input: NewPost,
+): Promise<PublicPost> {
+  await requireMember(user, communityId);
+  const shared = await prepareSharedLink(input);
 
   try {
     const post = await prisma.$transaction(async (tx) => {
@@ -91,16 +103,7 @@ export async function createPost(
         throw new AppError(COMMUNITY_NOT_FOUND, 404);
       }
       return tx.post.create({
-        data: {
-          authorId: user.id,
-          communityId,
-          originalUrl: link.url,
-          sourceService: link.service,
-          textComment: comment.value,
-          ...(result.outcome === 'converted'
-            ? conversionData(result)
-            : { conversionPending: true }),
-        },
+        data: { authorId: user.id, communityId, ...shared },
         include: postInclude(user.id),
       });
     });
@@ -147,6 +150,16 @@ export function decodeCursor(raw: string): Cursor {
   throw new AppError('The request query is invalid.', 422);
 }
 
+/** The keyset filter for rows ordered by createdAt, then id, both descending. */
+export function beforeCursor(cursor: Cursor) {
+  return {
+    OR: [
+      { createdAt: { lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+    ],
+  };
+}
+
 /** GET /communities/:id/posts — newest first, keyset-paginated. */
 export async function listPosts(
   user: User,
@@ -160,12 +173,7 @@ export async function listPosts(
   const rows = await prisma.post.findMany({
     where: {
       communityId,
-      ...(cursor && {
-        OR: [
-          { createdAt: { lt: cursor.createdAt } },
-          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-        ],
-      }),
+      ...(cursor && beforeCursor(cursor)),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,
@@ -184,21 +192,16 @@ export async function listPosts(
 }
 
 /**
- * POST /posts/:postId/conversion — the author retries a pending post. A post in
- * a community the caller is not in is a 404, like the community itself.
+ * POST /posts/:postId/conversion — the author retries a pending post. A post the
+ * caller cannot reach is a 404, like a missing one; on a direct item the sender
+ * may retry after unfriending (direct-recommendations.md §3.4).
  */
 export async function retryConversion(user: User, postId: string): Promise<PublicPost> {
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) {
     throw new AppError(POST_NOT_FOUND, 404);
   }
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
+  await checkPostAccess(user, post);
   if (post.authorId !== user.id) {
     throw new AppError(AUTHOR_ONLY, 403);
   }
@@ -232,33 +235,28 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
     },
     'Post conversion retried',
   );
-  const summaries = await ratingSummaries([postId]);
-  return toPublicPost(current, user.id, false, summaryFor(summaries, postId));
+  const [summaries, friends] = await Promise.all([
+    ratingSummaries([postId]),
+    friendsOnPosts(user.id, [current]),
+  ]);
+  return toPublicPost(current, user.id, false, summaryFor(summaries, postId), friends);
 }
 
 /**
  * DELETE /posts/:postId — UC-18. The author, or an admin or the owner of the
- * post's community, whoever wrote it (docs/features/posts-delete.md §4). A
- * post in a community the caller is not in is a 404, like the community.
+ * post's community, whoever wrote it (docs/features/posts-delete.md §4). On a
+ * direct item only the sender deletes, for both; the recipient hides instead
+ * (docs/features/direct-recommendations.md §3.5). A post the caller cannot
+ * reach is a 404, like a missing one.
  */
 export async function deletePost(user: User, postId: string): Promise<void> {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { authorId: true, communityId: true },
-  });
-  if (!post) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  const byAuthor = post.authorId === user.id;
-  if (!byAuthor && !isAdminRole(membership.role)) {
+  const access = await requirePostAccess(user, postId);
+  const byAuthor = access.authorId === user.id;
+  if (access.scope === 'COMMUNITY' && !byAuthor && !isAdminRole(access.role)) {
     throw new AppError(AUTHOR_OR_ADMIN, 403);
+  }
+  if (access.scope === 'DIRECT' && !byAuthor) {
+    throw new AppError(SENDER_ONLY, 403);
   }
 
   // By id only: matching nothing means someone (or a removal) deleted it first.
@@ -266,15 +264,26 @@ export async function deletePost(user: User, postId: string): Promise<void> {
   if (count === 0) {
     throw new AppError(POST_NOT_FOUND, 404);
   }
-  log.info({ userId: user.id, communityId: post.communityId, postId, byAuthor }, 'Post deleted');
+  log.info(
+    {
+      userId: user.id,
+      ...(access.scope === 'COMMUNITY' && { communityId: access.communityId }),
+      postId,
+      byAuthor,
+    },
+    'Post deleted',
+  );
 }
 
-/** GET /posts/:postId — Post Detail's card (docs/features/post-detail.md §4). */
+/**
+ * GET /posts/:postId — Post Detail's card (docs/features/post-detail.md §4).
+ * `community` is null on a direct item.
+ */
 export async function getPost(
   user: User,
   postId: string,
-): Promise<{ post: PublicPost; community: { id: string; name: string } }> {
-  const { role } = await requirePostMember(user, postId);
+): Promise<{ post: PublicPost; community: { id: string; name: string } | null }> {
+  const access = await requirePostAccess(user, postId);
   const post = await prisma.post.findUnique({
     where: { id: postId },
     include: { ...postInclude(user.id), community: { select: { id: true, name: true } } },
@@ -283,9 +292,13 @@ export async function getPost(
     // Deleted between the two reads.
     throw new AppError(POST_NOT_FOUND, 404);
   }
-  const summaries = await ratingSummaries([postId]);
+  const [summaries, friends] = await Promise.all([
+    ratingSummaries([postId]),
+    friendsOnPosts(user.id, [post]),
+  ]);
+  const moderates = access.scope === 'COMMUNITY' && isAdminRole(access.role);
   return {
-    post: toPublicPost(post, user.id, isAdminRole(role), summaryFor(summaries, postId)),
-    community: { id: post.community.id, name: post.community.name },
+    post: toPublicPost(post, user.id, moderates, summaryFor(summaries, postId), friends),
+    community: post.community && { id: post.community.id, name: post.community.name },
   };
 }

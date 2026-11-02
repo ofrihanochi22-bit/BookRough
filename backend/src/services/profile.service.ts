@@ -11,7 +11,7 @@ import {
 } from '../utils/profileRating.js';
 import { type ProfileUser, profileUserSelect, toProfileUser } from '../utils/profileUser.js';
 import { displayNameKey } from './displayName.js';
-import { decodeCursor, encodeCursor, PAGE_SIZE } from './post.service.js';
+import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from './post.service.js';
 import { cleanLine } from './textRules.js';
 
 export const USER_NOT_FOUND = 'User not found.';
@@ -134,12 +134,7 @@ export async function listProfileRatings(
     where: {
       userId,
       post: { community: { members: { some: { userId: user.id } } } },
-      ...(cursor && {
-        OR: [
-          { createdAt: { lt: cursor.createdAt } },
-          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-        ],
-      }),
+      ...(cursor && beforeCursor(cursor)),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,

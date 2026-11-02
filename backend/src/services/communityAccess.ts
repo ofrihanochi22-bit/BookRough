@@ -60,29 +60,3 @@ export async function isBanned(userId: string, communityId: string): Promise<boo
   });
   return ban !== null;
 }
-
-/**
- * A post the caller may act on: it exists and they are a member of its
- * community now. Anything else is the same 404, so an outsider cannot learn
- * that the post exists.
- */
-export async function requirePostMember(
-  user: User,
-  postId: string,
-): Promise<{ authorId: string; communityId: string; role: CommunityRole }> {
-  const post = await prisma.post.findUnique({
-    where: { id: postId },
-    select: { authorId: true, communityId: true },
-  });
-  if (!post) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  const membership = await prisma.communityMember.findUnique({
-    where: { userId_communityId: { userId: user.id, communityId: post.communityId } },
-    select: { role: true },
-  });
-  if (!membership) {
-    throw new AppError(POST_NOT_FOUND, 404);
-  }
-  return { ...post, role: membership.role };
-}

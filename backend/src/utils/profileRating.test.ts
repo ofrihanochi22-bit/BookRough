@@ -50,4 +50,28 @@ describe('toProfileRating', () => {
       },
     });
   });
+
+  it('fails rather than shows a rating with no community', () => {
+    // Arrange: the profile query reads through membership, so this is a bug.
+    const at = new Date('2026-10-06T10:00:00.000Z');
+    const direct: RatingWithPost = {
+      id: 'r1',
+      score: 8,
+      comment: null,
+      createdAt: at,
+      post: {
+        id: 'p1',
+        sourceService: 'SPOTIFY',
+        kind: null,
+        songTitle: null,
+        songArtist: null,
+        songCoverArtUrl: null,
+        conversionPending: true,
+        community: null,
+      },
+    };
+
+    // Act & Assert
+    expect(() => toProfileRating(direct)).toThrow('must belong to a community');
+  });
 });
