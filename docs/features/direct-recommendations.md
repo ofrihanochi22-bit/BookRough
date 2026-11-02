@@ -253,7 +253,7 @@ One component, opened from both places. `PostComposer`'s link-and-comment form i
 - **From Recommendations:** a friend picker from `GET /api/friends` first. Loading → skeleton rows. Load failure → inline Try again. No friends → "Add a friend first" with a link to Search, no form.
 - **From a profile:** the friend is preselected and named, with no picker.
 - **Sending:** the sheet can't be dismissed, the fields are read-only, and the button reads "Finding this track on other services…".
-- `201` converted or pending → the sheet closes, the toast "Sent to {name}", and the new card is prepended if Sent is showing. A pending item shows the usual quiet note. No error dialog.
+- `201` converted or pending → the sheet closes, the toast "Sent to {name}", and Sent reloads if it is showing. A pending item shows the usual quiet note. No error dialog.
 - `422` → inline under the field; the draft stays.
 - `403` "You can only send songs to friends." → inline; the draft stays; from the screen the picker reloads, and from a profile the sheet stays open until closed and the profile reloads on closing.
 - `404` → inline "This person is no longer available."; the draft stays.

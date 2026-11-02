@@ -8,6 +8,7 @@ import { NO_RATINGS } from '../utils/ratingSummary.js';
 import { POST_NOT_FOUND } from './communityAccess.js';
 import { areFriends, friendsOnPosts, lockFriendship } from './friendship.js';
 import {
+  beforeCursor,
   decodeCursor,
   encodeCursor,
   type NewPost,
@@ -91,12 +92,7 @@ async function listRecommendations(
   const rows = await prisma.post.findMany({
     where: {
       ...where,
-      ...(cursor && {
-        OR: [
-          { createdAt: { lt: cursor.createdAt } },
-          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-        ],
-      }),
+      ...(cursor && beforeCursor(cursor)),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,

@@ -57,4 +57,27 @@ describe('toSavedPost', () => {
       toSavedPost(bookmark([{ role: 'ADMIN' }]), 'viewer-1', true, NO_RATINGS).post.canDelete,
     ).toBe(true);
   });
+
+  it('has no community for a direct recommendation, and carries who is a friend', () => {
+    // Arrange
+    const saved = bookmark([]);
+    const direct: BookmarkWithPost = {
+      ...saved,
+      post: {
+        ...saved.post,
+        communityId: null,
+        community: null,
+        recipientId: 'viewer-1',
+        recipient: { id: 'viewer-1', displayName: 'Noam', profilePictureUrl: null },
+      },
+    };
+
+    // Act
+    const view = toSavedPost(direct, 'viewer-1', false, NO_RATINGS, new Set(['author-1']));
+
+    // Assert
+    expect(view.community).toBeNull();
+    expect(view.isMember).toBe(false);
+    expect(view.post.direct?.isFriend).toBe(true);
+  });
 });

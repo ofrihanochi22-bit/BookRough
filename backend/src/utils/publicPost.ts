@@ -3,7 +3,7 @@ import type { Post, PostKind, StreamingService } from '@prisma/client';
 import { type MemberUser, memberUserSelect, toMemberUser } from './communityMember.js';
 import type { RatingSummary } from './ratingSummary.js';
 
-const NO_FRIENDS: ReadonlySet<string> = new Set();
+export const NO_FRIENDS: ReadonlySet<string> = new Set();
 
 /** The only post shape that ever leaves the server (docs/features/posts-feed.md §4). */
 export interface PublicPost {

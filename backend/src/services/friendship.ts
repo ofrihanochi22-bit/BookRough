@@ -1,8 +1,7 @@
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
-
-const NO_FRIENDS: ReadonlySet<string> = new Set();
+import { NO_FRIENDS } from '../utils/publicPost.js';
 
 /** True when an accepted friendship exists, in whichever direction it was sent. */
 export async function areFriends(a: string, b: string): Promise<boolean> {

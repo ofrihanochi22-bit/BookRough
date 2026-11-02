@@ -150,6 +150,16 @@ export function decodeCursor(raw: string): Cursor {
   throw new AppError('The request query is invalid.', 422);
 }
 
+/** The keyset filter for rows ordered by createdAt, then id, both descending. */
+export function beforeCursor(cursor: Cursor) {
+  return {
+    OR: [
+      { createdAt: { lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+    ],
+  };
+}
+
 /** GET /communities/:id/posts — newest first, keyset-paginated. */
 export async function listPosts(
   user: User,
@@ -163,12 +173,7 @@ export async function listPosts(
   const rows = await prisma.post.findMany({
     where: {
       communityId,
-      ...(cursor && {
-        OR: [
-          { createdAt: { lt: cursor.createdAt } },
-          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-        ],
-      }),
+      ...(cursor && beforeCursor(cursor)),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,

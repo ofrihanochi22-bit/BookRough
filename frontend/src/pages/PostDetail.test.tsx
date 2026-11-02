@@ -240,4 +240,83 @@ describe('PostDetail (post-detail.md §5.2)', () => {
     // Assert
     expect(await screen.findByText('Community screen')).toBeInTheDocument();
   });
+
+  it('a direct recommendation goes back to Recommendations, with no delete for the recipient', async () => {
+    // Arrange
+    getPost.mockResolvedValue({
+      post: makePost({
+        direct: {
+          recipient: { id: 'me', displayName: 'Me', profilePictureUrl: null },
+          isFriend: true,
+        },
+      }),
+      community: null,
+    });
+    listPostRatings.mockResolvedValue(RATINGS);
+
+    // Act
+    renderDetail();
+
+    // Assert
+    const back = await screen.findByRole('link', { name: '← Recommendations' });
+    expect(back).toHaveAttribute('href', '/recommendations');
+    expect(screen.getByText('From')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Post options' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
+
+  it('after unfriending the recipient cannot edit their rating', async () => {
+    // Arrange
+    getPost.mockResolvedValue({
+      post: makePost({
+        direct: {
+          recipient: { id: 'me', displayName: 'Me', profilePictureUrl: null },
+          isFriend: false,
+        },
+      }),
+      community: null,
+    });
+    listPostRatings.mockResolvedValue(RATINGS);
+
+    // Act
+    renderDetail();
+
+    // Assert
+    expect(await within(ratingsRegion()).findByText('nise song')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  it('the sender deletes and returns to Recommendations', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    getPost.mockResolvedValue({
+      post: makePost({
+        isMine: true,
+        canDelete: true,
+        direct: {
+          recipient: { id: 'noam', displayName: 'Noam', profilePictureUrl: null },
+          isFriend: true,
+        },
+      }),
+      community: null,
+    });
+    listPostRatings.mockResolvedValue(RATINGS);
+    deletePost.mockResolvedValue(undefined);
+    render(
+      <MemoryRouter initialEntries={[`/posts/${POST.id}`]}>
+        <Routes>
+          <Route path="/posts/:postId" element={<PostDetail />} />
+          <Route path="/recommendations" element={<p>Recommendations screen</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // Act
+    await user.click(await screen.findByRole('button', { name: 'Post options' }));
+    await user.click(screen.getByRole('button', { name: 'Delete post' }));
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    // Assert
+    expect(await screen.findByText('Recommendations screen')).toBeInTheDocument();
+  });
 });

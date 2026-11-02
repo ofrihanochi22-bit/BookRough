@@ -130,4 +130,19 @@ describe('TabLayout and BottomNav', () => {
     const friends = within(nav()).getByRole('link', { name: 'Friends' });
     expect(within(friends).queryByText(/\d/)).not.toBeInTheDocument();
   });
+
+  it('the badge adds unseen recommendations to requests and invitations', async () => {
+    // Arrange
+    countFriendRequests.mockResolvedValue(1);
+    countMyInvitations.mockResolvedValue(1);
+    countUnseenRecommendations.mockResolvedValue(2);
+
+    // Act
+    renderAt('/home');
+
+    // Assert
+    expect(
+      await within(nav()).findByRole('link', { name: 'Friends, 4 waiting' }),
+    ).toBeInTheDocument();
+  });
 });

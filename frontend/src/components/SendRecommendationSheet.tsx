@@ -27,7 +27,7 @@ interface SendRecommendationSheetProps {
 }
 
 /** The friend picker, for when the sheet opens without a friend. */
-function FriendPicker({ onPick }: { onPick: (friend: MemberUser) => void }) {
+function ChooseFriend({ onPick }: { onPick: (friend: MemberUser) => void }) {
   const friends = useRequest(listFriends);
 
   if (friends.status === 'loading') {
@@ -94,6 +94,7 @@ export function SendRecommendationSheet({
   onStale,
 }: SendRecommendationSheetProps) {
   const [picked, setPicked] = useState<MemberUser | null>(friend ?? null);
+  const [choosing, setChoosing] = useState(!friend);
   const [busy, setBusy] = useState(false);
   // Told on closing, so a reload behind the sheet does not unmount it and its draft.
   const stale = useRef(false);
@@ -130,14 +131,23 @@ export function SendRecommendationSheet({
 
   return (
     <Sheet title="Send a song" onClose={close} dismissible={!busy}>
-      {picked ? (
-        <div className="flex flex-col gap-4">
+      {choosing && (
+        <ChooseFriend
+          onPick={(next) => {
+            setPicked(next);
+            setChoosing(false);
+          }}
+        />
+      )}
+      {/* Hidden, not unmounted, while choosing: the draft must survive a change of friend. */}
+      {picked && (
+        <div className={`${choosing ? 'hidden' : 'flex'} flex-col gap-4`}>
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 break-words text-sm">
               To <span className="font-medium">{picked.displayName}</span>
             </p>
             {!friend && (
-              <Button variant="secondary" disabled={busy} onClick={() => setPicked(null)}>
+              <Button variant="secondary" disabled={busy} onClick={() => setChoosing(true)}>
                 Change
               </Button>
             )}
@@ -151,8 +161,6 @@ export function SendRecommendationSheet({
             onBusyChange={setBusy}
           />
         </div>
-      ) : (
-        <FriendPicker onPick={setPicked} />
       )}
     </Sheet>
   );

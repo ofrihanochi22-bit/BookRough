@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -386,5 +386,22 @@ describe('Friends — invitations (invite-friends.md §5.4)', () => {
     // Assert
     expect(await screen.findByRole('button', { name: 'Join Dana Club' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Decline Dana Club' })).toBeDisabled();
+  });
+
+  it('leads to Recommendations, with the unseen count only when above zero', async () => {
+    // Arrange
+    useFriendRequests.setState({ unseen: 0 });
+    renderFriends();
+    expect(screen.getByRole('link', { name: 'Recommendations' })).toHaveAttribute(
+      'href',
+      '/recommendations',
+    );
+
+    // Act
+    act(() => useFriendRequests.setState({ unseen: 2 }));
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Recommendations, 2 new' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Friends' });
   });
 });

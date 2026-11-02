@@ -36,14 +36,12 @@ function fresh(page: PostsPage): LocalChanges {
 
 interface RecommendationListProps {
   view: View;
-  /** Sent from this screen: shown first on Sent until the list next loads. */
-  added: PublicPost[];
   online: boolean;
   viewerService: StreamingService | null;
 }
 
 /** One of the two lists, newest first, with Load more and its own loading states. */
-function RecommendationList({ view, added, online, viewerService }: RecommendationListProps) {
+function RecommendationList({ view, online, viewerService }: RecommendationListProps) {
   const first = useRequest(view === 'received' ? listReceived : listSent);
   const refreshCount = useFriendRequests((state) => state.refresh);
   const [local, setLocal] = useState<LocalChanges | null>(null);
@@ -54,9 +52,8 @@ function RecommendationList({ view, added, online, viewerService }: Recommendati
 
   const loaded = first.status === 'ready' ? first.data : null;
   const changes = loaded ? (local?.page === loaded ? local : fresh(loaded)) : null;
-  const loadedIds = new Set(changes?.page.posts.map((post) => post.id));
   const posts = changes
-    ? [...added.filter((post) => !loadedIds.has(post.id)), ...changes.page.posts, ...changes.more]
+    ? [...changes.page.posts, ...changes.more]
         .filter((post) => !changes.removed.includes(post.id))
         .map((post) => changes.replaced[post.id] ?? post)
     : [];
@@ -218,13 +215,8 @@ export function Recommendations() {
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
   const [view, setView] = useState<View>('received');
   const [sending, setSending] = useState(false);
-  const [added, setAdded] = useState<PublicPost[]>([]);
-
-  function choose(next: View) {
-    setView(next);
-    // Switching loads the list afresh, sends included.
-    setAdded([]);
-  }
+  // A send reloads Sent, so the list always matches the server.
+  const [sends, setSends] = useState(0);
 
   return (
     <ScreenLayout>
@@ -254,7 +246,7 @@ export function Recommendations() {
               key={option}
               type="button"
               aria-pressed={view === option}
-              onClick={() => choose(option)}
+              onClick={() => setView(option)}
               className={`min-h-11 flex-1 rounded-full border text-sm font-medium ${
                 view === option
                   ? 'border-accent bg-accent text-on-accent'
@@ -267,9 +259,8 @@ export function Recommendations() {
         </div>
 
         <RecommendationList
-          key={view}
+          key={view === 'sent' ? `sent-${sends}` : view}
           view={view}
-          added={view === 'sent' ? added : []}
           online={online}
           viewerService={viewerService}
         />
@@ -279,9 +270,9 @@ export function Recommendations() {
         <SendRecommendationSheet
           online={online}
           onClose={() => setSending(false)}
-          onSent={(post) => {
+          onSent={() => {
             setSending(false);
-            setAdded((current) => [post, ...current]);
+            setSends((count) => count + 1);
           }}
         />
       )}

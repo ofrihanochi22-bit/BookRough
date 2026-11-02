@@ -142,4 +142,38 @@ describe('toPublicPost', () => {
     // Assert
     expect(view.ratingSummary).toEqual({ average: 7.5, count: 2 });
   });
+
+  it('is null on a community post, and on a direct item names the recipient and who is a friend', () => {
+    // Arrange
+    const recipient = { id: 'recipient-1', displayName: 'Noam', profilePictureUrl: null };
+    const direct = {
+      ...post({ communityId: null, recipientId: 'recipient-1' }),
+      recipient,
+    };
+
+    // Act
+    const forSender = toPublicPost(direct, 'author-1', false, NO_RATINGS, new Set(['recipient-1']));
+    const forRecipient = toPublicPost(direct, 'recipient-1', false, NO_RATINGS, new Set());
+
+    // Assert
+    expect(toPublicPost(post(), 'viewer-1', false, NO_RATINGS).direct).toBeNull();
+    expect(forSender.direct).toEqual({ recipient, isFriend: true });
+    expect(forSender.canDelete).toBe(true);
+    expect(forRecipient.direct).toEqual({ recipient, isFriend: false });
+    expect(forRecipient.canDelete).toBe(false);
+  });
+
+  it('🔒 never sends the raw recipient or hidden columns', () => {
+    // Act
+    const view = toPublicPost(
+      post({ recipientId: 'recipient-1', recipientHiddenAt: new Date() }),
+      'viewer-1',
+      false,
+      NO_RATINGS,
+    );
+
+    // Assert
+    expect(view).not.toHaveProperty('recipientId');
+    expect(view).not.toHaveProperty('recipientHiddenAt');
+  });
 });

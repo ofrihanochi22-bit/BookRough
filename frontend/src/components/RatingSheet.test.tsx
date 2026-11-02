@@ -260,4 +260,23 @@ describe('RatingSheet editing (post-detail.md §5.2)', () => {
     );
     expect(comment()).toHaveValue('nise song');
   });
+
+  it('a refusal calls onStale in place of onClose when given', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onStale = vi.fn();
+    ratePost.mockRejectedValue(httpError(403, 'You can only rate songs from friends.'));
+    render(
+      <RatingSheet post={makePost()} online onClose={onClose} onDone={vi.fn()} onStale={onStale} />,
+    );
+
+    // Act
+    await user.click(screen.getByRole('radio', { name: '8' }));
+    await user.click(screen.getByRole('button', { name: 'Submit Rating' }));
+
+    // Assert
+    await vi.waitFor(() => expect(onStale).toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

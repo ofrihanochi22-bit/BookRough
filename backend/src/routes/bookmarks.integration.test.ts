@@ -422,6 +422,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'conversionPending',
         'coverArtUrl',
         'createdAt',
+        'direct',
         'id',
         'isBookmarked',
         'isMine',
