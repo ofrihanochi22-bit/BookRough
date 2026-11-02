@@ -8,7 +8,7 @@
 | **Use cases** | UC-20 (new: send a recommendation to a friend); UC-11 retitled; UC-12, UC-13, UC-16, UC-18 amended |
 | **Phase**     | 6 — new Step 6.1a of `DEVELOPMENT.md`, built before Step 6.2 (§0)                                  |
 | **Branch**    | `feat/direct-recommendations`                                                                      |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                 |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                                 |
 
 ---
 
@@ -384,21 +384,28 @@ With `friendship: 'FRIENDS'`, a **Send a song** button beside the Friends contro
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                 | Reason                                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 2026-11-02 | Extend `Post` with a nullable community and a recipient (option A)                       | Reuses conversion, ratings, bookmarks and Post Detail; the compiler finds community assumptions |
-| 2026-11-02 | A separate table (B) and a hidden community per pair (C) rejected                        | B duplicates ratings, bookmarks and paging; C leaks through unfiltered community queries        |
-| 2026-11-02 | One friend per send (option A)                                                           | Personal, no partial failure; multi-select can arrive with no schema change                     |
-| 2026-11-02 | A new Recommendations screen, entered from Friends (option A)                            | Keeps five tabs; a flat list does not invite chat                                               |
-| 2026-11-02 | Sending starts from that screen or a friend's profile, with one sheet (option A)         | Covers both situations with one component                                                       |
-| 2026-11-02 | Two lists, Received and Sent, Received by default (option A)                             | What waits for you is not buried; the sender can return to what they sent                       |
-| 2026-11-02 | Items stay visible to both after unfriending (option A)                                  | No song lost; `unfriend.md` holds                                                               |
-| 2026-11-02 | A refused send uses a neutral message                                                    | Unfriending is already visible on the profile; "silent" means no notification                   |
-| 2026-11-02 | The recipient rates directly from Received, and from My List if saved (option A)         | One action after listening; amends `rate-post.md`'s My List-only rule for direct items          |
-| 2026-11-02 | After unfriending, a new rating and an edit are blocked; private actions stay (option A) | Closes a channel to someone who removed you, with no blocking feature                           |
-| 2026-11-02 | The sender deletes for both; the recipient hides for themselves (option B)               | Each side controls their own list and the sender loses nothing                                  |
-| 2026-11-02 | Hiding affects Received only; bookmark and rating stay (option B)                        | Developer's choice: nothing is lost, and the least code                                         |
-| 2026-11-02 | A badge count, cleared by opening Received, with one `users` column (option A)           | Matches the existing badge; no per-item writes                                                  |
-| 2026-11-02 | One sender comment and one rating comment, 280 each, no replies (option A)               | Reuses the text rules; this stays a recommendation, not a chat                                  |
-| 2026-11-02 | No admin change (option A)                                                               | Consistent with no post counts; adds no data on private behaviour                               |
-| 2026-11-02 | Build now as Step 6.1a, before Step 6.2 (option B)                                       | Developer's choice: 6.2's iPhone checks wait for the pause anyway                               |
+| Date       | Decision                                                                                                      | Reason                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 2026-11-02 | Extend `Post` with a nullable community and a recipient (option A)                                            | Reuses conversion, ratings, bookmarks and Post Detail; the compiler finds community assumptions  |
+| 2026-11-02 | A separate table (B) and a hidden community per pair (C) rejected                                             | B duplicates ratings, bookmarks and paging; C leaks through unfiltered community queries         |
+| 2026-11-02 | One friend per send (option A)                                                                                | Personal, no partial failure; multi-select can arrive with no schema change                      |
+| 2026-11-02 | A new Recommendations screen, entered from Friends (option A)                                                 | Keeps five tabs; a flat list does not invite chat                                                |
+| 2026-11-02 | Sending starts from that screen or a friend's profile, with one sheet (option A)                              | Covers both situations with one component                                                        |
+| 2026-11-02 | Two lists, Received and Sent, Received by default (option A)                                                  | What waits for you is not buried; the sender can return to what they sent                        |
+| 2026-11-02 | Items stay visible to both after unfriending (option A)                                                       | No song lost; `unfriend.md` holds                                                                |
+| 2026-11-02 | A refused send uses a neutral message                                                                         | Unfriending is already visible on the profile; "silent" means no notification                    |
+| 2026-11-02 | The recipient rates directly from Received, and from My List if saved (option A)                              | One action after listening; amends `rate-post.md`'s My List-only rule for direct items           |
+| 2026-11-02 | After unfriending, a new rating and an edit are blocked; private actions stay (option A)                      | Closes a channel to someone who removed you, with no blocking feature                            |
+| 2026-11-02 | The sender deletes for both; the recipient hides for themselves (option B)                                    | Each side controls their own list and the sender loses nothing                                   |
+| 2026-11-02 | Hiding affects Received only; bookmark and rating stay (option B)                                             | Developer's choice: nothing is lost, and the least code                                          |
+| 2026-11-02 | A badge count, cleared by opening Received, with one `users` column (option A)                                | Matches the existing badge; no per-item writes                                                   |
+| 2026-11-02 | One sender comment and one rating comment, 280 each, no replies (option A)                                    | Reuses the text rules; this stays a recommendation, not a chat                                   |
+| 2026-11-02 | No admin change (option A)                                                                                    | Consistent with no post counts; adds no data on private behaviour                                |
+| 2026-11-02 | Build now as Step 6.1a, before Step 6.2 (option B)                                                            | Developer's choice: 6.2's iPhone checks wait for the pause anyway                                |
+| 2026-11-02 | Stage 2: `prepareSharedLink` holds validation and conversion for both flows; `LinkCommentForm` holds the form | Reuse, as the spec asked; `createPost`'s checks and order are unchanged                          |
+| 2026-11-02 | Stage 2: friendship is checked before the conversion and again with the insert                                | The first spares a browser; the second is the one that holds under a race                        |
+| 2026-11-02 | Stage 2: the badge keeps `unseen` apart from `count`, and the tab shows the sum                               | The Friends screen sets `count` after each answer, which would overwrite a combined number       |
+| 2026-11-02 | Stage 2: a rating refused with `403` calls `onStale` on `RatingSheet`                                         | §6 asks for a reload; other callers keep closing as before                                       |
+| 2026-11-02 | Stage 3: Sent reloads after a send instead of prepending the card                                             | `/code-review`: a kept card could reappear after being deleted, once the list reloaded           |
+| 2026-11-02 | Stage 3: the form stays mounted, hidden, while choosing another friend                                        | `/code-review`: Change discarded the draft, against §5.3                                         |
+| 2026-11-02 | Stage 3: `beforeCursor` shared by the post, profile and recommendation lists                                  | `/code-review`: the keyset filter had reached a fourth copy; My List keeps its own, on `post_id` |

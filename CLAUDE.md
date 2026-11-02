@@ -207,6 +207,7 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `friends` holds one row per pair of users in either direction, guarded by two hand-written objects in the `add_friends` migration: the unique index `friends_one_per_pair` (on the LEAST and GREATEST of the two ids) and the CHECK `friends_not_self` — likewise invisible to Prisma (docs/features/friend-requests.md §3).
 - `community_bans` holds people removed from a community; it is what stops them rejoining through an invite link (docs/features/communities-membership.md).
 - `community_invitations` holds pending in-app invitations from a community's admins to their friends; a ban blocks them too (docs/features/invite-friends.md).
+- `posts` holds community posts and direct recommendations: `community_id` is nullable, and exactly one of it and `recipient_id` is set, guarded by two hand-written CHECKs in the `add_direct_recommendations` migration, `posts_one_target` and `posts_not_self` — likewise invisible to Prisma. `recipient_id` must stay `Cascade`, because `SetNull` would break the first (docs/features/direct-recommendations.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
@@ -240,10 +241,10 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Fifteen screens**, five groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Sixteen screens**, five groups:
 
 - **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
-- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile.
+- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile, Recommendations (direct, friend to friend).
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
 - **Administration**: the Admin screen (users, communities, settings) — admins only (§17).
@@ -262,10 +263,11 @@ Registration, Login, Forgot Password, and Create New Password screens were **wit
 
 ## 9. Use cases
 
-The full UC list (UC-1 through UC-19) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
+The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.md>) (companion `docs/use cases.docx`). **Every feature must trace back to a UC.** Cite the UC number in commit messages, PR descriptions, and DEVELOPMENT.md entries.
 
 - **UC-17 is withdrawn** (password reset). Its number is kept, not reused, so UC-18 keeps its identity.
 - **UC-19 is new**: the administrative area — see §17.
+- **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 
 ---
 
@@ -411,7 +413,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends.
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a.
 
 ---
 

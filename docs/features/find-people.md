@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Direct ratings never appear in a profile's rating history, whoever the viewer is.
+
 ## 0. How Phase 5 was re-sliced
 
 `DEVELOPMENT.md` split Phase 5 by layer: schema (5.1), routes (5.2), all UI (5.3), tests (5.4). None of those could merge alone under CLAUDE.md §11. They become three PRs (decided 2026-10-06, option A), each with its own spec session:

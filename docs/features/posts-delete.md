@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** On a direct recommendation only the sender deletes, for both people; the recipient hides it instead.
+
 ## 1. Goal
 
 The author of a post can delete it from the feed, with UC-18's confirmation, and it is gone for everyone. A community's admins and its owner can delete any post in their community the same way — which closes the gap `posts-feed.md` left open, where a member who leaves keeps their posts in the feed and nobody could remove them.

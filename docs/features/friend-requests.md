@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Friendship now also allows sending a song, and a friend's profile gains **Send a song**. It still widens nothing a profile shows: direct ratings never appear there.
+
 ## 0. Phase 5 grows a fourth feature
 
 Phase 5 was re-sliced into three features (`find-people.md` §0). This session adds a fourth (decided 2026-10-06, option B): UC-9's friends picker — inviting friends to a community — becomes its own feature after Unfriend, with its own spec session. Until then friendship is social only (a list, and a status on profiles), and Create Community's static "Invite friends" card stays.

@@ -41,6 +41,7 @@ Data should be validated and sanitized as it crosses the boundaries of your arch
 - **Controller Layer (Input Validation):** This is the bouncer. Use a validation library (like **Zod**) to parse the incoming req.body and req.params. If the data is invalid, reject it immediately with a 400 status. Do not pass bad data deeper into the app.
 - **Service Layer (Business Logic):** This layer handles the heavy lifting (e.g., hashing passwords, calling Playwright). **Rule:** Services should never know about HTTP requests or responses (req/res). They take raw data arguments and return raw data objects or throw errors.
 - **Database Layer (Prisma):** Handles strict DB queries.
+- **Post access (one rule):** Every action on a post goes through requirePostAccess: a current member of its community, or the two people a direct recommendation is between (UC-20). Anyone else gets the same 404 as a missing post, so an outsider cannot learn that it exists.
 
 ### API Response Format (Backend → Frontend)
 

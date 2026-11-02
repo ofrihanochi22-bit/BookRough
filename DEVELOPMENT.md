@@ -1629,6 +1629,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **UC-20 added 2026-11-02.** Direct recommendations are built as Step 6.1a, before Step 6.2, whose iPhone checks wait for the Vercel pause anyway. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.2 → 6.4 → 6.5.
+
 > **Re-sliced 2026-10-10.** The PWA steps' manual checks (a real iPhone, airplane mode, deploying a second build) need a live HTTPS origin, so Phase 6 now ships in this order: **6.3 production deploy → 6.1 PWA installable → 6.2 PWA offline → 6.4 hardening → 6.5 README**. Step numbers are kept so references stay valid. The site is public from 6.3, but its address is not shared with friends until 6.4 merges — see `docs/features/production-deploy.md` §0.
 
 ### Step 6.1 — PWA: installable (Phase 6)
@@ -1698,6 +1700,67 @@ node frontend/scripts/render-icons.mjs              # only when icon.svg changes
 
 ---
 
+### Step 6.1a — Direct recommendations between friends (Phase 6 — UC-20)
+
+Status: 🟡 Built and tested; merge waits for the developer's word
+Branch: feat/direct-recommendations
+Spec: docs/features/direct-recommendations.md
+
+Goal: Two friends can send each other a song directly, with no community in common, with the same link conversion as a post. Community posting behaves exactly as before.
+
+Tasks:
+
+- [x] Spec: docs/features/direct-recommendations.md approved (extend `Post`; one friend per send; a Recommendations screen from Friends; Received and Sent; items stay after unfriending; recipient hides, sender deletes; no admin change).
+- [x] Backend: migration `add_direct_recommendations`, one `requirePostAccess` rule, six endpoints.
+- [x] Frontend: the Recommendations screen, the send sheet, the Friends row, the badge, Send a song on a friend's profile.
+- [x] Review: `/code-review` (10 findings: 6 fixed, 4 skipped) and `/security-review` (no findings).
+- [x] Tests: unit, integration, regression, component and E2E per spec §7.
+
+What I did:
+
+Delivered UC-20, per `docs/features/direct-recommendations.md`. UC-11's title no longer mentions a chat.
+
+- **Schema:** `posts.community_id` is nullable; new `posts.recipient_id` and `posts.recipient_hidden_at`, and `users.recommendations_seen_at`. Two hand-written CHECKs, `posts_one_target` and `posts_not_self`. No new table.
+- **Access:** `services/postAccess.ts` replaces four separate lookups: a current member of the community, or the two people on a direct item; anyone else gets the same `404`. `services/friendship.ts` holds the friendship checks, including the `FOR SHARE` re-check that runs with the insert, after the conversion.
+- **API:** `POST /api/recommendations`, `GET .../received`, `GET .../sent`, `GET .../unseen-count`, `POST .../seen`, `PUT .../:postId/hidden`. Conversion is shared with posting through `prepareSharedLink`. Rating, bookmarks, Post Detail, retry and delete work on direct items, and a new rating or an edit needs current friendship. `PublicPost.direct` is `null` on a community post.
+- **Frontend:** `pages/Recommendations.tsx` (Received and Sent), `SendRecommendationSheet`, `HideRecommendationSheet`, and `LinkCommentForm`, now shared with `PostComposer`. `PostCard`, `SavedPostCard`, Post Detail, the Public Profile, the Friends screen and the badge handle direct items.
+- **Review:** `/code-review` found the draft lost on Change, a deleted card reappearing after a reload, a stale picker after a refusal, a red key-set test, a fourth copy of the keyset filter and a duplicate constant, all fixed. Skipped: shared list state (it would reshape community screens this PR must leave alone), a server-sent `canRate`, `users.updated_at` moving on mark-seen, and one failed count dropping the whole badge refresh. `/security-review`: no findings.
+- **Docs:** `use cases`, `tables`, `frontend screens`, `general`, `system architecture conventions` (.md + .docx); amendment notes in eight feature specs; CLAUDE.md §6, §8, §9, §12; the Phase 6 order and Step 6.2's status here; `HANDOFF.md`.
+- **Tests:** backend 930 (98.93% lines over both suites), frontend 659 (98.67%), E2E 43 + 3 skipped, on Chromium and iPhone WebKit.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` in two browser profiles, with two Google accounts on different preferred services.
+
+1. Make them friends: Search → the other person → Add Friend; in the other browser, Friends → Accept.
+2. On the friend's profile tap **Send a song**, paste `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`, add a comment, and tap **Send**. A spinner shows "Finding this track on other services…", then "Sent to {name}".
+3. In the other browser, navigate once: the Friends tab shows 1. Open Friends → Recommendations. The song is under Received, with a button for that person's own service, and the badge clears.
+4. Tap **Rate & Review** and give it 8. Back in the first browser, Friends → Recommendations → Sent shows the score.
+5. Bad paths: send to a stranger through the API (`403`); remove the friend, and the song stays while "You're no longer friends with {name}" replaces Rate & Review; ⋯ → **Hide** takes it out of Received only.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                      # 930 tests, 80% floor
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations
+cd frontend && npm run test:unit                         # 659 tests, 80% floor
+npm test --prefix e2e -- tests/recommendations.spec.ts   # the golden loop
+```
+
+---
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
@@ -1744,7 +1807,7 @@ docker exec api-smoke node --input-type=module -e "import { convertLink } from '
 
 ### Step 6.2 — PWA: offline support (Phase 6)
 
-Status: ☐ Not started
+Status: 🟡 In progress — Stages 1–3 done on `feat/pwa-offline`, no PR yet; Stage 4 not started. Waits for Step 6.1a to merge, then updates from `main`.
 Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
@@ -1840,7 +1903,7 @@ Tasks:
 
 > ⚠️ **Stale, flagged 2026-10-10:** the rate-limiting line below predates Google-only sign-in — the only auth endpoint is `POST /api/auth/google`. Resolved in this step's spec. This step also switches production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker` (`production-deploy.md` §3.3), and the address is shared with friends only after it merges.
 
-- [ ] Backend: Rate limiting on auth endpoints (login, register, password reset) and on post creation.
+- [ ] Backend: Rate limiting on auth endpoints (login, register, password reset), on post creation and on `POST /api/recommendations`.
 - [ ] Backend: Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
 - [ ] Backend: Audit logs for leaked secrets or PII before they go anywhere persistent.
 - [ ] Infra: Confirm no secret is committed anywhere in the repository history.

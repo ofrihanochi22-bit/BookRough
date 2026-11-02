@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** `posts.community_id` is now nullable, and a post may instead have a recipient. Community posting, feeds and permissions are unchanged. `prepareSharedLink` is shared with direct recommendations.
+
 ## 0. How Phase 3 was re-sliced
 
 `DEVELOPMENT.md` split Phase 3 by layer: schema (3.1), scraper (3.2), create route (3.3), Dockerfile (3.4), delete route (3.5), all feed UI (3.6), E2E (3.7). Most of those could not merge alone under CLAUDE.md §11. They become three PRs (decided 2026-10-04, option A), each with its own spec session:

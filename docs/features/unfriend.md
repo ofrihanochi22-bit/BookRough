@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Unfriending has no effect on communities, posts, ratings or bookmarks, as written. For direct items: they stay visible to both, while new sends, new ratings and rating edits are refused until the two are friends again.
+
 ## 1. Goal
 
 A user removes someone from their friends — from a ⋯ button on that friend's row in **Your friends**, or from the **Friends** button on their profile — after confirming. The friendship is gone for both people at once, silently: the other person is not told, and either of them may send a new request later. Nothing else changes; shared communities are untouched.
