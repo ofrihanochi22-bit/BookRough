@@ -64,7 +64,8 @@ Phase 6 was re-sliced on 2026-10-10 to ship in this order: 6.3 → 6.1 → **6.2
 
 ## 4. Open loose ends the developer owes (dashboard actions)
 
-- [ ] 🔴 **Delete old images now.** The Hobby pause ends on 2026-11-11, and Images Storage must be well under 10 GB by then. In the `bookrough` project's **Images** tab, delete old images and keep the production image of `9821d7a` (2026-10-12, the smallest). Asking the support agent at vercel.com/help for a one-time boost may end the pause sooner.
+- [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
+- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 
