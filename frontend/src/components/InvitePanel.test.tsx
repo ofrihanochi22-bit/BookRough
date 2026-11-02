@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { httpError } from '../test/fixtures';
+import { httpError, setOnline } from '../test/fixtures';
 import { InvitePanel } from './InvitePanel';
 
 const { getInvite, resetInvite } = vi.hoisted(() => ({
@@ -234,6 +234,26 @@ describe('InvitePanel', () => {
 
     // Assert
     expect(await screen.findByDisplayValue(`${ORIGIN}/invite/tok-1`)).toBeInTheDocument();
+  });
+});
+
+describe('InvitePanel — offline', () => {
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('disables Reset link, with its note', async () => {
+    // Arrange
+    setOnline(false);
+
+    // Act
+    renderPanel();
+
+    // Assert
+    expect(
+      await screen.findByText("You're offline. Connect to reset the link."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset/ })).toBeDisabled();
   });
 });
 
