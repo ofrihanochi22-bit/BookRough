@@ -1,6 +1,6 @@
 # HANDOFF.md — Where BookRough Stands
 
-A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35).
+A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35); production status and §4 updated **2026-11-02**.
 
 It summarises; it does not replace. The binding documents are:
 
@@ -21,7 +21,7 @@ A social app for friend groups to share, rate and discuss music. Paste a Spotify
 
 Production address: **https://bookrough.vercel.app** — public, but **not yet shared with friends** (that waits for Step 6.4). Desktop browser plus an installable iPhone PWA.
 
-> 🔴 **Production is down as of 2026-10-17.** The site answers `402 Payment required — DEPLOYMENT_DISABLED`, and Vercel's check on PR #36 reported "Account is blocked." See §4 — this comes before any new feature.
+> 🔴 **Production is down: the Vercel team has been paused since 2026-10-12, until 2026-11-11.** Images Storage reached 17.16 GB of the Hobby team's 10 GB. The site answers `402 Payment required — DEPLOYMENT_DISABLED`. See §4 — this comes before any new feature.
 
 Stack in one line: React + Vite + TS + Tailwind + Zustand / Express + TS + Prisma + PostgreSQL / Google Sign-In only / Vitest, Supertest, Playwright / Vercel (Hobby) + Neon (Free), both Frankfurt.
 
@@ -64,14 +64,16 @@ Phase 6 was re-sliced on 2026-10-10 to ship in this order: 6.3 → 6.1 → **6.2
 
 ## 4. Open loose ends the developer owes (dashboard actions)
 
-- [ ] 🔴 **Production is disabled (found 2026-10-17).** `https://bookrough.vercel.app/api/health` returns `402 DEPLOYMENT_DISABLED`; the merge of PR #36 could not deploy ("Account is blocked"). Open Vercel → the team's **Usage** page and the notice linked from the failed deployment, find which Hobby limit was exceeded or why the account was blocked, and fix it there (Vercel's guide: vercel.com/knowledge/why-is-my-account-deployment-blocked). The deployment-storage cleanup below is the likely lever. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6). The items below were written before this and may need rechecking afterwards.
+- [ ] 🔴 **Delete old images now.** The Hobby pause ends on 2026-11-11, and Images Storage must be well under 10 GB by then. In the `bookrough` project's **Images** tab, delete old images and keep the production image of `9821d7a` (2026-10-12, the smallest). Asking the support agent at vercel.com/help for a one-time boost may end the pause sooner.
+- [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
+- [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 
 Carried over from Claude's memory, which may not move with the account:
 
 - [ ] **Production check after PR #35:** post a real Spotify link on production and confirm an Apple Music link appears (deployment-storage check S3).
-- [ ] **Vercel → Deployments:** delete previews `fc544ec` and `08d09ef`. After S3 passes, also delete production `b8a0052`, "Redeploy of 3Uc8Jbktn" and "Production rebuild of…". Keep `c7da76b` (rollback) for about a week, then optionally delete.
-- [ ] **Vercel → Usage:** a day after the deletions, confirm Function Storage dropped (S4). Hobby has 10 GB of deployment storage; it reached 75% before the fix.
-- [ ] **Step 6.3 check P10 — due 2026-10-18:** after a week live, check Vercel and Neon usage against the free quotas.
+- [ ] **Vercel → Deployments:** delete any old preview and production deployments that remain, keeping the current production one.
+- [ ] **Vercel → Usage:** Function Storage has dropped to 2.37 GB of 10 GB (S4 passed); only Images Storage is still over.
+- [ ] **Step 6.3 check P10 — overdue since 2026-10-18:** check Neon usage against its free quotas, and Vercel's after the pause.
 - [ ] At Step 6.2: if the opted-in branch builds no preview, create one by hand (Deployments → Create Deployment).
 
 ---
