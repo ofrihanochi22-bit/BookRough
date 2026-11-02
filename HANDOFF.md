@@ -1,6 +1,6 @@
 # HANDOFF.md — Where BookRough Stands
 
-A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35).
+A snapshot for picking the project up again after a break, possibly from a different Claude account. Written **2026-10-17**, at `main` = `9821d7a` (PR #35); production status and §4 updated **2026-11-02**.
 
 It summarises; it does not replace. The binding documents are:
 
@@ -21,7 +21,7 @@ A social app for friend groups to share, rate and discuss music. Paste a Spotify
 
 Production address: **https://bookrough.vercel.app** — public, but **not yet shared with friends** (that waits for Step 6.4). Desktop browser plus an installable iPhone PWA.
 
-> 🔴 **Production is down as of 2026-10-17.** The site answers `402 Payment required — DEPLOYMENT_DISABLED`, and Vercel's check on PR #36 reported "Account is blocked." See §4 — this comes before any new feature.
+> 🔴 **Production is down: the Vercel team has been paused since 2026-10-12, until 2026-11-11.** Images Storage reached 17.16 GB of the Hobby team's 10 GB. The site answers `402 Payment required — DEPLOYMENT_DISABLED`. See §4 — this comes before any new feature.
 
 Stack in one line: React + Vite + TS + Tailwind + Zustand / Express + TS + Prisma + PostgreSQL / Google Sign-In only / Vitest, Supertest, Playwright / Vercel (Hobby) + Neon (Free), both Frankfurt.
 
@@ -57,21 +57,24 @@ Phase 6 was re-sliced on 2026-10-10 to ship in this order: 6.3 → 6.1 → **6.2
    - It branched from `c7da76b` (PR #34), **before** PR #35 — bring it up to date with `main` first.
    - Remaining: Stage 4 tests from the spec's scenario list, `/security-review` if the spec asks for it, the iPhone/airplane-mode and second-deploy checks, then `DEVELOPMENT.md` and the PR.
    - For an iPhone check the branch must opt in to a Vercel preview by adding its exact name to `vercel.json` → `git.deploymentEnabled`, and remove it before merge. The service worker is registered in production builds only.
-2. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`). Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`. **The address goes to friends only after this merges.**
+2. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`). Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
 3. **Step 6.5 — README** (`docs/readme-deploy`).
 
 ---
 
 ## 4. Open loose ends the developer owes (dashboard actions)
 
-- [ ] 🔴 **Production is disabled (found 2026-10-17).** `https://bookrough.vercel.app/api/health` returns `402 DEPLOYMENT_DISABLED`; the merge of PR #36 could not deploy ("Account is blocked"). Open Vercel → the team's **Usage** page and the notice linked from the failed deployment, find which Hobby limit was exceeded or why the account was blocked, and fix it there (Vercel's guide: vercel.com/knowledge/why-is-my-account-deployment-blocked). The deployment-storage cleanup below is the likely lever. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6). The items below were written before this and may need rechecking afterwards.
+- [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
+- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
+- [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
+- [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 
 Carried over from Claude's memory, which may not move with the account:
 
 - [ ] **Production check after PR #35:** post a real Spotify link on production and confirm an Apple Music link appears (deployment-storage check S3).
-- [ ] **Vercel → Deployments:** delete previews `fc544ec` and `08d09ef`. After S3 passes, also delete production `b8a0052`, "Redeploy of 3Uc8Jbktn" and "Production rebuild of…". Keep `c7da76b` (rollback) for about a week, then optionally delete.
-- [ ] **Vercel → Usage:** a day after the deletions, confirm Function Storage dropped (S4). Hobby has 10 GB of deployment storage; it reached 75% before the fix.
-- [ ] **Step 6.3 check P10 — due 2026-10-18:** after a week live, check Vercel and Neon usage against the free quotas.
+- [ ] **Vercel → Deployments:** delete any old preview and production deployments that remain, keeping the current production one.
+- [ ] **Vercel → Usage:** Function Storage has dropped to 2.37 GB of 10 GB (S4 passed); only Images Storage is still over.
+- [ ] **Step 6.3 check P10 — overdue since 2026-10-18:** check Neon usage against its free quotas, and Vercel's after the pause.
 - [ ] At Step 6.2: if the opted-in branch builds no preview, create one by hand (Deployments → Create Deployment).
 
 ---

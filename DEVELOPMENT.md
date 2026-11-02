@@ -1700,7 +1700,7 @@ node frontend/scripts/render-icons.mjs              # only when icon.svg changes
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
-Status: ✅ Done (post-merge checks S1–S4 in the spec)
+Status: ✅ Done (post-merge checks S1–S5 in the spec)
 Branch: chore/vercel-storage
 Spec: docs/features/deployment-storage.md
 
@@ -1723,6 +1723,7 @@ No UC of its own: it keeps the deployment every UC runs on inside the free tier.
 - **Previews:** `"git": { "deploymentEnabled": { "**": false, "main": true } }`. A branch that needs a preview (Step 6.2's iPhone checks) adds `"<its branch>": true` in its own `vercel.json` and removes it before the merge.
 - **One PR, not two:** a previews-only PR would itself have deployed one more 3.1 GB production image.
 - **Docs:** `deployment` §3.5–3.6, `tech stack`, `tests`, `link converter implementation guide` (.md + .docx); `CLAUDE.md` §2, §7, §16; `backend-docker.md` superseded notes; `production-deploy.md` — M4 ("no limit") corrected.
+- **Follow-up (2026-11-02, `docs/vercel-image-storage`):** the team was paused on 2026-10-12, until 2026-11-11, because Images Storage reached 17.16 of 10 GB. That is a separate meter this step had not tracked. Recorded in the spec's §1.2 and in `deployment`, `tech stack` (.md + .docx), `production-deploy.md` and `HANDOFF.md`; `CLAUDE.md` §16 now requires reading both meters before each merge to `main`. No code changed.
 
 How to view & test:
 
@@ -1737,7 +1738,7 @@ Smoke test as in Step 3.4, plus one real conversion inside the running container
 docker exec api-smoke node --input-type=module -e "import { convertLink } from '/app/dist/services/linkScraper.service.js'; console.log(await convertLink('https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv', 'SPOTIFY')); process.exit(0);"
 ```
 
-→ `converted` with five links. After the merge: production builds, `/api/health` is 200, a real post converts, and Vercel → Usage → Function Storage falls (spec §8, S1–S4).
+→ `converted` with five links. After the merge: production builds, `/api/health` is 200, a real post converts, and Vercel → Usage → Function Storage falls (spec §8, S1–S4). For the follow-up, read Images Storage and Function Storage in Vercel → Usage before and after the first deploying merge once the pause ends (S5).
 
 ---
 
@@ -1844,6 +1845,7 @@ Tasks:
 - [ ] Backend: Audit logs for leaked secrets or PII before they go anywhere persistent.
 - [ ] Infra: Confirm no secret is committed anywhere in the repository history.
 - [ ] Infra: Nightly E2E workflow is running and its failures are visible.
+- [ ] Infra: Cap Vercel storage with a fixed ceiling, decided 2026-11-02 (`deployment-storage.md` §1.2). **Only once Images Storage has been seen to fall after the 2026-11-02 deletion** — otherwise deleting images frees nothing. A GitHub Action after each merge to `main` keeps the 4 newest images in `api` (`vercel vcr image ls` / `image rm --yes`), about 1.6 GB, never the one production runs. It needs the Vercel CLI (a new tool, recorded per CLAUDE.md §18) and a `VERCEL_TOKEN` repository secret, which the developer creates. The developer also sets a short Preview retention, such as 7 days, in the project's Build and Deployment settings. Function Storage then tops out near 4.8 GB. The pre-merge meter check (CLAUDE.md §16) stays.
 
 What I did:
 How to view & test:

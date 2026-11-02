@@ -28,6 +28,20 @@ The developer asked for the safest option and a way to avoid the situation altog
 
 Sources: [Hobby projects now retain fewer deployments](https://vercel.com/changelog/hobby-projects-now-retain-fewer-deployments-to-free-up-storage), [Git configuration](https://vercel.com/docs/project-configuration/git-configuration).
 
+### 1.2 What this fix missed (found 2026-11-02)
+
+The team was paused on **2026-10-12**, until 2026-11-11, for exceeding the Hobby limits. Vercel's usage page showed **Images Storage at 17.16 GB of 10 GB** and Function Storage at 2.37 GB.
+
+- **Two meters, not one.** Images Storage is the Vercel Container Registry; Function Storage is deployment storage. This spec, written from a warning about Function Storage, treated them as one. The worst case in §1 holds for Function Storage only, and §1.1 describes deployments, not registry images.
+- **How it filled.** The registry held 18 images on 2026-11-02: 17 of 986 MB and the slim `9821d7a` of 395 MB, which is exactly the 17.16 GB shown. The registry counts compressed size, so these are the images measured at 2.85 GB and 1.17 GB locally. 14 carry a commit tag and 4 have no tag. GitHub records 15 deployments on 2026-10-10 to 12 (4 production, 11 preview). Function Storage fell as Vercel retired deployments; Images Storage did not.
+- **Open question.** Vercel's documentation does not say whether registry images are removed when their deployment is. If they are not, each merge to `main` adds about 0.4 GB and the allowance fills after about 24 merges.
+- **Response.** The developer deletes old images in the project's Images tab, keeping the current production image. Before each merge to `main` both meters are read in Vercel → Usage (CLAUDE.md §16). S5 below answers the open question.
+- **Cleanup, 2026-11-02.** The 17 old images were deleted the same day, leaving only `9821d7a` (395 MB). Hours later Images Storage read 16.31 GB, down only 0.85 GB from 17.16. Deleted images do not leave the meter at once, and Vercel documents no reclaim time. The registry list, not the meter, shows what is actually stored.
+- **Fixed ceiling, decided 2026-11-02.** Step 6.4 caps the registry at the 4 newest images with a GitHub Action, and the developer sets a short Preview retention. That gives a ceiling of about 1.6 GB of Images Storage and 4.8 GB of Function Storage instead of growth with every merge. It is a ceiling, not a guarantee: Hobby has no hard stop. It waits until the meter is seen to fall.
+- **If images are not removed automatically:** delete old images by hand after each merge, or skip deployments for documentation-only commits with Vercel's Ignored Build Step. The fallback, Cloud Run, needs a card and bills overage.
+
+Sources: [Container Registry limits and pricing](https://vercel.com/docs/container-registry/limits-and-pricing), [Vercel pricing](https://vercel.com/pricing), [Container Registry CLI reference](https://vercel.com/docs/container-registry/cli-reference), [Hobby plan](https://vercel.com/docs/plans/hobby).
+
 ## 2. Scope
 
 **In scope**
@@ -120,6 +134,7 @@ None.
 - S2. Production builds green and `GET https://bookrough.vercel.app/api/health` is `200` (Claude).
 - S3. A real Spotify link posted in production gets an Apple Music link (the developer, signed in).
 - S4. Vercel → Usage → Function Storage falls as old deployments are removed (the developer, within a day).
+- S5. Added 2026-11-02: compare Vercel → Usage → Images Storage before and after the first merge that deploys once the pause ends. It tells whether Vercel removes old images by itself (§1.2).
 
 ## 9. Decisions log
 
@@ -129,6 +144,7 @@ None.
 | 2026-10-11 | Previews opt-in by exact branch name instead of off entirely                            | Step 6.2's iPhone checks need a preview (`pwa-offline.md` §3.6)                                            |
 | 2026-10-11 | Headless shell only (`--only-shell`), not full Chromium                                 | It is exactly what `headless: true` launches; full Chromium would add size and nothing used                |
 | 2026-10-11 | Base image changed (CLAUDE.md §11 asks first) — approved by the developer with the plan | "As safe as possible" — the worst case had no bound before                                                 |
+| 2026-11-02 | Images Storage tracked as its own limit; both meters read before each merge to `main`   | It paused the team on 2026-10-12 at 17.16 of 10 GB, and this spec had not separated it (§1.2)              |
 
 ## 10. Doc updates (same PR)
 
