@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every reading UC keeps working without a connection (CLAUDE.md §16)        |
 | **Phase**     | 6 — Step 6.2 of `DEVELOPMENT.md`, third in the re-sliced order (`production-deploy.md` §0) |
 | **Branch**    | `feat/pwa-offline`                                                                         |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                         |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                         |
 
 ---
 
@@ -268,6 +268,9 @@ None at approval.
 | 2026-10-11 | Stage 3: the `api` cache has an owner (`bookrough.apiCacheOwner`); a confirmed session for a different user deletes it first                                                                                                                                                              | A request still in flight at sign-out could write the old user's answer back after the wipe                                                                                                     |
 | 2026-10-11 | Stage 3: `revokeAdmin()` replaces the two `setState({ isAdmin: false })` calls and updates the snapshot; the snapshot check validates every `PublicUser` field; a newer waiting version re-shows a dismissed update bar; `#root` is a flex column so the bars take height from the screen | Each was a way for the offline launch or the prompt to show stale or broken state                                                                                                               |
 | 2026-10-11 | `vite-plugin-pwa` 1.3.0 adds 250 dev packages (Workbox's build chain) and changes no existing version; `npm audit` shows the same 8 dev-tooling advisories as `main`, 0 in production dependencies                                                                                        | Recorded for the toolchain follow-up                                                                                                                                                            |
+| 2026-11-02 | Stage 4: built on after UC-20 (Step 6.1a) instead of before it; the audit's list gains sending and hiding, which already had offline states                                                                                                                                               | The developer moved direct recommendations ahead of this step                                                                                                                                   |
+| 2026-11-02 | Stage 4: the E2E test waits for the worker to activate and then reloads, rather than waiting for it to control the page                                                                                                                                                                   | There is no `clientsClaim`, so a worker controls a page only from its next load                                                                                                                 |
+| 2026-11-02 | Stage 4: `/security-review` ran, with no findings                                                                                                                                                                                                                                         | The feature touches the session; the Stage 3 pass had only run `/code-review`                                                                                                                   |
 
 ## 10. Doc updates (same PR)
 
