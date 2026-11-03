@@ -78,9 +78,21 @@ describe('the API rule', () => {
 });
 
 describe('the image rule', () => {
-  it('caches an image from another origin', () => {
+  it.each([
+    'https://i.scdn.co/image/cover',
+    'https://is1-ssl.mzstatic.com/image/cover.jpg',
+    'https://f4.bcbits.com/img/a1_10.jpg',
+    'https://i1.sndcdn.com/artworks-1-t500x500.jpg',
+    'https://i.ytimg.com/vi/abc/hqdefault.jpg',
+  ])('caches an image from another origin, with no host list: %s', (url) => {
     // Act & Assert
-    expect(remoteImage(imageContext('image', false))).toBe(true);
+    expect(
+      remoteImage({
+        url: new URL(url),
+        request: { destination: 'image' } as Request,
+        sameOrigin: false,
+      }),
+    ).toBe(true);
   });
 
   it('leaves same-origin images to the precache, and other requests alone', () => {

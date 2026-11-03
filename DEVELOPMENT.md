@@ -1765,7 +1765,7 @@ npm test --prefix e2e -- tests/recommendations.spec.ts   # the golden loop
 
 ### Step 6.1b — Link-only posts: Bandcamp, SoundCloud and YouTube videos (Phase 6 — UC-11, amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (PR #41); the production check waits for the first deployment after the Vercel pause
 Branch: feat/link-only-posts
 Spec: docs/features/link-only-posts.md
 
@@ -1791,7 +1791,7 @@ Delivered the amended UC-11 for both posting targets (UC-11 and UC-20), per `doc
 - **Review:** `/code-review` found the early page read (a song could become a video), duplicated text cleaning and needless body reads, all fixed; the missing tech stack entries and CLAUDE.md §6 record, fixed in the docs; a shared card-heading component, skipped (the four call sites differ in truncation, links and the pending note). `/security-review`: no findings.
 - **Docs:** `use cases`, `tables`, `frontend screens`, `link converter implementation guide`, `tech stack` (three new runtime services), `general` (.md + .docx); amendment notes in `posts-feed.md`, `direct-recommendations.md`, `post-detail.md`, `bookmarks-my-list.md`; CLAUDE.md §6, §7, §9, §12; `HANDOFF.md`.
 - **Tests:** backend 68 files (99.01% lines over both suites), frontend 61 files (98.67%). E2E unchanged.
-- **With PR #40:** whichever of the two merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to Step 6.2's album-art cache.
+- **With PR #40:** no cache change was needed — Step 6.2's album-art rule caches any image from another origin, so the Bandcamp, SoundCloud and YouTube covers are covered; only the docs needed a merge.
 
 How to view & test:
 
