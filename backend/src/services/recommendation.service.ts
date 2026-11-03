@@ -63,7 +63,13 @@ export async function sendRecommendation(
   });
 
   log.info(
-    { userId: user.id, recipientId, postId: post.id, conversionPending: post.conversionPending },
+    {
+      userId: user.id,
+      recipientId,
+      postId: post.id,
+      conversionPending: post.conversionPending,
+      linkPlatform: post.linkPlatform,
+    },
     'Recommendation sent',
   );
   // The item is saved: a notification problem must never undo or fail it.

@@ -11,7 +11,10 @@ import type { MemberUser } from './membership';
  */
 export const CONVERSION_REQUEST_TIMEOUT_MS = 30_000;
 
-export type PostKind = 'TRACK' | 'ALBUM';
+export type PostKind = 'TRACK' | 'ALBUM' | 'VIDEO' | 'SET';
+
+/** A platform shared without conversion (docs/features/link-only-posts.md). */
+export type LinkPlatform = 'BANDCAMP' | 'SOUNDCLOUD' | 'YOUTUBE';
 
 /** Mirrors the backend's PublicPost (docs/features/posts-feed.md §4). */
 export interface PublicPost {
@@ -21,7 +24,10 @@ export interface PublicPost {
   /** The viewer may delete it — decided by the server (posts-delete.md §4). */
   canDelete: boolean;
   originalUrl: string;
-  sourceService: StreamingService;
+  /** Null on a link-only post. */
+  sourceService: StreamingService | null;
+  /** Set on a link-only post, which is never converted (link-only-posts.md §4). */
+  platform: LinkPlatform | null;
   kind: PostKind | null;
   title: string | null;
   artist: string | null;

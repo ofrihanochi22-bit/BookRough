@@ -13,7 +13,7 @@ import {
   RATING_UPDATED,
   SCORES,
 } from '../lib/ratingCopy';
-import { streamingServiceLabel } from '../lib/streamingServices';
+import { displayTitle, pendingTitle } from '../lib/postLinks';
 import { graphemeCount } from '../lib/textRules';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
@@ -102,9 +102,7 @@ export function RatingSheet({
       <form aria-label={title} className="flex flex-col gap-4" onSubmit={submit}>
         <div>
           <p className="break-words font-medium">
-            {post.conversionPending
-              ? `Shared from ${streamingServiceLabel(post.sourceService)}`
-              : post.title}
+            {post.conversionPending ? pendingTitle(post) : displayTitle(post)}
           </p>
           {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
         </div>

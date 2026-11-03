@@ -20,7 +20,7 @@ import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
-import { relativeTime } from '../lib/postLinks';
+import { displayTitle, pendingTitle, relativeTime } from '../lib/postLinks';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED, ratingsEmptyHint } from '../lib/profileCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import { useAuthStore } from '../stores/auth';
@@ -218,10 +218,10 @@ function RatingRow({ rating }: { rating: ProfileRating }) {
       <CoverArt url={post.coverArtUrl} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {post.conversionPending ? (
-          <p className="font-medium">Shared from {streamingServiceLabel(post.sourceService)}</p>
+          <p className="font-medium">{pendingTitle(post)}</p>
         ) : (
           <>
-            <p className="truncate font-medium">{post.title}</p>
+            <p className="truncate font-medium">{displayTitle(post)}</p>
             <p className="truncate text-sm text-muted">{post.artist}</p>
           </>
         )}

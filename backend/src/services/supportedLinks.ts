@@ -1,16 +1,18 @@
 /**
- * Which pasted links can become a post — docs/features/posts-feed.md §4.1.
+ * Which pasted links can become a post — docs/features/posts-feed.md §4.1 and
+ * docs/features/link-only-posts.md §4.1.
  *
  * A link is accepted only when it is https, its host is listed, and its path
- * has the shape of a track or album on that service. squigly.link gives no
- * reliable "not found" answer, so this check is what rejects playlists,
- * artists and garbage before a browser is ever launched.
+ * has the shape of a track or album on that service — or, for Bandcamp and
+ * SoundCloud, a track, album or set, which are shared without conversion.
+ * This check is what rejects playlists, profiles and garbage before a browser
+ * is launched or a platform is asked anything.
  *
  * The frontend mirrors these rules in frontend/src/lib/supportedLinks.ts. The
  * packages share no code, so a change here must be made there too.
  */
 
-import type { PostKind, StreamingService } from '@prisma/client';
+import type { LinkPlatform, PostKind, StreamingService } from '@prisma/client';
 
 export const MAX_URL_LENGTH = 2048;
 
@@ -90,11 +92,8 @@ function shapeKind(service: StreamingService, url: URL): PostKind | null | undef
 }
 
 function youtubeKind(url: URL): PostKind | undefined {
-  if (url.hostname === 'youtu.be') {
-    return YOUTUBE_ID.test(url.pathname.slice(1).replace(/\/$/, '')) ? 'TRACK' : undefined;
-  }
-  if (url.pathname === '/watch') {
-    return YOUTUBE_ID.test(url.searchParams.get('v') ?? '') ? 'TRACK' : undefined;
+  if (youtubeVideoId(url)) {
+    return 'TRACK';
   }
   if (url.hostname !== 'music.youtube.com') {
     return undefined;
@@ -105,13 +104,47 @@ function youtubeKind(url: URL): PostKind | undefined {
   return YOUTUBE_ALBUM_BROWSE.test(url.pathname) ? 'ALBUM' : undefined;
 }
 
-/** The pasted link if it can become a post, otherwise null. */
-export function parseSupportedLink(raw: string): SupportedLink | null {
+const YOUTUBE_LIVE_PATH = /^\/live\/([A-Za-z0-9_-]{11})\/?$/;
+
+/**
+ * The video id of a YouTube video link (`watch?v=`, `youtu.be/`, `/live/`),
+ * or null for anything else, a YouTube Music album included.
+ */
+export function youtubeVideoId(url: URL): string | null {
+  if (url.hostname === 'youtu.be') {
+    const id = url.pathname.slice(1).replace(/\/$/, '');
+    return YOUTUBE_ID.test(id) ? id : null;
+  }
+  if (!SERVICE_HOSTS.YOUTUBE.includes(url.hostname)) {
+    return null;
+  }
+  if (url.pathname === '/watch') {
+    const id = url.searchParams.get('v') ?? '';
+    return YOUTUBE_ID.test(id) ? id : null;
+  }
+  // Live streams and their recordings; never on music.youtube.com.
+  const live = url.hostname === 'music.youtube.com' ? null : YOUTUBE_LIVE_PATH.exec(url.pathname);
+  return live ? live[1]! : null;
+}
+
+/**
+ * The URL squigly is given: a `/live/` link as the plain watch link of the same
+ * video (link-only-posts.md §4.1), anything else as pasted.
+ */
+export function conversionUrl(link: SupportedLink): string {
+  const url = new URL(link.url);
+  if (link.service === 'YOUTUBE' && YOUTUBE_LIVE_PATH.test(url.pathname)) {
+    return `https://www.youtube.com/watch?v=${youtubeVideoId(url)!}`;
+  }
+  return link.url;
+}
+
+/** Trimmed, length-checked, https, no userinfo or port — otherwise null. */
+function parseHttpsUrl(raw: string): { trimmed: string; url: URL } | null {
   const trimmed = raw.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_URL_LENGTH) {
     return null;
   }
-
   let url: URL;
   try {
     url = new URL(trimmed);
@@ -121,6 +154,16 @@ export function parseSupportedLink(raw: string): SupportedLink | null {
   if (url.protocol !== 'https:' || url.username || url.password || url.port) {
     return null;
   }
+  return { trimmed, url };
+}
+
+/** The pasted link if it can become a converted post, otherwise null. */
+export function parseSupportedLink(raw: string): SupportedLink | null {
+  const parsed = parseHttpsUrl(raw);
+  if (!parsed) {
+    return null;
+  }
+  const { trimmed, url } = parsed;
 
   const service = serviceForHost(url.hostname);
   if (!service) {
@@ -131,4 +174,165 @@ export function parseSupportedLink(raw: string): SupportedLink | null {
     return null;
   }
   return { url: trimmed, service, kind };
+}
+
+// Link-only platforms — docs/features/link-only-posts.md §4.1. Never converted.
+
+export interface PlatformLink {
+  /** As pasted, trimmed — or, once a short link is resolved, the resolved link. */
+  url: string;
+  /** YouTube links are never parsed as link-only; only squigly's answer makes one (§4.2). */
+  platform: Exclude<LinkPlatform, 'YOUTUBE'>;
+  /** Null only for a SoundCloud short link, until it is resolved. */
+  kind: PostKind | null;
+  /** An `on.soundcloud.com` short link: resolved before anything else (§4.4). */
+  needsResolve: boolean;
+}
+
+/** One label under bandcamp.com; the bare, www and editorial hosts are not artists. */
+const BANDCAMP_HOST = /^([a-z0-9-]+)\.bandcamp\.com$/;
+const BANDCAMP_NOT_ARTISTS = new Set(['www', 'daily']);
+const BANDCAMP_PATH = /^\/(track|album)\/[a-z0-9-]+\/?$/i;
+
+export const SOUNDCLOUD_HOSTS: readonly string[] = [
+  'soundcloud.com',
+  'www.soundcloud.com',
+  'm.soundcloud.com',
+];
+export const SOUNDCLOUD_SHORT_HOST = 'on.soundcloud.com';
+const SOUNDCLOUD_SHORT_PATH = /^\/[A-Za-z0-9]+\/?$/;
+const SOUNDCLOUD_SEGMENT = /^[A-Za-z0-9_-]+$/;
+const SOUNDCLOUD_SECRET = /^s-[A-Za-z0-9]+$/;
+/** First path segments that are SoundCloud's own pages, not users. */
+const SOUNDCLOUD_RESERVED_USERS = new Set([
+  'discover',
+  'search',
+  'stream',
+  'upload',
+  'you',
+  'charts',
+  'stations',
+  'pages',
+  'settings',
+  'messages',
+  'notifications',
+  'mobile',
+  'terms-of-use',
+  'jobs',
+  'imprint',
+  'pro',
+  'popular',
+  'tags',
+  'people',
+  'groups',
+  'feed',
+  'signin',
+  'logout',
+]);
+/** Second path segments that are a user's tabs, not tracks. */
+const SOUNDCLOUD_RESERVED_TRACKS = new Set([
+  'tracks',
+  'albums',
+  'sets',
+  'likes',
+  'reposts',
+  'followers',
+  'following',
+  'comments',
+  'popular-tracks',
+  'spotlight',
+  'playlists',
+  'toptracks',
+  'recommended',
+]);
+
+/** A SoundCloud track or set path's kind, or null when it is neither. */
+export function soundcloudKind(path: string): PostKind | null {
+  const segments = path.replace(/\/$/, '').split('/').slice(1);
+  if (
+    segments.length < 2 ||
+    segments.length > 4 ||
+    !segments.every((segment) => SOUNDCLOUD_SEGMENT.test(segment))
+  ) {
+    return null;
+  }
+  const [user, second, third, fourth] = segments;
+  if (SOUNDCLOUD_RESERVED_USERS.has(user!.toLowerCase())) {
+    return null;
+  }
+  if (second!.toLowerCase() === 'sets') {
+    // /<user>/sets/<set>, optionally /s-<token> for a secret set.
+    if (third === undefined || (fourth !== undefined && !SOUNDCLOUD_SECRET.test(fourth))) {
+      return null;
+    }
+    return 'SET';
+  }
+  if (SOUNDCLOUD_RESERVED_TRACKS.has(second!.toLowerCase()) || fourth !== undefined) {
+    return null;
+  }
+  // /<user>/<track>, optionally /s-<token> for a secret track.
+  return third === undefined || SOUNDCLOUD_SECRET.test(third) ? 'TRACK' : null;
+}
+
+function platformLink(url: URL, trimmed: string): PlatformLink | null {
+  const host = url.hostname;
+  const bandcamp = BANDCAMP_HOST.exec(host);
+  if (bandcamp) {
+    if (BANDCAMP_NOT_ARTISTS.has(bandcamp[1]!)) {
+      return null;
+    }
+    const match = BANDCAMP_PATH.exec(url.pathname);
+    return match
+      ? {
+          url: trimmed,
+          platform: 'BANDCAMP',
+          kind: kindOf(match[1]!.toLowerCase()),
+          needsResolve: false,
+        }
+      : null;
+  }
+  if (SOUNDCLOUD_HOSTS.includes(host)) {
+    const kind = soundcloudKind(url.pathname);
+    return kind ? { url: trimmed, platform: 'SOUNDCLOUD', kind, needsResolve: false } : null;
+  }
+  if (host === SOUNDCLOUD_SHORT_HOST) {
+    return SOUNDCLOUD_SHORT_PATH.test(url.pathname)
+      ? { url: trimmed, platform: 'SOUNDCLOUD', kind: null, needsResolve: true }
+      : null;
+  }
+  return null;
+}
+
+export type SharedLink =
+  ({ type: 'service' } & SupportedLink) | ({ type: 'platform' } & PlatformLink);
+
+/**
+ * Every link a post may carry: a streaming-service link (converted) or a
+ * link-only platform link (never converted). Null means UC-11's 422.
+ */
+export function parseSharedLink(raw: string): SharedLink | null {
+  const service = parseSupportedLink(raw);
+  if (service) {
+    return { type: 'service', ...service };
+  }
+  const parsed = parseHttpsUrl(raw);
+  const platform = parsed && platformLink(parsed.url, parsed.trimmed);
+  return platform ? { type: 'platform', ...platform } : null;
+}
+
+/**
+ * A SoundCloud short link's redirect target, checked: https on a SoundCloud
+ * host with a track or set shape (link-only-posts.md §4.4). Returns the
+ * canonical link — query, fragment and any m./www. prefix dropped — or null.
+ */
+export function canonicalSoundcloudLink(location: string): { url: string; kind: PostKind } | null {
+  const parsed = parseHttpsUrl(location);
+  if (!parsed || !SOUNDCLOUD_HOSTS.includes(parsed.url.hostname)) {
+    return null;
+  }
+  const kind = soundcloudKind(parsed.url.pathname);
+  if (!kind) {
+    return null;
+  }
+  return { url: `https://soundcloud.com${parsed.url.pathname.replace(/\/$/, '')}`, kind };
 }

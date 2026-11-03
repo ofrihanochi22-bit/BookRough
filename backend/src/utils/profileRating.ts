@@ -1,4 +1,4 @@
-import type { PostKind, StreamingService } from '@prisma/client';
+import type { LinkPlatform, PostKind, StreamingService } from '@prisma/client';
 
 /**
  * One row of a Public Profile's rating history (docs/features/find-people.md §4).
@@ -12,7 +12,8 @@ export interface ProfileRating {
   community: { id: string; name: string };
   post: {
     id: string;
-    sourceService: StreamingService;
+    sourceService: StreamingService | null;
+    platform: LinkPlatform | null;
     kind: PostKind | null;
     title: string | null;
     artist: string | null;
@@ -31,6 +32,7 @@ export const profileRatingSelect = {
     select: {
       id: true,
       sourceService: true,
+      linkPlatform: true,
       kind: true,
       songTitle: true,
       songArtist: true,
@@ -48,7 +50,8 @@ export interface RatingWithPost {
   createdAt: Date;
   post: {
     id: string;
-    sourceService: StreamingService;
+    sourceService: StreamingService | null;
+    linkPlatform: LinkPlatform | null;
     kind: PostKind | null;
     songTitle: string | null;
     songArtist: string | null;
@@ -77,6 +80,7 @@ export function toProfileRating(rating: RatingWithPost): ProfileRating {
     post: {
       id: post.id,
       sourceService: post.sourceService,
+      platform: post.linkPlatform,
       kind: post.kind,
       title: post.songTitle,
       artist: post.songArtist,

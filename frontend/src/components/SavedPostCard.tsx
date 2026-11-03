@@ -1,9 +1,8 @@
 import { Link } from 'react-router-dom';
 
 import type { SavedPost } from '../api/bookmarks';
-import { mainLink, relativeTime } from '../lib/postLinks';
+import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
 import { noLongerFriends } from '../lib/recommendationCopy';
-import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { Button } from './ui/Button';
 import { CoverArt } from './ui/CoverArt';
@@ -41,14 +40,14 @@ export function SavedPostCard({
         <CoverArt url={post.coverArtUrl} />
         <div className="flex min-w-0 flex-col justify-center gap-1">
           {post.conversionPending ? (
-            <p className="font-medium">Shared from {streamingServiceLabel(post.sourceService)}</p>
+            <p className="font-medium">{pendingTitle(post)}</p>
           ) : (
             <>
-              <p className="break-words font-medium">{post.title}</p>
+              <p className="break-words font-medium">{displayTitle(post)}</p>
               {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
-              {post.kind === 'ALBUM' && (
+              {kindLabel(post.kind) && (
                 <p className="w-fit rounded-full border border-line px-2 text-xs text-muted">
-                  Album
+                  {kindLabel(post.kind)}
                 </p>
               )}
             </>
@@ -99,7 +98,7 @@ export function SavedPostCard({
           rel="noopener noreferrer"
           className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-6 py-2.5 text-sm font-medium"
         >
-          Open in {main.label}
+          {main.text}
         </a>
         <Button variant="secondary" disabled={!online} onClick={() => onRemove(post.id)}>
           Remove
