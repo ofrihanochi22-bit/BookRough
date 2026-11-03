@@ -33,6 +33,7 @@ function rating(n: number, overrides: Partial<ProfileRating['post']> = {}): Prof
     post: {
       id: `post-${n}`,
       sourceService: 'SPOTIFY',
+      platform: null,
       kind: 'TRACK',
       title: `Song ${n}`,
       artist: 'Queen',

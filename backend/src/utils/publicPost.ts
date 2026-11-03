@@ -1,4 +1,4 @@
-import type { Post, PostKind, StreamingService } from '@prisma/client';
+import type { LinkPlatform, Post, PostKind, StreamingService } from '@prisma/client';
 
 import { type MemberUser, memberUserSelect, toMemberUser } from './communityMember.js';
 import type { RatingSummary } from './ratingSummary.js';
@@ -13,7 +13,10 @@ export interface PublicPost {
   /** The viewer may delete it: its author, or an admin or the owner (posts-delete.md §4). */
   canDelete: boolean;
   originalUrl: string;
-  sourceService: StreamingService;
+  /** Null on a link-only post (link-only-posts.md §4). */
+  sourceService: StreamingService | null;
+  /** Set on a link-only post, which is never converted; null otherwise. */
+  platform: LinkPlatform | null;
   kind: PostKind | null;
   title: string | null;
   artist: string | null;
@@ -90,6 +93,7 @@ export function toPublicPost(
     canDelete: post.authorId === viewerId || viewerModerates,
     originalUrl: post.originalUrl,
     sourceService: post.sourceService,
+    platform: post.linkPlatform,
     kind: post.kind,
     title: post.songTitle,
     artist: post.songArtist,

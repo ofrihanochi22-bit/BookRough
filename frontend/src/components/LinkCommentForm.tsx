@@ -6,8 +6,9 @@ import {
   cleanPostComment,
   COMMENT_MAX_GRAPHEMES,
   CONVERTING_COPY,
+  FETCHING_COPY,
 } from '../lib/postText';
-import { INVALID_LINK, parseSupportedLink } from '../lib/supportedLinks';
+import { INVALID_LINK, parseSharedLink } from '../lib/supportedLinks';
 import { graphemeCount } from '../lib/textRules';
 import { Button } from './ui/Button';
 
@@ -51,6 +52,7 @@ export function LinkCommentForm({
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
+  const [busyCopy, setBusyCopy] = useState(CONVERTING_COPY);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,7 +65,7 @@ export function LinkCommentForm({
       return;
     }
     setError(null);
-    const link = parseSupportedLink(url);
+    const link = parseSharedLink(url);
     if (!link) {
       setLinkError(INVALID_LINK);
       return;
@@ -71,6 +73,8 @@ export function LinkCommentForm({
     if (!commentCheck.ok) {
       return;
     }
+    // A Bandcamp or SoundCloud link is never converted (link-only-posts.md §5.1).
+    setBusyCopy(link.type === 'platform' ? FETCHING_COPY : CONVERTING_COPY);
 
     setBusy(true);
     onBusyChange?.(true);
@@ -156,7 +160,7 @@ export function LinkCommentForm({
         busy={busy}
         disabled={!online || url.trim() === '' || commentError !== null}
       >
-        {busy ? CONVERTING_COPY : submitLabel}
+        {busy ? busyCopy : submitLabel}
       </Button>
     </form>
   );

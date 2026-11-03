@@ -2,7 +2,7 @@ import type { StreamingService } from '../stores/auth';
 import { api, type SuccessBody } from './client';
 import type { Friendship } from './friends';
 import type { MemberUser } from './membership';
-import type { PostKind } from './posts';
+import type { LinkPlatform, PostKind } from './posts';
 
 /** Mirrors the backend's search result (docs/features/find-people.md §4). */
 export interface SearchResults {
@@ -28,7 +28,8 @@ export interface ProfileRating {
   community: { id: string; name: string };
   post: {
     id: string;
-    sourceService: StreamingService;
+    sourceService: StreamingService | null;
+    platform: LinkPlatform | null;
     kind: PostKind | null;
     title: string | null;
     artist: string | null;

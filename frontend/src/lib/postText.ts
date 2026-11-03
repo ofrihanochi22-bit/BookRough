@@ -8,6 +8,8 @@ import { codePointCount, graphemeCount, hasOnlyPrintableCharacters } from './tex
 
 /** The designed wait while the server converts a link (CLAUDE.md §7). */
 export const CONVERTING_COPY = 'Finding this track on other services…';
+/** The wait while the server reads a Bandcamp or SoundCloud link's details (link-only-posts.md §5.1). */
+export const FETCHING_COPY = 'Getting the details…';
 
 export const COMMENT_MAX_GRAPHEMES = 280;
 const COMMENT_MAX_CODE_POINTS = 1000;

@@ -49,6 +49,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
     direct: null,
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
+    platform: null,
     kind: 'TRACK',
     title: 'Bohemian Rhapsody',
     artist: 'Queen',
@@ -77,6 +78,21 @@ export function makePendingPost(overrides: Partial<PublicPost> = {}): PublicPost
     coverArtUrl: null,
     links: {},
     conversionPending: true,
+    ...overrides,
+  });
+}
+
+/** A SoundCloud set shared without conversion (link-only-posts.md). */
+export function makeLinkOnlyPost(overrides: Partial<PublicPost> = {}): PublicPost {
+  return makePost({
+    originalUrl: 'https://soundcloud.com/forss/sets/soulhack',
+    sourceService: null,
+    platform: 'SOUNDCLOUD',
+    kind: 'SET',
+    title: 'Soulhack',
+    artist: 'Forss',
+    coverArtUrl: 'https://i1.sndcdn.com/artworks-1-t500x500.jpg',
+    links: {},
     ...overrides,
   });
 }

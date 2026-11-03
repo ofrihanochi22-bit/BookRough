@@ -18,6 +18,7 @@ These are settled decisions, not options. The full reference is in `docs/tech st
 - **Database:** PostgreSQL, accessed through Prisma ORM. **MongoDB was considered and rejected** — the data is relational (users belong to communities, ratings belong to posts and users), and the flexibility of a document store buys nothing here.
 - **Link conversion:** A **server-side Playwright headless browser scraping squigly.link**. See `docs/link converter implementation guide.md`.
   - **The Odesli / Songlink API was evaluated and rejected.** The service has been degraded for several months and no longer returns links for most platforms, which defeats the purpose of the core feature. Scraping squigly.link is less elegant and slower, but it actually works. This trade-off is accepted knowingly, and its cost is reflected in the performance requirement in §5.
+  - **Link-only platforms.** Bandcamp, SoundCloud and YouTube videos of live performances carry music that the streaming services do not, so they are shared without conversion: one platform button for every viewer, metadata read from the platform (`docs/features/link-only-posts.md`).
 - **Delivery:** A deployed website that is also an **installable Progressive Web App**. See `docs/deployment.md`.
 
 ### 4. Functional Requirements

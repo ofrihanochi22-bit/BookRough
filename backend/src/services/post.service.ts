@@ -1,4 +1,10 @@
-import { Prisma, type User } from '@prisma/client';
+import {
+  type LinkPlatform,
+  Prisma,
+  type PostKind,
+  type StreamingService,
+  type User,
+} from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
@@ -12,11 +18,29 @@ import {
   requireMember,
 } from './communityAccess.js';
 import { friendsOnPosts } from './friendship.js';
-import { type ConversionResult, convertLink } from './linkScraper.service.js';
+import {
+  fetchLinkMetadata,
+  fetchYoutubeMetadata,
+  resolveSoundcloudShortLink,
+  youtubeThumbnail,
+} from './linkMetadata.service.js';
+import {
+  CONVERSION_CEILING_MS,
+  type ConversionResult,
+  convertLink,
+} from './linkScraper.service.js';
 import { checkPostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
-import { INVALID_LINK, parseSupportedLink } from './supportedLinks.js';
+import {
+  conversionUrl,
+  INVALID_LINK,
+  parseSharedLink,
+  parseSupportedLink,
+  type PlatformLink,
+  type SupportedLink,
+  youtubeVideoId,
+} from './supportedLinks.js';
 
 const log = createLogger('post.service');
 
@@ -48,18 +72,132 @@ function conversionData(result: ConversionResult & { outcome: 'converted' }) {
   };
 }
 
+interface LinkMetadata {
+  title: string;
+  artist: string | null;
+  coverArtUrl: string | null;
+}
+
+/**
+ * The columns of a link-only post: never converted, never pending, no service
+ * links (`posts_one_source`, `posts_link_only_unconverted` — link-only-posts.md §3).
+ */
+function linkOnlyData(
+  platform: LinkPlatform,
+  kind: PostKind | null,
+  originalUrl: string,
+  metadata: LinkMetadata | null,
+) {
+  return {
+    originalUrl,
+    sourceService: null,
+    linkPlatform: platform,
+    kind,
+    songTitle: metadata?.title ?? null,
+    songArtist: metadata?.artist ?? null,
+    songCoverArtUrl: metadata?.coverArtUrl ?? null,
+    conversionPending: false,
+  };
+}
+
+/**
+ * The YouTube rule, E + C (link-only-posts.md §4.2): a video squigly found on
+ * no other service is kept as a video, and so is one squigly cannot find —
+ * unless YouTube itself says it does not exist (`gone`). Null means the link
+ * stays on the converted path: a song, an album, or a pending conversion.
+ */
+async function youtubeVideo(
+  originalUrl: string,
+  service: StreamingService,
+  result: ConversionResult,
+  deadline: number,
+): Promise<ReturnType<typeof linkOnlyData> | 'gone' | null> {
+  const videoId = service === 'YOUTUBE' ? youtubeVideoId(new URL(originalUrl)) : null;
+  if (!videoId) {
+    return null;
+  }
+  if (result.outcome === 'converted') {
+    const elsewhere = Object.keys(result.links).some((found) => found !== 'YOUTUBE');
+    return elsewhere
+      ? null
+      : linkOnlyData('YOUTUBE', 'VIDEO', originalUrl, {
+          title: result.title,
+          artist: result.artist,
+          coverArtUrl: result.coverArtUrl ?? youtubeThumbnail(videoId),
+        });
+  }
+  if (result.outcome === 'not_found') {
+    const metadata = await fetchYoutubeMetadata(videoId, deadline);
+    if (metadata.outcome === 'gone') {
+      return 'gone';
+    }
+    return linkOnlyData(
+      'YOUTUBE',
+      'VIDEO',
+      originalUrl,
+      metadata.outcome === 'found'
+        ? { ...metadata, coverArtUrl: metadata.coverArtUrl ?? youtubeThumbnail(videoId) }
+        : null,
+    );
+  }
+  return null;
+}
+
+/** A streaming-service link: converted through squigly, as before this feature. */
+async function serviceLinkData(link: SupportedLink, deadline: number) {
+  const result = await convertLink(conversionUrl(link), link.service);
+  const video = await youtubeVideo(link.url, link.service, result, deadline);
+  if (video === 'gone' || (video === null && result.outcome === 'not_found')) {
+    throw new AppError(INVALID_LINK, 422);
+  }
+  if (video) {
+    return video;
+  }
+  return {
+    originalUrl: link.url,
+    sourceService: link.service,
+    ...(result.outcome === 'converted' ? conversionData(result) : { conversionPending: true }),
+  };
+}
+
+/**
+ * A Bandcamp or SoundCloud link: never sent to squigly (link-only-posts.md
+ * §4.3, §4.4). Only the platform saying "no such item" refuses it; any other
+ * failure saves it without metadata.
+ */
+async function platformLinkData(link: PlatformLink, deadline: number) {
+  let { url, kind } = link;
+  if (link.needsResolve) {
+    const resolved = await resolveSoundcloudShortLink(url, deadline);
+    if (resolved.outcome === 'refused') {
+      throw new AppError(INVALID_LINK, 422);
+    }
+    if (resolved.outcome === 'unresolved') {
+      return linkOnlyData(link.platform, null, url, null);
+    }
+    ({ url, kind } = resolved);
+  }
+  const metadata = await fetchLinkMetadata(link.platform, url, deadline);
+  if (metadata.outcome === 'gone') {
+    throw new AppError(INVALID_LINK, 422);
+  }
+  return linkOnlyData(link.platform, kind, url, metadata.outcome === 'found' ? metadata : null);
+}
+
 function isForeignKeyViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
 }
 
 /**
  * The columns every new post or direct recommendation shares: validates, then
- * converts. Only a link we can tell is wrong — its shape, or squigly's explicit
- * "could not be found" — is refused; a conversion that cannot run gives a
- * pending post (CLAUDE.md §7).
+ * converts a streaming link or fetches a link-only one's metadata. Only a link
+ * we can tell is wrong — its shape, squigly's explicit "could not be found", or
+ * the platform's own "no such item" — is refused; anything that cannot run
+ * still saves the post (CLAUDE.md §7, link-only-posts.md §4).
  */
 export async function prepareSharedLink(input: NewPost) {
-  const link = parseSupportedLink(input.url);
+  const deadline = Date.now() + CONVERSION_CEILING_MS;
+  const link = parseSharedLink(input.url);
   if (!link) {
     throw new AppError(INVALID_LINK, 422);
   }
@@ -68,16 +206,11 @@ export async function prepareSharedLink(input: NewPost) {
     throw new AppError(comment.message, 422);
   }
 
-  const result = await convertLink(link.url, link.service);
-  if (result.outcome === 'not_found') {
-    throw new AppError(INVALID_LINK, 422);
-  }
-  return {
-    originalUrl: link.url,
-    sourceService: link.service,
-    textComment: comment.value,
-    ...(result.outcome === 'converted' ? conversionData(result) : { conversionPending: true }),
-  };
+  const data =
+    link.type === 'platform'
+      ? await platformLinkData(link, deadline)
+      : await serviceLinkData(link, deadline);
+  return { textComment: comment.value, ...data };
 }
 
 /** POST /communities/:id/posts — UC-11. Synchronous: it returns once the post is saved. */
@@ -109,7 +242,13 @@ export async function createPost(
     });
 
     log.info(
-      { userId: user.id, communityId, postId: post.id, conversionPending: post.conversionPending },
+      {
+        userId: user.id,
+        communityId,
+        postId: post.id,
+        conversionPending: post.conversionPending,
+        linkPlatform: post.linkPlatform,
+      },
       'Post created',
     );
     // The author may always delete their own post; a new post has no ratings yet.
@@ -194,7 +333,9 @@ export async function listPosts(
 /**
  * POST /posts/:postId/conversion — the author retries a pending post. A post the
  * caller cannot reach is a 404, like a missing one; on a direct item the sender
- * may retry after unfriending (direct-recommendations.md §3.4).
+ * may retry after unfriending (direct-recommendations.md §3.4). A link-only post
+ * is never pending, so it is a 409; a pending YouTube video may become one
+ * (link-only-posts.md §4).
  */
 export async function retryConversion(user: User, postId: string): Promise<PublicPost> {
   const post = await prisma.post.findUnique({ where: { id: postId } });
@@ -205,13 +346,25 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
   if (post.authorId !== user.id) {
     throw new AppError(AUTHOR_ONLY, 403);
   }
-  if (!post.conversionPending) {
+  if (!post.conversionPending || !post.sourceService) {
     throw new AppError(ALREADY_CONVERTED, 409);
   }
 
-  const result = await convertLink(post.originalUrl, post.sourceService);
-  if (result.outcome === 'converted') {
-    // Conditional, so a double tap writes once and the second sees the result.
+  const deadline = Date.now() + CONVERSION_CEILING_MS;
+  const link = parseSupportedLink(post.originalUrl);
+  const result = await convertLink(
+    link ? conversionUrl(link) : post.originalUrl,
+    post.sourceService,
+  );
+  const video = await youtubeVideo(post.originalUrl, post.sourceService, result, deadline);
+  // Conditional, so a double tap writes once and the second sees the result.
+  // An accepted post is never refused after the fact: `gone` leaves it pending.
+  if (video && video !== 'gone') {
+    await prisma.post.updateMany({
+      where: { id: postId, conversionPending: true },
+      data: video,
+    });
+  } else if (video === null && result.outcome === 'converted') {
     await prisma.post.updateMany({
       where: { id: postId, conversionPending: true },
       data: conversionData(result),

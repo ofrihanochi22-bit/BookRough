@@ -13,6 +13,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     recipientHiddenAt: null,
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
+    linkPlatform: null,
     kind: 'TRACK',
     songTitle: 'Bohemian Rhapsody',
     songArtist: 'Queen',
@@ -59,6 +60,7 @@ describe('toPublicPost', () => {
         'originalUrl',
         'ratingSummary',
         'sourceService',
+        'platform',
         'title',
       ].sort(),
     );

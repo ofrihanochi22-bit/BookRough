@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** A saved link-only post opens on its platform ("Listen on SoundCloud"), whatever the viewer's service, and is rated like any other.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** `SavedPost.community` can be `null` for a direct recommendation, which shows "Sent by {sender}". Saving one stays allowed after unfriending.
 
 ## 0. How Phase 4 was re-sliced

@@ -12,7 +12,10 @@ import { signSessionToken } from '../utils/jwt.js';
  * (CLAUDE.md §10); posts and ratings are inserted directly.
  */
 const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
-vi.mock('../services/linkScraper.service.js', () => ({ convertLink }));
+vi.mock('../services/linkScraper.service.js', () => ({
+  convertLink,
+  CONVERSION_CEILING_MS: 12_000,
+}));
 
 const app = createApp();
 
@@ -281,6 +284,7 @@ describe('GET /api/users/:userId/ratings', () => {
         post: {
           id: inOld.postId,
           sourceService: 'SPOTIFY',
+          platform: null,
           kind: 'TRACK',
           title: 'Let It Be',
           artist: 'The Beatles',
