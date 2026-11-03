@@ -18,7 +18,7 @@ import { type Browser, chromium } from 'playwright';
 import { env } from '../config/env.js';
 import { createLogger } from '../utils/logger.js';
 import { convertWithStandIn } from './linkScraper.standIn.js';
-import { cleanLine } from './textRules.js';
+import { cleanScrapedText as cleanText } from './textRules.js';
 import { MAX_URL_LENGTH, SERVICE_HOSTS, serviceForHost } from './supportedLinks.js';
 
 const log = createLogger('linkScraper');
@@ -65,6 +65,20 @@ const SERVICE_LINK_SELECTOR = Object.values(SERVICE_HOSTS)
   .flat()
   .map((host) => `a[href^="https://${host}/"]`)
   .join(', ');
+/**
+ * A link on any service but the source's own: when the first link attached is
+ * the source's, the others may be a moment behind, and a page read too early
+ * would make a song look like a YouTube-only video (link-only-posts.md §4.2).
+ */
+function otherServiceSelector(sourceService: StreamingService): string {
+  return Object.entries(SERVICE_HOSTS)
+    .filter(([service]) => service !== sourceService)
+    .flatMap(([, hosts]) => hosts)
+    .map((host) => `a[href^="https://${host}/"]`)
+    .join(', ');
+}
+/** How long to wait for those other links; a live video has none and waits this once. */
+export const OTHER_LINKS_SETTLE_MS = 1_500;
 /** squigly's one definitive answer; "We couldn't reach … just now" is not one. */
 const NOT_FOUND_TEXT = /could not be found/i;
 const SUBMIT_FALLBACK_MS = 2_000;
@@ -110,7 +124,7 @@ export async function convertLink(
         // don't launch a browser only to close it a moment later.
         attempt.abandoned || Date.now() - started > CONVERSION_CEILING_MS - MIN_ATTEMPT_MS
           ? Promise.resolve(unavailable('timeout'))
-          : scrape(url, attempt),
+          : scrape(url, sourceService, attempt),
       ),
   );
 
@@ -139,7 +153,11 @@ export async function convertLink(
   return result;
 }
 
-async function scrape(url: string, attempt: Attempt): Promise<ConversionResult> {
+async function scrape(
+  url: string,
+  sourceService: StreamingService,
+  attempt: Attempt,
+): Promise<ConversionResult> {
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
@@ -181,6 +199,12 @@ async function scrape(url: string, attempt: Attempt): Promise<ConversionResult> 
       state: 'attached',
       timeout: STEP_TIMEOUT_MS,
     });
+    await page
+      .waitForSelector(otherServiceSelector(sourceService), {
+        state: 'attached',
+        timeout: OTHER_LINKS_SETTLE_MS,
+      })
+      .catch(() => undefined);
 
     return parseResultPage(await page.evaluate<ResultPage>(READ_RESULT_PAGE));
   } catch (error) {
@@ -215,17 +239,6 @@ const READ_RESULT_PAGE = `(() => {
     hrefs: Array.from(document.querySelectorAll('a[href]'), (a) => a.href),
   };
 })()`;
-
-const MAX_TEXT_LENGTH = 300;
-
-/** Cleaned, capped, and null when nothing is left. */
-function cleanText(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const text = Array.from(cleanLine(value)).slice(0, MAX_TEXT_LENGTH).join('');
-  return text.length > 0 ? text : null;
-}
 
 function httpsUrl(value: unknown): URL | null {
   if (typeof value !== 'string' || value.length > MAX_URL_LENGTH) {

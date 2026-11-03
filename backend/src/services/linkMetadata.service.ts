@@ -16,7 +16,7 @@ import type { LinkPlatform, PostKind } from '@prisma/client';
 
 import { createLogger } from '../utils/logger.js';
 import { canonicalSoundcloudLink, MAX_URL_LENGTH } from './supportedLinks.js';
-import { cleanLine } from './textRules.js';
+import { cleanScrapedText as cleanText } from './textRules.js';
 
 const log = createLogger('linkMetadata');
 
@@ -37,8 +37,6 @@ export const MAX_JSON_BYTES = 16 * 1024;
 /** Bandcamp's og: tags sit in the first 10 KB of a ~400 KB page. */
 export const MAX_PAGE_BYTES = 64 * 1024;
 export const USER_AGENT = 'BookRough/1.0 (+https://bookrough.vercel.app)';
-
-const MAX_TEXT_LENGTH = 300;
 
 /** Where each platform's cover art may come from (§4.3). */
 const COVER_HOSTS: Readonly<Record<LinkPlatform, (host: string) => boolean>> = {
@@ -82,6 +80,16 @@ async function boundedGet(
       signal: AbortSignal.timeout(timeoutMs),
       headers: { 'User-Agent': USER_AGENT, Accept: 'application/json, text/html' },
     });
+    const head = {
+      status: response.status,
+      location: response.headers.get('location'),
+      contentType: response.headers.get('content-type') ?? '',
+    };
+    // Only a 200 has a body worth reading; a redirect is answered by its header.
+    if (response.status !== 200) {
+      await response.body?.cancel().catch(() => undefined);
+      return { ...head, text: '', truncated: false };
+    }
     const chunks: Uint8Array[] = [];
     let size = 0;
     let truncated = false;
@@ -102,24 +110,13 @@ async function boundedGet(
     }
     const bytes = Buffer.concat(chunks).subarray(0, maxBytes);
     return {
-      status: response.status,
-      location: response.headers.get('location'),
-      contentType: response.headers.get('content-type') ?? '',
+      ...head,
       text: new TextDecoder('utf-8').decode(bytes),
       truncated,
     };
   } catch {
     return null;
   }
-}
-
-/** Cleaned, capped, and null when nothing is left. */
-function cleanText(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const text = Array.from(cleanLine(value)).slice(0, MAX_TEXT_LENGTH).join('');
-  return text.length > 0 ? text : null;
 }
 
 /** Kept only when https, short enough, and on the platform's image host. */

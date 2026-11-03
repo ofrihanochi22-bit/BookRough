@@ -73,6 +73,21 @@ function isEmojiPart(codePoint: number): boolean {
  * particular kind of name allows on top of the base set (community names allow
  * `& ! ? , : ( ) "`; display names allow nothing more).
  */
+/** The cap on any title or artist read from a page we do not control. */
+export const MAX_SCRAPED_TEXT_LENGTH = 300;
+
+/**
+ * Untrusted text from a scraped page or a platform's answer: cleaned like a
+ * single line, capped, and null when nothing is left (CLAUDE.md §7).
+ */
+export function cleanScrapedText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const text = Array.from(cleanLine(value)).slice(0, MAX_SCRAPED_TEXT_LENGTH).join('');
+  return text.length > 0 ? text : null;
+}
+
 export function hasOnlyNameCharacters(value: string, extra = ''): boolean {
   return Array.from(value).every((char) => {
     const codePoint = char.codePointAt(0)!;
