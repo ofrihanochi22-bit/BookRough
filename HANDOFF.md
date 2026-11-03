@@ -69,7 +69,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
 ## 4. Open loose ends the developer owes (dashboard actions)
 
 - [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
-- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, then 15.25 GB later that day, with Function Storage at 2.37 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
+- [x] **Watch the meter fall.** Done 2026-11-03: Images Storage reads **394.68 MB** of 10 GB (it had read 16.31, 15.25 and 13.5 GB on 2026-11-02), Function Storage 2.37 GB. Deleting images does free the meter, gradually, within about a day. Step 6.4's image-pruning gate has therefore passed. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 
