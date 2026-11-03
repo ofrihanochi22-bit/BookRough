@@ -4,11 +4,17 @@ import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 import { deletePost, type PublicPost, retryConversion } from '../api/posts';
-import { allLinks, mainLink, relativeTime } from '../lib/postLinks';
+import {
+  allLinks,
+  displayTitle,
+  kindLabel,
+  mainLink,
+  pendingTitle,
+  relativeTime,
+} from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
 import { ratingSummaryLine } from '../lib/ratingCopy';
 import { deleteDirectBody, noLongerFriends } from '../lib/recommendationCopy';
-import { streamingServiceLabel } from '../lib/streamingServices';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
 import { PersonLink } from './PersonLink';
@@ -238,18 +244,22 @@ export function PostCard({
         <div className="flex min-w-0 flex-col justify-center gap-1">
           {post.conversionPending ? (
             <>
-              <p className="font-medium">Shared from {streamingServiceLabel(post.sourceService)}</p>
+              <p className="font-medium">{pendingTitle(post)}</p>
               <p className="text-xs text-muted">Other services unavailable</p>
             </>
           ) : (
             <>
               <p className="break-words font-medium">
-                {linkToDetail ? <Link to={detailPath}>{post.title}</Link> : post.title}
+                {linkToDetail ? (
+                  <Link to={detailPath}>{displayTitle(post)}</Link>
+                ) : (
+                  displayTitle(post)
+                )}
               </p>
               {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
-              {post.kind === 'ALBUM' && (
+              {kindLabel(post.kind) && (
                 <p className="w-fit rounded-full border border-line px-2 text-xs text-muted">
-                  Album
+                  {kindLabel(post.kind)}
                 </p>
               )}
             </>
@@ -292,9 +302,9 @@ export function PostCard({
           rel="noopener noreferrer"
           className={`${linkButton} bg-accent text-on-accent`}
         >
-          Open in {main.label}
+          {main.text}
         </a>
-        {!post.conversionPending && (
+        {!post.conversionPending && !post.platform && (
           <Button variant="secondary" onClick={() => setShowingLinks(true)}>
             Other services
           </Button>

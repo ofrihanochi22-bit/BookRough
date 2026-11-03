@@ -148,7 +148,7 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
         <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
           <p className="font-medium">Share the first song</p>
           <p className="mt-1 text-sm text-muted">
-            Paste a link from Spotify, Apple Music, YouTube, Tidal or Deezer.
+            Paste a link from Spotify, Apple Music, YouTube, Tidal, Deezer, Bandcamp or SoundCloud.
           </p>
         </div>
       )}

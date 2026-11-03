@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** Bandcamp and SoundCloud tracks, albums and sets, and YouTube videos that squigly finds on no other service, are now shared without conversion: `source_service` is nullable, a new `link_platform` marks such a post, `PostKind` gains `VIDEO` and `SET`, and `PublicPost` gains `platform`. Converted posts, §4.1's shapes and the converter are unchanged, except that a YouTube "could not be found" is no longer refused unless YouTube confirms it, and `youtube.com/live/<id>` is accepted.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** `posts.community_id` is now nullable, and a post may instead have a recipient. Community posting, feeds and permissions are unchanged. `prepareSharedLink` is shared with direct recommendations.
 
 ## 0. How Phase 3 was re-sliced
@@ -48,7 +50,7 @@ A member opens a community, pastes a song or album link from any of the five sup
 - Ratings, average stars, bookmarks — Phase 4. The card has no star or bookmark placeholder.
 - The Post Detail screen — Phase 4 (UC-16). Cards are not tappable beyond their buttons.
 - Editing a post or its comment.
-- Amazon Music and SoundCloud links (not in `StreamingService`); playlists, artists, podcasts — their link shapes are rejected before conversion (§4.1).
+- Amazon Music links (not in `StreamingService`); playlists, artists, podcasts — their link shapes are rejected before conversion (§4.1).
 - Automatic or background retry of pending posts (option C, rejected — CLAUDE.md §7: no background jobs, and no Chromium on reads).
 - Live updates (polling, websockets): the feed loads when the page opens; your own new post is prepended.
 - Post counts in the admin area's activity columns.

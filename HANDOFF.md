@@ -44,6 +44,8 @@ Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommen
 
 UC-17 (password reset) is withdrawn; its number is not reused.
 
+**Step 6.1b — link-only posts (UC-11, amended), merged as PR #41 on 2026-11-03:** Bandcamp, SoundCloud and live YouTube videos shared without conversion (`docs/features/link-only-posts.md`); backend 68 test files at 99.01% lines, frontend 61 at 98.67%.
+
 Last measured (Step 6.2): backend 930 tests at 98.93% lines, frontend 740 tests at 98.58%, E2E 44 runs (+4 skipped). CI floor is 80%.
 
 ---
@@ -55,6 +57,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
 0. **Get production back up** (§4) — nothing else can be checked on an iPhone until it is.
 1. **Step 6.2 — PWA offline — built and tested locally, in an open PR.** What is left is the real iPhone: checks O1–O9 in `docs/features/pwa-offline.md` §7, on this branch's preview. The site must be back first. For the preview the branch opts in by its exact name in `vercel.json` → `git.deploymentEnabled`, and removes that line before merge; each preview stores one more image. If the opted-in branch builds no preview, create one by hand (Deployments → Create Deployment).
 2. **First deployment after the pause:** it applies the UC-20 migration on Neon. Check a post that already exists, then a real direct recommendation between two Google accounts.
+   - The same first deployment also applies the Step 6.1b migration (`add_link_only_posts`). Then post one real Bandcamp, SoundCloud and KEXP link on production and check each card's title, cover and platform button.
 3. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`), and it must also cover `POST /api/recommendations`. Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
 4. **Step 6.5 — README** (`docs/readme-deploy`).
 
@@ -63,7 +66,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
 ## 4. Open loose ends the developer owes (dashboard actions)
 
 - [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
-- [ ] 🔴 **Watch the meter fall.** Hours after the deletion, Images Storage read 16.31 GB of 10 GB, then 15.25 GB later that day, with Function Storage at 2.37 GB, and Vercel documents no reclaim time. If it is still over 10 GB on 2026-11-06, ask at vercel.com/help, or on community.vercel.com if the Hobby form refuses, and give both numbers: the registry holds 395 MB, the meter says otherwise. Do not delete the repository or the last image.
+- [x] **Watch the meter fall.** Done 2026-11-03: Images Storage reads **394.68 MB** of 10 GB (it had read 16.31, 15.25 and 13.5 GB on 2026-11-02), Function Storage 2.37 GB. Deleting images does free the meter, gradually, within about a day. Step 6.4's image-pruning gate has therefore passed. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 

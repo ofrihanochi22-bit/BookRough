@@ -209,6 +209,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `community_invitations` holds pending in-app invitations from a community's admins to their friends; a ban blocks them too (docs/features/invite-friends.md).
 - `posts` holds community posts and direct recommendations: `community_id` is nullable, and exactly one of it and `recipient_id` is set, guarded by two hand-written CHECKs in the `add_direct_recommendations` migration, `posts_one_target` and `posts_not_self` — likewise invisible to Prisma. `recipient_id` must stay `Cascade`, because `SetNull` would break the first (docs/features/direct-recommendations.md §3).
 
+- `posts` also holds **link-only posts** (Bandcamp, SoundCloud, YouTube videos): exactly one of `source_service` and `link_platform` is set, guarded by the hand-written CHECK `posts_one_source`, and `posts_link_only_unconverted` keeps a link-only post never pending and without universal links — both in the `add_link_only_posts` migration, invisible to Prisma (docs/features/link-only-posts.md §3).
+
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
 - `app_settings` holds the admin area's three presentation settings (one row per setting ever changed; a missing row is the default) and `setting_changes` their history, which outlives the admin's account (docs/features/admin-panel.md §3.2).
@@ -225,6 +227,7 @@ Always create migrations via `npx prisma migrate dev --name <descriptive-name>`.
 - `page.waitForSelector` timeout = **8 seconds**, not the default 30.
 - Browser is closed in a `finally` block — always.
 - **Fail gracefully**: if scraping throws, save the post with `original_url` only and a `conversion_pending` flag. Don't drop the user's content. Only a link we can tell is wrong is refused (UC-11 `422`): one that is not a track or album on a supported service — checked before Chromium launches — or one squigly.link answers "could not be found" for (docs/features/posts-feed.md §4).
+- **Links that skip the converter** (docs/features/link-only-posts.md): Bandcamp and SoundCloud links never reach squigly; their title, artist and cover come from SoundCloud oEmbed or the Bandcamp page's `og:` tags — fixed hosts only, no redirects followed, 4 s per request, a byte cap — and only the platform's own "not found" refuses one. A YouTube link still converts: a result with no service but YouTube (a live session, KEXP, Tiny Desk) is kept as a video post, and a YouTube "could not be found" is saved as a video unless YouTube oEmbed confirms it is gone.
 - **Concurrency cap**: wrap the scrape in `p-limit(2)`. Each Chromium instance costs real memory, and the deployment target is a small/free tier. Two simultaneous posts is the ceiling; the third waits — and its wait counts toward the 12-second ceiling below.
 - Production runs inside the backend Docker image: a slim Node base with Chromium's headless shell and its system libraries, nothing more (docs/features/deployment-storage.md).
 
@@ -268,6 +271,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-17 is withdrawn** (password reset). Its number is kept, not reused, so UC-18 keeps its identity.
 - **UC-19 is new**: the administrative area — see §17.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
+- **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---
 
@@ -413,7 +417,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a.
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b.
 
 ---
 

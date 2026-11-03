@@ -16,6 +16,7 @@ function bookmark(members: Array<{ role: CommunityRole }>): BookmarkWithPost {
       recipientHiddenAt: null,
       originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
       sourceService: 'SPOTIFY',
+      linkPlatform: null,
       kind: 'TRACK',
       songTitle: 'Bohemian Rhapsody',
       songArtist: 'Queen',

@@ -7,6 +7,7 @@ import type { SavedPost } from '../api/bookmarks';
 import { useAuthStore } from '../stores/auth';
 import {
   httpError,
+  makeLinkOnlyPost,
   makePendingPost,
   makePost,
   makeSession,
@@ -388,5 +389,27 @@ describe('MyList', () => {
     // Assert
     await vi.waitFor(() => expect(listBookmarks).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('MyList — a link-only post (link-only-posts.md §5.2)', () => {
+  it('opens on its platform with its kind label, still rateable', async () => {
+    // Arrange
+    listBookmarks.mockResolvedValue({
+      items: [saved(1, { post: makeLinkOnlyPost({ isBookmarked: true }) })],
+      nextCursor: null,
+    });
+
+    // Act
+    renderList();
+
+    // Assert
+    const card = (await screen.findByText('Soulhack')).closest('article')!;
+    expect(within(card).getByText('Set')).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Listen on SoundCloud' })).toHaveAttribute(
+      'href',
+      'https://soundcloud.com/forss/sets/soulhack',
+    );
+    expect(within(card).getByRole('button', { name: 'Rate & Review Soulhack' })).toBeEnabled();
   });
 });

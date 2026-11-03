@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** A direct recommendation may also be a link-only post — Bandcamp, SoundCloud or a YouTube video — sent exactly like any other; `prepareSharedLink` handles both targets.
+
 ## 0. Where this sits in the roadmap
 
 Phase 6's order becomes 6.3 → 6.1 → 6.3a → **6.1a** → 6.2 → 6.4 → 6.5 (developer's choice, 2026-11-02: build now, not after 6.2).

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** A link-only post's card shows one platform button and no Other services or Find on other services.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Post Detail also opens a direct recommendation for its two people, with `community: null` and a back link to Recommendations. Editing a rating there needs current friendship.
 
 ## 1. Goal

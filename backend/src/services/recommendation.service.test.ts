@@ -42,7 +42,7 @@ const { db, convertLink, notifyRecommendation } = vi.hoisted(() => ({
 }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./linkScraper.service.js', () => ({ convertLink }));
+vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
 vi.mock('./recommendationNotification.js', () => ({ notifyRecommendation }));
 vi.mock('./profile.service.js', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileService>()),
