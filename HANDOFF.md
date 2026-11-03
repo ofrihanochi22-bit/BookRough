@@ -44,6 +44,8 @@ Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommen
 
 UC-17 (password reset) is withdrawn; its number is not reused.
 
+**Step 6.1b — link-only posts (UC-11, amended), added 2026-11-03:** Bandcamp, SoundCloud and live YouTube videos shared without conversion (`docs/features/link-only-posts.md`). Built, reviewed and tested on `feat/link-only-posts`, in an open PR built while PR #40 waits; backend 68 test files at 99.01% lines, frontend 61 at 98.67%.
+
 Last measured (Step 6.1a): backend 930 tests at 98.93% lines, frontend 659 tests at 98.67%, E2E 43 runs (+3 skipped). CI floor is 80%.
 
 ---
@@ -53,6 +55,7 @@ Last measured (Step 6.1a): backend 930 tests at 98.93% lines, frontend 659 tests
 Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships in this order: 6.3 → 6.1 → 6.3a → **6.1a → 6.2 → 6.4 → 6.5**.
 
 0. **Get production back up** (§4) — nothing else can be checked on an iPhone until it is.
+   0a. **Step 6.1b — link-only posts.** Its PR waits for the developer's word, green CI and the storage check (CLAUDE.md §16). Merging runs the `add_link_only_posts` migration on Neon with the next deployment. Whichever of it and PR #40 merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to Step 6.2's album-art cache. After deploying, post one real Bandcamp, SoundCloud and KEXP link on production.
 1. **Step 6.1a — Direct recommendations (UC-20).** Built and tested on `feat/direct-recommendations`; its PR waits for the developer's word and the storage check (CLAUDE.md §16). Merging runs a migration on Neon when the next deployment starts, so it is expected after the pause ends.
 2. **Step 6.2 — PWA offline — Stages 1–3 done, Stage 4 not started.** Branch `feat/pwa-offline` (pushed, **no PR yet**, last commit `fa0d46f`, 2026-10-11). Its spec `docs/features/pwa-offline.md` is approved and marks ☑ Spec · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged. The branch holds the spec, the implementation (`vite-plugin-pwa` 1.3.0 pinned — approved 2026-10-11; network-first `GET /api/*`, cache-first album art, remembered session for offline launch, `OfflineBar`, `UpdatePrompt`, sign-out wipes the caches) and one code-review fix-up commit. Its `DEVELOPMENT.md` entry is still ☐ — not yet updated.
    - It branched from `c7da76b` (PR #34), **before** PR #35 and Step 6.1a — bring it up to date with `main` first, after 6.1a merges.

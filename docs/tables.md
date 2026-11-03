@@ -61,15 +61,16 @@ Manages the bidirectional social graph and pending requests (UC-6, UC-7, UC-8).
 
 ### 5. posts Table
 
-The core entity for music recommendations, to a community or, with UC-20, to one friend (UC-11, `docs/features/posts-feed.md` §3). Metadata and links come from the link converter (squigly.link); all of them are null while `conversion_pending` is true.
+The core entity for music recommendations, to a community or, with UC-20, to one friend (UC-11, `docs/features/posts-feed.md` §3). Metadata and links come from the link converter (squigly.link); all of them are null while `conversion_pending` is true. A link-only post (Bandcamp, SoundCloud, or a YouTube video) takes its metadata from the platform instead and never has links (`docs/features/link-only-posts.md` §3).
 - **id** (UUID, Primary Key).
 - **author_id** (UUID, Foreign Key referencing users(id)).
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id)): Null on a direct recommendation.
 - **recipient_id** (UUID, Nullable, Foreign Key referencing users(id)): The friend a direct recommendation was sent to (UC-20). Exactly one of community_id and recipient_id is set, enforced by the hand-written CHECK posts_one_target; posts_not_self stops a send to yourself. Both are invisible to Prisma and to prisma migrate diff.
 - **recipient_hidden_at** (TIMESTAMP, Nullable): The recipient removed it from Received. Affects Received only, and is never sent to a client.
 - **original_url** (VARCHAR(2048), Not Null): The link the user pasted, trimmed. Always present — the fallback link every viewer can open.
-- **source_service** (ENUM `StreamingService`, Not Null): The service the pasted link belongs to, derived from its host.
-- **kind** (ENUM `PostKind`, Nullable): `TRACK` or `ALBUM`, from squigly's JSON-LD type; null while pending.
+- **source_service** (ENUM `StreamingService`, Nullable): The service a converted link belongs to, derived from its host. Null on a link-only post.
+- **link_platform** (ENUM `LinkPlatform` — `BANDCAMP`, `SOUNDCLOUD`, `YOUTUBE`; Nullable): Set on a link-only post, which is never converted. Exactly one of source_service and link_platform is set, enforced by the hand-written CHECK posts_one_source; posts_link_only_unconverted keeps a link-only post never pending and without universal links. Both live in the add_link_only_posts migration and are invisible to Prisma and to prisma migrate diff.
+- **kind** (ENUM `PostKind`, Nullable): `TRACK` or `ALBUM`, from squigly's JSON-LD type; on a link-only post also `VIDEO` (a YouTube video) or `SET` (a SoundCloud set); null while pending, or for a SoundCloud short link that could not be resolved.
 - **song_title** (VARCHAR(300), Nullable): From the link converter; for an album, the album name.
 - **song_artist** (VARCHAR, Nullable).
 - **song_cover_art_url** (VARCHAR, Nullable).

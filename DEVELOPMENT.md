@@ -1629,6 +1629,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
+
 > **UC-20 added 2026-11-02.** Direct recommendations are built as Step 6.1a, before Step 6.2, whose iPhone checks wait for the Vercel pause anyway. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.2 → 6.4 → 6.5.
 
 > **Re-sliced 2026-10-10.** The PWA steps' manual checks (a real iPhone, airplane mode, deploying a second build) need a live HTTPS origin, so Phase 6 now ships in this order: **6.3 production deploy → 6.1 PWA installable → 6.2 PWA offline → 6.4 hardening → 6.5 README**. Step numbers are kept so references stay valid. The site is public from 6.3, but its address is not shared with friends until 6.4 merges — see `docs/features/production-deploy.md` §0.
@@ -1757,6 +1759,78 @@ cd backend && npm run test:coverage                      # 930 tests, 80% floor
 cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations
 cd frontend && npm run test:unit                         # 659 tests, 80% floor
 npm test --prefix e2e -- tests/recommendations.spec.ts   # the golden loop
+```
+
+---
+
+### Step 6.1b — Link-only posts: Bandcamp, SoundCloud and YouTube videos (Phase 6 — UC-11, amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/link-only-posts
+Spec: docs/features/link-only-posts.md
+
+Goal: Friends can share music the streaming services don't carry — Bandcamp releases, SoundCloud uploads and sets, and YouTube videos of live sessions — without conversion, in a community or to a friend. Songs shared through YouTube convert exactly as before.
+
+Tasks:
+
+- [x] Spec: docs/features/link-only-posts.md approved after a live test of squigly.link and YouTube oEmbed on 22 links (YouTube rule E + C; Bandcamp, SoundCloud and YouTube videos on a fixed allowlist; metadata fetched server-side, falling back to the platform's name; SoundCloud short links through one checked redirect; `LinkPlatform` + `link_platform`; no embedded player; amend UC-11; built as an exception while PR #40 waits).
+- [x] DB: migration `add_link_only_posts` — `LinkPlatform`, `PostKind` `VIDEO` and `SET`, `posts.link_platform`, nullable `source_service`, hand-written CHECKs `posts_one_source` and `posts_link_only_unconverted`.
+- [x] Backend: link classification, the metadata fetcher, the YouTube rule, retry.
+- [x] Frontend: one platform button on every card, the composer's busy copy, the mirrored link rules.
+- [x] Review: `/code-review` (6 findings: 3 fixed in code, 2 fixed in the docs, 1 skipped) and `/security-review` (no findings).
+- [x] Tests: unit, integration and component per spec §7; no new E2E.
+
+What I did:
+
+Delivered the amended UC-11 for both posting targets (UC-11 and UC-20), per `docs/features/link-only-posts.md`.
+
+- **The YouTube finding:** squigly.link never matched a live performance to its studio track and never answered "not found" for one. It returned only the video's own YouTube link, while every song converted to all five services. That answer is now the rule: a YouTube result with no other service becomes a video post.
+- **Schema:** `posts.source_service` is nullable; `posts.link_platform` (`BANDCAMP` / `SOUNDCLOUD` / `YOUTUBE`) marks a link-only post; `PostKind` gains `VIDEO` and `SET`. Two hand-written CHECKs keep a post converted or link-only, never both, and a link-only post never pending and without service links.
+- **Backend:** `services/supportedLinks.ts` classifies Bandcamp (`<artist>.bandcamp.com/track|album/…`), SoundCloud tracks, sets and secret links, `on.soundcloud.com` short links, and `youtube.com/live/<id>`. `services/linkMetadata.service.ts` reads SoundCloud oEmbed, the Bandcamp page's `og:` tags and YouTube oEmbed — fixed hosts, no redirects followed, 4 s per request, a byte cap, untrusted text cleaned — and resolves short links through one checked redirect. `post.service.ts` routes each link (`prepareSharedLink`), applies the YouTube rule (E + C), and makes retry a `409` for link-only posts while a pending YouTube video may become one. The converter now waits up to 1.5 s for a link on another service before reading. `PublicPost` and the profile's rating rows gain `platform`.
+- **Frontend:** `lib/postLinks.ts` gives every card one button — "Listen on Bandcamp", "Listen on SoundCloud", "Watch on YouTube" — the platform's name when there is no title, and "Set" / "Video" labels; Other services and Find on other services are hidden. The composer and the Send a song sheet show "Getting the details…" for Bandcamp and SoundCloud. The feed's empty state names the new platforms.
+- **Review:** `/code-review` found the early page read (a song could become a video), duplicated text cleaning and needless body reads, all fixed; the missing tech stack entries and CLAUDE.md §6 record, fixed in the docs; a shared card-heading component, skipped (the four call sites differ in truncation, links and the pending note). `/security-review`: no findings.
+- **Docs:** `use cases`, `tables`, `frontend screens`, `link converter implementation guide`, `tech stack` (three new runtime services), `general` (.md + .docx); amendment notes in `posts-feed.md`, `direct-recommendations.md`, `post-detail.md`, `bookmarks-my-list.md`; CLAUDE.md §6, §7, §9, §12; `HANDOFF.md`.
+- **Tests:** backend 68 files (99.01% lines over both suites), frontend 61 files (98.67%). E2E unchanged.
+- **With PR #40:** whichever of the two merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to Step 6.2's album-art cache.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/`, sign in, and open a community (or Friends → Recommendations → Send a song). Paste each link, tap **Post**, and check the card:
+
+| Paste                                                                           | Expect                                                                                              |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `https://khruangbin.bandcamp.com/album/a-la-sala`                               | "Getting the details…", then A LA SALA · Khruangbin · Album · **Listen on Bandcamp**                |
+| `https://khruangbin.bandcamp.com/track/fifteen-fifty-three`                     | Fifteen Fifty-Three · Khruangbin · **Listen on Bandcamp**                                           |
+| `https://soundcloud.com/forss/flickermood`                                      | Flickermood · Forss · **Listen on SoundCloud**                                                      |
+| `https://soundcloud.com/forss/sets/soulhack`                                    | Soulhack · Forss · Set · **Listen on SoundCloud**                                                   |
+| A SoundCloud app share (`https://on.soundcloud.com/…`)                          | Stored as the full `soundcloud.com` link, without its `?si=` tracking                               |
+| `https://www.youtube.com/watch?v=bVwSZQPjRYE` (KEXP, live)                      | "Finding this track…", then Chanpan - romantic (Live on KEXP) · KEXP · Video · **Watch on YouTube** |
+| `https://www.youtube.com/live/QrR_gm6RqCo` (Tiny Desk)                          | Mac Miller: NPR Music Tiny Desk Concert · NPR Music · Video                                         |
+| `https://www.youtube.com/watch?v=dQw4w9WgXcQ` (official video)                  | Converted as before: Never Gonna Give You Up · **Open in {your service}** · Other services          |
+| `https://youtu.be/dQw4w9WgXcQ`, `https://music.youtube.com/watch?v=dQw4w9WgXcQ` | Converted as before                                                                                 |
+| `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`                         | Converted as before                                                                                 |
+
+Bad paths, each refused inline with the UC-11 message and the draft kept: `https://soundcloud.com/forss` (a profile), `https://khruangbin.bandcamp.com/` (a home page), `https://www.mixcloud.com/…` (not on the allowlist), `https://soundcloud.com.evil.example/forss/flickermood` (a lookalike), `https://khruangbin.bandcamp.com/album/doesnotexist` (Bandcamp answers 404). Then rate, save to My List, open Post Detail and delete a link-only post — all as for any post; its ⋯ menu offers no Find on other services.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage                      # 68 files, 80% floor
+cd backend && npx vitest run src/services/supportedLinks src/services/linkMetadata src/services/post.service
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/linkOnlyPosts
+cd frontend && npm run test:unit                         # 61 files, 80% floor
 ```
 
 ---

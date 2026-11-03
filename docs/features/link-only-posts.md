@@ -8,7 +8,7 @@
 | **Use cases** | UC-11 (amended); UC-20 inherits UC-11's link rules (one-line pointer)                          |
 | **Phase**     | 6 — Step 6.1b, an exception to "one open PR at a time" while PR #40 (Step 6.2) waits on Vercel |
 | **Branch**    | `feat/link-only-posts`                                                                         |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                             |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                             |
 
 ---
 
@@ -386,3 +386,5 @@ Loading, empty, error and offline states are the existing ones on every screen t
 | 2026-11-03 | Amend UC-11 (pointer in UC-20) rather than add UC-21                                                        | Same user goal and flow; one place for link rules                                                            |
 | 2026-11-03 | Built as Step 6.1b while PR #40 waits on Vercel                                                             | Developer's exception, as for UC-20                                                                          |
 | 2026-11-03 | Stage 2: the placeholder cover stays the plain ♪ tile, and the URL field's example placeholder is unchanged | The title line already names the platform; the example URL is an example, not a list                         |
+| 2026-11-03 | Stage 3: the converter waits up to 1.5 s for a link on a service other than the source's before reading     | `/code-review`: a page read on the first link could make a song look YouTube-only and lose its conversion    |
+| 2026-11-03 | Stage 4: scraped and fetched text drops control characters (`cleanScrapedText`, shared with the converter)  | A metadata test showed `cleanLine` kept them; §4.3 promised they were cleaned                                |
