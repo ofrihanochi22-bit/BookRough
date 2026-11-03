@@ -77,14 +77,18 @@ function isEmojiPart(codePoint: number): boolean {
 export const MAX_SCRAPED_TEXT_LENGTH = 300;
 
 /**
- * Untrusted text from a scraped page or a platform's answer: cleaned like a
- * single line, capped, and null when nothing is left (CLAUDE.md §7).
+ * Untrusted text from a scraped page or a platform's answer: control
+ * characters removed, cleaned like a single line, capped, and null when
+ * nothing is left (CLAUDE.md §7).
  */
 export function cleanScrapedText(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
   }
-  const text = Array.from(cleanLine(value)).slice(0, MAX_SCRAPED_TEXT_LENGTH).join('');
+  // Control characters become spaces first, so they cannot glue words together.
+  const text = Array.from(cleanLine(value.replace(/\p{Cc}/gu, ' ')))
+    .slice(0, MAX_SCRAPED_TEXT_LENGTH)
+    .join('');
   return text.length > 0 ? text : null;
 }
 

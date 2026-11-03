@@ -7,25 +7,23 @@ describe('mainLink', () => {
   it("opens the viewer's own service when a link was found for it", () => {
     // Act & Assert
     expect(mainLink(makePost(), 'APPLE_MUSIC')).toEqual({
-      service: 'APPLE_MUSIC',
       url: 'https://music.apple.com/us/album/x/1?i=2',
-      label: 'Apple Music',
+      text: 'Open in Apple Music',
     });
   });
 
   it("falls back to the pasted link when the viewer's service has none", () => {
     // Act & Assert
     expect(mainLink(makePost(), 'TIDAL')).toEqual({
-      service: 'SPOTIFY',
       url: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
-      label: 'Spotify',
+      text: 'Open in Spotify',
     });
   });
 
   it('falls back for a pending post and for a viewer with no service', () => {
     // Act & Assert
-    expect(mainLink(makePendingPost(), 'APPLE_MUSIC').label).toBe('Spotify');
-    expect(mainLink(makePost(), null).label).toBe('Spotify');
+    expect(mainLink(makePendingPost(), 'APPLE_MUSIC').text).toBe('Open in Spotify');
+    expect(mainLink(makePost(), null).text).toBe('Open in Spotify');
   });
 });
 

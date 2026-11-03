@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { toProfileRating, type RatingWithPost } from './profileRating.js';
 
 describe('toProfileRating', () => {
-  it('has exactly its keys, and the post exactly its seven', () => {
+  it('has exactly its keys, and the post exactly its eight', () => {
     // Arrange: extra fields stand in for columns a careless select would bring.
     const createdAt = new Date('2026-10-06T10:00:00.000Z');
     const rating = {
@@ -17,6 +17,7 @@ describe('toProfileRating', () => {
       post: {
         id: 'p1',
         sourceService: 'SPOTIFY',
+        linkPlatform: null,
         kind: 'ALBUM',
         songTitle: 'Abbey Road',
         songArtist: 'The Beatles',
@@ -42,6 +43,7 @@ describe('toProfileRating', () => {
       post: {
         id: 'p1',
         sourceService: 'SPOTIFY',
+        platform: null,
         kind: 'ALBUM',
         title: 'Abbey Road',
         artist: 'The Beatles',
@@ -62,6 +64,7 @@ describe('toProfileRating', () => {
       post: {
         id: 'p1',
         sourceService: 'SPOTIFY',
+        linkPlatform: null,
         kind: null,
         songTitle: null,
         songArtist: null,

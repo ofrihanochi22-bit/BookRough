@@ -82,6 +82,21 @@ export function makePendingPost(overrides: Partial<PublicPost> = {}): PublicPost
   });
 }
 
+/** A SoundCloud set shared without conversion (link-only-posts.md). */
+export function makeLinkOnlyPost(overrides: Partial<PublicPost> = {}): PublicPost {
+  return makePost({
+    originalUrl: 'https://soundcloud.com/forss/sets/soulhack',
+    sourceService: null,
+    platform: 'SOUNDCLOUD',
+    kind: 'SET',
+    title: 'Soulhack',
+    artist: 'Forss',
+    coverArtUrl: 'https://i1.sndcdn.com/artworks-1-t500x500.jpg',
+    links: {},
+    ...overrides,
+  });
+}
+
 /** An axios error carrying a backend error body, as the API client rejects with. */
 export function httpError(status: number, message: string): AxiosError {
   const config = { headers: new AxiosHeaders() };

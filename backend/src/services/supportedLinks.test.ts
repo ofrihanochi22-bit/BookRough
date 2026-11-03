@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseSupportedLink, serviceForHost } from './supportedLinks.js';
+import {
+  canonicalSoundcloudLink,
+  conversionUrl,
+  parseSharedLink,
+  parseSupportedLink,
+  serviceForHost,
+  youtubeVideoId,
+} from './supportedLinks.js';
 
 /*
  * The same example table lives in frontend/src/lib/supportedLinks.test.ts:
@@ -93,5 +100,183 @@ describe('serviceForHost', () => {
     expect(serviceForHost('youtu.be')).toBe('YOUTUBE');
     expect(serviceForHost('music.amazon.com')).toBeNull();
     expect(serviceForHost('soundcloud.com')).toBeNull();
+  });
+});
+
+/*
+ * Link-only platforms — docs/features/link-only-posts.md §4.1. The same table
+ * is in both packages' tests, like the one above.
+ */
+
+const PLATFORM_ACCEPTED: Array<[url: string, platform: string, kind: string | null]> = [
+  ['https://khruangbin.bandcamp.com/album/a-la-sala', 'BANDCAMP', 'ALBUM'],
+  ['https://khruangbin.bandcamp.com/track/fifteen-fifty-three/', 'BANDCAMP', 'TRACK'],
+  ['https://khruangbin.bandcamp.com/album/A-LA-SALA', 'BANDCAMP', 'ALBUM'],
+  ['https://KHRUANGBIN.Bandcamp.com/album/a-la-sala', 'BANDCAMP', 'ALBUM'],
+  ['https://soundcloud.com/forss/flickermood', 'SOUNDCLOUD', 'TRACK'],
+  ['https://soundcloud.com/forss/flickermood?si=abc&utm_source=x', 'SOUNDCLOUD', 'TRACK'],
+  ['https://soundcloud.com/forss/flickermood/s-AbC123', 'SOUNDCLOUD', 'TRACK'],
+  ['https://soundcloud.com/forss/sets/soulhack', 'SOUNDCLOUD', 'SET'],
+  ['https://soundcloud.com/forss/sets/soulhack/s-AbC123', 'SOUNDCLOUD', 'SET'],
+  ['https://www.soundcloud.com/forss/flickermood', 'SOUNDCLOUD', 'TRACK'],
+  ['https://m.soundcloud.com/forss/flickermood', 'SOUNDCLOUD', 'TRACK'],
+  ['https://SoundCloud.com/Forss/Flickermood', 'SOUNDCLOUD', 'TRACK'],
+  ['https://on.soundcloud.com/AbC123xyz', 'SOUNDCLOUD', null],
+];
+
+const PLATFORM_REJECTED: Array<[url: string, why: string]> = [
+  ['https://khruangbin.bandcamp.com/', 'artist home page'],
+  ['https://khruangbin.bandcamp.com/music', 'discography page'],
+  ['https://khruangbin.bandcamp.com/merch', 'merch page'],
+  ['https://khruangbin.bandcamp.com/track', 'no slug'],
+  ['https://khruangbin.bandcamp.com/album/a_la_sala', 'slug character'],
+  ['https://bandcamp.com/album/x', 'bare host'],
+  ['https://www.bandcamp.com/album/x', 'www is not an artist'],
+  ['https://daily.bandcamp.com/album/x', 'editorial site'],
+  ['https://a.b.bandcamp.com/track/x', 'two labels'],
+  ['https://khruangbin.bandcamp.com.evil.example/album/x', 'lookalike suffix'],
+  ['https://xbandcamp.com/album/x', 'lookalike host'],
+  ['http://khruangbin.bandcamp.com/album/x', 'http'],
+  ['https://khruangbin.bandcamp.com:8443/album/x', 'port'],
+  ['https://user:pw@khruangbin.bandcamp.com/album/x', 'userinfo'],
+  ['https://music.khruangbin.com/album/x', 'custom domain'],
+  ['https://soundcloud.com/forss', 'profile'],
+  ['https://soundcloud.com/forss/tracks', 'profile tab'],
+  ['https://soundcloud.com/forss/likes', 'likes'],
+  ['https://soundcloud.com/forss/reposts', 'reposts'],
+  ['https://soundcloud.com/forss/albums', 'albums tab'],
+  ['https://soundcloud.com/forss/sets', 'sets tab'],
+  ['https://soundcloud.com/forss/followers', 'followers'],
+  ['https://soundcloud.com/forss/flickermood/comments', 'comments page'],
+  ['https://soundcloud.com/forss/flickermood/extra/more', 'too deep'],
+  ['https://soundcloud.com/discover/sets/new', 'discover'],
+  ['https://soundcloud.com/search?q=forss', 'search'],
+  ['https://soundcloud.com/stations/track/forss/flickermood', 'station'],
+  ['https://soundcloud.com/you/likes', 'own library'],
+  ['https://soundcloud.com/', 'home page'],
+  ['https://soundcloud.com.evil.example/forss/flickermood', 'lookalike suffix'],
+  ['https://evilsoundcloud.com/forss/flickermood', 'lookalike host'],
+  ['https://soundcloud.com@evil.example/forss/flickermood', 'userinfo trick'],
+  ['https://api.soundcloud.com/tracks/293', 'api host'],
+  ['https://on.soundcloud.com/AbC/extra', 'short link with a path'],
+  ['https://on.soundcloud.com/', 'short link without a code'],
+  ['https://www.mixcloud.com/someone/some-mix/', 'host not on the allowlist'],
+  ['https://vimeo.com/123456', 'host not on the allowlist'],
+  ['javascript:alert(1)//soundcloud.com/a/b', 'not https'],
+  ['data:text/html,soundcloud.com', 'not https'],
+  ['soundcloud.com/forss/flickermood', 'not absolute'],
+];
+
+describe('parseSharedLink', () => {
+  it.each(PLATFORM_ACCEPTED)('accepts %s as %s %s', (url, platform, kind) => {
+    // Act
+    const link = parseSharedLink(url);
+
+    // Assert
+    expect(link).toEqual({
+      type: 'platform',
+      url,
+      platform,
+      kind,
+      needsResolve: url.startsWith('https://on.soundcloud.com/'),
+    });
+  });
+
+  it.each(PLATFORM_REJECTED)('rejects %s (%s)', (url) => {
+    // Act & Assert
+    expect(parseSharedLink(url)).toBeNull();
+  });
+
+  it.each(ACCEPTED)('still classifies %s as service %s %s', (url, service, kind) => {
+    // Act & Assert: a streaming link never becomes link-only.
+    expect(parseSharedLink(url)).toEqual({ type: 'service', url, service, kind });
+  });
+
+  it.each([
+    ['https://www.youtube.com/live/QrR_gm6RqCo'],
+    ['https://youtube.com/live/QrR_gm6RqCo/'],
+  ])('accepts the live link %s as a YouTube video', (url) => {
+    // Act & Assert
+    expect(parseSharedLink(url)).toEqual({
+      type: 'service',
+      url,
+      service: 'YOUTUBE',
+      kind: 'TRACK',
+    });
+  });
+
+  it.each([
+    ['https://music.youtube.com/live/QrR_gm6RqCo', 'not on YouTube Music'],
+    ['https://www.youtube.com/live/short', 'bad id'],
+    ['https://www.youtube.com/shorts/QrR_gm6RqCo', 'Shorts'],
+    ['https://www.youtube.com/@KEXP', 'channel'],
+    ['https://www.youtube.com/playlist?list=PLxyz', 'non-album playlist'],
+  ])('rejects %s (%s)', (url) => {
+    // Act & Assert
+    expect(parseSharedLink(url)).toBeNull();
+  });
+});
+
+describe('youtubeVideoId and conversionUrl', () => {
+  it.each([
+    ['https://www.youtube.com/watch?v=QrR_gm6RqCo', 'QrR_gm6RqCo'],
+    ['https://music.youtube.com/watch?v=QrR_gm6RqCo', 'QrR_gm6RqCo'],
+    ['https://youtu.be/QrR_gm6RqCo', 'QrR_gm6RqCo'],
+    ['https://www.youtube.com/live/QrR_gm6RqCo', 'QrR_gm6RqCo'],
+    ['https://music.youtube.com/playlist?list=OLAK5uy_abcDEF123', null],
+    ['https://music.youtube.com/browse/MPREb_eEpQf8QskKl', null],
+    ['https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv', null],
+  ])('reads the video id of %s as %s', (url, id) => {
+    // Act & Assert
+    expect(youtubeVideoId(new URL(url))).toBe(id);
+  });
+
+  it('hands squigly a live link as the plain watch link of the same video', () => {
+    // Arrange
+    const link = parseSupportedLink('https://youtube.com/live/QrR_gm6RqCo?si=x')!;
+
+    // Act & Assert
+    expect(conversionUrl(link)).toBe('https://www.youtube.com/watch?v=QrR_gm6RqCo');
+  });
+
+  it.each(ACCEPTED)('hands squigly %s exactly as pasted', (url) => {
+    // Act & Assert: regression — every other link is unchanged.
+    expect(conversionUrl(parseSupportedLink(url)!)).toBe(url);
+  });
+});
+
+describe('canonicalSoundcloudLink', () => {
+  it.each([
+    [
+      'https://soundcloud.com/forss/flickermood?si=abc&utm_source=clipboard',
+      'https://soundcloud.com/forss/flickermood',
+      'TRACK',
+    ],
+    [
+      'https://m.soundcloud.com/forss/sets/soulhack/',
+      'https://soundcloud.com/forss/sets/soulhack',
+      'SET',
+    ],
+    [
+      'https://www.soundcloud.com/forss/flickermood/s-AbC123#t=0',
+      'https://soundcloud.com/forss/flickermood/s-AbC123',
+      'TRACK',
+    ],
+  ])('turns the redirect target %s into %s', (location, url, kind) => {
+    // Act & Assert
+    expect(canonicalSoundcloudLink(location)).toEqual({ url, kind });
+  });
+
+  it.each([
+    ['https://evil.example/forss/flickermood', 'off the allowlist'],
+    ['https://soundcloud.com.evil.example/forss/flickermood', 'lookalike'],
+    ['http://soundcloud.com/forss/flickermood', 'http'],
+    ['https://soundcloud.com/forss', 'a profile'],
+    ['https://on.soundcloud.com/AbC123', 'another short link'],
+    ['/forss/flickermood', 'relative'],
+    ['not a url', 'garbage'],
+  ])('refuses the redirect target %s (%s)', (location) => {
+    // Act & Assert
+    expect(canonicalSoundcloudLink(location)).toBeNull();
   });
 });

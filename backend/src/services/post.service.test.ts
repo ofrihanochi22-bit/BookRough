@@ -2,6 +2,7 @@ import { Prisma, type User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../utils/AppError.js';
+import type * as LinkMetadataService from './linkMetadata.service.js';
 import {
   ALREADY_CONVERTED,
   AUTHOR_ONLY,
@@ -12,6 +13,7 @@ import {
   encodeCursor,
   getPost,
   POST_NOT_FOUND,
+  prepareSharedLink,
   retryConversion,
 } from './post.service.js';
 import { INVALID_LINK } from './supportedLinks.js';
@@ -22,18 +24,28 @@ import { INVALID_LINK } from './supportedLinks.js';
  * paths are proven end to end in routes/posts.integration.test.ts.
  */
 
-const { db, convertLink } = vi.hoisted(() => ({
-  db: {
-    communityMember: { findUnique: vi.fn() },
-    post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
-    $queryRaw: vi.fn(),
-    $transaction: vi.fn(),
-  },
-  convertLink: vi.fn(),
-}));
+const { db, convertLink, fetchLinkMetadata, fetchYoutubeMetadata, resolveSoundcloudShortLink } =
+  vi.hoisted(() => ({
+    db: {
+      communityMember: { findUnique: vi.fn() },
+      post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+      $queryRaw: vi.fn(),
+      $transaction: vi.fn(),
+    },
+    convertLink: vi.fn(),
+    fetchLinkMetadata: vi.fn(),
+    fetchYoutubeMetadata: vi.fn(),
+    resolveSoundcloudShortLink: vi.fn(),
+  }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./linkScraper.service.js', () => ({ convertLink }));
+vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
+vi.mock('./linkMetadata.service.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof LinkMetadataService>()),
+  fetchLinkMetadata,
+  fetchYoutubeMetadata,
+  resolveSoundcloudShortLink,
+}));
 
 const USER = { id: '11111111-1111-4111-8111-111111111111' } as User;
 const COMMUNITY = '22222222-2222-4222-8222-222222222222';
@@ -236,5 +248,418 @@ describe('getPost', () => {
 
     // Act & Assert
     await expectAppError(getPost(USER, POST_ID), 404, POST_NOT_FOUND);
+  });
+});
+
+/*
+ * Link-only posts and the YouTube rule — docs/features/link-only-posts.md §4.
+ * prepareSharedLink touches no database, so every branch is reachable here.
+ */
+
+const VIDEO = 'https://www.youtube.com/watch?v=bVwSZQPjRYE';
+const SONG_VIDEO = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+const SOUNDCLOUD = 'https://soundcloud.com/forss/flickermood';
+const BANDCAMP = 'https://khruangbin.bandcamp.com/album/a-la-sala';
+const FOUND = { outcome: 'found', title: 'Flickermood', artist: 'Forss', coverArtUrl: null };
+
+const LINK_ONLY_NULLS = { sourceService: null, conversionPending: false };
+
+describe('prepareSharedLink — Bandcamp and SoundCloud', () => {
+  it.each([
+    [BANDCAMP, 'BANDCAMP', 'ALBUM'],
+    [SOUNDCLOUD, 'SOUNDCLOUD', 'TRACK'],
+    ['https://soundcloud.com/forss/sets/soulhack', 'SOUNDCLOUD', 'SET'],
+  ])('saves %s as a link-only %s %s, never calling squigly', async (url, platform, kind) => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue(FOUND);
+
+    // Act
+    const data = await prepareSharedLink({ url, comment: 'Listen' });
+
+    // Assert
+    expect(data).toEqual({
+      textComment: 'Listen',
+      originalUrl: url,
+      linkPlatform: platform,
+      kind,
+      songTitle: 'Flickermood',
+      songArtist: 'Forss',
+      songCoverArtUrl: null,
+      ...LINK_ONLY_NULLS,
+    });
+    expect(convertLink).not.toHaveBeenCalled();
+    expect(fetchLinkMetadata).toHaveBeenCalledWith(platform, url, expect.any(Number));
+  });
+
+  it('saves without metadata when the platform cannot be read', async () => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue({ outcome: 'missing' });
+
+    // Act
+    const data = await prepareSharedLink({ url: SOUNDCLOUD });
+
+    // Assert
+    expect(data).toMatchObject({ songTitle: null, songArtist: null, songCoverArtUrl: null });
+    expect(data).toMatchObject({ linkPlatform: 'SOUNDCLOUD', ...LINK_ONLY_NULLS });
+  });
+
+  it('refuses a link the platform says does not exist', async () => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue({ outcome: 'gone' });
+
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url: BANDCAMP }), 422, INVALID_LINK);
+  });
+
+  it.each([
+    ['https://khruangbin.bandcamp.com/', 'a Bandcamp home page'],
+    ['https://soundcloud.com/forss', 'a SoundCloud profile'],
+    ['https://soundcloud.com.evil.example/forss/flickermood', 'a lookalike host'],
+    ['https://www.mixcloud.com/someone/mix/', 'a host not on the allowlist'],
+  ])('refuses %s (%s) before asking anyone', async (url) => {
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url }), 422, INVALID_LINK);
+    expect(fetchLinkMetadata).not.toHaveBeenCalled();
+    expect(resolveSoundcloudShortLink).not.toHaveBeenCalled();
+    expect(convertLink).not.toHaveBeenCalled();
+  });
+
+  it('refuses a too-long comment before asking the platform', async () => {
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url: SOUNDCLOUD, comment: 'a'.repeat(281) }), 422);
+    expect(fetchLinkMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('prepareSharedLink — SoundCloud short links', () => {
+  const SHORT = 'https://on.soundcloud.com/AbC123';
+
+  it('resolves the short link, then stores and describes the resolved one', async () => {
+    // Arrange
+    resolveSoundcloudShortLink.mockResolvedValue({
+      outcome: 'resolved',
+      url: 'https://soundcloud.com/forss/sets/soulhack',
+      kind: 'SET',
+    });
+    fetchLinkMetadata.mockResolvedValue(FOUND);
+
+    // Act
+    const data = await prepareSharedLink({ url: SHORT });
+
+    // Assert
+    expect(data).toMatchObject({
+      originalUrl: 'https://soundcloud.com/forss/sets/soulhack',
+      kind: 'SET',
+      linkPlatform: 'SOUNDCLOUD',
+    });
+    expect(fetchLinkMetadata).toHaveBeenCalledWith(
+      'SOUNDCLOUD',
+      'https://soundcloud.com/forss/sets/soulhack',
+      expect.any(Number),
+    );
+  });
+
+  it('refuses a short link that leads off the allowlist or nowhere', async () => {
+    // Arrange
+    resolveSoundcloudShortLink.mockResolvedValue({ outcome: 'refused' });
+
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url: SHORT }), 422, INVALID_LINK);
+    expect(fetchLinkMetadata).not.toHaveBeenCalled();
+  });
+
+  it('keeps an unresolvable short link as it is, with no kind and no metadata', async () => {
+    // Arrange
+    resolveSoundcloudShortLink.mockResolvedValue({ outcome: 'unresolved' });
+
+    // Act
+    const data = await prepareSharedLink({ url: SHORT });
+
+    // Assert
+    expect(data).toMatchObject({
+      originalUrl: SHORT,
+      kind: null,
+      songTitle: null,
+      linkPlatform: 'SOUNDCLOUD',
+      ...LINK_ONLY_NULLS,
+    });
+    expect(fetchLinkMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('prepareSharedLink — the YouTube rule (E + C)', () => {
+  it('keeps a song converted when squigly found it elsewhere', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({
+      ...CONVERTED,
+      links: { YOUTUBE: 'https://music.youtube.com/watch?v=lYBUbBu4W08', SPOTIFY: TRACK },
+    });
+
+    // Act
+    const data = await prepareSharedLink({ url: SONG_VIDEO });
+
+    // Assert
+    expect(data).toMatchObject({
+      sourceService: 'YOUTUBE',
+      kind: 'TRACK',
+      universalLinkSpotify: TRACK,
+      conversionPending: false,
+    });
+    expect(data).not.toHaveProperty('linkPlatform');
+  });
+
+  it('keeps a video squigly found nowhere else as a video, with a built thumbnail (E)', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({
+      ...CONVERTED,
+      title: 'Chanpan - romantic (Live on KEXP)',
+      artist: 'KEXP',
+      links: { YOUTUBE: 'https://music.youtube.com/watch?v=bVwSZQPjRYE' },
+    });
+
+    // Act
+    const data = await prepareSharedLink({ url: VIDEO });
+
+    // Assert
+    expect(data).toEqual({
+      textComment: null,
+      originalUrl: VIDEO,
+      linkPlatform: 'YOUTUBE',
+      kind: 'VIDEO',
+      songTitle: 'Chanpan - romantic (Live on KEXP)',
+      songArtist: 'KEXP',
+      songCoverArtUrl: 'https://i.ytimg.com/vi/bVwSZQPjRYE/hqdefault.jpg',
+      ...LINK_ONLY_NULLS,
+    });
+  });
+
+  it.each([['https://youtu.be/bVwSZQPjRYE'], ['https://music.youtube.com/watch?v=bVwSZQPjRYE']])(
+    'applies rule E on %s too',
+    async (url) => {
+      // Arrange
+      convertLink.mockResolvedValue({ ...CONVERTED, links: {} });
+
+      // Act & Assert
+      await expect(prepareSharedLink({ url })).resolves.toMatchObject({
+        linkPlatform: 'YOUTUBE',
+        kind: 'VIDEO',
+      });
+    },
+  );
+
+  it('hands squigly a live link as the watch link of the same video', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ ...CONVERTED, links: {} });
+
+    // Act
+    const data = await prepareSharedLink({ url: 'https://www.youtube.com/live/QrR_gm6RqCo' });
+
+    // Assert
+    expect(convertLink).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=QrR_gm6RqCo',
+      'YOUTUBE',
+    );
+    expect(data).toMatchObject({ originalUrl: 'https://www.youtube.com/live/QrR_gm6RqCo' });
+  });
+
+  it('never turns a YouTube Music album into a video', async () => {
+    // Arrange
+    const album = 'https://music.youtube.com/playlist?list=OLAK5uy_abcDEF123';
+    convertLink.mockResolvedValue({ ...CONVERTED, kind: 'ALBUM', links: { YOUTUBE: album } });
+
+    // Act & Assert
+    await expect(prepareSharedLink({ url: album })).resolves.toMatchObject({
+      sourceService: 'YOUTUBE',
+      kind: 'ALBUM',
+    });
+  });
+
+  it('saves a video squigly cannot find, described by YouTube oEmbed (C)', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'not_found' });
+    fetchYoutubeMetadata.mockResolvedValue({
+      outcome: 'found',
+      title: 'Live set',
+      artist: 'KEXP',
+      coverArtUrl: null,
+    });
+
+    // Act
+    const data = await prepareSharedLink({ url: VIDEO });
+
+    // Assert
+    expect(data).toMatchObject({
+      linkPlatform: 'YOUTUBE',
+      kind: 'VIDEO',
+      songTitle: 'Live set',
+      songCoverArtUrl: 'https://i.ytimg.com/vi/bVwSZQPjRYE/hqdefault.jpg',
+    });
+    expect(fetchYoutubeMetadata).toHaveBeenCalledWith('bVwSZQPjRYE', expect.any(Number));
+  });
+
+  it('saves it without metadata when oEmbed cannot answer (C)', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'not_found' });
+    fetchYoutubeMetadata.mockResolvedValue({ outcome: 'missing' });
+
+    // Act & Assert
+    await expect(prepareSharedLink({ url: VIDEO })).resolves.toMatchObject({
+      linkPlatform: 'YOUTUBE',
+      kind: 'VIDEO',
+      songTitle: null,
+      songCoverArtUrl: null,
+    });
+  });
+
+  it('refuses it when YouTube confirms the video does not exist (C)', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'not_found' });
+    fetchYoutubeMetadata.mockResolvedValue({ outcome: 'gone' });
+
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url: VIDEO }), 422, INVALID_LINK);
+  });
+
+  it('keeps a YouTube link pending, as before, when squigly is down', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'unavailable', reason: 'timeout' });
+
+    // Act & Assert
+    await expect(prepareSharedLink({ url: VIDEO })).resolves.toEqual({
+      textComment: null,
+      originalUrl: VIDEO,
+      sourceService: 'YOUTUBE',
+      conversionPending: true,
+    });
+    expect(fetchYoutubeMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('prepareSharedLink — regression for every streaming service', () => {
+  it.each([
+    [TRACK, 'SPOTIFY'],
+    ['https://music.apple.com/us/song/bohemian-rhapsody/1440650711', 'APPLE_MUSIC'],
+    ['https://tidal.com/browse/track/534050211', 'TIDAL'],
+    ['https://www.deezer.com/track/4091937401', 'DEEZER'],
+    [SONG_VIDEO, 'YOUTUBE'],
+    ['https://youtu.be/dQw4w9WgXcQ', 'YOUTUBE'],
+    ['https://music.youtube.com/watch?v=dQw4w9WgXcQ', 'YOUTUBE'],
+  ])('converts %s exactly as before', async (url, service) => {
+    // Arrange
+    convertLink.mockResolvedValue({
+      ...CONVERTED,
+      links: { SPOTIFY: TRACK, APPLE_MUSIC: 'https://music.apple.com/us/song/x/1' },
+    });
+
+    // Act
+    const data = await prepareSharedLink({ url });
+
+    // Assert
+    expect(convertLink).toHaveBeenCalledWith(url, service);
+    expect(data).toEqual({
+      textComment: null,
+      originalUrl: url,
+      sourceService: service,
+      kind: 'TRACK',
+      songTitle: 'Song',
+      songArtist: 'Band',
+      songCoverArtUrl: null,
+      universalLinkSpotify: TRACK,
+      universalLinkApple: 'https://music.apple.com/us/song/x/1',
+      universalLinkYoutube: null,
+      universalLinkTidal: null,
+      universalLinkDeezer: null,
+      conversionPending: false,
+    });
+    expect(fetchLinkMetadata).not.toHaveBeenCalled();
+  });
+
+  it("still refuses squigly's not_found for a non-YouTube link, without oEmbed", async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'not_found' });
+
+    // Act & Assert
+    await expectAppError(prepareSharedLink({ url: TRACK }), 422, INVALID_LINK);
+    expect(fetchYoutubeMetadata).not.toHaveBeenCalled();
+  });
+});
+
+describe('retryConversion — link-only posts and the YouTube rule', () => {
+  const pendingVideo = {
+    id: POST_ID,
+    authorId: USER.id,
+    communityId: COMMUNITY,
+    originalUrl: 'https://www.youtube.com/live/bVwSZQPjRYE',
+    sourceService: 'YOUTUBE',
+    linkPlatform: null,
+    conversionPending: true,
+  };
+
+  it('refuses a link-only post with 409, without converting', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue({
+      ...pendingVideo,
+      sourceService: null,
+      linkPlatform: 'SOUNDCLOUD',
+      conversionPending: false,
+    });
+
+    // Act & Assert
+    await expectAppError(retryConversion(USER, POST_ID), 409, ALREADY_CONVERTED);
+    expect(convertLink).not.toHaveBeenCalled();
+  });
+
+  it('turns a pending YouTube post into a video when squigly finds it nowhere else', async () => {
+    // Arrange: the re-read finds it gone, which ends the call after the write.
+    db.post.findUnique.mockResolvedValueOnce(pendingVideo).mockResolvedValueOnce(null);
+    convertLink.mockResolvedValue({ ...CONVERTED, title: 'Live', artist: 'KEXP', links: {} });
+
+    // Act
+    await expectAppError(retryConversion(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Assert
+    expect(convertLink).toHaveBeenCalledWith(
+      'https://www.youtube.com/watch?v=bVwSZQPjRYE',
+      'YOUTUBE',
+    );
+    expect(db.post.updateMany).toHaveBeenCalledWith({
+      where: { id: POST_ID, conversionPending: true },
+      data: {
+        originalUrl: pendingVideo.originalUrl,
+        linkPlatform: 'YOUTUBE',
+        kind: 'VIDEO',
+        songTitle: 'Live',
+        songArtist: 'KEXP',
+        songCoverArtUrl: 'https://i.ytimg.com/vi/bVwSZQPjRYE/hqdefault.jpg',
+        ...LINK_ONLY_NULLS,
+      },
+    });
+  });
+
+  it('converts a pending YouTube song as before', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValueOnce(pendingVideo).mockResolvedValueOnce(null);
+
+    // Act
+    await expectAppError(retryConversion(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledWith({
+      where: { id: POST_ID, conversionPending: true },
+      data: expect.objectContaining({ universalLinkSpotify: TRACK, conversionPending: false }),
+    });
+  });
+
+  it('leaves the post untouched when YouTube says the video is gone', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValueOnce(pendingVideo).mockResolvedValueOnce(null);
+    convertLink.mockResolvedValue({ outcome: 'not_found' });
+    fetchYoutubeMetadata.mockResolvedValue({ outcome: 'gone' });
+
+    // Act
+    await expectAppError(retryConversion(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Assert
+    expect(db.post.updateMany).not.toHaveBeenCalled();
   });
 });
