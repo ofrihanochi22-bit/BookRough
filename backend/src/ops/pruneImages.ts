@@ -70,7 +70,7 @@ export function planPrune(images: RegistryImage[], options: PruneOptions): Prune
   return { keep, remove, untagged };
 }
 
-interface Config {
+export interface Config {
   token: string;
   team: string;
   project: string;
@@ -87,7 +87,7 @@ function query(config: Config, extra: Record<string, string> = {}): string {
   return new URLSearchParams({ projectId: config.project, slug: config.team, ...extra }).toString();
 }
 
-async function listImages(config: Config): Promise<RegistryImage[]> {
+export async function listImages(config: Config): Promise<RegistryImage[]> {
   const images: RegistryImage[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -128,7 +128,7 @@ async function listImages(config: Config): Promise<RegistryImage[]> {
   throw new Error(`More than ${MAX_PAGES} pages of images; deleting nothing.`);
 }
 
-async function deleteImage(config: Config, image: RegistryImage): Promise<void> {
+export async function deleteImage(config: Config, image: RegistryImage): Promise<void> {
   const url = `${API}/${encodeURIComponent(config.repository)}/images/${encodeURIComponent(image.id)}?${query(config)}`;
   const response = await fetch(url, {
     method: 'DELETE',
@@ -144,7 +144,7 @@ function describe(image: RegistryImage): string {
   return `${image.id}  ${image.createdAt}  ${image.tags.join(',')}  ${megabytes} MB`;
 }
 
-function readConfig(source: NodeJS.ProcessEnv): Config {
+export function readConfig(source: NodeJS.ProcessEnv): Config {
   const required = (name: string): string => {
     const value = source[name]?.trim();
     if (!value) {

@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { planPrune, type RegistryImage } from './pruneImages.js';
+import {
+  type Config,
+  deleteImage,
+  listImages,
+  planPrune,
+  readConfig,
+  type RegistryImage,
+} from './pruneImages.js';
 
 /* docs/features/production-hardening.md §3.8: every guard of the registry prune. */
 const SHA = 'f78a80f0123456789abcdef0123456789abcdef0';
@@ -89,5 +96,118 @@ describe('planPrune', () => {
 
     // Act & Assert
     expect(() => planPrune(images, OPTIONS)).toThrowError(/Refusing to delete 11 images/);
+  });
+});
+
+describe('readConfig', () => {
+  const base = { VERCEL_TOKEN: 't', VERCEL_TEAM: 'team', CURRENT_SHA: SHA };
+
+  it('defaults the project and repository, and is a dry run unless PRUNE_IMAGES is "delete"', () => {
+    // Act
+    const dry = readConfig(base);
+    const deleting = readConfig({ ...base, PRUNE_IMAGES: 'delete' });
+
+    // Assert
+    expect(dry).toMatchObject({ project: 'bookrough', repository: 'api', deleting: false });
+    expect(deleting.deleting).toBe(true);
+    expect(readConfig({ ...base, PRUNE_IMAGES: 'yes' }).deleting).toBe(false);
+  });
+
+  it.each(['VERCEL_TOKEN', 'VERCEL_TEAM', 'CURRENT_SHA'])('fails when %s is missing', (name) => {
+    // Act & Assert
+    expect(() => readConfig({ ...base, [name]: ' ' })).toThrowError(`${name} is not set.`);
+  });
+});
+
+describe('the registry calls', () => {
+  const config: Config = {
+    token: 'secret-token',
+    team: 'team',
+    project: 'bookrough',
+    repository: 'api',
+    currentSha: SHA,
+    deleting: true,
+  };
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const answer = (status: number, body?: unknown) =>
+    Promise.resolve(new Response(body === undefined ? null : JSON.stringify(body), { status }));
+
+  it('follows the cursor across pages and sends the token only as a bearer header', async () => {
+    // Arrange
+    fetchMock
+      .mockReturnValueOnce(answer(200, { images: [image(1)], nextCursor: 'next' }))
+      .mockReturnValueOnce(answer(200, { images: [image(2)] }));
+
+    // Act
+    const images = await listImages(config);
+
+    // Assert
+    expect(ids(images)).toEqual(['image_1', 'image_2']);
+    const [firstUrl, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(firstUrl).toContain('/v1/vcr/repository/api/images?');
+    expect(firstUrl).toContain('projectId=bookrough');
+    expect(firstUrl).not.toContain('secret-token');
+    expect(init.headers).toEqual({ Authorization: 'Bearer secret-token' });
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('cursor=next');
+  });
+
+  it('fails, deleting nothing, when the listing is refused', async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(403, {}));
+
+    // Act & Assert
+    await expect(listImages(config)).rejects.toThrowError(/HTTP 403; deleting nothing/);
+  });
+
+  it.each([
+    ['no image array', { items: [] }],
+    ['an image without tags', { images: [{ id: 'x', createdAt: '2026-11-01' }] }],
+  ])('fails on %s', async (_label, body) => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(200, body));
+
+    // Act & Assert
+    await expect(listImages(config)).rejects.toThrowError(/unexpected shape; deleting nothing/);
+  });
+
+  it('gives up after too many pages', async () => {
+    // Arrange
+    fetchMock.mockImplementation(() => answer(200, { images: [], nextCursor: 'again' }));
+
+    // Act & Assert
+    await expect(listImages(config)).rejects.toThrowError(/More than 20 pages/);
+  });
+
+  it.each([202, 404, 410])('treats a DELETE answered %i as done', async (status) => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(status));
+
+    // Act
+    await deleteImage(config, image(1));
+
+    // Assert
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/v1/vcr/repository/api/images/image_1?');
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('fails on any other DELETE answer', async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(500));
+
+    // Act & Assert
+    await expect(deleteImage(config, image(1))).rejects.toThrowError(
+      /image_1 failed with HTTP 500/,
+    );
   });
 });
