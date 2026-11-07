@@ -8,7 +8,7 @@
 | **Use cases** | No new UC. Protects UC-1/2 (sign-in), UC-11 (posting), UC-20 (direct recommendations), UC-6 (friend requests), UC-9 (communities, invitations) |
 | **Phase**     | 6 — Step 6.4 (DEVELOPMENT.md)                                                                                                                  |
 | **Branch**    | `chore/production-hardening`                                                                                                                   |
-| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                                                             |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                                                             |
 
 ---
 
@@ -46,7 +46,7 @@ The task list in DEVELOPMENT.md Step 6.4 predates Google-only sign-in. This spec
 
 ### 3.1 Rate limiting
 
-`express-rate-limit`, pinned to an exact version (a new dependency, approved 2026-11-07, recorded in `docs/tech stack.md` §5 and its `.docx`). It uses the library's in-memory store. The limiters are built by a factory, so each `createApp()` gets fresh stores and tests never share counters.
+`express-rate-limit`, pinned to an exact version (a new dependency, approved 2026-11-07, recorded in `docs/tech stack.md` §5 and its `.docx`). It uses the library's in-memory store. The routers are module-level, so the four limiters are too, each with its own `MemoryStore`. Two test-only hooks, `setRateLimitsEnabled` and `resetRateLimits`, which throw outside `NODE_ENV=test`, let the rate-limit suites switch the limits on and start each test from empty counters. Every other suite runs with them off.
 
 | Tier | Name         | Endpoints                                                                                            | Key      | Limit                             | 429 message                                                  |
 | ---- | ------------ | ---------------------------------------------------------------------------------------------------- | -------- | --------------------------------- | ------------------------------------------------------------ |
@@ -61,7 +61,7 @@ The task list in DEVELOPMENT.md Step 6.4 predates Google-only sign-in. This spec
 - **The response** is `429` in the standard error shape, `{ "status": "error", "code": 429, "message": … }`. It's written through the library's `handler` option calling `next(new AppError(message, 429))`, so the central error handler stays the only error writer (CLAUDE.md §4). The headers are `RateLimit` (draft-8 combined form) and `Retry-After`. The legacy `X-RateLimit-*` headers are off.
 - **Logging.** A tripped limiter logs one `warn` with the tier name and `userId` if known. It never logs the IP or the key.
 - **Frontend.** The axios interceptor already toasts the backend's message on any `4xx`. The two posting forms (community post, direct recommendation) must keep the draft and re-enable Submit on a `429`, as they already do for other errors. Stage 2 confirms this and fixes it if not. No new screen.
-- **Tests and E2E.** A `RATE_LIMITS_DISABLED=true` environment variable turns all four tiers off. The E2E suite signs in dozens of times from one IP, so its workflow sets the variable. **The env schema refuses it when `NODE_ENV=production`,** and the server fails to start, so it can never switch the limits off in production.
+- **Tests and E2E.** A `RATE_LIMITS_DISABLED=true` environment variable turns all four tiers off. The E2E suite signs in dozens of times from one IP, so its workflow sets the variable. **The env schema allows it only under `NODE_ENV=test`,** the same rule as the E2E stand-ins, so a host that forgets `NODE_ENV` is refused too. The server fails to start, and the limits can never be switched off in production.
 
 ### 3.2 `trust proxy`
 
@@ -81,7 +81,7 @@ Behind Vercel's proxy, `req.ip` is the proxy's address unless Express trusts it.
 | `X-Frame-Options`        | `DENY`                                                         |
 | `Permissions-Policy`     | `camera=(), microphone=(), geolocation=(), payment=(), usb=()` |
 
-- **Pages:** a `headers` block in `vercel.json` covering every path. Vercel serves the HTML, not Express. If the `services` layout ignores top-level `headers`, the block moves into the `web` service, and that is recorded in §9.
+- **Pages:** a `headers` block in `vercel.json`'s `web` service, covering every path. Vercel serves the HTML, not Express, and with `services` each service owns its own `headers` rules (Vercel's Services routing documentation, read 2026-11-07).
 - **API:** a small `securityHeaders` middleware in `backend/src/middleware/`, registered first in `createApp()`.
 - **Not added:** `Strict-Transport-Security` (Vercel sends it on its domains; checked in P4) and `Cross-Origin-Opener-Policy` (Google's sign-in popup is sensitive to it).
 - `strict-origin-when-cross-origin` sends only the origin to album-art and Google hosts, never a path. So an `/invite/<token>` path can't leak through `Referer`.
@@ -104,7 +104,7 @@ Claude reads every `log.*` call in `backend/src` (59 today), the request seriali
 ### 3.6 Secrets: history scan and a CI job
 
 - **Once, now:** `gitleaks` (pinned image `ghcr.io/gitleaks/gitleaks:<exact tag>`, run through Docker; nothing is installed in the repo) runs over the full history of every branch on the remote. Findings are reported with `--redact`, so no value reaches the terminal or the chat.
-- **From now on:** a `secrets` job in `ci.yml` runs on every PR and on `main` (as `checks / secrets`), with `fetch-depth: 0`. It runs the same pinned `gitleaks` image over the full history and fails on any finding. A `.gitleaks.toml` at the repo root allowlists the known CI-only fake values (`ci-only-secret-value-…`, `ci-only-client-id…`, test passwords such as `bookrough`) by exact pattern, never by path.
+- **From now on:** a `secrets` job in `ci.yml` runs on every PR and on `main` (as `checks / secrets`), with `fetch-depth: 0`. It runs the same pinned `gitleaks` image over the full history and fails on any finding. A `.gitleaksignore` at the repo root lists every reviewed false positive by its exact gitleaks fingerprint (commit, file, rule, line), never by path or rule. A new finding fails CI and is reviewed before anything is added.
 - **Branch protection:** making `checks / secrets` required is a repository setting. Claude asks the developer before changing it (CLAUDE.md §11). CLAUDE.md §10's "four jobs" becomes five.
 - **A real finding** means the developer rotates that secret (Vercel env, Google Console, Neon). It counts as exposed because it reached GitHub. History is not rewritten. Claude then adds a narrow allowlist entry for the now-dead value's fingerprint, so CI goes green.
 
@@ -114,14 +114,16 @@ Decided 2026-10-10 (production-deploy.md §3.3):
 
 - **The developer** opens Vercel → project `bookrough` → Settings → Deployment Checks and adds `test:e2e` and `test:docker` (the GitHub check names from `main.yml`). A production deployment is then built after a merge but promoted only once both pass.
 - **Claude** confirms in Stage 2 that the two jobs report under stable check names, renaming nothing users depend on, and documents the check in `docs/deployment.md` §3.6 and its `.docx`.
-- **If Hobby doesn't offer Deployment Checks:** fall back to `main` → `deploymentEnabled: false` in `vercel.json`, plus a `deploy` job at the end of `main.yml` (`needs: [test-e2e, test-docker]`) that runs the pinned Vercel CLI with `VERCEL_TOKEN`. That fallback is a spec amendment recorded in §9 before it's built.
+- **If Hobby doesn't offer Deployment Checks:** fall back to `main` → `deploymentEnabled: false` in `vercel.json`, plus a `deploy` job at the end of `main.yml` (`needs: [test-e2e, test-docker]`) that deploys with `VERCEL_TOKEN`. That fallback is a spec amendment recorded in §9 before it's built.
 - `main.yml`'s E2E runs on scraper fixtures, so a squigly.link outage can't block a deploy; only our own regressions can.
 
 ### 3.8 Registry pruning
 
 Decided 2026-11-02 (deployment-storage.md §1.2); the gate (Images Storage seen to fall) passed on 2026-11-03.
 
-- **A `prune-images` job in `main.yml`** runs on `push` to `main` and on `workflow_dispatch`, not on the nightly schedule, with `needs: [test-e2e, test-docker]`. By then the newest image is the one being promoted. It uses the Vercel CLI pinned exactly (`npx --yes vercel@<exact>`; a new tool, recorded in `docs/tech stack.md` §5.2 and its `.docx`) with `VERCEL_TOKEN`.
+- **A `prune-images` job in `main.yml`** runs on `push` to `main` and on `workflow_dispatch`, not on the nightly schedule, with `needs: [test-e2e, test-docker]`. By then the newest image is the one being promoted. It runs `backend/src/ops/pruneImages.ts` with Node's own type stripping, calling Vercel's documented REST endpoints (`GET` and `DELETE /v1/vcr/repository/api/images`) with `fetch` and `VERCEL_TOKEN`. No Vercel CLI and no package; the decisions sit in a pure, unit-tested `planPrune`.
+- **Dry run until the developer says so.** Every run prints what it keeps and what it would delete. It deletes only when the repository variable `PRUNE_IMAGES` is `delete`, which the developer sets after reading the first run's plan. The team slug comes from the repository variable `VERCEL_TEAM`; neither variable is a secret.
+- **Only tagged images are candidates.** An untagged entry can be a platform manifest that belongs to a kept image, so untagged entries are never touched.
 - **Logic:** list the images in the project's `api` repository and sort them newest first. Keep the 4 newest and delete the rest with `image rm --yes`. Hard guards:
   - delete nothing if the list has 4 or fewer entries or can't be parsed;
   - never delete the image tagged with the current commit SHA;
@@ -173,9 +175,9 @@ No new screens. Behaviour checked on:
 - **A conversion retry** (`POST /posts/:postId/conversion`) counts toward tier 1, because it launches Chromium.
 - **An admin** has no exemption. Admins use the same endpoints.
 - **Prune job races a promotion** that Deployment Checks are holding. The current SHA's image is never deleted, and the 4 newest include every production candidate.
-- **The Vercel CLI's `vcr` output changes format.** Parsing fails, the job deletes nothing and goes red.
+- **The registry's image list changes shape** (missing `id`, `createdAt` or `tags`, or an unreadable date): the job deletes nothing and goes red.
 - **`gitleaks` false positive:** add an exact-value allowlist entry with a comment, never a path-wide exclusion.
-- **Headers block ignored by Vercel's `services` layout:** P4 detects it, and the block moves into the `web` service (§3.3).
+- **Headers block not applied on Vercel:** P4 detects it, and a project-level routing rule is the fallback.
 
 ## 8. Test scenarios
 
@@ -184,8 +186,9 @@ No new screens. Behaviour checked on:
 - ✅ `env`: `TRUST_PROXY_HOPS` defaults to 0 and accepts `1`.
 - ❌ `env`: rejects a negative or non-integer `TRUST_PROXY_HOPS`.
 - ✅ `env`: `RATE_LIMITS_DISABLED=true` accepted under `NODE_ENV=test`.
-- ❌ `env`: `RATE_LIMITS_DISABLED=true` with `NODE_ENV=production` fails validation.
-- ✅ Rate-limit factory: each call returns limiters with independent stores.
+- ❌ `env`: `RATE_LIMITS_DISABLED=true` with `NODE_ENV=production`, and with `NODE_ENV` unset, fails validation.
+- ✅ Rate-limit test hooks: `resetRateLimits` empties every tier's counters.
+- ❌ Rate-limit test hooks: both throw outside `NODE_ENV=test`.
 - ✅ The tier-1 key is the authenticated `userId`; the tier-2 key is `req.ip`.
 - ✅ `p-limit` burst: 5 simultaneous conversions, never more than 2 browsers at once; the third starts when a slot frees.
 - ❌ `p-limit` burst: queued conversions resolve as `timeout` within `CONVERSION_CEILING_MS`, and one that leaves the queue too late launches no browser.
@@ -224,7 +227,8 @@ No new screens. Behaviour checked on:
 - ✅ `checks / secrets` passes on the cleaned repository.
 - ❌ `checks / secrets` fails on a planted fake key. Proven once on a throwaway branch that is deleted unmerged, with the developer's word (CLAUDE.md §11).
 - ✅ E2E still green with `RATE_LIMITS_DISABLED=true` set in its workflow env.
-- ❌ `prune-images`: dry-run logic tested as a small script with fixture output: fewer than 5 images, unparseable output and the current SHA being old all delete nothing.
+- ❌ `planPrune` (unit): 4 or fewer tagged images, an unreadable `createdAt`, more than 10 to delete, and the current SHA's image being old all delete nothing (or throw); untagged entries are never in the plan.
+- ✅ `planPrune` (unit): 7 tagged images keep the 4 newest and remove 3.
 
 **E2E** — none new; no golden loop changes.
 
@@ -246,22 +250,30 @@ No new screens. Behaviour checked on:
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                | Reason                                                                                                               |
-| ---------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 2026-11-07 | Sign-up stays open to any Google account; rate limits instead of a gate | Developer: simplest, no friction for new friends; strangers see nothing without an invite or a friendship            |
-| 2026-11-07 | Rate-limit counters in memory per instance                              | No new table or service; resets and per-instance counting are acceptable at friend-group scale, same as `p-limit(2)` |
-| 2026-11-07 | `express-rate-limit`, pinned exactly (new dependency approved)          | Handles memory cleanup, IPv6 subnets and standard headers, and warns on a wrong `trust proxy`                        |
-| 2026-11-07 | Four tiers as in §3.1                                                   | Approved by the developer as proposed                                                                                |
-| 2026-11-07 | `trust proxy` from `TRUST_PROXY_HOPS`, not a Vercel-specific header     | Provider-agnostic (CLAUDE.md §16)                                                                                    |
-| 2026-11-07 | Baseline security headers, no CSP                                       | A CSP can't be verified on production or an iPhone before the pause ends, and a wrong one breaks sign-in             |
-| 2026-11-07 | `gitleaks` scan of the full history now, plus a `secrets` job in CI     | Checks the past and guards the future; the branch-protection change is asked for separately                          |
-| 2026-11-07 | Spec approved by the developer                                          | Stage 1 closed (CLAUDE.md §15)                                                                                       |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                                                                                                        | Reason                                                                                                                                                 |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-07 | Sign-up stays open to any Google account; rate limits instead of a gate                                                                                                                                                                                                                                                                                                                                                         | Developer: simplest, no friction for new friends; strangers see nothing without an invite or a friendship                                              |
+| 2026-11-07 | Rate-limit counters in memory per instance                                                                                                                                                                                                                                                                                                                                                                                      | No new table or service; resets and per-instance counting are acceptable at friend-group scale, same as `p-limit(2)`                                   |
+| 2026-11-07 | `express-rate-limit`, pinned exactly (new dependency approved)                                                                                                                                                                                                                                                                                                                                                                  | Handles memory cleanup, IPv6 subnets and standard headers, and warns on a wrong `trust proxy`                                                          |
+| 2026-11-07 | Four tiers as in §3.1                                                                                                                                                                                                                                                                                                                                                                                                           | Approved by the developer as proposed                                                                                                                  |
+| 2026-11-07 | `trust proxy` from `TRUST_PROXY_HOPS`, not a Vercel-specific header                                                                                                                                                                                                                                                                                                                                                             | Provider-agnostic (CLAUDE.md §16)                                                                                                                      |
+| 2026-11-07 | Baseline security headers, no CSP                                                                                                                                                                                                                                                                                                                                                                                               | A CSP can't be verified on production or an iPhone before the pause ends, and a wrong one breaks sign-in                                               |
+| 2026-11-07 | `gitleaks` scan of the full history now, plus a `secrets` job in CI                                                                                                                                                                                                                                                                                                                                                             | Checks the past and guards the future; the branch-protection change is asked for separately                                                            |
+| 2026-11-07 | Spec approved by the developer                                                                                                                                                                                                                                                                                                                                                                                                  | Stage 1 closed (CLAUDE.md §15)                                                                                                                         |
+| 2026-11-07 | Stage 2: `RATE_LIMITS_DISABLED` allowed only under `NODE_ENV=test`, not merely refused in production                                                                                                                                                                                                                                                                                                                            | Stricter, and the same rule as the stand-ins: a host that forgets `NODE_ENV` defaults to development                                                   |
+| 2026-11-07 | Stage 2: limiters are module-level, with test-only reset and enable hooks, instead of a factory                                                                                                                                                                                                                                                                                                                                 | The routers are module-level, so per-`createApp()` limiters would need every router rebuilt                                                            |
+| 2026-11-07 | Stage 2: correction — `express-rate-limit` 8.7.3 has two dependencies, `debug` (already installed) and `ip-address`                                                                                                                                                                                                                                                                                                             | Stage 1 said it had none; it adds one new package to the lockfile                                                                                      |
+| 2026-11-07 | Stage 2: page headers live in the `web` service's `headers`, not at the top level                                                                                                                                                                                                                                                                                                                                               | Vercel's Services routing documentation: each service owns its headers                                                                                 |
+| 2026-11-07 | Stage 2: registry pruning calls the REST API from a Node script, not the Vercel CLI; dry run until `PRUNE_IMAGES=delete`; tagged images only                                                                                                                                                                                                                                                                                    | The REST response is documented JSON where the CLI's output is not, no new tool is needed, and the first run's plan is read before anything is deleted |
+| 2026-11-07 | Stage 2: reviewed `gitleaks` false positives go in `.gitleaksignore` by fingerprint, not `.gitleaks.toml` patterns                                                                                                                                                                                                                                                                                                              | Exact per finding; a pattern would also hide a future real value                                                                                       |
+| 2026-11-07 | M2 — history scan (`gitleaks` 8.30.1, all refs, 47 commits): 5 findings, all test fixtures — invite tokens in 3 test files, and the E2E Google stand-in key and its signer (committed on purpose, refused outside `NODE_ENV=test`). No real secret; nothing to rotate                                                                                                                                                           | §3.6                                                                                                                                                   |
+| 2026-11-07 | M3 — log audit, 59 calls plus the request serializer and the error handler: every call logs ids, counts, outcomes and our own messages only; no email, token, name, search text, invite token or IP. One finding: an unhandled Prisma error was logged raw, and its message can render query values. Fixed by an `err` serializer (`utils/safeError.ts`) that keeps the class, code, model and field names and the stack frames | §3.5                                                                                                                                                   |
 
 ## 10. Doc updates (same PR)
 
 - `DEVELOPMENT.md` Step 6.4: replace the stale task list, then fill in What I did and How to view & test (CLAUDE.md §13).
-- `CLAUDE.md`: §2 (`express-rate-limit`, `gitleaks`, Vercel CLI in CI), §10 (five PR jobs), §16 (Deployment Checks live, registry pruning).
-- `docs/tech stack.md` + `.docx`: §5 `express-rate-limit`; §5.2 `gitleaks`, the Vercel CLI and `VERCEL_TOKEN`.
+- `CLAUDE.md`: §2 (`express-rate-limit`, `gitleaks`), §10 (five PR jobs), §16 (Deployment Checks live, registry pruning).
+- `docs/tech stack.md` + `.docx`: §5 `express-rate-limit`; §5.2 `gitleaks`, and the Vercel REST API with `VERCEL_TOKEN` (§5).
 - `docs/deployment.md` + `.docx`: §3.5 burst measurement; §3.6 Deployment Checks, pruning, `TRUST_PROXY_HOPS`; §7 checklist.
 - `docs/tests.md` + `.docx`: the `secrets` job and `RATE_LIMITS_DISABLED` in E2E.
 - `docs/git workflow.md` + `.docx`: the fifth required check.

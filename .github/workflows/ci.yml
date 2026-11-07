@@ -1,6 +1,6 @@
 name: ci
 
-# The four checks, defined once and called by both pr.yml and main.yml.
+# The five checks, defined once and called by both pr.yml and main.yml.
 #
 # They lived in both files at first, which meant a Node version bump or a new
 # job had to be made twice and would silently drift the moment one was
@@ -37,6 +37,23 @@ jobs:
         run: npm run lint
       - name: Prettier
         run: npm run format:check
+
+  # Every commit reachable from this one, every run: a secret removed in a
+  # later commit is still in the history (docs/features/production-hardening.md
+  # §3.6). Reviewed false positives are listed by exact fingerprint in
+  # .gitleaksignore. A real finding is rotated by the developer, never
+  # scrubbed from history.
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (pinned)
+        run: >-
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1
+          git /repo --redact --no-banner --exit-code 1
 
   typecheck:
     name: typecheck
