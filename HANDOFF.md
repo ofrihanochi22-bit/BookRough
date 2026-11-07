@@ -75,7 +75,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
   - Vercel → project `bookrough` → Settings → Environment Variables: `TRUST_PROXY_HOPS` = `1` for Production and Preview (not a secret).
   - Vercel → Settings → Deployment Checks: add `test:e2e` and `test:docker`. If Hobby doesn't offer it, tell Claude; the fallback is a deploy job in `main.yml`.
   - Vercel → Settings → Build and Deployment: Preview deployment retention 7 days.
-- [ ] **Before Step 6.4 merges, if Vercel allows it while paused:**
+- [ ] **Also on 2026-11-11** (the developer deferred these on 2026-11-07, so the image prune fails harmlessly until then):
   - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
   - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
   - Claude will ask before making `checks / secrets` a required check in branch protection.
