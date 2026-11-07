@@ -1551,6 +1551,46 @@ npm test --prefix e2e                                     # 39 runs (+3 skipped)
 
 ---
 
+### Step 5.3a — Friend sheets layout (Phase 5, a fix to Steps 5.2 and 5.3)
+
+Status: ✅ Done
+Branch: fix/friend-sheets-layout
+Spec: none — a layout fix agreed in a short Stage 1 (no behaviour, copy or API change)
+
+Goal: Finding F1 of the 2026-11-04/07 manual test session. In the **Remove friend?** sheet (Friends & Requests / UC-8), the buttons sat right under the question with no gap, and looked cramped. Bring it, and its two siblings, in line with every other confirmation sheet.
+
+What I did:
+
+- **Cause:** the three friend sheets were the only sheets that put their text and buttons straight into `Sheet` with no spacing, and they used a narrow `flex gap-2` row with the primary action first. Delete post, Hide and the Community Settings confirmations all use a `flex flex-col gap-4` column, with a `flex gap-3` row of two `flex-1` buttons, Cancel first.
+- `components/RemoveFriendSheet.tsx`: that pattern — **Cancel** | **Remove friend**, equal width; the body text in the standard colour, as on the other sheets.
+- `components/FriendButton.tsx`, same problem, same fix: **Friend request** is now **Ignore** | **Accept**; **Request sent** has the spacing and a full-width **Cancel request**.
+- **Review:** `/code-review` raised 4 findings. 2 were fixed: a test matched the × glyph instead of the Close label, and temporary verification files needed keeping out of the commit. 2 were left: the button row is now repeated in five sheets, and a shared component would be a wider refactor; and Remove friend has no "Removing…" busy copy, which would be a copy change, out of scope.
+- **Verified** at 375px against the dev server: 16px between text and buttons, two 44px-tall buttons of equal width.
+- **Tests:** `FriendButton.test.tsx` gains the button order of all three sheets, and Cancel closing Remove friend without removing. Frontend 743 tests, 98.67% lines.
+
+How to view & test:
+
+```bash
+docker compose up -d
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Signed in as a user with a friend, open `http://localhost:5173/friends` at 375px width.
+
+1. Tap **⋯** beside a friend → "Remove friend?" shows the question, clear space, then **Cancel** and **Remove friend** side by side at equal width.
+2. **Cancel** closes it; nothing changes.
+3. On the profile of someone who sent you a request, **Respond** → **Ignore** | **Accept**, same layout; on someone you asked, **Request sent** → a full-width **Cancel request**.
+
+Tests:
+
+```bash
+cd frontend && npx vitest run src/components/FriendButton.test.tsx
+cd frontend && npm run test:unit                          # 80% floor
+```
+
+---
+
 ### Step 5.4 — _(dissolved)_ Phase 5 test coverage
 
 Every feature ships its own tests (CLAUDE.md §15); the friend-request E2E belongs to Step 5.2.
