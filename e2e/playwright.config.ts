@@ -47,6 +47,11 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? `http://localhost:${LOCAL_WEB_PORT}`,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // The built app registers a service worker (docs/features/pwa-offline.md).
+    // Once it controls a page, WebKit routes the page's requests through it and
+    // page.route() no longer sees them, so the Google stand-in would be bypassed.
+    // Only the offline test, which is about the worker, allows it.
+    serviceWorkers: 'block',
   },
   projects: [
     {
@@ -89,7 +94,9 @@ export default defineConfig({
           timeout: 120_000,
           reuseExistingServer: false,
           env: {
-            VITE_API_BASE_URL: `http://localhost:${LOCAL_API_PORT}/api`,
+            // Same-origin, as in production: vite preview proxies /api (frontend/vite.config.ts).
+            VITE_API_BASE_URL: '/api',
+            PREVIEW_API_PROXY: `http://localhost:${LOCAL_API_PORT}`,
             VITE_GOOGLE_CLIENT_ID: LOCAL_CLIENT_ID,
           },
         },

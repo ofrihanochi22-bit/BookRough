@@ -137,6 +137,13 @@ body,
   height: 100%;
 }
 
+/* The update and offline bars sit above the app and take their height from
+   it, so full-height screens still fit the viewport (pwa-offline.md §5). */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
 body {
   background-color: var(--canvas);
   color: var(--ink);

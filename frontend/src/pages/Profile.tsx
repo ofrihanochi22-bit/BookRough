@@ -37,6 +37,7 @@ export function Profile() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const { signingOut, signOut } = useSignOut();
+  const online = useOnlineStatus();
 
   if (!user) {
     return null;
@@ -58,10 +59,16 @@ export function Profile() {
           </span>
         </Link>
       )}
-      <div className="mt-8 flex justify-center pb-4">
-        <Button variant="secondary" busy={signingOut} onClick={signOut}>
+      <div className="mt-8 flex flex-col items-center gap-2 pb-4">
+        {/* The HttpOnly cookie can only be cleared by the server (pwa-offline.md §5.4). */}
+        <Button variant="secondary" busy={signingOut} disabled={!online} onClick={signOut}>
           {signingOut ? 'Signing out…' : 'Sign out'}
         </Button>
+        {!online && (
+          <p role="note" className="text-xs text-muted">
+            You&apos;re offline. Connect to sign out.
+          </p>
+        )}
       </div>
     </ScreenLayout>
   );

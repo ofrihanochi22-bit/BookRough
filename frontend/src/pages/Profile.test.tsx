@@ -255,7 +255,7 @@ describe('Profile — avatar', () => {
 });
 
 describe('Profile — offline', () => {
-  it('shows the banner and disables Save and the avatar actions, but not Sign out', async () => {
+  it('shows the banner and disables Save, the avatar actions and Sign out', async () => {
     // Arrange
     setOnline(false);
     signedInAs({ profilePictureUrl: PHOTO });
@@ -268,7 +268,8 @@ describe('Profile — offline', () => {
     expect(screen.getByText("You're offline. Connect to change your profile.")).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Use generated avatar' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeDisabled();
+    expect(screen.getByText("You're offline. Connect to sign out.")).toBeInTheDocument();
   });
 
   it('replaces the Google button with a hint while offline', () => {

@@ -1744,7 +1744,7 @@ node frontend/scripts/render-icons.mjs              # only when icon.svg changes
 
 ### Step 6.1a — Direct recommendations between friends (Phase 6 — UC-20)
 
-Status: 🟡 Built and tested; merge waits for the developer's word
+Status: ✅ Done (PR #39); the production check waits for the first deployment after the Vercel pause
 Branch: feat/direct-recommendations
 Spec: docs/features/direct-recommendations.md
 
@@ -1805,7 +1805,7 @@ npm test --prefix e2e -- tests/recommendations.spec.ts   # the golden loop
 
 ### Step 6.1b — Link-only posts: Bandcamp, SoundCloud and YouTube videos (Phase 6 — UC-11, amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (PR #41); the production check waits for the first deployment after the Vercel pause
 Branch: feat/link-only-posts
 Spec: docs/features/link-only-posts.md
 
@@ -1831,7 +1831,7 @@ Delivered the amended UC-11 for both posting targets (UC-11 and UC-20), per `doc
 - **Review:** `/code-review` found the early page read (a song could become a video), duplicated text cleaning and needless body reads, all fixed; the missing tech stack entries and CLAUDE.md §6 record, fixed in the docs; a shared card-heading component, skipped (the four call sites differ in truncation, links and the pending note). `/security-review`: no findings.
 - **Docs:** `use cases`, `tables`, `frontend screens`, `link converter implementation guide`, `tech stack` (three new runtime services), `general` (.md + .docx); amendment notes in `posts-feed.md`, `direct-recommendations.md`, `post-detail.md`, `bookmarks-my-list.md`; CLAUDE.md §6, §7, §9, §12; `HANDOFF.md`.
 - **Tests:** backend 68 files (99.01% lines over both suites), frontend 61 files (98.67%). E2E unchanged.
-- **With PR #40:** whichever of the two merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to Step 6.2's album-art cache.
+- **With PR #40:** no cache change was needed — Step 6.2's album-art rule caches any image from another origin, so the Bandcamp, SoundCloud and YouTube covers are covered; only the docs needed a merge.
 
 How to view & test:
 
@@ -1921,7 +1921,7 @@ docker exec api-smoke node --input-type=module -e "import { convertLink } from '
 
 ### Step 6.2 — PWA: offline support (Phase 6)
 
-Status: 🟡 In progress — Stages 1–3 done on `feat/pwa-offline`, no PR yet; Stage 4 not started. Waits for Step 6.1a to merge, then updates from `main`.
+Status: 🟡 Built and tested locally; the iPhone checks O1–O9 wait for the Vercel pause to end
 Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
@@ -1931,17 +1931,55 @@ Goal: With no connection, the app opens and previously loaded content is readabl
 
 Tasks:
 
-- [ ] Frontend: `vite-plugin-pwa` installed and configured, reusing Step 6.1's `manifest.webmanifest` (`manifest: false`). Moved here from Step 6.1.
-- [ ] Frontend: Workbox precache of the app shell — HTML, JS, CSS, fonts, icons.
-- [ ] Frontend: Runtime cache (stale-while-revalidate) for feed responses and album art. **Never cache auth endpoints or mutations.**
-- [ ] Frontend: Designed offline fallback page, not the browser error screen.
-- [ ] Frontend: Offline state on post / rate / bookmark controls — explicit "you're offline", nothing queued invisibly.
-- [ ] Frontend: Service-worker update prompt when a new version is waiting.
-- [ ] Tests: Airplane-mode pass: feed readable, write actions blocked with a clear message.
-- [ ] Tests: Deploy a second build and confirm the update prompt appears.
+- [x] Frontend: `vite-plugin-pwa` 1.3.0 configured, reusing Step 6.1's `manifest.webmanifest` (`manifest: false`).
+- [x] Frontend: Workbox precache of the app shell — HTML, JS, CSS, fonts, icons.
+- [x] Frontend: Runtime cache for API reads (network first) and album art (cache first). Auth endpoints and mutations are never cached.
+- [x] Frontend: The offline bar, the offline launch screen, and "You're offline, and this wasn't loaded before." on a screen never loaded.
+- [x] Frontend: An offline state on every write control, nothing queued.
+- [x] Frontend: The update bar when a new version is waiting.
+- [x] Review: `/code-review` (7 findings, all fixed) and `/security-review` (no findings).
+- [x] Tests: unit, component, contract and E2E per spec §7.
+- [ ] Tests: Manual — airplane mode on a real iPhone, O1–O6 and O8. Needs a preview, so it waits for the pause to end.
+- [ ] Tests: Manual — deploy a second build and confirm the update bar appears (O7), and check `/sw.js` caching on the preview (O9).
 
 What I did:
+
+Made the app readable offline and able to offer updates, per `docs/features/pwa-offline.md`. No UC of its own: every reading UC, UC-20's lists included, keeps working without a connection.
+
+- **Service worker (`frontend/src/pwa/config.ts`):** `generateSW`, registered from `UpdatePrompt` in production builds only. `GET /api/*` is network first with no timeout, never `/api/auth/*` or `/api/health`; remote images are cache first with an expiry.
+- **Remembered session (`lib/sessionSnapshot.ts`):** public fields and two flags in `localStorage`, used only when `/auth/me` gets no response. Such a session is read-only until the server confirms it, on reconnect, on returning to the foreground, and every 15 s.
+- **Device wipe (`lib/offlineCache.ts`, `stores/auth.ts`):** sign-out and every `401` delete the snapshot and the `api` cache, and the cache has one owner, so a late answer cannot cross users.
+- **Screens:** `OfflineBar`, the offline launch screen in `SessionGate`, `UpdatePrompt`, and offline wording in `LoadError`. Sign out and Reset link gained offline states.
+- **E2E:** serves the build same-origin through a `vite preview` proxy (`PREVIEW_API_PROXY`), and blocks service workers except in the one test about them.
+- **Docs:** `deployment` §6, `frontend screens` §6, `tech stack` (.md + .docx); `google-auth.md` §6, `profile-settings.md`.
+- **Tests:** frontend 740 (98.58% lines), E2E 44 + 4 skipped. New: the worker's rules rebuilt from source as `sw.js` runs them, `sessionSnapshot`, `offlineCache`, `stores/auth`, `SessionGate`, `OfflineBar`, `UpdatePrompt`, `LoadError`, `useOnlineStatus`, the `vercel.json` and manifest contracts, and the offline golden loop on Chromium.
+
 How to view & test:
+
+Always on a production build; the service worker is never registered on the dev server.
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run build && PREVIEW_API_PROXY=http://localhost:4000 VITE_API_BASE_URL=/api npm run preview
+```
+
+Open `http://localhost:4173/`, sign in, and open a community and My List. In DevTools → Application: the service worker is activated, and Cache Storage holds the precache, `api` and `images`, with no `/api/auth/` entry. Set Network to Offline and reload: the feed renders, the offline bar shows, and Post is disabled with its note. Open a screen you never visited: "You're offline, and this wasn't loaded before."
+
+On a real iPhone, on this branch's preview, follow O1–O9 and the setup in the spec's §3.6. The branch must first opt in to a preview by its exact name in `vercel.json`, and remove it before the merge; each preview stores one more image.
+
+Tests:
+
+```bash
+cd frontend && npm run test:unit                         # 740 tests, 80% floor
+npm test --prefix e2e -- tests/offline.spec.ts           # Chromium only
+```
 
 ---
 

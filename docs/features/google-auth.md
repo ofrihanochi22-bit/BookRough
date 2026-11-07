@@ -202,6 +202,7 @@ Both show the user's avatar (Google picture, or the generated initials avatar wh
 - **Two simultaneous first sign-ins** (two tabs). Both try to create the same `google_sub`. The upsert's `P2002` is caught and the existing row is read instead; both tabs end up signed in to the same account.
 - **User row deleted while a cookie is alive.** `/me` returns `401`, clears the cookie, the app shows Welcome.
 - **Stolen cookie.** Valid until it expires (≤ 30 days of attacker inactivity, indefinitely while used). There is no per-session revoke; the remedy is rotating `JWT_SECRET`, which signs everyone out. Accepted for a small friend group; revisit if the audience grows.
+- **Offline launch.** The installed app opens signed in from the remembered session, read-only until `/auth/me` confirms it; a `401` then signs out (`pwa-offline.md` §3.3).
 - **Google picture missing or later 404s.** `profile_picture_url` is `null` or stale; the avatar component falls back to generated initials on image error.
 - **Token for another app's client ID**, expired token, or forged token → `401`, no row created or touched.
 - **Google key endpoint unreachable** → `503`, distinguishable from a bad token.

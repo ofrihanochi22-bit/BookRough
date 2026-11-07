@@ -8,7 +8,7 @@
 | **Use cases** | UC-11 (amended); UC-20 inherits UC-11's link rules (one-line pointer)                          |
 | **Phase**     | 6 — Step 6.1b, an exception to "one open PR at a time" while PR #40 (Step 6.2) waits on Vercel |
 | **Branch**    | `feat/link-only-posts`                                                                         |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                             |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                             |
 
 ---
 
@@ -71,7 +71,7 @@ A user pastes a Bandcamp or SoundCloud track/album/set link, or a YouTube video 
 - Backfilling existing YouTube-only "fake song" posts — they stay as they are (production has had no real users).
 - Admin-area statistics per platform; the admin area has no post counts today.
 - Editing a post, or changing a link-only post into a converted one or back.
-- PWA runtime caching of the new cover hosts: Step 6.2 (PR #40) is not on `main`. Whichever of the two PRs merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to the album-art cache (noted in both PRs).
+- PWA runtime caching of the new cover hosts: none needed. Step 6.2's album-art rule (PR #40) matches any image from another origin, so `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` are cached with no host list; its unit test names them.
 - Visual design: every visual choice is a placeholder from existing primitives and tokens.
 
 ## 3. Data model changes
@@ -355,7 +355,7 @@ Loading, empty, error and offline states are the existing ones on every screen t
 
 - **Platform pages and endpoints are unversioned.** Bandcamp's `og:` tags and SoundCloud's oEmbed could change; the fetcher degrades to "saved without metadata", never to a refused post. squigly's YouTube-only answer (rule E) is an observed behaviour, not a contract: if squigly ever starts matching live videos to studio tracks, the wrong match would show as a normal converted post — the trigger to add option B.
 - **No new dependency**: Node 24's built-in `fetch`. The three endpoints are new **runtime** external services and are recorded in `docs/tech stack.md` §5 (+ `.docx`) per CLAUDE.md §18.
-- **Interaction with PR #40** (§2): the album-art runtime cache gains the three cover hosts in whichever PR merges second; docs (`DEVELOPMENT.md`, `HANDOFF.md`, CLAUDE.md) get a small merge.
+- **Interaction with PR #40** (§2): no code overlap — its album-art rule already caches any cross-origin image. Only `DEVELOPMENT.md`, `HANDOFF.md` and two `.docx` mirrors needed a merge, done on `feat/pwa-offline` after PR #41 merged.
 - Nothing else is unresolved.
 
 ## 9. Doc updates in this PR

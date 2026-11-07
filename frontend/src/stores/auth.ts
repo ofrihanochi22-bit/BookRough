@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
+import { claimSavedApiAnswers, clearSavedApiAnswers } from '../lib/offlineCache';
 import { pendingInvite } from '../lib/pendingInvite';
+import { clearSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -31,18 +33,51 @@ interface AuthState {
   user: PublicUser | null;
   needsOnboarding: boolean;
   isAdmin: boolean;
-  setSession: (session: Session) => void;
+  /**
+   * Opened from the remembered session because the server was unreachable
+   * (docs/features/pwa-offline.md §3.3). Read-only until /auth/me confirms it.
+   */
+  offline: boolean;
+  setSession: (session: Session, options?: { offline?: boolean }) => void;
+  /** The server answered 403 to an admin request: the role was taken away. */
+  revokeAdmin: () => void;
   clear: () => void;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   status: 'unknown',
   user: null,
   needsOnboarding: false,
   isAdmin: false,
-  setSession: ({ user, needsOnboarding, isAdmin }) =>
-    set({ status: 'signedIn', user, needsOnboarding, isAdmin }),
-  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false, isAdmin: false }),
+  offline: false,
+  setSession: (session, { offline = false } = {}) => {
+    if (!offline) {
+      saveSessionSnapshot(session);
+      claimSavedApiAnswers(session.user.id);
+    }
+    const { user, needsOnboarding, isAdmin } = session;
+    set({ status: 'signedIn', user, needsOnboarding, isAdmin, offline });
+  },
+  revokeAdmin: () => {
+    const { user, needsOnboarding, offline } = get();
+    set({ isAdmin: false });
+    // Keep the remembered session in step, or an offline launch would restore the role.
+    if (user && !offline) {
+      saveSessionSnapshot({ user, needsOnboarding, isAdmin: false });
+    }
+  },
+  // Sign-out and every 401: nothing of this user is left readable on the device.
+  clear: () => {
+    clearSessionSnapshot();
+    clearSavedApiAnswers();
+    set({
+      status: 'signedOut',
+      user: null,
+      needsOnboarding: false,
+      isAdmin: false,
+      offline: false,
+    });
+  },
 }));
 
 /**
