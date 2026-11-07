@@ -3,11 +3,12 @@ import { Router } from 'express';
 import { remove, save } from '../controllers/bookmark.controller.js';
 import { destroy, retry, show } from '../controllers/post.controller.js';
 import { edit, list, rate } from '../controllers/rating.controller.js';
+import { conversionLimit } from '../middleware/rateLimits.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 export const postsRouter: Router = Router();
 
-postsRouter.post('/:postId/conversion', requireAuth, retry);
+postsRouter.post('/:postId/conversion', requireAuth, conversionLimit, retry);
 postsRouter.delete('/:postId', requireAuth, destroy);
 postsRouter.put('/:postId/bookmark', requireAuth, save);
 postsRouter.delete('/:postId/bookmark', requireAuth, remove);

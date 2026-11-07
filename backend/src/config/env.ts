@@ -42,6 +42,19 @@ const envSchema = z
       (value) => (typeof value === 'string' ? value.trim().toLowerCase() || undefined : value),
       z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     ),
+    // How many proxies sit in front of the server (production-hardening.md
+    // §3.2). 0 locally and in CI; 1 behind a host's proxy, so `req.ip` is the
+    // client's address and not the proxy's. Too high would let a client spoof
+    // its address through X-Forwarded-For.
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+    // E2E only (production-hardening.md §3.1): the suite signs in dozens of
+    // times from one address. Only "true" switches the limits off.
+    // Case and spaces are forgiven, and anything but "true" means off, so a
+    // value typed at a dashboard can't stop the API (as LOG_LEVEL once did).
+    RATE_LIMITS_DISABLED: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim().toLowerCase() === 'true'),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
     // one line. Empty means "not set".
@@ -70,6 +83,12 @@ const envSchema = z
   .refine((env) => !env.E2E_SCRAPER_FIXTURES || env.NODE_ENV === 'test', {
     path: ['E2E_SCRAPER_FIXTURES'],
     message: 'is only allowed with NODE_ENV=test — it replaces the link converter',
+  })
+  // Same rule as the stand-ins, and refused rather than ignored: a server that
+  // starts without its rate limits is the failure this exists to stop.
+  .refine((env) => !env.RATE_LIMITS_DISABLED || env.NODE_ENV === 'test', {
+    path: ['RATE_LIMITS_DISABLED'],
+    message: 'is only allowed with NODE_ENV=test — it switches off rate limiting',
   });
 
 export type Env = z.infer<typeof envSchema>;

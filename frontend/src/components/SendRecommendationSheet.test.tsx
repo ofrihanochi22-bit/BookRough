@@ -184,6 +184,12 @@ describe('SendRecommendationSheet', () => {
       'You can only send songs to friends.',
     ],
     ['a 404', httpError(404, 'User not found.'), 'This person is no longer available.'],
+    // Rate limited (production-hardening.md §3.1): the reason, not "connection".
+    [
+      'a 429',
+      httpError(429, "You're sharing links too fast. Try again in a few minutes."),
+      "You're sharing links too fast. Try again in a few minutes.",
+    ],
     ['a network failure', networkError(), "Couldn't send. Check your connection and try again."],
   ])('keeps the draft on %s', async (_label, error, message) => {
     // Arrange

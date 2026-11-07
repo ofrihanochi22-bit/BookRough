@@ -2008,24 +2008,63 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 
 ### Step 6.4 — Production hardening (Phase 6)
 
-Status: ☐ Not started
+Status: 🟡 Built and tested; production checks wait for the Vercel pause to end (2026-11-11)
 Branch: chore/production-hardening
+Spec: docs/features/production-hardening.md
 
 Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.
 
-Tasks:
+Tasks (the stale list replaced by the spec, 2026-11-07):
 
-> ⚠️ **Stale, flagged 2026-10-10:** the rate-limiting line below predates Google-only sign-in — the only auth endpoint is `POST /api/auth/google`. Resolved in this step's spec. This step also switches production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker` (`production-deploy.md` §3.3), and the address is shared with friends only after it merges.
-
-- [ ] Backend: Rate limiting on auth endpoints (login, register, password reset), on post creation and on `POST /api/recommendations`.
-- [ ] Backend: Confirm the `p-limit(2)` scraper cap holds under a burst, and that queued requests still respect the 12-second ceiling.
-- [ ] Backend: Audit logs for leaked secrets or PII before they go anywhere persistent.
-- [ ] Infra: Confirm no secret is committed anywhere in the repository history.
-- [ ] Infra: Nightly E2E workflow is running and its failures are visible.
-- [ ] Infra: Cap Vercel storage with a fixed ceiling, decided 2026-11-02 (`deployment-storage.md` §1.2). **Only once Images Storage has been seen to fall after the 2026-11-02 deletion** — otherwise deleting images frees nothing. A GitHub Action after each merge to `main` keeps the 4 newest images in `api` (`vercel vcr image ls` / `image rm --yes`), about 1.6 GB, never the one production runs. It needs the Vercel CLI (a new tool, recorded per CLAUDE.md §18) and a `VERCEL_TOKEN` repository secret, which the developer creates. The developer also sets a short Preview retention, such as 7 days, in the project's Build and Deployment settings. Function Storage then tops out near 4.8 GB. The pre-merge meter check (CLAUDE.md §16) stays.
+- [x] Spec: docs/features/production-hardening.md approved — sign-up stays open, behind rate limits; counters in memory; `express-rate-limit` (new dependency, approved); four tiers; baseline headers, no CSP; `gitleaks` now and in CI.
+- [x] Backend: four rate-limit tiers — conversion (`POST /communities/:id/posts`, `POST /recommendations`, `POST /posts/:id/conversion`), sign-in (`POST /auth/google`, `POST /users/me/google-picture`), outreach (friend requests, invitations, new communities), and a global safety net.
+- [x] Backend: `trust proxy` from `TRUST_PROXY_HOPS`; baseline security headers; no `X-Powered-By`.
+- [x] Backend: the `p-limit(2)` cap confirmed under a burst, in a unit test and against the real image (M1).
+- [x] Backend: log audit (M3) — one finding fixed: Prisma request errors are logged without their message.
+- [x] Infra: full-history secret scan (M2) — test fixtures only; a `secrets` CI job from now on.
+- [x] Infra: `prune-images` job keeps the registry at the 4 newest images (dry run until `PRUNE_IMAGES=delete`).
+- [x] Review: `/code-review` (9 findings: 8 fixed, 1 closed by this PR's docs) and `/security-review` (clean).
+- [x] Tests: spec §8 — unit, integration, component; E2E unchanged and green with the limits off.
+- [ ] Developer, before merging: `TRUST_PROXY_HOPS=1` in Vercel (Production and Preview); repository secret `VERCEL_TOKEN` and variable `VERCEL_TEAM`; Deployment Checks on `test:e2e` and `test:docker`; Preview retention 7 days; make `checks / secrets` a required check (Claude asks first).
+- [ ] After the pause: production checks P2–P7 (spec §8), then `PRUNE_IMAGES=delete` once a dry run's plan has been read.
 
 What I did:
+
+Hardened the public deployment before its address goes to friends (no new UC; it protects UC-1/2, UC-6, UC-9, UC-11 and UC-20), per `docs/features/production-hardening.md`.
+
+- **Rate limits** (`backend/src/middleware/rateLimits.ts`, `express-rate-limit` 8.7.3 pinned): four tiers in each instance's memory. Signed-in tiers count the account, so friends on one Wi-Fi never share a counter; sign-in and the safety net count the address. A refused request is `next(new AppError(…, 429))`, so the central handler writes the standard error shape with `Retry-After`, and the log line carries the tier and `userId`, never the key or the address. `RATE_LIMITS_DISABLED=true` switches them off for E2E and the backend suites; the API refuses it unless `NODE_ENV=test`.
+- **Proxy and headers:** `app.set('trust proxy', TRUST_PROXY_HOPS)` (0 by default, 1 behind Vercel); `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY` and a `Permissions-Policy` on every API response (`middleware/securityHeaders.ts`) and every page (`vercel.json`, inside the `web` service, where Vercel's Services routing expects them).
+- **Logs:** `utils/safeError.ts` is the `err` serializer for the logger and for pino-http: Prisma request and validation errors — whose messages render the query and its arguments — keep their class, code, model and field names and stack frames only, also when wrapped as another error's cause. The other 59 log calls were read one by one and log ids, counts and outcomes only.
+- **Frontend:** the community composer and the recommendation sheet show a `429`'s reason inline ("You're sharing links too fast…") instead of "check your connection", and keep the draft.
+- **Secrets:** `gitleaks` 8.30.1 over all 47 commits on every ref found 5 matches, all test fixtures (invite tokens in tests; the E2E Google stand-in key, committed on purpose). Nothing to rotate. `.gitleaksignore` lists them by fingerprint; the `secrets` job in `ci.yml` scans the full history on every run and also fails if it scans nothing.
+- **Registry:** `backend/src/ops/pruneImages.ts`, run by `main.yml`'s `prune-images` job after `test:e2e` and `test:docker`, calls Vercel's documented REST API (no CLI): it keeps the 4 newest tagged images, never the current commit's, never an untagged entry, at most 10 deletions a run, and deletes nothing on any surprise in the listing. A dry run until the repository variable `PRUNE_IMAGES` is `delete`.
+- **Burst (M1, local image, real squigly.link):** five posts at once converted in 2.4, 2.5, 4.6 and 6.5 s, the fifth saved as `conversion_pending` at 10.9 s; memory 118 MB idle, 327 MB at the peak.
+- **CI:** `test:docker` also checks the security headers; the E2E job sets `RATE_LIMITS_DISABLED`.
+- **Review:** `/code-review` found 9: gitleaks passing after scanning zero commits, pino-http bypassing the safe serializer, a Prisma error leaking as a `cause`, the prune script's entry check, a strict `RATE_LIMITS_DISABLED` parse, `/api/health/` counted, connection errors losing their message, and `requireAuth` before the sign-in limit — all fixed — plus the §18 docs, written here. `/security-review`: nothing at confidence 8 or above.
+- **Docs:** `tech stack`, `deployment`, `tests`, `git workflow`, `system architecture conventions` (.md + .docx); CLAUDE.md §2, §10, §16; decision rows in `production-deploy.md` and `deployment-storage.md`; `HANDOFF.md`.
+- **Tests:** backend 72 files, 1,245 tests at 98.98% lines over both suites; frontend 61 files, 747 tests at 98.67%; E2E 43 passed (+3 skipped) with the limits off. New: `rateLimits.integration.test.ts` (15 — every tier, the shared counters, per-user and per-address keys, a spoofed `X-Forwarded-For`, `/api/health`, headers on 200/404/429/500), `rateLimits.test.ts`, `safeError.test.ts`, `pruneImages.test.ts` (23), the environment rules, a five-request burst, and 429 cases for both composers and Welcome.
+
 How to view & test:
+
+Locally, with Docker Desktop running and `docker compose up -d`, start the API (`cd backend && npm run dev`), then send eleven junk sign-ins:
+
+```bash
+for i in $(seq 1 11); do curl -s -o /dev/null -w "%{http_code} " -X POST -H 'Content-Type: application/json' -d '{"credential":"junk"}' http://localhost:4000/api/auth/google; done
+```
+
+Ten `401`s, then `429`. `curl -I http://localhost:4000/api/health` shows `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`, and no `X-Powered-By`. In the app (`cd frontend && npm run dev`, `http://localhost:5173/`), posting 11 links within 10 minutes shows "You're sharing links too fast…" under the composer, with the link still in the field.
+
+Tests:
+
+```bash
+cd backend && npm run test:coverage
+cd backend && npx vitest run -c vitest.integration.config.ts src/routes/rateLimits.integration.test.ts
+cd backend && npx vitest run src/utils/safeError.test.ts src/ops/pruneImages.test.ts src/services/linkScraper.service.test.ts
+cd frontend && npm run test:unit
+npm test --prefix e2e
+```
+
+After the pause (developer, with Claude): spec §8 P2–P7 — 11 junk sign-ins from a laptop give `429` while the iPhone on cellular still signs in; a merge waits for Deployment Checks; `curl -I https://bookrough.vercel.app/` shows the headers; read the `prune-images` dry run in the Actions log, then set `PRUNE_IMAGES=delete`; post a real Spotify link. **Then the address can go to friends.**
 
 ---
 

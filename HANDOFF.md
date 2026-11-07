@@ -61,7 +61,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
    - It branched from `c7da76b` (PR #34), **before** PR #35 and Step 6.1a — bring it up to date with `main` first, after 6.1a merges.
    - Remaining: Stage 4 tests from the spec's scenario list, `/security-review` if the spec asks for it, the iPhone/airplane-mode and second-deploy checks, then `DEVELOPMENT.md` and the PR.
    - For an iPhone check the branch must opt in to a Vercel preview by adding its exact name to `vercel.json` → `git.deploymentEnabled`, and remove it before merge. The service worker is registered in production builds only.
-3. **Step 6.4 — Production hardening** (`chore/production-hardening`). Its task list is stale: the rate-limiting line predates Google-only auth (the only auth endpoint is `POST /api/auth/google`), and it must also cover `POST /api/recommendations`. Also: confirm the `p-limit(2)` cap under a burst, audit logs for PII, scan history for secrets, switch production deploys to Vercel Deployment Checks on `test:e2e` / `test:docker`, and cap Vercel storage by pruning the registry to the 4 newest images (needs a `VERCEL_TOKEN` secret, and only once Images Storage has been seen to fall). **The address goes to friends only after this merges.**
+3. **Step 6.4 — Production hardening** (`chore/production-hardening`). Stages 1–4 done on 2026-11-07: spec `docs/features/production-hardening.md` (approved), four rate-limit tiers, `TRUST_PROXY_HOPS`, baseline security headers, safe error logs, a `gitleaks` `secrets` CI job (history scanned: test fixtures only), and a `prune-images` job in `main.yml` (a dry run until `PRUNE_IMAGES=delete`). Its PR waits for the developer's word, the dashboard steps in §4, green CI and the storage check. After the pause, run the spec's production checks P2–P7. **The address goes to friends only after this merges and P2–P7 pass.**
 4. **Step 6.5 — README** (`docs/readme-deploy`).
 
 ---
@@ -71,6 +71,13 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
 - [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
 - [x] **Watch the meter fall.** Done 2026-11-03: Images Storage reads **394.68 MB** of 10 GB (it had read 16.31, 15.25 and 13.5 GB on 2026-11-02), Function Storage 2.37 GB. Deleting images does free the meter, gradually, within about a day. Step 6.4's image-pruning gate has therefore passed. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
+- [ ] **Before Step 6.4 merges** (`docs/features/production-hardening.md` §3):
+  - Vercel → project `bookrough` → Settings → Environment Variables: `TRUST_PROXY_HOPS` = `1` for Production and Preview (not a secret).
+  - Vercel → Settings → Deployment Checks: add `test:e2e` and `test:docker`. If Hobby doesn't offer it, tell Claude; the fallback is a deploy job in `main.yml`.
+  - Vercel → Settings → Build and Deployment: Preview deployment retention 7 days.
+  - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
+  - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
+  - Claude will ask before making `checks / secrets` a required check in branch protection.
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
 
 Carried over from Claude's memory, which may not move with the account:
@@ -93,6 +100,7 @@ Changing Claude accounts touches none of these. Claude never holds a secret valu
 | Vercel (Hobby)       | Project `bookrough`, region `fra1`; env vars per environment (`DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `LOG_LEVEL`, `VITE_GOOGLE_CLIENT_ID`); Deployment Protection "Require Log In" on for previews |
 | Neon (Free)          | Project `bookrough-frankfurt`; branch `production` and branch `preview` (shared by every preview — reset it from its parent if a migration breaks it)                                                                        |
 | Google Cloud Console | The OAuth web client: JavaScript origins `http://localhost:5173` and `https://bookrough.vercel.app` (origins, not redirect URIs)                                                                                             |
+| GitHub Actions       | Secret `VERCEL_TOKEN` (team-scoped Vercel token for registry pruning — note its expiry here when created); variables `VERCEL_TEAM`, `PRUNE_IMAGES`                                                                           |
 | Local                | `backend/.env` and `frontend/.env`, copied from their `.env.example` files                                                                                                                                                   |
 
 The one admin account has `users.role = 'ADMIN'`, set directly in Neon — no endpoint grants it.
