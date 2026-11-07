@@ -71,10 +71,11 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
 - [x] **Delete old images.** Done 2026-11-02: only the production image of `9821d7a` (395 MB) remains in the `bookrough` project's **Images** tab.
 - [x] **Watch the meter fall.** Done 2026-11-03: Images Storage reads **394.68 MB** of 10 GB (it had read 16.31, 15.25 and 13.5 GB on 2026-11-02), Function Storage 2.37 GB. Deleting images does free the meter, gradually, within about a day. Step 6.4's image-pruning gate has therefore passed. Do not delete the repository or the last image.
 - [ ] **On 2026-11-11:** confirm that `https://bookrough.vercel.app/api/health` answers `200`. The project may need resuming by hand from its overview. If the team stays paused, contact Vercel. If Vercel cannot be restored, the agreed fallback is Google Cloud Run (`docs/deployment.md` §3.6).
-- [ ] **Before Step 6.4 merges** (`docs/features/production-hardening.md` §3):
+- [ ] **On 2026-11-11, before the first deploy after the pause** (`docs/features/production-hardening.md` §3). Vercel refuses dashboard changes while the team is blocked ("Your Team exceeded our fair use limits and has been blocked", tried 2026-11-07), so these wait for the pause to end. **`TRUST_PROXY_HOPS` must be set before Step 6.4's code deploys:** without it every visitor shares the proxy's address, so the sign-in and safety-net limits count everyone together.
   - Vercel → project `bookrough` → Settings → Environment Variables: `TRUST_PROXY_HOPS` = `1` for Production and Preview (not a secret).
   - Vercel → Settings → Deployment Checks: add `test:e2e` and `test:docker`. If Hobby doesn't offer it, tell Claude; the fallback is a deploy job in `main.yml`.
   - Vercel → Settings → Build and Deployment: Preview deployment retention 7 days.
+- [ ] **Before Step 6.4 merges, if Vercel allows it while paused:**
   - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
   - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
   - Claude will ask before making `checks / secrets` a required check in branch protection.
