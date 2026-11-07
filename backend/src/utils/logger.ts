@@ -1,6 +1,7 @@
 import pino from 'pino';
 
 import { env } from '../config/env.js';
+import { serializeError } from './safeError.js';
 
 /**
  * Structured logging (CLAUDE.md §4). `console.log` is banned in committed code.
@@ -31,6 +32,8 @@ export const logger = pino({
   base: null,
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: { paths: [...REDACTED_LOG_PATHS], remove: true },
+  // Every `err` field, in every module (production-hardening.md §3.5).
+  serializers: { err: serializeError },
 });
 
 /** A child logger tagged with the module that owns it. */
