@@ -138,13 +138,14 @@ None.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                | Why                                                                                                        |
-| ---------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 2026-10-11 | Both fixes in one PR, not "previews first" as first proposed                            | Merging a previews-only PR would itself deploy one more 3.1 GB production image; merging both adds ~1.2 GB |
-| 2026-10-11 | Previews opt-in by exact branch name instead of off entirely                            | Step 6.2's iPhone checks need a preview (`pwa-offline.md` §3.6)                                            |
-| 2026-10-11 | Headless shell only (`--only-shell`), not full Chromium                                 | It is exactly what `headless: true` launches; full Chromium would add size and nothing used                |
-| 2026-10-11 | Base image changed (CLAUDE.md §11 asks first) — approved by the developer with the plan | "As safe as possible" — the worst case had no bound before                                                 |
-| 2026-11-02 | Images Storage tracked as its own limit; both meters read before each merge to `main`   | It paused the team on 2026-10-12 at 17.16 of 10 GB, and this spec had not separated it (§1.2)              |
+| Date       | Decision                                                                                                                                                                                              | Why                                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 2026-10-11 | Both fixes in one PR, not "previews first" as first proposed                                                                                                                                          | Merging a previews-only PR would itself deploy one more 3.1 GB production image; merging both adds ~1.2 GB |
+| 2026-10-11 | Previews opt-in by exact branch name instead of off entirely                                                                                                                                          | Step 6.2's iPhone checks need a preview (`pwa-offline.md` §3.6)                                            |
+| 2026-10-11 | Headless shell only (`--only-shell`), not full Chromium                                                                                                                                               | It is exactly what `headless: true` launches; full Chromium would add size and nothing used                |
+| 2026-10-11 | Base image changed (CLAUDE.md §11 asks first) — approved by the developer with the plan                                                                                                               | "As safe as possible" — the worst case had no bound before                                                 |
+| 2026-11-02 | Images Storage tracked as its own limit; both meters read before each merge to `main`                                                                                                                 | It paused the team on 2026-10-12 at 17.16 of 10 GB, and this spec had not separated it (§1.2)              |
+| 2026-11-07 | The fixed ceiling is built: `main.yml`'s `prune-images` job keeps the 4 newest images through Vercel's REST API, a dry run until `PRUNE_IMAGES=delete` (`docs/features/production-hardening.md` §3.8) | The gate passed on 2026-11-03; a REST call replaced the planned Vercel CLI, whose output is undocumented   |
 
 ## 10. Doc updates (same PR)
 

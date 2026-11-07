@@ -7,6 +7,7 @@ The goal of error handling is to be predictable. The frontend should always know
 - **Custom Error Classes:** Create an AppError class that extends the built-in Error. It should accept an HTTP status code (e.g., 400, 404, 500) and a safe message.
 - **Centralized Middleware:** Use a single global error-handling middleware at the end of your Express routes. If a controller encounters an issue, it should call next(new AppError('Message', 400)), which sends it to the central handler.
 - **Never Leak DB Errors:** If Prisma throws a unique constraint error (e.g., duplicate email), catch it and convert it to a friendly 400 AppError ("Email already exists") rather than returning the raw SQL error to the client.
+- **Rate Limits Are Middleware, Not Logic:** Request limits (`express-rate-limit`, four tiers) sit in a route's middleware list like `requireAuth`, after it for the per-user tiers. A refused request is `next(new AppError(message, 429))`, so the central handler writes it in the standard error shape, with a `Retry-After` header (`docs/features/production-hardening.md` §3.1).
 
 ### Frontend (React)
 
@@ -30,6 +31,7 @@ Logs are a timeline of your system's health. They should be structured, searchab
 Logs should be standardized. In Node.js, it is highly recommended to use a lightweight logger like **Pino** or **Winston**.
 - **Required Fields:** Every log must include a [Timestamp], [Level], [Context/Module] (e.g., AuthService, PlaywrightScraper), and the [Message].
 - **Contextual Data:** If a log pertains to a user, always include the userId in the metadata, but **never** log passwords, tokens, or raw PII (Personally Identifiable Information).
+- **Errors in Logs:** Every `err` field passes through one serializer (`backend/src/utils/safeError.ts`). A Prisma request or validation error renders the query and its arguments, so its message is withheld, even when it is another error's cause, and only its class, code, model and field names and stack frames are kept (`docs/features/production-hardening.md` §3.5).
 
 ### 3. Data Transfer Between Layers
 

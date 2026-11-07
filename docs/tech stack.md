@@ -29,6 +29,7 @@ The API layer that handles business logic, database interactions, and authentica
 - **Zod:** Runtime validation of every request body and parameter at the controller boundary, with the inferred TypeScript types reused downstream.
 - **Pino:** Structured JSON logging with levels and context.
 - **p-limit:** Caps concurrent Playwright scrapes at two. Each headless Chromium instance costs significant memory, and the deployment target is a small instance — without this cap, several friends posting at once will exhaust memory and take the server down.
+- **express-rate-limit (8.7.3, pinned):** Four request limits on the API — conversion, sign-in, outreach and a global safety net — counted in each instance's memory (`docs/features/production-hardening.md` §3.1). Chosen over hand-written middleware because it clears old counters, groups IPv6 addresses by subnet and warns when `trust proxy` is wrong. **Without it** the app still works, but sign-in floods, conversion spam and friend-request spam are unthrottled. No account or cost; it adds one package, `ip-address`.
 
 ### 3. Database & Infrastructure
 
@@ -79,6 +80,10 @@ Tools used to **build** the project. Nothing here ships, and nothing here is req
 **`/simplify`** - reuse, simplification and efficiency cleanups. Quality only; it does not hunt for bugs. Optional, useful when a slice grew messier than intended.
 
 **Desktop app CI monitoring** - watches the open pull request and wakes the session on CI failures, merge conflicts, and review comments, instead of polling. This is what makes the "conflicts come to us" rule in `docs/git workflow.md` section 1.5 practical rather than aspirational. Enabled per pull request, with the developer's approval.
+
+**gitleaks (8.30.1, pinned Docker image)** - scans every commit for keys, tokens and connection strings: once over the whole history (2026-11-07: test fixtures only) and as the `secrets` job of every CI run. Reviewed false positives are listed by exact fingerprint in `.gitleaksignore`. Free, no account. Without it a committed secret would go unnoticed until someone looked (`docs/features/production-hardening.md` §3.6).
+
+**Vercel REST API with `VERCEL_TOKEN`** - `main.yml`'s `prune-images` job lists the backend images in the project's Container Registry and keeps the 4 newest, calling the documented endpoints with `fetch` from `backend/src/ops/pruneImages.ts`; no Vercel CLI. The token is a repository secret the developer creates, scoped to the team, with an expiry to renew; the team slug and the switch from dry run to delete (`PRUNE_IMAGES=delete`) are repository variables. Without it the registry grows with every merge until Images Storage pauses the team (`docs/features/production-hardening.md` §3.8).
 
 **python-docx** - generates the `.docx` mirrors from their Markdown sources, which is how the dual-file rule (CLAUDE.md section 14.1) is actually kept. Installed outside the repository, not a project dependency. Note that neither LibreOffice nor pandoc is installed on the developer's machine, so the generated `.docx` files are verified structurally and by content, **not** by visual rendering.
 

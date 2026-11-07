@@ -8,7 +8,7 @@
 | **Use cases** | No new UC. Protects UC-1/2 (sign-in), UC-11 (posting), UC-20 (direct recommendations), UC-6 (friend requests), UC-9 (communities, invitations) |
 | **Phase**     | 6 — Step 6.4 (DEVELOPMENT.md)                                                                                                                  |
 | **Branch**    | `chore/production-hardening`                                                                                                                   |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                                                                             |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                                                                             |
 
 ---
 

@@ -58,11 +58,12 @@ Written this way, the Phase 6 decision was a configuration change, not a rewrite
 #### 3.5. The backend image (built in Phase 3)
 `backend/Dockerfile` is the deployment unit (Step 3.4, `docs/features/backend-docker.md`). What any host needs to know:
 - **Build:** `docker build -t bookrough-api backend`. Base `node:24.21.0-bookworm-slim` (Debian 12, Node 24) with only Chromium's headless shell and its system libraries, installed by the `playwright` package in the lockfile, so the browser always matches the library; a multi-stage build whose runtime stage holds production dependencies, `dist/` and the Prisma migrations only.
-- **Run:** set `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, and optionally `PORT` (default 4000) and `LOG_LEVEL`. `NODE_ENV=production` is baked in, so both E2E stand-ins are refused.
+- **Run:** set `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, and optionally `PORT` (default 4000), `LOG_LEVEL` and `TRUST_PROXY_HOPS` (default 0; 1 behind a host's proxy). `NODE_ENV=production` is baked in, so both E2E stand-ins are refused.
 - **Migrations run on start:** `prisma migrate deploy`, then the API. A failed migration stops the container before it serves; concurrent starts are safe (Prisma's advisory lock).
 - **Process:** runs as the non-root `node` user, with `tini` as PID 1 so `SIGTERM` reaches Node (graceful shutdown) and orphaned Chromium processes are reaped — no `--init` flag needed from the host. `--disable-dev-shm-usage` means `--ipc=host` is not needed either.
 - **Health:** a Docker `HEALTHCHECK` on `GET /api/health`, which deliberately does not touch the database.
 - **Measured (Docker Desktop, 2026-10-05):** image 2.85 GB (2.51 GB of it the base, which also carries unused Firefox and WebKit); about 83 MB of memory idle and about 234 MB at the peak of one real conversion. A 512 MB instance looks workable with `p-limit(2)`; verify under load in Phase 6. Slimmed on 2026-10-11 to 1.17 GB (the browser and its libraries 589 MB, production `node_modules` 345 MB); a real conversion in 2.4 s and about 114 MB of memory afterwards (`docs/features/deployment-storage.md`).
+- **Measured under a burst (2026-11-07, Step 6.4):** five real Spotify posts sent at once to the local image. `p-limit(2)` staggered them: four converted in 2.4, 2.5, 4.6 and 6.5 s (queue wait included) and the fifth was saved as `conversion_pending` at 10.9 s, inside the 12 s ceiling. Memory 118 MB idle, 327 MB at the peak (`docs/features/production-hardening.md` §3.4).
 - **CI:** `test:docker` in `main.yml` builds the image and runs it against an empty Postgres, launching Chromium inside it, after every merge and nightly (`docs/tests.md` §4.2).
 - **On Vercel:** the Container Runtime builds this `Dockerfile` unchanged, as the `api` service in `vercel.json`. `PORT=4000` is set at the host because the runtime's default is 80; the `HEALTHCHECK` is ignored there and stays for other hosts and `test:docker`. Each deployment uses two separately metered Hobby allowances: 10 GB of Images Storage (Vercel's Container Registry) and 10 GB of Function Storage (deployment storage). Going over Images Storage paused the team on 2026-10-12 — the reason the image is kept small and previews are opt-in (`docs/features/deployment-storage.md` §1.2).
 
@@ -73,6 +74,7 @@ Written this way, the Phase 6 decision was a configuration change, not a rewrite
 - **One origin:** `https://bookrough.vercel.app` — `/api/*` to the container, everything else to the Vite build (`vercel.json`). The `SameSite=Lax` cookie needs no change and CORS is not exercised. `*.vercel.app` is on the Public Suffix List, so a split `api.` / `web.` layout would have broken the cookie.
 - **Neon Free:** permanent, no card, Postgres 16 in AWS `eu-central-1`; branch `main` for production, branch `preview` for preview deployments.
 - **Deploys:** Vercel's GitHub integration — `main` to production; another branch builds a preview only when it opts in by its exact name in `vercel.json` (`git.deploymentEnabled`), because every deployment stores a backend image (`docs/features/deployment-storage.md`). Phase 6's hardening step makes production wait for `test:e2e` and `test:docker` (Vercel Deployment Checks). Before each merge to `main`, the developer checks both storage meters in Vercel → Usage: whether Vercel removes old images by itself is unconfirmed, so each merge may add about 0.4 GB.
+- **Hardening (Step 6.4):** four rate-limit tiers in each instance's memory; `trust proxy` from `TRUST_PROXY_HOPS` (`1` behind Vercel); baseline security headers on the API (Express) and the pages (`vercel.json`'s `web` service), no CSP. Production waits for `test:e2e` and `test:docker` through Vercel Deployment Checks, set in the dashboard, and `main.yml`'s `prune-images` job keeps the registry at the 4 newest images — a dry run until the repository variable `PRUNE_IMAGES` is `delete` (`docs/features/production-hardening.md`).
 - **Measured in production (2026-10-11):** a real Spotify → Apple Music conversion in 5.3 s.
 - **Rejected:** Render Free and Koyeb Free (0.1 CPU), Render Starter ($7 a month), Fly.io and Railway (no ongoing free tier), Netlify (no containers); the free databases of Render (deleted after 30 days) and Supabase (paused after 7 idle days).
 
@@ -93,6 +95,7 @@ There is deliberately **no staging environment**. For a project this size it wou
 - The production `JWT_SECRET` must be independently generated and must never match a development value.
 - The Google OAuth client must list the production origin (`https://bookrough.vercel.app`) under **Authorized JavaScript origins** — not under redirect URIs, which this sign-in flow does not use; an origin entered there instead produces `origin_mismatch`. This is a manual step in the Google Cloud Console and is easy to get wrong.
 - Production variables are set in Vercel per environment: `DATABASE_URL` and `JWT_SECRET` (secrets, different for Production and Preview), `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `PORT=4000`, `LOG_LEVEL=info` (lowercase). Never `E2E_GOOGLE_PUBLIC_KEY` or `E2E_SCRAPER_FIXTURES`. The full table is in `docs/features/production-deploy.md` §3.6.
+- GitHub holds the repository secret `VERCEL_TOKEN` (a team-scoped Vercel token with an expiry, for registry pruning) and the repository variables `VERCEL_TEAM` and `PRUNE_IMAGES`. `TRUST_PROXY_HOPS=1` is set in Vercel for Production and Preview; `RATE_LIMITS_DISABLED` is never set outside tests, and the API refuses it unless `NODE_ENV=test`.
 - Rotating a secret is a configuration change at the provider, not a code change or a redeploy of new source.
 
 ### 6. The Progressive Web App
@@ -150,3 +153,7 @@ Register the service worker **only in production builds**. A service worker runn
 - [ ] PWA installed on a real iPhone from Safari and launched from the home screen.
 - [ ] Offline behaviour verified in airplane mode: feed readable, write actions clearly blocked.
 - [ ] Service-worker update prompt verified by deploying a second build.
+- [x] Rate limits, `trust proxy` and baseline security headers in the code, with history scanned for secrets (Step 6.4, 2026-11-07).
+- [ ] `TRUST_PROXY_HOPS=1` set in Vercel and per-address limiting verified in production (production-hardening.md P2).
+- [ ] Production deployments wait for `test:e2e` and `test:docker` (Vercel Deployment Checks, P3).
+- [ ] Registry pruning read as a dry run once, then switched on with `PRUNE_IMAGES=delete` (P5).
