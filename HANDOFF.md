@@ -79,7 +79,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
   - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
   - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
   - Claude will ask before making `checks / secrets` a required check in branch protection.
-- [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16).
+- [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16). Step 6.4 (PR #43) was merged on 2026-11-07 without a fresh reading, on the developer's word: the Vercel connector cannot read the Usage meters, the last reading was 394.68 MB on 2026-11-03, and no deploy has run since. Read both meters before the first deploy on 2026-11-11.
 
 Carried over from Claude's memory, which may not move with the account:
 
