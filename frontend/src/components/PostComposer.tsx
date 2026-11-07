@@ -31,6 +31,11 @@ export function PostComposer({ communityId, online, onPosted, onGone }: PostComp
       if (status === 422 && message) {
         return { status: 'link-error', message };
       }
+      // Rate limited: the draft stays, and the wait is the reason, not the
+      // connection (production-hardening.md §3.1).
+      if (status === 429 && message) {
+        return { status: 'error', message };
+      }
       return { status: 'error', message: NETWORK_ERROR };
     }
   }
