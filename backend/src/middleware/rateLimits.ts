@@ -75,7 +75,7 @@ function buildLimiter(tier: RateLimitTier): RequestHandler {
     // The IP tiers keep the library's default key, which groups IPv6
     // addresses by subnet; it reads req.ip, so `trust proxy` must be right.
     ...(rule.byUser ? { keyGenerator: userKey } : {}),
-    skip: (req) => tier === 'global' && req.path === '/health',
+    skip: (req) => tier === 'global' && (req.path === '/health' || req.path.startsWith('/health/')),
     // The central error handler stays the only writer of an error body
     // (CLAUDE.md §4). The key and the address are never logged.
     handler: (req, _res, next) => {

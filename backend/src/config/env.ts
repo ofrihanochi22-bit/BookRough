@@ -49,10 +49,12 @@ const envSchema = z
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
     // E2E only (production-hardening.md §3.1): the suite signs in dozens of
     // times from one address. Only "true" switches the limits off.
+    // Case and spaces are forgiven, and anything but "true" means off, so a
+    // value typed at a dashboard can't stop the API (as LOG_LEVEL once did).
     RATE_LIMITS_DISABLED: z
-      .enum(['true', 'false', ''])
+      .string()
       .optional()
-      .transform((value) => value === 'true'),
+      .transform((value) => value?.trim().toLowerCase() === 'true'),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
     // one line. Empty means "not set".

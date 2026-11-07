@@ -11,6 +11,7 @@ import { notFound } from './middleware/notFound.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
 import { serializeRequest } from './utils/redactPath.js';
+import { serializeError } from './utils/safeError.js';
 
 /**
  * Builds the Express application without listening on a port, so that
@@ -30,7 +31,8 @@ export function createApp(): Express {
     app.use(
       pinoHttp({
         logger,
-        serializers: { req: serializeRequest },
+        // pino-http builds its own serializers, so the safe one is passed again.
+        serializers: { req: serializeRequest, err: serializeError },
       }),
     );
   }

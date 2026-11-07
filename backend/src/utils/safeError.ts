@@ -3,9 +3,32 @@ import pino from 'pino';
 const WITHHELD = 'Prisma error message withheld from the log';
 
 /**
+ * The Prisma errors whose message renders the query or its arguments. A
+ * connection or engine error (PrismaClientInitializationError,
+ * PrismaClientRustPanicError) carries no user data and is the main clue in an
+ * outage, so it keeps its message.
+ */
+const WITHHELD_CLASSES = new Set([
+  'PrismaClientKnownRequestError',
+  'PrismaClientUnknownRequestError',
+  'PrismaClientValidationError',
+]);
+
+function hasWithheldCause(err: Error): boolean {
+  let cause: unknown = err.cause;
+  for (let depth = 0; cause instanceof Error && depth < 10; depth += 1) {
+    if (WITHHELD_CLASSES.has(cause.name)) {
+      return true;
+    }
+    cause = cause.cause;
+  }
+  return false;
+}
+
+/**
  * The log's view of an error (docs/features/production-hardening.md §3.5).
  *
- * A Prisma error's message renders the failed query, and a validation error
+ * A Prisma request error's message renders the failed query, and a validation error
  * prints its arguments: a display name, a comment, a searched name. So for
  * those the message is dropped, and with it the stack's first line, which
  * repeats it. What is kept is enough to find the bug: the error's class, its
@@ -16,8 +39,12 @@ export function serializeError(err: unknown): unknown {
   if (!(err instanceof Error)) {
     return err;
   }
-  if (!err.name.startsWith('PrismaClient')) {
-    return pino.stdSerializers.err(err);
+  if (!WITHHELD_CLASSES.has(err.name)) {
+    // pino inlines every cause's message, so a withheld error wrapped as a
+    // cause would leak through its wrapper: serialize the chain ourselves.
+    return hasWithheldCause(err)
+      ? { type: err.name, message: err.message, stack: err.stack, cause: serializeError(err.cause) }
+      : pino.stdSerializers.err(err);
   }
 
   const { code, meta } = err as Error & { code?: unknown; meta?: unknown };

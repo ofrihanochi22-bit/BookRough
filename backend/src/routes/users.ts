@@ -14,7 +14,8 @@ export const usersRouter: Router = Router();
 
 // Guarded per route, not router-wide, so an unknown /users path still 404s.
 usersRouter.patch('/me', requireAuth, updateMe);
-usersRouter.post('/me/google-picture', requireAuth, signInLimit, useGooglePicture);
+// Limited first: it counts by address, so no session lookup is needed to refuse.
+usersRouter.post('/me/google-picture', signInLimit, requireAuth, useGooglePicture);
 usersRouter.get('/me/bookmarks', requireAuth, listMine);
 usersRouter.get('/display-name-availability', requireAuth, displayNameAvailability);
 usersRouter.get('/search', requireAuth, search);

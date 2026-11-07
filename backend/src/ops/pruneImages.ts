@@ -12,6 +12,8 @@
  * dry run whose plan can be read in the job log first.
  */
 
+import { pathToFileURL } from 'node:url';
+
 export interface RegistryImage {
   id: string;
   createdAt: string;
@@ -184,7 +186,7 @@ export async function main(source: NodeJS.ProcessEnv = process.env): Promise<voi
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error: unknown) => {
     process.stderr.write(`${(error as Error).message}\n`);
     process.exit(1);
