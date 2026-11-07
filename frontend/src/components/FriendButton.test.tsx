@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,13 @@ function Harness({ initial, online = true }: { initial: Friendship; online?: boo
 }
 
 const button = (name: string) => screen.getByRole('button', { name });
+
+/** A sheet's action buttons in reading order, without its × Close. */
+const sheetActions = (dialog: string) =>
+  within(screen.getByRole('dialog', { name: dialog }))
+    .getAllByRole('button')
+    .filter((element) => element.getAttribute('aria-label') !== 'Close')
+    .map((element) => element.textContent);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -189,6 +196,40 @@ describe('FriendButton', () => {
     expect(api.removeFriend).toHaveBeenCalledWith(DANA);
     expect(api.toastSuccess).toHaveBeenCalledWith('Removed Dana from your friends.');
     expect(button('Add Friend')).toBeInTheDocument();
+  });
+
+  it('the confirmation sheets put Cancel first, like every other sheet', async () => {
+    // Arrange
+    const { rerender } = render(<Harness initial="FRIENDS" />);
+
+    // Act & Assert
+    await userEvent.click(button('✓ Friends'));
+    expect(sheetActions('Remove friend?')).toEqual(['Cancel', 'Remove friend']);
+    expect(screen.getByRole('dialog', { name: 'Remove friend?' })).toHaveTextContent(
+      "Remove Dana from your friends? They won't be notified.",
+    );
+
+    rerender(<Harness key="received" initial="REQUEST_RECEIVED" />);
+    await userEvent.click(button('Respond'));
+    expect(sheetActions('Friend request')).toEqual(['Ignore', 'Accept']);
+
+    rerender(<Harness key="sent" initial="REQUEST_SENT" />);
+    await userEvent.click(button('Request sent'));
+    expect(sheetActions('Request sent')).toEqual(['Cancel request']);
+  });
+
+  it('Cancel closes the Remove friend sheet and keeps the friendship', async () => {
+    // Arrange
+    render(<Harness initial="FRIENDS" />);
+
+    // Act
+    await userEvent.click(button('✓ Friends'));
+    await userEvent.click(button('Cancel'));
+
+    // Assert
+    expect(api.removeFriend).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(button('✓ Friends')).toBeInTheDocument();
   });
 
   it('shows the relation the removal reports, not a guess', async () => {
