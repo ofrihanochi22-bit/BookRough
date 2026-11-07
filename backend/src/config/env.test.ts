@@ -189,4 +189,62 @@ describe('parseEnv', () => {
     expect(set.E2E_SCRAPER_FIXTURES).toBe('f.json');
     expect(empty.E2E_SCRAPER_FIXTURES).toBeUndefined();
   });
+  it('defaults TRUST_PROXY_HOPS to 0 and accepts 1', () => {
+    // Act
+    const unset = parseEnv(validEnv);
+    const one = parseEnv({ ...validEnv, TRUST_PROXY_HOPS: '1' });
+
+    // Assert
+    expect(unset.TRUST_PROXY_HOPS).toBe(0);
+    expect(one.TRUST_PROXY_HOPS).toBe(1);
+  });
+
+  it.each(['-1', '1.5', 'one', '6'])('rejects TRUST_PROXY_HOPS=%s', (value) => {
+    // Act & Assert
+    expect(() => parseEnv({ ...validEnv, TRUST_PROXY_HOPS: value })).toThrowError(
+      /TRUST_PROXY_HOPS/,
+    );
+  });
+
+  it.each(['true', ' TRUE ', 'True'])(
+    'accepts RATE_LIMITS_DISABLED=%j under NODE_ENV=test',
+    (value) => {
+      // Act
+      const parsed = parseEnv({ ...validEnv, NODE_ENV: 'test', RATE_LIMITS_DISABLED: value });
+
+      // Assert
+      expect(parsed.RATE_LIMITS_DISABLED).toBe(true);
+    },
+  );
+
+  it.each(['production', 'development'])(
+    'refuses RATE_LIMITS_DISABLED=true under NODE_ENV=%s',
+    (nodeEnv) => {
+      // Act & Assert
+      expect(() =>
+        parseEnv({ ...validEnv, NODE_ENV: nodeEnv, RATE_LIMITS_DISABLED: 'true' }),
+      ).toThrowError(/RATE_LIMITS_DISABLED: is only allowed with NODE_ENV=test/);
+    },
+  );
+
+  it('refuses RATE_LIMITS_DISABLED=true when NODE_ENV is unset', () => {
+    // Arrange
+    const { NODE_ENV: _unset, ...withoutNodeEnv } = validEnv;
+
+    // Act & Assert
+    expect(() => parseEnv({ ...withoutNodeEnv, RATE_LIMITS_DISABLED: 'true' })).toThrowError(
+      /RATE_LIMITS_DISABLED/,
+    );
+  });
+
+  it.each(['', 'false', 'yes', '1'])(
+    'treats RATE_LIMITS_DISABLED=%j as limits on, in any environment',
+    (value) => {
+      // Act
+      const parsed = parseEnv({ ...validEnv, NODE_ENV: 'production', RATE_LIMITS_DISABLED: value });
+
+      // Assert
+      expect(parsed.RATE_LIMITS_DISABLED).toBe(false);
+    },
+  );
 });

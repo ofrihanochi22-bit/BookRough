@@ -100,6 +100,27 @@ describe('vercel.json', () => {
     }
   });
 
+  it('sends the baseline security headers on every page, and no CSP', () => {
+    // Arrange — docs/features/production-hardening.md §3.3. The backend's
+    // securityHeaders middleware sends the same four on the API.
+    const rules = (config.services.web?.headers ?? []) as Array<{
+      source: string;
+      headers: Array<{ key: string; value: string }>;
+    }>;
+    const everyPage = rules.find((rule) => rule.source === '/(.*)');
+    const sent = Object.fromEntries((everyPage?.headers ?? []).map((h) => [h.key, h.value]));
+
+    // Act & Assert
+    expect(matcher('/(.*)').test('/communities/c1')).toBe(true);
+    expect(sent).toEqual({
+      'X-Content-Type-Options': 'nosniff',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-Frame-Options': 'DENY',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    });
+    expect(JSON.stringify(config)).not.toContain('Content-Security-Policy');
+  });
+
   it('keeps build settings out of the top level, where services mode rejects them', () => {
     // Assert
     for (const key of [

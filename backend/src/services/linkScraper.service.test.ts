@@ -306,6 +306,34 @@ describe('convertLink', () => {
   });
 });
 
+describe('convertLink — a burst (production-hardening.md §3.4)', () => {
+  it('holds five at once to two browsers, and every one answers by the ceiling', async () => {
+    // Arrange: pages that never answer, so nothing frees a slot early.
+    vi.useFakeTimers();
+    state.script = { answer: 'result', gate: new Promise<void>(() => undefined) };
+    let settled = 0;
+
+    // Act
+    const results = Array.from({ length: 5 }, () =>
+      convertLink(SOURCE, 'SPOTIFY').finally(() => {
+        settled += 1;
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS - 1);
+    const settledBeforeCeiling = settled;
+    await vi.advanceTimersByTimeAsync(1);
+    const outcomes = await Promise.all(results);
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(settledBeforeCeiling).toBe(0);
+    expect(outcomes).toEqual(Array(5).fill({ outcome: 'unavailable', reason: 'timeout' }));
+    expect(state.maxInFlight).toBe(2);
+    expect(state.launches).toBe(2);
+    expect(state.inFlight).toBe(0);
+  });
+});
+
 describe('convertLink — leaving the queue', () => {
   it.each([
     [9_000, 3, 'converted'],
