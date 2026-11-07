@@ -2008,7 +2008,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 
 ### Step 6.4 — Production hardening (Phase 6)
 
-Status: ☐ Not started
+Status: 🟡 In progress — spec approved 2026-11-07 (`docs/features/production-hardening.md`), Stage 2 started
 Branch: chore/production-hardening
 
 Goal: The public deployment does not fall over to casual abuse or a bad day at squigly.link.

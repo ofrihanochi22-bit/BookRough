@@ -8,7 +8,7 @@
 | **Use cases** | No new UC. Protects UC-1/2 (sign-in), UC-11 (posting), UC-20 (direct recommendations), UC-6 (friend requests), UC-9 (communities, invitations) |
 | **Phase**     | 6 — Step 6.4 (DEVELOPMENT.md)                                                                                                                  |
 | **Branch**    | `chore/production-hardening`                                                                                                                   |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                                                             |
+| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                                                             |
 
 ---
 
@@ -255,6 +255,7 @@ No new screens. Behaviour checked on:
 | 2026-11-07 | `trust proxy` from `TRUST_PROXY_HOPS`, not a Vercel-specific header     | Provider-agnostic (CLAUDE.md §16)                                                                                    |
 | 2026-11-07 | Baseline security headers, no CSP                                       | A CSP can't be verified on production or an iPhone before the pause ends, and a wrong one breaks sign-in             |
 | 2026-11-07 | `gitleaks` scan of the full history now, plus a `secrets` job in CI     | Checks the past and guards the future; the branch-protection change is asked for separately                          |
+| 2026-11-07 | Spec approved by the developer                                          | Stage 1 closed (CLAUDE.md §15)                                                                                       |
 
 ## 10. Doc updates (same PR)
 
