@@ -33,13 +33,11 @@ export async function onboardedAccount(page: Page) {
   return account;
 }
 
-/** Sign out lives on the Profile tab. */
+/** From the Home header, confirmed in the sheet — docs/features/visible-sign-out.md. */
 export async function signOut(page: Page) {
-  await page
-    .getByRole('navigation', { name: 'Main' })
-    .getByRole('link', { name: 'Profile' })
-    .click();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Home' }).click();
   await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'BookRough' })).toBeVisible();
 }
 

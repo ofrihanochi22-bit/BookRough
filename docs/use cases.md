@@ -40,11 +40,11 @@
 - **Description:** A currently authenticated user securely terminates their active session on the application.
 - **Pre-conditions:** The user is currently logged into the application with an active, valid session.
 - **Post-conditions:** The user's active session is completely terminated on both the client and server sides. The user must re-authenticate to access protected features.
-- **Trigger:** The user taps or clicks the "Logout" button, typically found within their profile or settings menu.
+- **Trigger:** The user taps or clicks the "Logout" button, found in the Home screen's header and at the bottom of My Profile.
 - **Step-by-step scenario (Success):**
-- The user opens My Profile from the Profile tab.
-- The user clicks the "Sign out" button at the bottom of the screen.
-- The system prompts the user to confirm their action (optional).
+- The user is on Home, the screen the app opens on, or on My Profile.
+- The user clicks "Sign out" in the Home header, or at the bottom of My Profile.
+- The system asks "Sign out?", and Cancel leaves the user signed in. Offline, the confirmation is disabled ("You're offline. Connect to sign out."), because only the server can end the session.
 - Upon confirmation, the backend invalidates the user's session token.
 - The frontend clears any cached local user data and redirects the user to the public Welcome screen.
 - **Fail description (Alternative Scenario):** The user attempts to log out, but their session token has already expired on the server (e.g., due to prolonged inactivity). The system detects the invalid token when the logout request is made, clears the local client data anyway, and drops the user back at the Welcome screen with a brief message stating "Session expired."

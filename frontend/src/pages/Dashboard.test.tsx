@@ -114,3 +114,60 @@ describe('Dashboard — roles', () => {
     expect(within(card).getByText('1 member · Owner')).toBeInTheDocument();
   });
 });
+
+describe('Dashboard — sign out in the header', () => {
+  it.each([
+    [
+      'loading',
+      () => listMyCommunities.mockReturnValue(new Promise(() => {})),
+      () => screen.findByRole('status', { name: 'Loading your communities' }),
+    ],
+    [
+      'empty',
+      () => listMyCommunities.mockResolvedValue([]),
+      () => screen.findByRole('heading', { name: 'Start your first community' }),
+    ],
+    [
+      'list',
+      () => listMyCommunities.mockResolvedValue([makeCommunity({ name: 'Friday Jazz' })]),
+      () => screen.findByRole('link', { name: /Friday Jazz/ }),
+    ],
+    [
+      'error',
+      () => listMyCommunities.mockRejectedValue(httpError(500, 'Something went wrong.')),
+      () => screen.findByRole('alert'),
+    ],
+  ])('shows Sign out beside the heading while %s', async (_state, arrange, settled) => {
+    // Arrange
+    arrange();
+
+    // Act
+    renderDashboard();
+    await settled();
+
+    // Assert
+    const header = screen.getByRole('heading', { name: 'Your communities' }).parentElement!;
+    expect(within(header).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('asks before signing out, and Cancel keeps the user on Home', async () => {
+    // Arrange
+    listMyCommunities.mockResolvedValue([]);
+    renderDashboard();
+    await screen.findByRole('heading', { name: 'Start your first community' });
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    // Assert
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText('Sign out?')).toBeInTheDocument();
+
+    // Act
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
+  });
+});

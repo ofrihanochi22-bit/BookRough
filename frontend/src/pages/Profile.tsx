@@ -6,13 +6,13 @@ import toast from 'react-hot-toast';
 import { chooseGooglePhoto, updateProfile, type ProfileUpdate } from '../api/users';
 import { DisplayNameField } from '../components/DisplayNameField';
 import { GoogleCredentialButton } from '../components/GoogleCredentialButton';
+import { SignOutButton } from '../components/SignOutSheet';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useSignOut } from '../hooks/useSignOut';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type PublicUser, type StreamingService } from '../stores/auth';
 
@@ -36,7 +36,6 @@ function messageOf(error: unknown, fallback: string): string {
 export function Profile() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const { signingOut, signOut } = useSignOut();
 
   if (!user) {
     return null;
@@ -59,9 +58,7 @@ export function Profile() {
         </Link>
       )}
       <div className="mt-8 flex justify-center pb-4">
-        <Button variant="secondary" busy={signingOut} onClick={signOut}>
-          {signingOut ? 'Signing out…' : 'Sign out'}
-        </Button>
+        <SignOutButton />
       </div>
     </ScreenLayout>
   );

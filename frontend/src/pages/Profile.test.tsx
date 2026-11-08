@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -255,7 +255,7 @@ describe('Profile — avatar', () => {
 });
 
 describe('Profile — offline', () => {
-  it('shows the banner and disables Save and the avatar actions, but not Sign out', async () => {
+  it('shows the banner and disables Save, the avatar actions and the sheet Sign out', async () => {
     // Arrange
     setOnline(false);
     signedInAs({ profilePictureUrl: PHOTO });
@@ -268,7 +268,14 @@ describe('Profile — offline', () => {
     expect(screen.getByText("You're offline. Connect to change your profile.")).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Use generated avatar' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+
+    // Act — the sheet still opens, to say why (visible-sign-out.md §5.3).
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    // Assert
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByRole('button', { name: 'Sign out' })).toBeDisabled();
+    expect(within(sheet).getByText("You're offline. Connect to sign out.")).toBeInTheDocument();
   });
 
   it('replaces the Google button with a hint while offline', () => {
@@ -285,7 +292,7 @@ describe('Profile — offline', () => {
 });
 
 describe('Profile — sign out', () => {
-  it('signs out, clears the session and forgets any pending invite', async () => {
+  it('asks first, then signs out, clears the session and forgets any pending invite', async () => {
     // Arrange
     api.logout.mockResolvedValue(undefined);
     rememberPendingInvite('/invite/abc');
@@ -293,6 +300,14 @@ describe('Profile — sign out', () => {
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    // Assert — nothing happens until it is confirmed.
+    expect(api.logout).not.toHaveBeenCalled();
+
+    // Act
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign out' }),
+    );
 
     // Assert
     expect(api.logout).toHaveBeenCalledTimes(1);
@@ -307,10 +322,12 @@ describe('Profile — sign out', () => {
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    const sheet = screen.getByRole('dialog');
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Sign out' }));
 
     // Assert
     expect(useAuthStore.getState().status).toBe('signedIn');
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+    expect(within(sheet).getByRole('button', { name: 'Sign out' })).toBeEnabled();
   });
 });
 
