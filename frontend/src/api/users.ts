@@ -28,6 +28,15 @@ export async function updateProfile(update: ProfileUpdate): Promise<Session> {
   return response.data.data;
 }
 
+/** Uploads a prepared image as the raw body; returns the refreshed session (avatar-upload.md §4). */
+export async function uploadAvatar(image: Blob): Promise<Session> {
+  const response = await api.put<SuccessBody<Session>>('/users/me/avatar', image, {
+    headers: { 'Content-Type': image.type },
+    skipErrorToast: true,
+  });
+  return response.data.data;
+}
+
 /** Re-chooses the Google photo with a fresh Google credential; returns the refreshed session. */
 export async function chooseGooglePhoto(credential: string): Promise<Session> {
   const response = await api.post<SuccessBody<Session>>(

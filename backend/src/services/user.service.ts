@@ -66,6 +66,10 @@ export async function updateProfile(user: User, update: ProfileUpdate): Promise<
 
   let updated: User;
   try {
+    // Leaving an uploaded photo deletes it (avatar-upload.md §4).
+    if (useGooglePicture === false) {
+      await prisma.userAvatar.deleteMany({ where: { userId: user.id } });
+    }
     updated = await prisma.user.update({ where: { id: user.id }, data });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -136,6 +140,8 @@ export async function rechooseGooglePicture(user: User, credential: string): Pro
     throw new AppError(GOOGLE_PHOTO_MESSAGES.noPhoto, 422);
   }
 
+  // Choosing the Google photo replaces an uploaded one (avatar-upload.md §4).
+  await prisma.userAvatar.deleteMany({ where: { userId: user.id } });
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: { profilePictureUrl: identity.picture, useGooglePicture: true },

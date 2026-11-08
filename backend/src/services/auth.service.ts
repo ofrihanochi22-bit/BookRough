@@ -2,6 +2,7 @@ import { Prisma, type User } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { isUploadedAvatarUrl } from '../utils/avatarUrl.js';
 import { needsOnboarding } from '../utils/publicUser.js';
 import { verifyGoogleIdToken } from './googleIdentity.service.js';
 
@@ -37,6 +38,10 @@ export async function authenticateWithGoogle(
 
   const existing = await prisma.user.findUnique({ where: { googleSub: sub } });
   if (existing) {
+    // An uploaded photo is never touched by a sign-in (avatar-upload.md §3).
+    if (isUploadedAvatarUrl(existing.profilePictureUrl)) {
+      return { user: existing, isNewUser: false };
+    }
     const keep = needsOnboarding(existing) || existing.useGooglePicture;
     return { user: await syncPicture(existing, keep ? picture : null), isNewUser: false };
   }

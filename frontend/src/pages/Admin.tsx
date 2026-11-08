@@ -1,12 +1,18 @@
+import { useState } from 'react';
+import { isAxiosError } from 'axios';
+import toast from 'react-hot-toast';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import {
   listAdminCommunities,
   listAdminUsers,
+  removeUserPhoto,
   type AdminCommunity,
   type AdminUser,
 } from '../api/admin';
 import { Avatar } from '../components/ui/Avatar';
+import { Button } from '../components/ui/Button';
+import { Sheet } from '../components/ui/Sheet';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -77,6 +83,8 @@ function ListSkeleton({ label }: { label: string }) {
 export function AdminUsers() {
   const users = useRequest(listAdminUsers);
   const forbidden = useForbiddenEndsAdmin(users);
+  /** Rows changed here (a photo removed), by id, over the loaded list. */
+  const [changed, setChanged] = useState<Record<string, AdminUser>>({});
 
   if (forbidden) {
     return <NotFound />;
@@ -93,14 +101,19 @@ export function AdminUsers() {
       <p className="mb-3 text-sm text-muted">{countLabel(users.data.length, 'user', 'users')}</p>
       <ul className="flex flex-col gap-3">
         {users.data.map((user) => (
-          <UserRow key={user.id} user={user} />
+          <UserRow
+            key={user.id}
+            user={changed[user.id] ?? user}
+            onChange={(updated) => setChanged((rows) => ({ ...rows, [updated.id]: updated }))}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-function UserRow({ user }: { user: AdminUser }) {
+function UserRow({ user, onChange }: { user: AdminUser; onChange: (user: AdminUser) => void }) {
+  const [removing, setRemoving] = useState(false);
   const details = [
     user.preferredService ? streamingServiceLabel(user.preferredService) : null,
     `Joined ${formatDate(user.createdAt)}`,
@@ -129,7 +142,62 @@ function UserRow({ user }: { user: AdminUser }) {
         </div>
         <p className="truncate text-xs text-muted">{details.join(' · ')}</p>
       </div>
+      {user.profilePictureUrl && (
+        <Button variant="secondary" onClick={() => setRemoving(true)} className="shrink-0 px-4">
+          Remove photo
+        </Button>
+      )}
+      {removing && (
+        <RemovePhotoSheet user={user} onClose={() => setRemoving(false)} onRemoved={onChange} />
+      )}
     </li>
+  );
+}
+
+/** The admin removes a user's photo — docs/features/avatar-upload.md §5.2. */
+function RemovePhotoSheet({
+  user,
+  onClose,
+  onRemoved,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onRemoved: (user: AdminUser) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const name = user.displayName ?? 'this user';
+
+  async function remove() {
+    setBusy(true);
+    try {
+      onRemoved(await removeUserPhoto(user.id));
+      toast.success('Photo removed');
+      onClose();
+    } catch (caught) {
+      const message = isAxiosError<{ message?: string }>(caught)
+        ? caught.response?.data?.message
+        : undefined;
+      toast.error(message ?? "Couldn't remove the photo. Try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet title="Remove photo?" onClose={onClose} dismissible={!busy}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm">
+          Remove {name}&apos;s photo? They&apos;ll see their initials instead.
+        </p>
+        <div className="flex gap-3">
+          <Button variant="secondary" disabled={busy} onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button busy={busy} onClick={() => void remove()} className="flex-1">
+            Remove photo
+          </Button>
+        </div>
+      </div>
+    </Sheet>
   );
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from '../db/prisma.js';
 import {
   toAdminCommunity,
+  adminUserSelect,
   toAdminUser,
   type AdminCommunity,
   type AdminUser,
@@ -15,16 +16,7 @@ import {
 export async function listUsers(): Promise<AdminUser[]> {
   const users = await prisma.user.findMany({
     orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-    select: {
-      id: true,
-      displayName: true,
-      profilePictureUrl: true,
-      useGooglePicture: true,
-      preferredService: true,
-      createdAt: true,
-      role: true,
-      _count: { select: { memberships: true } },
-    },
+    select: adminUserSelect,
   });
   return users.map(toAdminUser);
 }
