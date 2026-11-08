@@ -38,6 +38,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `playwright` (headless Chromium) for the link-conversion scraper
 - `p-limit` to cap concurrent Chromium instances — see §7
 - `express-rate-limit` for four request-limit tiers, counted in each instance's memory — see docs/features/production-hardening.md
+- `sharp` to re-encode an uploaded profile photo to a 256×256 WebP without metadata — the one image-processing dependency (docs/features/avatar-upload.md)
 - Pino for structured logging
 - Zod for request validation
 
@@ -70,7 +71,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - **Odesli / Songlink API** for link conversion. The service has been degraded for months and does not return links for most platforms. `squigly.link` + Playwright is the chosen path. (`docs/general.md` originally suggested Odesli; that has been corrected.)
 - **MongoDB.** The data is relational. PostgreSQL + Prisma, full stop.
 - **i18n / RTL.** The UI is English-only — see §8.
-- **User image uploads.** Generated avatars only — see §8.
+- **Uploads beyond the user's own photo.** Community covers stay generated; the one upload is a profile photo, re-encoded server-side and stored in Postgres — see §8. No storage bucket or CDN.
 - **Email/password login, and any second identity provider.** Google Sign-In only — see §5. `bcrypt` and `password_resets` are gone.
 - **Storing user email addresses.** Deliberate data minimisation — see §5. Do not add an email column back without a new recorded decision.
 
@@ -200,9 +201,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Twelve tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Thirteen tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -214,6 +215,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `posts` also holds **link-only posts** (Bandcamp, SoundCloud, YouTube videos): exactly one of `source_service` and `link_platform` is set, guarded by the hand-written CHECK `posts_one_source`, and `posts_link_only_unconverted` keeps a link-only post never pending and without universal links — both in the `add_link_only_posts` migration, invisible to Prisma (docs/features/link-only-posts.md §3).
 
 - `notifications` is the in-app inbox (UC-21): the hand-written partial unique index `notifications_one_open_group` keeps one unread `COMMUNITY_POSTS` group per reader and community — it is the target of the grouping upsert, which is raw SQL because Prisma cannot target a partial index — and the CHECK `notifications_count_positive` guards `count`; both in the `add_notifications` migration, invisible to Prisma. What a reader sees is filtered when read, never by deleting (docs/features/notifications.md §3).
+
+- `user_avatars` holds an uploaded profile photo — only the server's own 256×256 WebP re-encode, never the uploaded bytes — and reaches clients through `users.profile_picture_url` = `/api/users/<id>/avatar?v=<ms>` (docs/features/avatar-upload.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
@@ -263,7 +266,7 @@ Registration, Login, Forgot Password, and Create New Password screens were **wit
 - **Language: English only.** All UI copy, labels, errors, and empty states are in English. There is **no i18n layer and no RTL support** — do not add `react-i18next`, do not add `dir` switching, do not write translation keys. A hardcoded English string is the correct implementation.
 - **Mobile-first.** Write the base Tailwind classes for a phone viewport and add `sm:` / `md:` / `lg:` upward. The primary target device is an iPhone running the installed PWA; the desktop browser is the secondary layout. Verify at 375px width before anything else.
 - **Touch targets** are at least 44×44px, because the primary surface is a phone.
-- **No image uploads.** Profile pictures and community cover images are **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. The only exception is Google sign-in: during onboarding the user may choose the `picture` URL Google returns instead. The generated avatar is the default, and a declined photo is deleted and never stored again — unless the user explicitly re-chooses it with a fresh Google sign-in. The schema's nullable `profile_picture_url` column keeps real uploads possible later without a migration, but no upload endpoint, storage bucket, or image-processing dependency is in scope.
+- **One upload: the user's own photo.** Profile pictures default to **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. A user may instead choose their Google photo (during onboarding, or later with a fresh Google sign-in), or **upload a photo on My Profile** — reversed from "no uploads" on 2026-11-08, manual-test note N10. The browser shrinks it, the server re-encodes it with `sharp` to a 256×256 WebP without metadata, and it is stored in Postgres (docs/features/avatar-upload.md). Community covers are always generated; there is no other upload, and no storage bucket.
 - **Loading is a designed state.** Every screen that waits on the network has an explicit skeleton or spinner, not a blank area. This matters most on the post-submit flow (§7), where the wait is genuinely several seconds.
 
 ---
@@ -423,7 +426,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b. The manual-test notes followed from Step 6.1c: a visible sign-out (6.1c) and notifications, UC-21 (6.1d).
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b. The manual-test notes followed from Step 6.1c: a visible sign-out (6.1c), notifications, UC-21 (6.1d), comment editing (6.1e), Sign in / Create account (6.1f), role notifications (6.1g) and photo uploads (6.1h).
 
 ---
 
@@ -568,7 +571,7 @@ An admin area owned by the product owner, scheduled for **Phase 2** so that user
 
 Settled in the feature's Stage 1 session and written to [docs/features/admin-panel.md](docs/features/admin-panel.md):
 
-- **Read-only lists** of users and communities. No deleting, suspending or editing anyone.
+- **Read-only lists** of users and communities. No deleting, suspending or editing anyone — with one exception added on 2026-11-08: the admin can **remove a user's photo** (docs/features/avatar-upload.md D2), recorded as a log line.
 - **Three presentation settings, fixed in code**: an announcement banner, an accent colour from a named palette, and the Welcome tagline. A new setting needs a new spec — never just a new row. Do not let it grow into a CMS by accident.
 - **A history table** records every settings change (who, old value, new value, when), shown on the settings screen.
 

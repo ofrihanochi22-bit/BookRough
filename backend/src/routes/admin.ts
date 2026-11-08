@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { communities, users } from '../controllers/admin.controller.js';
+import { adminDeleteAvatar } from '../controllers/avatar.controller.js';
 import { adminSettings, changeSettings } from '../controllers/settings.controller.js';
 import { requireAppAdmin } from '../middleware/requireAppAdmin.js';
 import { requireAuth } from '../middleware/requireAuth.js';
@@ -13,3 +14,5 @@ adminRouter.get('/users', requireAuth, requireAppAdmin, users);
 adminRouter.get('/communities', requireAuth, requireAppAdmin, communities);
 adminRouter.get('/settings', requireAuth, requireAppAdmin, adminSettings);
 adminRouter.patch('/settings', requireAuth, requireAppAdmin, changeSettings);
+// The one write on users (avatar-upload.md D2; CLAUDE.md §17 amended).
+adminRouter.delete('/users/:userId/avatar', requireAuth, requireAppAdmin, adminDeleteAvatar);

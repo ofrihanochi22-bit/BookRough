@@ -45,6 +45,22 @@ export function resolveApiBaseUrl(env: { VITE_API_BASE_URL?: string; PROD: boole
   return env.VITE_API_BASE_URL || (env.PROD ? '/api' : 'http://localhost:4000/api');
 }
 
+/**
+ * A server path such as an uploaded avatar's `/api/users/<id>/avatar?v=…`
+ * (avatar-upload.md §3), made absolute against the API: in development the API
+ * is another origin (localhost:4000), in production the same one. Anything else
+ * — a Google photo URL — is returned unchanged.
+ */
+export function resolveApiUrl(
+  url: string,
+  env: { VITE_API_BASE_URL?: string; PROD: boolean } = import.meta.env,
+): string {
+  if (!url.startsWith('/api/')) {
+    return url;
+  }
+  return resolveApiBaseUrl(env).replace(/\/api\/?$/, '') + url;
+}
+
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(import.meta.env),
   // The session is an HttpOnly cookie, so every request must carry credentials.

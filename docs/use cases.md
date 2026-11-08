@@ -65,7 +65,7 @@
   - The system displays a "Profile updated" toast notification and the screen shows the saved values.
 - **Fail description (Alternative Scenario):** The user attempts to save a display name that is already taken by another account. The system prevents the save action and displays an inline error message: "That display name is already taken."
 
-> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. On My Profile the avatar can be switched both ways: "Use generated avatar" deletes the stored photo, and going back to the Google photo requires a fresh Google sign-in from the same account, which fetches the current photo (`docs/features/profile-settings.md` §4). There is no upload control anywhere in the product; see `docs/general.md` §4.1.
+> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. On My Profile the avatar can be switched both ways: "Use generated avatar" deletes the stored photo, and going back to the Google photo requires a fresh Google sign-in from the same account, which fetches the current photo (`docs/features/profile-settings.md` §4). Since 2026-11-08 a user may also upload their own photo on My Profile; the server re-encodes it to a small WebP without metadata (`docs/features/avatar-upload.md`). Community covers stay generated.
 
 ### UC-5: User Searches Other Users
 
@@ -293,7 +293,7 @@
 >
 > **Honest limit:** this reduces *incidental* exposure. It is not a cryptographic guarantee — the operator runs the server and can change the code. The protection is that there is no personal data in the system to expose in the first place.
 >
-> **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody, and the settings list is fixed in code.
+> **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody — the one exception is removing a user's photo, which returns them to the generated avatar (`docs/features/avatar-upload.md`) — and the settings list is fixed in code.
 
 ### UC-20: User Sends a Recommendation to a Friend
 

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { resolveApiUrl } from '../../api/client';
+
 import { avatarHue, initials } from './avatarParts';
 
 interface AvatarProps {
@@ -25,7 +27,7 @@ export function Avatar({ id, name, pictureUrl, size = 64, decorative = false }: 
   if (pictureUrl && !pictureFailed) {
     return (
       <img
-        src={pictureUrl}
+        src={resolveApiUrl(pictureUrl)}
         alt={decorative ? '' : label}
         width={size}
         height={size}

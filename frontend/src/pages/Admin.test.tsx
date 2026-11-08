@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,12 +11,19 @@ import { httpError, makeSession, networkError, resetAuthStore } from '../test/fi
 const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
   listAdminCommunities: vi.fn(),
+  removeUserPhoto: vi.fn(),
   fetchSession: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock('../api/admin', () => ({
   listAdminUsers: api.listAdminUsers,
   listAdminCommunities: api.listAdminCommunities,
+  removeUserPhoto: api.removeUserPhoto,
+}));
+vi.mock('react-hot-toast', () => ({
+  default: { success: api.toastSuccess, error: api.toastError },
 }));
 vi.mock('../api/auth', () => ({ fetchSession: api.fetchSession, logout: vi.fn() }));
 
@@ -230,5 +237,61 @@ describe('Communities tab', () => {
 
     // Assert
     expect(await screen.findByText("Couldn't load the communities.")).toBeInTheDocument();
+  });
+});
+
+/** The one write on users — docs/features/avatar-upload.md §5.2. */
+describe('Users tab — Remove photo', () => {
+  const PHOTO = '/api/users/11111111-1111-4111-8111-111111111111/avatar?v=1';
+
+  beforeEach(() => signedIn(true));
+
+  it('confirms, removes the photo, updates the row and toasts', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser({ profilePictureUrl: PHOTO })]);
+    api.removeUserPhoto.mockResolvedValue(adminUser({ profilePictureUrl: null }));
+    renderAt('/admin/users');
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }));
+    const sheet = screen.getByRole('dialog', { name: 'Remove photo?' });
+    expect(
+      within(sheet).getByText("Remove Mia's photo? They'll see their initials instead."),
+    ).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Remove photo' }));
+
+    // Assert
+    expect(api.removeUserPhoto).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
+    expect(api.toastSuccess).toHaveBeenCalledWith('Photo removed');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+  });
+
+  it('offers nothing for a user without a photo', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+
+    // Act
+    renderAt('/admin/users');
+
+    // Assert
+    expect(await screen.findByText('Mia')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+  });
+
+  it('toasts the server message and keeps the sheet when removing fails', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser({ profilePictureUrl: PHOTO })]);
+    api.removeUserPhoto.mockRejectedValue(httpError(404, 'User not found.'));
+    renderAt('/admin/users');
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }));
+    const sheet = screen.getByRole('dialog', { name: 'Remove photo?' });
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Remove photo' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith('User not found.');
+    expect(screen.getByRole('dialog', { name: 'Remove photo?' })).toBeInTheDocument();
   });
 });

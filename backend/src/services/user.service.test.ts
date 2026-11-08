@@ -9,12 +9,19 @@ import {
   updateProfile,
 } from './user.service.js';
 
-const { userDb, verifyGoogleIdToken } = vi.hoisted(() => ({
+const { userDb, avatarDb, verifyGoogleIdToken } = vi.hoisted(() => ({
   userDb: { update: vi.fn(), findUnique: vi.fn() },
+  avatarDb: { deleteMany: vi.fn() },
   verifyGoogleIdToken: vi.fn(),
 }));
 
-vi.mock('../db/prisma.js', () => ({ prisma: { user: userDb } }));
+// The avatar row and the user change in one transaction (avatar-upload.md §4).
+vi.mock('../db/prisma.js', () => {
+  const client = { user: userDb, userAvatar: avatarDb };
+  return {
+    prisma: { ...client, $transaction: (run: (tx: typeof client) => unknown) => run(client) },
+  };
+});
 vi.mock('./googleIdentity.service.js', () => ({ verifyGoogleIdToken }));
 
 function makeUser(overrides: Partial<User> = {}): User {
@@ -303,5 +310,62 @@ describe('rechooseGooglePicture', () => {
       message: GOOGLE_PHOTO_MESSAGES.noPhoto,
     });
     expect(userDb.update).not.toHaveBeenCalled();
+  });
+});
+
+/** Leaving an upload deletes it — docs/features/avatar-upload.md §4. */
+describe('uploaded photos when switching avatar', () => {
+  it('Use generated avatar deletes an uploaded photo with the user change', async () => {
+    // Arrange
+    const user = makeUser({
+      displayName: 'Ofri',
+      displayNameKey: 'ofri',
+      preferredService: 'SPOTIFY',
+      profilePictureUrl: '/api/users/0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40/avatar?v=1',
+    });
+    userDb.update.mockResolvedValue({ ...user, profilePictureUrl: null });
+
+    // Act
+    await updateProfile(user, { useGooglePicture: false });
+
+    // Assert
+    expect(avatarDb.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
+  });
+
+  it('a save that does not touch the avatar leaves the upload alone', async () => {
+    // Arrange
+    const user = makeUser({
+      displayName: 'Ofri',
+      displayNameKey: 'ofri',
+      preferredService: 'SPOTIFY',
+    });
+    userDb.update.mockResolvedValue({ ...user, preferredService: 'DEEZER' });
+
+    // Act
+    await updateProfile(user, { preferredService: 'DEEZER' });
+
+    // Assert
+    expect(avatarDb.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('re-choosing the Google photo deletes an uploaded one', async () => {
+    // Arrange
+    const user = makeUser({
+      displayName: 'Ofri',
+      displayNameKey: 'ofri',
+      preferredService: 'SPOTIFY',
+    });
+    verifyGoogleIdToken.mockResolvedValue({ sub: user.googleSub, picture: 'https://pic/g' });
+    userDb.update.mockResolvedValue({ ...user, profilePictureUrl: 'https://pic/g' });
+
+    // Act
+    await rechooseGooglePicture(user, 'credential');
+
+    // Assert
+    expect(avatarDb.deleteMany).toHaveBeenCalledWith({ where: { userId: user.id } });
+    expect(userDb.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: { profilePictureUrl: 'https://pic/g', useGooglePicture: true },
+    });
   });
 });
