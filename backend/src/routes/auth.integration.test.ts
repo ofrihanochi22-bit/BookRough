@@ -339,8 +339,11 @@ describe('GET /api/auth/me', () => {
     const response = await request(app).get('/api/auth/me').set('Cookie', cookie);
 
     // Assert
+    // The same session; `created` belongs to the sign-in call alone (sign-in-sign-up.md §4).
+    const { created, ...session } = signIn.body.data as { created: boolean };
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual(signIn.body.data);
+    expect(created).toBe(true);
+    expect(response.body.data).toEqual(session);
     expect(response.headers['set-cookie']).toBeUndefined();
   });
 
