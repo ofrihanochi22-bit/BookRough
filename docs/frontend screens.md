@@ -23,7 +23,7 @@ Google Sign-In is the only authentication method, so this group collapsed from f
 These screens represent the core social and discovery aspects of the app.
 - **2.1. Communities Dashboard (Home Screen)**
   - **Purpose:** The central hub displaying all the groups a user belongs to.
-  - **Key UI:** List of joined Communities (generated cover, name, member count, an "Admin" label where the user is one), newest joined first, and a floating "Create community" button. A bottom tab bar switches between Home, Search, Friends, My List, and Profile; Search is Global Search (2.2), Friends is 2.3 (with a badge counting pending friend requests, community invitations and new recommendations, "9+" above nine), My List is 4.1, and Profile is My Profile / Settings (4.3).
+  - **Key UI:** List of joined Communities (generated cover, name, member count, an "Admin" label where the user is one), newest joined first, and a floating "Create community" button. A "Sign out" button sits beside the "Your communities" heading and asks "Sign out?" first (UC-3). A bottom tab bar switches between Home, Search, Friends, My List, and Profile; Search is Global Search (2.2), Friends is 2.3 (with a badge counting pending friend requests, community invitations and new recommendations, "9+" above nine), My List is 4.1, and Profile is My Profile / Settings (4.3).
   - **States:** skeleton cards while loading; an empty state ("Start your first community") with a single Create button; an inline error with Try again.
 - **2.2. Global Search Screen (UC-5)**
   - **Purpose:** Finding other users on the platform.
@@ -78,9 +78,9 @@ Screens dedicated to individual user actions and backlog management.
   - **Key UI:** A sheet titled "Rate & Review" with the song, ten score options 1-10 ("Your score"), an optional comment with a counter (n/280), and a "Submit Rating" button, disabled until a score is chosen. Submitting shows "Submitting…"; success toasts "Rating submitted" and the song leaves My List; a deleted post leaves with UC-13's message, a second rating with "You already rated this post."; validation and network errors stay inline with the draft kept; offline disables Submit (`docs/features/rate-post.md` §5.2).
 - **4.3. My Profile / Settings Screen (UC-3, UC-4)**
   - **Purpose:** Managing personal account details and app preferences.
-  - **Key UI:** The fields are editable in place: the avatar, Display Name (with the same live availability check as onboarding) and Preferred Streaming Service. One "Save changes" button, enabled only once something changed, sends only the changed fields and toasts "Profile updated". A visible "Sign out" button at the bottom.
+  - **Key UI:** The fields are editable in place: the avatar, Display Name (with the same live availability check as onboarding) and Preferred Streaming Service. One "Save changes" button, enabled only once something changed, sends only the changed fields and toasts "Profile updated". A "Sign out" button at the bottom, which asks "Sign out?" first, like the one on Home.
   - **Avatar:** with the Google photo in use, "Use generated avatar" (the photo is deleted). With the generated avatar, a Google button fetches the current photo through a fresh Google sign-in from the same account; a different account or an account with no photo shows an inline message.
-  - **States:** a name problem shows on the name's status line, other save failures inline above Save; offline shows a banner and disables Save and the avatar actions, while Sign out stays available.
+  - **States:** a name problem shows on the name's status line, other save failures inline above Save; offline shows a banner and disables Save and the avatar actions, and the "Sign out?" confirmation is disabled with "You're offline. Connect to sign out."
 
 ### 5. Administration (UC-19)
 

@@ -1669,6 +1669,8 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c… → 6.2 → 6.5.
+
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
 > **UC-20 added 2026-11-02.** Direct recommendations are built as Step 6.1a, before Step 6.2, whose iPhone checks wait for the Vercel pause anyway. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.2 → 6.4 → 6.5.
@@ -1874,6 +1876,63 @@ cd frontend && npm run test:unit                         # 61 files, 80% floor
 ```
 
 ---
+
+### Step 6.1c — Visible sign-out (Phase 6 — UC-3, manual-test note N8)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/visible-sign-out
+Spec: docs/features/visible-sign-out.md
+
+Goal: Sign out from the screen the app opens on, and never by accident.
+
+Tasks:
+
+- [x] Spec: docs/features/visible-sign-out.md approved. A button in the Home header, a "Sign out?" confirmation on Home and My Profile, disabled offline (PR #40's pattern), and Complete Your Profile's link left alone.
+- [x] Frontend: `components/SignOutSheet.tsx` (`SignOutSheet` + `SignOutButton`), the Dashboard header, and My Profile wired to the sheet.
+- [x] Review: `/code-review` (5 findings, all fixed) and `/security-review` (no findings).
+- [x] Tests: component tests per spec §7, plus the E2E `signOut()` helper.
+
+What I did:
+
+Delivered UC-3's confirmation step and a visible entry point, per `docs/features/visible-sign-out.md`. No backend or schema change.
+
+- **Home:** the "Your communities" heading now shares its row with a secondary **Sign out** button. The button shows in every Dashboard state, and the heading truncates first at 375px.
+- **`SignOutSheet`:** "Sign out?", with "You'll need to continue with Google to sign back in." The buttons are **Cancel** and **Sign out**, which uses the unchanged `useSignOut`. While signing out it reads "Signing out…" and can't be dismissed. On a failure it stays open to retry. Offline, Sign out is disabled with "You're offline. Connect to sign out.", the same pattern as PR #40.
+- **My Profile:** its Sign out button now opens the same sheet. That changes its offline behaviour, as noted in profile-settings.md.
+- **Review:** `/code-review` found the E2E helper and the Profile tests still expecting a one-click sign-out, two same-named buttons that tests must scope to the dialog, a comment citing a spec that's only on PR #40's branch, and stale offline wording in two specs. All of these are fixed. `/security-review` found nothing.
+- **Docs:** `use cases` (UC-3) and `frontend screens` (2.1 and 4.3), .md + .docx; an amendment note in `profile-settings.md`; this step and the Phase 6 note; `HANDOFF.md`.
+- **Tests:** frontend 62 files, 759 tests, 98.68% lines. E2E: `support/flows.ts` `signOut()` now signs out from Home and confirms in the sheet. It runs in `main.yml`, not locally, because the local E2E run uses `music_app_test_db`.
+- **With PR #40:** both edit `Profile.tsx`'s sign-out block. On the rebase, keep `SignOutButton` there, because the sheet already applies #40's offline rule.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width and sign in (OfriChrome or OfriEdge).
+
+1. On Home, **Sign out** sits at the right of "Your communities".
+2. Tap it. "Sign out?" opens. Tap **Cancel**, and you're still on Home, signed in.
+3. Tap **Sign out**, then **Sign out** in the sheet. Welcome appears.
+4. Sign in again, then go to **Profile → Sign out**. The same sheet opens.
+5. In DevTools → Network → Offline, open the sheet. Its Sign out is disabled with "You're offline. Connect to sign out.". Go back online, and it enables.
+
+```bash
+cd frontend && npx vitest run src/components/SignOutSheet.test.tsx src/pages/Dashboard.test.tsx src/pages/Profile.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
+```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 

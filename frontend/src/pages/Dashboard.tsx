@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
+import { SignOutButton } from '../components/SignOutSheet';
 import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
@@ -20,7 +21,11 @@ export function Dashboard() {
 
   return (
     <ScreenLayout>
-      <h1 className="mb-6 font-display text-2xl font-medium">Your communities</h1>
+      <header className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="min-w-0 truncate font-display text-2xl font-medium">Your communities</h1>
+        {/* Sign-out where the app opens — visible-sign-out.md §5.1. */}
+        <SignOutButton className="shrink-0 px-4" />
+      </header>
 
       {communities.status === 'loading' && (
         <div role="status" aria-label="Loading your communities" className="flex flex-col gap-4">

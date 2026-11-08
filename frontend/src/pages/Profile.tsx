@@ -6,13 +6,13 @@ import toast from 'react-hot-toast';
 import { chooseGooglePhoto, updateProfile, type ProfileUpdate } from '../api/users';
 import { DisplayNameField } from '../components/DisplayNameField';
 import { GoogleCredentialButton } from '../components/GoogleCredentialButton';
+import { SignOutButton } from '../components/SignOutSheet';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useSignOut } from '../hooks/useSignOut';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type PublicUser, type StreamingService } from '../stores/auth';
 
@@ -36,8 +36,6 @@ function messageOf(error: unknown, fallback: string): string {
 export function Profile() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const { signingOut, signOut } = useSignOut();
-  const online = useOnlineStatus();
 
   if (!user) {
     return null;
@@ -59,16 +57,8 @@ export function Profile() {
           </span>
         </Link>
       )}
-      <div className="mt-8 flex flex-col items-center gap-2 pb-4">
-        {/* The HttpOnly cookie can only be cleared by the server (pwa-offline.md §5.4). */}
-        <Button variant="secondary" busy={signingOut} disabled={!online} onClick={signOut}>
-          {signingOut ? 'Signing out…' : 'Sign out'}
-        </Button>
-        {!online && (
-          <p role="note" className="text-xs text-muted">
-            You&apos;re offline. Connect to sign out.
-          </p>
-        )}
+      <div className="mt-8 flex justify-center pb-4">
+        <SignOutButton />
       </div>
     </ScreenLayout>
   );

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `visible-sign-out.md` (UC-3, 2026-11-08).** Sign out now opens a "Sign out?" confirmation (the same one as Home's header) instead of signing out at once. Offline, that confirmation's Sign out is disabled with "You're offline. Connect to sign out.", replacing §5.1's "Sign out stays enabled".
+
 ## 1. Goal
 
 The Profile tab becomes the real **My Profile / Settings** screen. A user can change their display name and preferred streaming service, switch between the generated avatar and their Google photo in either direction, and sign out. Going back to the Google photo after declining it needs a fresh Google sign-in, so the photo is stored only at the moment the user explicitly asks for it.
