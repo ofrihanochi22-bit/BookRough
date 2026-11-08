@@ -103,6 +103,8 @@ model User {
   friendRequestsReceived  Friend[]              @relation("FriendAddressee")
   invitations             CommunityInvitation[] @relation("InvitationInvitee")
   invitationsSent         CommunityInvitation[] @relation("InvitationInviter")
+  notifications           Notification[]        @relation("NotificationReader")
+  notificationsCaused     Notification[]        @relation("NotificationActor")
 
   @@map("users")
 }
@@ -112,21 +114,22 @@ model User {
 /// There is no cover image column: covers are always generated from the name
 /// and id (CLAUDE.md §8).
 model Community {
-  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Shown as typed. Not unique — communities are found by invite, never by name.
-  name        String                @db.VarChar(100)
+  name          String                @db.VarChar(100)
   /// Plain text with line breaks; null when the creator left it blank.
-  description String?
+  description   String?
   /// The community's one invite link (docs/features/communities-invites.md §3).
   /// Created on first request, replaced on reset. A secret: never logged, never
   /// in PublicCommunity.
-  inviteToken String?               @unique @map("invite_token") @db.VarChar(64)
-  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  members     CommunityMember[]
-  bans        CommunityBan[]
-  posts       Post[]
-  invitations CommunityInvitation[]
+  inviteToken   String?               @unique @map("invite_token") @db.VarChar(64)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  members       CommunityMember[]
+  bans          CommunityBan[]
+  posts         Post[]
+  invitations   CommunityInvitation[]
+  notifications Notification[]
 
   @@map("communities")
 }
@@ -210,6 +213,7 @@ model Post {
   recipient            User?             @relation("PostRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   bookmarks            Bookmark[]
   ratings              Rating[]
+  notifications        Notification[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
@@ -336,4 +340,60 @@ model CommunityInvitation {
   /// The inviter's SET NULL.
   @@index([invitedById])
   @@map("community_invitations")
+}
+
+/// What a notification is about — docs/features/notifications.md §3 (UC-21).
+enum NotificationType {
+  /// New posts in one community, grouped while unread: `count`, latest poster as actor.
+  COMMUNITY_POSTS
+  /// A direct recommendation received (UC-20).
+  RECOMMENDATION
+  /// Someone rated the reader's post — the first rating only (UC-13).
+  RATING
+  /// Someone sent the reader a friend request (UC-6).
+  FRIEND_REQUEST
+  /// Someone accepted the reader's friend request (UC-7).
+  FRIEND_ACCEPTED
+  /// A community admin invited the reader (UC-9).
+  COMMUNITY_INVITATION
+}
+
+/// The in-app inbox — docs/features/notifications.md §3 (UC-21).
+///
+/// Hand-written in the add_notifications migration, invisible to Prisma: the
+/// partial unique index `notifications_one_open_group` (one unread
+/// COMMUNITY_POSTS row per reader and community, the grouping upsert's target)
+/// and the CHECK `notifications_count_positive`.
+///
+/// What a reader may see is filtered when it is read (§4), never by deleting:
+/// a former member's community rows simply stop showing.
+model Notification {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// The reader.
+  userId      String           @map("user_id") @db.Uuid
+  type        NotificationType
+  /// Who did it; for COMMUNITY_POSTS, the latest poster.
+  actorId     String           @map("actor_id") @db.Uuid
+  /// COMMUNITY_POSTS and COMMUNITY_INVITATION.
+  communityId String?          @map("community_id") @db.Uuid
+  /// RECOMMENDATION and RATING.
+  postId      String?          @map("post_id") @db.Uuid
+  /// Above 1 only for a COMMUNITY_POSTS group.
+  count       Int              @default(1)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Bumped when a group grows; the list is ordered by it.
+  updatedAt   DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+  readAt      DateTime?        @map("read_at") @db.Timestamptz(3)
+  user        User             @relation("NotificationReader", fields: [userId], references: [id], onDelete: Cascade)
+  actor       User             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  community   Community?       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  post        Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  /// The list: one reader's rows, newest activity first, keyset-paginated.
+  @@index([userId, updatedAt(sort: Desc), id(sort: Desc)])
+  /// Cascades by actor, post and community.
+  @@index([actorId])
+  @@index([postId])
+  @@index([communityId])
+  @@map("notifications")
 }

@@ -46,7 +46,7 @@ const { db, notify } = vi.hoisted(() => {
 });
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./friendNotification.js', () => notify);
+vi.mock('./notification.service.js', () => notify);
 
 const ME = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -203,17 +203,6 @@ describe('sendRequest', () => {
     // Act & Assert
     await expect(sendRequest(ME, DANA)).rejects.toThrow('connection lost');
     expect(db.$transaction).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the request when the notification stub throws', async () => {
-    // Arrange
-    db.friend.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(pending(ME.id, DANA));
-    notify.notifyFriendRequest.mockImplementation(() => {
-      throw new Error('stub broke');
-    });
-
-    // Act & Assert
-    await expect(sendRequest(ME, DANA)).resolves.toBe('REQUEST_SENT');
   });
 
   it('throws 422 for yourself, 404 for an unknown or mid-onboarding user, 403 mid-onboarding', async () => {

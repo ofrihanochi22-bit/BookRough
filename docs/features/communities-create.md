@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `notifications.md` (UC-21, 2026-11-08).** The Dashboard header holds a notifications bell beside Sign out, and the Home tab carries a badge with the unread count (§6.3, §6.4).
+
 ## 0. How Phase 2 was re-sliced
 
 `DEVELOPMENT.md` split Phase 2 by layer: schema (2.1), backend (2.2, 2.3, 2.4), all screens (2.5), deep links (2.6), tests (2.7). Most of those could not merge alone under CLAUDE.md §11 ("don't merge backend only"). Steps 2.1–2.7 become four vertical features (decided 2026-10-03), each specified in its own session:

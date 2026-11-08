@@ -16,9 +16,9 @@ import {
   prepareSharedLink,
 } from './post.service.js';
 import { requirePostAccess } from './postAccess.js';
+import { notifyRecommendation } from './notification.service.js';
 import { findProfileUser, requireOnboarded } from './profile.service.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
-import { notifyRecommendation } from './recommendationNotification.js';
 
 const log = createLogger('recommendation.service');
 
@@ -72,12 +72,8 @@ export async function sendRecommendation(
     },
     'Recommendation sent',
   );
-  // The item is saved: a notification problem must never undo or fail it.
-  try {
-    notifyRecommendation({ senderId: user.id, recipientId, postId: post.id });
-  } catch (error) {
-    log.warn({ err: error, postId: post.id }, 'Recommendation notification failed');
-  }
+  // The item is saved: a notification problem never undoes or fails it (notifications.md §4.5).
+  await notifyRecommendation({ senderId: user.id, recipientId, postId: post.id });
   return toPublicPost(post, user.id, false, NO_RATINGS, new Set([recipientId]));
 }
 

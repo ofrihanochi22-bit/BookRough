@@ -19,7 +19,7 @@ import {
  * here are also the branches that cannot be reached on demand there.
  */
 
-const { db, tx, notifyAuthorOfRating, warn } = vi.hoisted(() => {
+const { db, tx, notifyRating, warn } = vi.hoisted(() => {
   const tx = { rating: { create: vi.fn() }, bookmark: { deleteMany: vi.fn() } };
   return {
     tx,
@@ -29,13 +29,13 @@ const { db, tx, notifyAuthorOfRating, warn } = vi.hoisted(() => {
       rating: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
       $transaction: vi.fn(),
     },
-    notifyAuthorOfRating: vi.fn(),
+    notifyRating: vi.fn(),
     warn: vi.fn(),
   };
 });
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./ratingNotification.js', () => ({ notifyAuthorOfRating }));
+vi.mock('./notification.service.js', () => ({ notifyRating }));
 vi.mock('../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() }),
 }));
@@ -84,11 +84,10 @@ describe('ratePost', () => {
     expect(tx.bookmark.deleteMany).toHaveBeenCalledWith({
       where: { userId: USER.id, postId: POST_ID },
     });
-    expect(notifyAuthorOfRating).toHaveBeenCalledWith({
+    expect(notifyRating).toHaveBeenCalledWith({
       authorId: AUTHOR,
       raterId: USER.id,
       postId: POST_ID,
-      score: 8,
     });
     expect(rating).toEqual({
       id: CREATED.id,
@@ -162,7 +161,7 @@ describe('ratePost', () => {
 
     // Act & Assert
     await expectAppError(ratePost(USER, POST_ID, { score: 5 }), 409, ALREADY_RATED);
-    expect(notifyAuthorOfRating).not.toHaveBeenCalled();
+    expect(notifyRating).not.toHaveBeenCalled();
   });
 
   it('is a 404 when the post is deleted between the check and the insert', async () => {
@@ -180,23 +179,6 @@ describe('ratePost', () => {
 
     // Act & Assert
     await expect(ratePost(USER, POST_ID, { score: 5 })).rejects.toBe(failure);
-  });
-
-  it('keeps the rating when the notification stub throws, and warns', async () => {
-    // Arrange
-    notifyAuthorOfRating.mockImplementation(() => {
-      throw new Error('channel down');
-    });
-
-    // Act
-    const rating = await ratePost(USER, POST_ID, { score: 8 });
-
-    // Assert
-    expect(rating.id).toBe(CREATED.id);
-    expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ postId: POST_ID }),
-      'Rating notification failed',
-    );
   });
 });
 
@@ -290,7 +272,7 @@ describe('editRating', () => {
     ]);
     expect(scoreOnly).toMatchObject({ id: 'r1', score: 9, isMine: true });
     expect(commentOnly).toMatchObject({ comment: 'nice song' });
-    expect(notifyAuthorOfRating).not.toHaveBeenCalled();
+    expect(notifyRating).not.toHaveBeenCalled();
   });
 
   it('clears a blank comment to null', async () => {

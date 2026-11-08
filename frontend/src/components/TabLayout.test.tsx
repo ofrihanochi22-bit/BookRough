@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useFriendRequests } from '../stores/friendRequests';
+import { useNotifications } from '../stores/notifications';
 import { TabLayout } from './TabLayout';
 
 const { countFriendRequests } = vi.hoisted(() => ({ countFriendRequests: vi.fn() }));
@@ -14,6 +15,8 @@ const { countUnseenRecommendations } = vi.hoisted(() => ({
   countUnseenRecommendations: vi.fn(),
 }));
 vi.mock('../api/recommendations', () => ({ countUnseenRecommendations }));
+const { countUnreadNotifications } = vi.hoisted(() => ({ countUnreadNotifications: vi.fn() }));
+vi.mock('../api/notifications', () => ({ countUnreadNotifications }));
 
 function renderAt(path: string) {
   return render(
@@ -35,10 +38,12 @@ const nav = () => screen.getByRole('navigation', { name: 'Main' });
 
 beforeEach(() => {
   vi.resetAllMocks();
-  useFriendRequests.setState({ count: 0 });
+  useFriendRequests.setState({ count: 0, unseen: 0 });
+  useNotifications.setState({ unread: 0 });
   countFriendRequests.mockResolvedValue(0);
   countMyInvitations.mockResolvedValue(0);
   countUnseenRecommendations.mockResolvedValue(0);
+  countUnreadNotifications.mockResolvedValue(0);
 });
 
 describe('TabLayout and BottomNav', () => {
@@ -131,7 +136,7 @@ describe('TabLayout and BottomNav', () => {
     expect(within(friends).queryByText(/\d/)).not.toBeInTheDocument();
   });
 
-  it('the badge adds unseen recommendations to requests and invitations', async () => {
+  it('the Friends badge no longer adds unseen recommendations (notifications.md §5.3)', async () => {
     // Arrange
     countFriendRequests.mockResolvedValue(1);
     countMyInvitations.mockResolvedValue(1);
@@ -142,7 +147,37 @@ describe('TabLayout and BottomNav', () => {
 
     // Assert
     expect(
-      await within(nav()).findByRole('link', { name: 'Friends, 4 waiting' }),
+      await within(nav()).findByRole('link', { name: 'Friends, 2 waiting' }),
     ).toBeInTheDocument();
+    expect(useFriendRequests.getState().unseen).toBe(2);
+  });
+
+  it('badges the Home tab with unread notifications, refreshed on each navigation', async () => {
+    // Arrange
+    countUnreadNotifications.mockResolvedValueOnce(3).mockResolvedValueOnce(1);
+    renderAt('/home');
+
+    // Assert
+    const home = await within(nav()).findByRole('link', { name: 'Home, 3 unread' });
+    expect(within(home).getByText('3')).toBeInTheDocument();
+
+    // Act
+    await userEvent.click(within(nav()).getByRole('link', { name: 'Search' }));
+
+    // Assert
+    expect(await within(nav()).findByRole('link', { name: 'Home, 1 unread' })).toBeInTheDocument();
+  });
+
+  it('keeps the last Home count when the fetch fails, and shows none at zero', async () => {
+    // Arrange
+    countUnreadNotifications.mockRejectedValue(new Error('offline'));
+
+    // Act
+    renderAt('/home');
+    await waitFor(() => expect(countUnreadNotifications).toHaveBeenCalled());
+
+    // Assert
+    const home = within(nav()).getByRole('link', { name: 'Home' });
+    expect(within(home).queryByText(/\d/)).not.toBeInTheDocument();
   });
 });

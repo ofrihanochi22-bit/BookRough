@@ -46,7 +46,7 @@ UC-17 (password reset) is withdrawn; its number is not reused.
 
 **Step 6.1b — link-only posts (UC-11, amended), merged as PR #41 on 2026-11-03:** Bandcamp, SoundCloud and live YouTube videos shared without conversion (`docs/features/link-only-posts.md`); backend 68 test files at 99.01% lines, frontend 61 at 98.67%.
 
-**Manual-test notes N1–N10, from 2026-11-08:** the developer chose to build them before Step 6.2, one feature and PR each, while PR #40 waits for the Vercel pause. New write controls follow PR #40's offline pattern. N4 (the onboarding tutorial) goes last, after a planned UI redesign. First up is **Step 6.1c, visible sign-out (N8, UC-3)** on `feat/visible-sign-out` (`docs/features/visible-sign-out.md`).
+**Manual-test notes N1–N10, from 2026-11-08:** the developer chose to build them before Step 6.2, one feature and PR each, while PR #40 waits for the Vercel pause. New write controls follow PR #40's offline pattern. N4 (the onboarding tutorial) goes last, after a planned UI redesign. **Step 6.1c, visible sign-out (N8, UC-3)** merged as PR #46. **Step 6.1d, the notification center (N1 + N2, a new UC-21)** is on `feat/notifications` (`docs/features/notifications.md`), and adds the `add_notifications` migration, which runs on Neon with the next deployment.
 
 Last measured (Step 6.2): backend 930 tests at 98.93% lines, frontend 740 tests at 98.58%, E2E 44 runs (+4 skipped). CI floor is 80%.
 

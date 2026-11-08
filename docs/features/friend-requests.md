@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `notifications.md` (UC-21, 2026-11-08).** The §4.4 stubs are gone: a request writes a `FRIEND_REQUEST` notification (at most one unread per sender), and an accept a `FRIEND_ACCEPTED` one for the requester. The Friends tab badge counts pending requests and invitations only; unseen recommendations left it.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Friendship now also allows sending a song, and a friend's profile gains **Send a song**. It still widens nothing a profile shows: direct ratings never appear there.
 
 ## 0. Phase 5 grows a fourth feature

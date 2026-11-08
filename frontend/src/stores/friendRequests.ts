@@ -15,8 +15,9 @@ interface FriendRequestsState {
 
 /**
  * The Friends tab's badge — docs/features/friend-requests.md §5.1, and since
- * invite-friends.md §5.5 it counts invitations too; unseen recommendations are
- * kept apart (direct-recommendations.md §5.1), and the tab shows the sum. Refreshed
+ * invite-friends.md §5.5 it counts invitations too. Unseen recommendations are
+ * kept apart for the Friends screen's Recommendations row; since notifications.md
+ * §5.3 the tab no longer adds them — they reach the Home badge as notifications. Refreshed
  * on app load and navigation; the Friends screen sets `count` after an answer. A failed fetch keeps
  * the last count: the badge is a hint, not an error state.
  */

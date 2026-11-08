@@ -5,7 +5,7 @@ import { AppError } from '../utils/AppError.js';
 import { memberUserSelect } from '../utils/communityMember.js';
 import { type FriendView, toFriendView } from '../utils/friendView.js';
 import { createLogger } from '../utils/logger.js';
-import { notifyFriendAccepted, notifyFriendRequest } from './friendNotification.js';
+import { notifyFriendAccepted, notifyFriendRequest } from './notification.service.js';
 import { findProfileUser, requireOnboarded } from './profile.service.js';
 
 const log = createLogger('friend.service');
@@ -78,15 +78,6 @@ function attemptSend(userId: string, targetId: string): Promise<SendResult> {
   });
 }
 
-/** Notifications run after the write commits and never fail it (§4.4). */
-function notifySafely(send: () => void, event: string): void {
-  try {
-    send();
-  } catch (error) {
-    log.warn({ err: error, event }, 'Friend notification failed');
-  }
-}
-
 /**
  * POST /friends/requests — UC-6. Idempotent; a request to someone who already
  * asked the caller accepts theirs. Two opposite requests racing hit the pair
@@ -111,15 +102,10 @@ export async function sendRequest(user: User, targetId: string): Promise<Friends
 
   log.info({ userId: user.id, targetId, result }, 'Friend request sent');
   if (result === 'sent') {
-    notifySafely(
-      () => notifyFriendRequest({ requesterId: user.id, addresseeId: targetId }),
-      'request',
-    );
+    // After the write commits; it never fails the request (notifications.md §4.5).
+    await notifyFriendRequest({ requesterId: user.id, addresseeId: targetId });
   } else if (result === 'accepted-mutual') {
-    notifySafely(
-      () => notifyFriendAccepted({ requesterId: targetId, addresseeId: user.id }),
-      'accepted',
-    );
+    await notifyFriendAccepted({ requesterId: targetId, addresseeId: user.id });
   }
   return friendshipOf(user.id, targetId);
 }
@@ -153,7 +139,7 @@ export async function acceptRequest(user: User, requesterId: string): Promise<Fr
     throw new AppError(REQUEST_GONE, 404);
   }
   log.info({ userId: user.id, requesterId }, 'Friend request accepted');
-  notifySafely(() => notifyFriendAccepted({ requesterId, addresseeId: user.id }), 'accepted');
+  await notifyFriendAccepted({ requesterId, addresseeId: user.id });
   const accepted = await prisma.friend.findUnique({
     where: { requesterId_addresseeId: { requesterId, addresseeId: user.id } },
     select: { updatedAt: true },

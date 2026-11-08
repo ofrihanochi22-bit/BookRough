@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 
 import { badgeText } from '../lib/friendCopy';
 import { useFriendRequests } from '../stores/friendRequests';
+import { useNotifications } from '../stores/notifications';
 import { BookmarkIcon } from './ui/BookmarkIcon';
 
 interface Tab {
@@ -76,14 +77,28 @@ const TABS: readonly Tab[] = [
   },
 ];
 
+/** Which tab carries which count, and how its accessible name says it. */
+function badgeFor(to: string, requests: number, unread: number) {
+  if (to === '/friends' && requests > 0) {
+    return { count: requests, label: `${requests} waiting` };
+  }
+  if (to === '/home' && unread > 0) {
+    return { count: unread, label: `${unread} unread` };
+  }
+  return null;
+}
+
 /**
  * The app's tab bar — docs/features/communities-create.md §6.3. Search is
  * docs/features/find-people.md §5.1; Friends, with its pending-request badge,
- * docs/features/friend-requests.md §5.1; My List is docs/features/bookmarks-my-list.md §5.2.
+ * docs/features/friend-requests.md §5.1 — since notifications.md §5.3 it counts only
+ * what waits for an answer; Home's badge counts unread notifications (§5.2). My List
+ * is docs/features/bookmarks-my-list.md §5.2.
  * Padded for the iPhone home indicator when the PWA runs full-screen.
  */
 export function BottomNav() {
-  const requests = useFriendRequests((state) => state.count + state.unseen);
+  const requests = useFriendRequests((state) => state.count);
+  const unread = useNotifications((state) => state.unread);
 
   return (
     <nav
@@ -91,36 +106,35 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto flex max-w-md">
-        {TABS.map((tab) => (
-          <li key={tab.to} className="flex-1">
-            <NavLink
-              to={tab.to}
-              aria-label={
-                tab.to === '/friends' && requests > 0
-                  ? `${tab.label}, ${requests} waiting`
-                  : undefined
-              }
-              className={({ isActive }) =>
-                `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${
-                  isActive ? 'text-accent' : 'text-muted'
-                }`
-              }
-            >
-              <span className="relative">
-                {tab.icon}
-                {tab.to === '/friends' && requests > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium leading-none text-on-accent"
-                  >
-                    {badgeText(requests)}
-                  </span>
-                )}
-              </span>
-              {tab.label}
-            </NavLink>
-          </li>
-        ))}
+        {TABS.map((tab) => {
+          const badge = badgeFor(tab.to, requests, unread);
+          return (
+            <li key={tab.to} className="flex-1">
+              <NavLink
+                to={tab.to}
+                aria-label={badge ? `${tab.label}, ${badge.label}` : undefined}
+                className={({ isActive }) =>
+                  `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${
+                    isActive ? 'text-accent' : 'text-muted'
+                  }`
+                }
+              >
+                <span className="relative">
+                  {tab.icon}
+                  {badge && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium leading-none text-on-accent"
+                    >
+                      {badgeText(badge.count)}
+                    </span>
+                  )}
+                </span>
+                {tab.label}
+              </NavLink>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
