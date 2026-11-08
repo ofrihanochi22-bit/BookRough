@@ -97,6 +97,24 @@ describe('PostComposer', () => {
     expect(commentField()).toHaveValue('Keep me');
   });
 
+  it('shows a 429 as the wait it is, keeps the draft and re-enables Post', async () => {
+    // Arrange — production-hardening.md §3.1
+    const message = "You're sharing links too fast. Try again in a few minutes.";
+    createPost.mockRejectedValue(httpError(429, message));
+    renderComposer();
+    await userEvent.type(linkField(), TRACK);
+    await userEvent.type(commentField(), 'Keep me');
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post' }));
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(linkField()).toHaveValue(TRACK);
+    expect(commentField()).toHaveValue('Keep me');
+    expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled();
+  });
+
   it('shows a network failure inline and keeps the draft', async () => {
     // Arrange
     createPost.mockRejectedValue(networkError());

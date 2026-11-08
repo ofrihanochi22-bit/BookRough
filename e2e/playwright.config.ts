@@ -84,6 +84,8 @@ export default defineConfig({
             CORS_ORIGIN: `http://localhost:${LOCAL_WEB_PORT}`,
             E2E_GOOGLE_PUBLIC_KEY: standInPublicKey,
             E2E_SCRAPER_FIXTURES: scraperFixtures,
+            // Dozens of sign-ins from one address (production-hardening.md §3.1).
+            RATE_LIMITS_DISABLED: 'true',
           },
         },
         {

@@ -1,0 +1,10 @@
+# gitleaks findings reviewed and accepted, one exact fingerprint each — never a path
+# or a rule (docs/features/production-hardening.md §3.6). All are test fixtures:
+# invite tokens in tests, and the E2E Google stand-in key, which the API refuses
+# outside NODE_ENV=test (docs/features/auth-flow-e2e.md). Reviewed 2026-11-07.
+
+87fcf6226ef481e4606e3b04495bc409108c28e6:backend/src/utils/redactPath.test.ts:generic-api-key:32
+13ad6fcf3be9e777131b11e90abb134b3ff2cb58:backend/src/services/invite.service.test.ts:generic-api-key:23
+13ad6fcf3be9e777131b11e90abb134b3ff2cb58:frontend/src/pages/InvitePreview.test.tsx:generic-api-key:37
+5cfa61c9565b5ea140bd4c0a200c1b1fcee1a1fc:e2e/fixtures/google-stand-in.key:private-key:1
+5cfa61c9565b5ea140bd4c0a200c1b1fcee1a1fc:e2e/support/googleStandIn.ts:generic-api-key:31

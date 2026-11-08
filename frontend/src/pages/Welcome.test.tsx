@@ -190,6 +190,20 @@ describe('Welcome', () => {
     expect(useAuthStore.getState().status).not.toBe('signedIn');
   });
 
+  it('shows a rate-limited sign-in inline, and the button returns', async () => {
+    // Arrange — production-hardening.md §3.1
+    const message = 'Too many sign-in attempts. Try again in a few minutes.';
+    signInWithGoogle.mockRejectedValue(httpError(429, message));
+    render(<Welcome />);
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    // Assert
+    expect(screen.getByRole('alert')).toHaveTextContent(message);
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+  });
+
   it('falls back to a generic message when the error body has none', async () => {
     // Arrange
     signInWithGoogle.mockRejectedValue(httpError(500));

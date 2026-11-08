@@ -53,14 +53,16 @@ export function RemoveFriendSheet({
 
   return (
     <Sheet title="Remove friend?" onClose={onClose} dismissible={!busy}>
-      <p className="text-sm text-muted">{removeFriendBody(name)}</p>
-      <div className="flex gap-2">
-        <Button busy={busy} disabled={!online} onClick={() => void remove()}>
-          Remove friend
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={onClose}>
-          Cancel
-        </Button>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm">{removeFriendBody(name)}</p>
+        <div className="flex gap-3">
+          <Button variant="secondary" disabled={busy} onClick={onClose} className="flex-1">
+            Cancel
+          </Button>
+          <Button busy={busy} disabled={!online} onClick={() => void remove()} className="flex-1">
+            Remove friend
+          </Button>
+        </div>
       </div>
     </Sheet>
   );

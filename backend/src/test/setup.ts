@@ -12,3 +12,7 @@ process.env.DATABASE_URL ??= 'postgresql://bookrough:bookrough@localhost:5433/mu
 process.env.JWT_SECRET ??= 'test-secret-value-that-is-long-enough-to-pass-validation';
 process.env.GOOGLE_CLIENT_ID ??= 'test-google-client-id.apps.googleusercontent.com';
 process.env.CORS_ORIGIN ??= 'http://localhost:5173';
+
+// Every suite runs without rate limits, as E2E does; the rate-limit suites
+// switch them back on (docs/features/production-hardening.md §3.1).
+process.env.RATE_LIMITS_DISABLED ??= 'true';

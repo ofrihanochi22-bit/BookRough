@@ -17,12 +17,13 @@ import {
   invite as inviteFriends,
 } from '../controllers/invitation.controller.js';
 import { create as createPost, list as listPosts } from '../controllers/post.controller.js';
+import { conversionLimit, outreachLimit } from '../middleware/rateLimits.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 export const communitiesRouter: Router = Router();
 
 // Guarded per route, not router-wide, so an unknown /communities path still 404s.
-communitiesRouter.post('/', requireAuth, create);
+communitiesRouter.post('/', requireAuth, outreachLimit, create);
 communitiesRouter.get('/', requireAuth, listMine);
 communitiesRouter.get('/:id', requireAuth, show);
 communitiesRouter.patch('/:id', requireAuth, update);
@@ -38,7 +39,7 @@ communitiesRouter.delete('/:id/bans/:userId', requireAuth, unblockUser);
 communitiesRouter.get('/:id/invite', requireAuth, showInvite);
 communitiesRouter.post('/:id/invite/reset', requireAuth, resetCommunityInvite);
 communitiesRouter.get('/:id/invitations/candidates', requireAuth, invitationCandidates);
-communitiesRouter.post('/:id/invitations', requireAuth, inviteFriends);
+communitiesRouter.post('/:id/invitations', requireAuth, outreachLimit, inviteFriends);
 communitiesRouter.delete('/:id/invitations/:userId', requireAuth, cancelInvitation);
 communitiesRouter.get('/:id/posts', requireAuth, listPosts);
-communitiesRouter.post('/:id/posts', requireAuth, createPost);
+communitiesRouter.post('/:id/posts', requireAuth, conversionLimit, createPost);

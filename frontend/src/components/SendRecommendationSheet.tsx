@@ -117,6 +117,10 @@ export function SendRecommendationSheet({
       if (response?.status === 422 && response.data?.message) {
         return { status: 'link-error', message: response.data.message };
       }
+      // Rate limited: the draft stays and says why (production-hardening.md §3.1).
+      if (response?.status === 429 && response.data?.message) {
+        return { status: 'error', message: response.data.message };
+      }
       if (response?.status === 403) {
         stale.current = true;
         return { status: 'error', message: response.data?.message ?? SEND_FAILED };

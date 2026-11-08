@@ -153,7 +153,7 @@ Even as a solo developer, enforcing a strict PR process is critical for self-rev
 - **Push (Claude):** Push the feature branch to the remote repository.
 git push -u origin feat/bookmark-songs
 - **Open PR (Claude):** Open a Pull Request on GitHub merging feat/bookmark-songs into main, with the description template below filled in.
-- **Wait for CI:** The `pr.yml` workflow must be green — lint, typecheck, unit tests, integration tests. A red CI blocks the merge through branch protection, and the fix is Claude's responsibility.
+- **Wait for CI:** The `pr.yml` workflow must be green — lint, typecheck, unit tests, integration tests, secrets. A red CI blocks the merge through branch protection, and the fix is Claude's responsibility.
 - **Self-review (Claude):** Go through the full diff line-by-line before asking for the merge. Check for:
   - Clean, readable code.
   - No leftover debugging code (console.log, commented-out blocks).
@@ -209,7 +209,7 @@ This ensures that every time you merge to main, you are delivering a complete, f
 
 - Direct pushes to `main` are blocked.
 - A Pull Request is required to merge.
-- The `pr.yml` status checks — lint, typecheck, unit, integration — must pass before merging.
+- The `pr.yml` status checks — lint, typecheck, unit, integration, secrets — must pass before merging.
 - The branch must be up to date with `main` before merging.
 - Squash-and-merge is the only permitted merge method.
 

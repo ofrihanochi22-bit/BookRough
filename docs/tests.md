@@ -96,7 +96,7 @@ CI is enforced through two GitHub Actions workflows. The split exists because di
 
 ### 4.1. `pr.yml` — gates every Pull Request
 
-Triggered on every pull request targeting `main`. **All four jobs must pass before the PR can be merged**, enforced through a GitHub branch protection rule on `main`, not merely by convention.
+Triggered on every pull request targeting `main`. **All five jobs must pass before the PR can be merged**, enforced through a GitHub branch protection rule on `main`, not merely by convention.
 
 | Job | Command | Purpose |
 |---|---|---|
@@ -104,6 +104,7 @@ Triggered on every pull request targeting `main`. **All four jobs must pass befo
 | `typecheck` | `tsc --noEmit` | Type errors caught before runtime |
 | `test:unit` | `npm run test:unit` | Unit tests, both packages. The frontend's 80% floor is applied here, because the frontend has a single suite |
 | `test:integration` | `npm run test:integration` + `npm run test:coverage` | Supertest against a `postgres:16` service container running `music_app_test_db`, freshly migrated — followed by the backend's 80% floor, measured over both backend suites together |
+| `secrets` | `gitleaks git` (pinned Docker image) | Every commit reachable from the PR scanned for keys and tokens; reviewed false positives by fingerprint in `.gitleaksignore`; fails on zero commits scanned (`docs/features/production-hardening.md` §3.6) |
 
 Jobs run in parallel. Target wall-clock for the whole workflow is **under roughly three minutes**, so the feedback loop stays fast enough to actually use.
 
@@ -116,11 +117,14 @@ Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.
 | Job | Command | Purpose |
 |---|---|---|
 | `test:e2e` | `playwright test` | The full end-to-end suite against a built frontend and a live backend |
-| `test:docker` | `docker build` + `docker run` | Builds the backend image, runs it against an empty Postgres, and checks health, migrations, that Chromium launches inside it, and graceful shutdown (`docs/features/backend-docker.md` §5) |
+| `test:docker` | `docker build` + `docker run` | Builds the backend image, runs it against an empty Postgres, and checks health, migrations, the security headers, that Chromium launches inside it, and graceful shutdown (`docs/features/backend-docker.md` §5) |
+| `prune-images` | `node backend/src/ops/pruneImages.ts` | After both suites, on push only: keeps the Vercel registry at the 4 newest backend images; a dry run until `PRUNE_IMAGES=delete` (`docs/features/production-hardening.md` §3.8) |
 
 **Why E2E is deliberately kept off the pull-request path:** installing browser binaries and driving real user flows costs several minutes, and E2E is by a wide margin the flakiest layer. A flaky test that blocks every merge gets ignored or disabled, which is worse than having no test. Catching a regression at merge time rather than at PR time is the accepted trade-off, and it is the standard arrangement in the industry for exactly this reason.
 
 The nightly run exists because the scraper depends on a live external site. A layout change at squigly.link can break the core feature without a single line of our code changing, and the nightly E2E run is what discovers it: on the schedule it sets `RUN_LIVE_E2E=1`, enabling the one test that posts a known track through the real squigly.link (Chromium project only).
+
+The E2E job sets `RATE_LIMITS_DISABLED=true`, because the suite signs in dozens of times from one address; the API accepts it only under `NODE_ENV=test`. Backend suites run with the limits off too, and `rateLimits.integration.test.ts` switches them back on (`docs/features/production-hardening.md` §3.1).
 
 **A red `main` or a red nightly run takes priority over starting the next feature.** A broken main branch that is allowed to stay broken defeats the entire purpose of the gate.
 

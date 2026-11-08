@@ -37,6 +37,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `google-auth-library` for verifying Google identity tokens server-side — the only auth mechanism; `bcrypt` has been removed from the stack because no passwords exist (§5)
 - `playwright` (headless Chromium) for the link-conversion scraper
 - `p-limit` to cap concurrent Chromium instances — see §7
+- `express-rate-limit` for four request-limit tiers, counted in each instance's memory — see docs/features/production-hardening.md
 - Pino for structured logging
 - Zod for request validation
 
@@ -56,6 +57,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - ESLint + Prettier, shared config across both packages
 - Husky + `lint-staged` — pre-commit hook runs lint and format on staged files only
 - `commitlint` with `@commitlint/config-conventional` — a commit-msg hook rejects any message that is not a valid Conventional Commit, so §11 is enforced mechanically rather than by discipline
+- `gitleaks` (a pinned Docker image) scans the full git history in CI's `secrets` job; reviewed false positives are listed by fingerprint in `.gitleaksignore`
 
 **Infra**
 
@@ -305,18 +307,19 @@ Bad-path tests are not optional padding — for this project they are the point.
 
 Two workflows:
 
-**`pr.yml` — runs on every pull request. All four jobs must be green to merge:**
+**`pr.yml` — runs on every pull request. All five jobs must be green to merge:**
 
 1. `lint` — ESLint across both packages.
 2. `typecheck` — `tsc --noEmit` across both packages.
 3. `test:unit` — Vitest unit tests, both packages. The frontend's coverage threshold is applied here.
 4. `test:integration` — Supertest against a `postgres:16` service container running `music_app_test_db`, then the backend's coverage threshold over both of its suites.
+5. `secrets` — `gitleaks` over every commit reachable from the PR; it also fails when it scans no commits.
 
 Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feedback loop stays usable.
 
 **`main.yml` — runs on push to `main` and on a nightly schedule:**
 
-- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, graceful shutdown).
+- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, security headers, graceful shutdown) — and, on push only, `prune-images`, which keeps the Vercel registry at the 4 newest backend images (a dry run until the repository variable `PRUNE_IMAGES` is `delete`; docs/features/production-hardening.md §3.8).
 
 E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
 
@@ -527,7 +530,7 @@ The full specification is in [docs/deployment.md](docs/deployment.md) (companion
 ### Deployment
 
 - The target is a **real, publicly reachable deployment**, on the simplest option available, with a strong preference for free tiers.
-- **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; another branch gets a preview (on the Neon `preview` branch) only when it opts in by its exact name in `vercel.json` — every deployment stores a backend image against two separate Hobby allowances, 10 GB of Images Storage and 10 GB of Function Storage (docs/features/deployment-storage.md). Full record: docs/deployment.md §3.6 and docs/features/production-deploy.md.
+- **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; another branch gets a preview (on the Neon `preview` branch) only when it opts in by its exact name in `vercel.json` — every deployment stores a backend image against two separate Hobby allowances, 10 GB of Images Storage and 10 GB of Function Storage (docs/features/deployment-storage.md). From Step 6.4, production deployments wait for `test:e2e` and `test:docker` through Vercel Deployment Checks, set in the dashboard. Full record: docs/deployment.md §3.6, docs/features/production-deploy.md and docs/features/production-hardening.md.
 - **Storage check before every merge to `main`.** Going over Images Storage paused the team for 30 days on 2026-10-12. Claude has no Vercel access and usage alerts need the Pro plan, so before merging Claude reminds the developer to read both meters in Vercel → Usage, and does not merge until the developer has answered.
 - Still, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit, so moving to the fallback stays a configuration change. `vercel.json` is the only Vercel-specific file.
 - The hard constraint that drives the eventual choice: the backend runs headless Chromium, which needs meaningfully more memory than a plain Node service, and free tiers are tight. §7's `p-limit(2)` cap exists for this reason.

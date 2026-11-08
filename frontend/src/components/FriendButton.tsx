@@ -124,58 +124,65 @@ export function FriendButton({
 
       {sheet === 'sent' && (
         <Sheet title="Request sent" onClose={() => setSheet(null)} dismissible={busy === null}>
-          <p className="text-sm text-muted">You asked {name} to be friends.</p>
-          <Button
-            variant="secondary"
-            busy={busy === 'cancel'}
-            disabled={!online}
-            onClick={() => void run('cancel', () => cancelFriendRequest(userId))}
-          >
-            Cancel request
-          </Button>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm">You asked {name} to be friends.</p>
+            <Button
+              variant="secondary"
+              busy={busy === 'cancel'}
+              disabled={!online}
+              onClick={() => void run('cancel', () => cancelFriendRequest(userId))}
+              className="w-full"
+            >
+              Cancel request
+            </Button>
+          </div>
         </Sheet>
       )}
 
       {sheet === 'respond' && (
         <Sheet title="Friend request" onClose={() => setSheet(null)} dismissible={busy === null}>
-          <p className="text-sm text-muted">{requestFrom(name)}</p>
-          <div className="flex gap-2">
-            <Button
-              busy={busy === 'accept'}
-              disabled={!online || busy !== null}
-              onClick={() =>
-                void run(
-                  'accept',
-                  async () => {
-                    await acceptFriendRequest(userId);
-                    return 'FRIENDS';
-                  },
-                  () => {
-                    toast.success(nowFriends(name));
-                    void refreshCount();
-                  },
-                )
-              }
-            >
-              Accept
-            </Button>
-            <Button
-              variant="secondary"
-              busy={busy === 'ignore'}
-              disabled={!online || busy !== null}
-              onClick={() =>
-                void run(
-                  'ignore',
-                  async () => {
-                    await ignoreFriendRequest(userId);
-                    return 'NONE';
-                  },
-                  () => void refreshCount(),
-                )
-              }
-            >
-              Ignore
-            </Button>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm">{requestFrom(name)}</p>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                busy={busy === 'ignore'}
+                disabled={!online || busy !== null}
+                className="flex-1"
+                onClick={() =>
+                  void run(
+                    'ignore',
+                    async () => {
+                      await ignoreFriendRequest(userId);
+                      return 'NONE';
+                    },
+                    () => void refreshCount(),
+                  )
+                }
+              >
+                Ignore
+              </Button>
+              <Button
+                busy={busy === 'accept'}
+                disabled={!online || busy !== null}
+                className="flex-1"
+                onClick={() =>
+                  void run(
+                    'accept',
+                    async () => {
+                      await acceptFriendRequest(userId);
+                      return 'FRIENDS';
+                    },
+                    () => {
+                      toast.success(nowFriends(name));
+                      void refreshCount();
+                    },
+                  )
+                }
+              >
+                Accept
+              </Button>
+            </div>
           </div>
         </Sheet>
       )}
