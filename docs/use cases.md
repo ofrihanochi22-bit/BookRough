@@ -5,9 +5,9 @@
 - **Description:** A new user creates an account using **Google Sign-In** and completes onboarding by choosing a display name and a preferred streaming service.
 - **Pre-conditions:** The user has a Google account and does not yet have a BookRough account linked to it.
 - **Post-conditions:** A new User record is created containing their id, `google_sub`, display name, and preferred service. **No email address is stored.** The user is authenticated and logged in.
-- **Trigger:** The user opens the app and taps "Continue with Google".
+- **Trigger:** The user opens the app, chooses "Create account" and taps "Sign up with Google".
 - **Step-by-step scenario (Success):**
-  - The user taps "Continue with Google" on the Welcome screen.
+  - The user chooses "Create account" on the Welcome screen and taps "Sign up with Google". (On an invite link, "Create account" is already chosen.)
   - The Google popup opens and the user grants consent.
   - The frontend receives a Google identity token and posts it to the backend.
   - The backend verifies the token signature and audience with Google, then reads the `sub` claim. **The `email` claim is discarded and never written to the database.**
@@ -16,22 +16,22 @@
   - The user submits; the system saves the profile and routes them to the Communities Dashboard.
 - **Fail description (Alternative Scenario):** The user chooses a display name that is already taken. The system halts the profile step and displays "That display name is already taken." The account row already exists at this point, so the user stays on the onboarding screen until an available display name is supplied rather than being sent back to the start.
 
-> **Note.** Registration and login are the same button. A returning user whose `sub` is already known is simply logged in (UC-2); a new `sub` becomes a new account. There is no separate "Sign Up" path and no email/password option — see `docs/auth.md`.
+> **Note.** Registration and login are two choices, "Create account" and "Sign in", above one Google button (amended 2026-11-08, `docs/features/sign-in-sign-up.md`). "Create account" for a `sub` that already has an account simply signs in, with "You already have an account. Signing you in." There is still no email/password option — see `docs/auth.md`.
 
 ### UC-2: User Login
 
 - **Description:** An existing user accesses their account via **Google Sign-In**. This is the only login method.
 - **Pre-conditions:** The user previously registered, and is currently logged out.
 - **Post-conditions:** The user's identity is verified, a session JWT is issued as an HttpOnly cookie, and the user reaches their dashboard.
-- **Trigger:** The user opens the app and taps "Continue with Google".
+- **Trigger:** The user opens the app and, with "Sign in" chosen, taps "Sign in with Google".
 - **Step-by-step scenario (Success):**
-  - The user taps "Continue with Google".
+  - The user taps "Sign in with Google".
   - The Google popup opens and returns an identity token to the frontend.
   - The frontend posts the token to the backend.
   - The backend verifies it with Google and looks up the user by the `sub` claim.
   - A matching user is found; the backend issues an app session JWT.
   - The system redirects the user to their Communities Dashboard.
-- **Fail description (Alternative Scenario):** The Google token fails verification — it is expired, malformed, or was issued for a different audience. The backend returns `401`, no session is created, and the UI shows "Sign-in failed. Please try again."
+- **Fail description (Alternative Scenario):** The Google token fails verification — it is expired, malformed, or was issued for a different audience. The backend returns `401`, no session is created, and the UI shows "Sign-in failed. Please try again." If no account exists for that Google account, the backend creates nothing and answers `404`; the UI says "No account for this Google account yet." and offers "Create account", which creates it with the same token, without a second Google popup.
 
 > **Account recovery is Google's responsibility, not ours.** Because no email address and no password are stored, a user who permanently loses access to their Google account cannot be recovered by BookRough, and support cannot identify them. This is the accepted cost of not holding user email addresses.
 

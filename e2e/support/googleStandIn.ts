@@ -70,10 +70,13 @@ export async function stubGoogle(page: Page, sub: string): Promise<void> {
       let callback = null;
       window.google = { accounts: { id: {
         initialize(config) { callback = config.callback; },
-        renderButton(container) {
+        renderButton(container, options) {
           const button = document.createElement('button');
           button.type = 'button';
-          button.textContent = 'Continue with Google';
+          // Google's words follow the text option, as the real button's do.
+          const text = options && options.text;
+          button.textContent = text === 'signin_with' ? 'Sign in with Google'
+            : text === 'signup_with' ? 'Sign up with Google' : 'Continue with Google';
           button.onclick = () => callback && callback({ credential: ${JSON.stringify(credential)}, select_by: 'btn' });
           container.replaceChildren(button);
         },

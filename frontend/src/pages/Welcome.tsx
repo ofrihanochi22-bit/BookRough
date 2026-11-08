@@ -5,9 +5,9 @@ import { Wordmark } from '../components/ui/Wordmark';
 import { useSettingsStore } from '../stores/settings';
 
 /**
- * Welcome — the only way in (CLAUDE.md §5, docs/features/google-auth.md §5.3).
- * The sign-in button and its states live in `GoogleSignIn`, shared with the
- * invite preview; `SignedOutOnly` moves the user on once the store says signed in.
+ * Welcome — the only way in (CLAUDE.md §5, docs/features/sign-in-sign-up.md §5.2).
+ * The Sign in / Create account switch and the Google button live in
+ * `GoogleSignIn`, shared with the invite preview; `SignedOutOnly` moves the user on once the store says signed in.
  */
 export function Welcome() {
   // Set by the admin (docs/features/admin-panel.md §5.4); the default until then.

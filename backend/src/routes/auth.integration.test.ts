@@ -224,6 +224,110 @@ describe('POST /api/auth/google', () => {
   });
 });
 
+describe('POST /api/auth/google — intent (sign-in-sign-up.md §7)', () => {
+  const google = (body: object) => request(app).post('/api/auth/google').send(body);
+
+  it('signin signs an existing account in, with created false', async () => {
+    // Arrange
+    acceptToken();
+    await createUser();
+
+    // Act
+    const response = await google({ credential: 'tok', intent: 'signin' });
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.created).toBe(false);
+    expect(sessionCookieFrom(response.headers['set-cookie'])).toMatch(/^token=/);
+  });
+
+  it('signin without an account is a 404: no row, no cookie', async () => {
+    // Arrange
+    acceptToken();
+
+    // Act
+    const response = await google({ credential: 'tok', intent: 'signin' });
+
+    // Assert
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      status: 'error',
+      code: 404,
+      message: 'No account for this Google account yet.',
+    });
+    expect(response.headers['set-cookie']).toBeUndefined();
+    expect(await prisma.user.count()).toBe(0);
+  });
+
+  it('signup creates a new account, with created true and needsOnboarding', async () => {
+    // Arrange
+    acceptToken();
+
+    // Act
+    const response = await google({ credential: 'tok', intent: 'signup' });
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ created: true, needsOnboarding: true });
+    expect(await prisma.user.count()).toBe(1);
+  });
+
+  it('signup for an existing account signs in, with created false and no new row', async () => {
+    // Arrange
+    acceptToken();
+    await createUser();
+
+    // Act
+    const response = await google({ credential: 'tok', intent: 'signup' });
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.created).toBe(false);
+    expect(await prisma.user.count()).toBe(1);
+  });
+
+  it('no intent still finds or creates (a client cached before the split)', async () => {
+    // Arrange
+    acceptToken();
+
+    // Act
+    const response = await google({ credential: 'tok' });
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.created).toBe(true);
+  });
+
+  it('is a 422 for an unknown intent or an extra key', async () => {
+    // Arrange
+    acceptToken();
+
+    // Act
+    const unknown = await google({ credential: 'tok', intent: 'register' });
+    const extra = await google({ credential: 'tok', intent: 'signin', email: 'x@y.z' });
+
+    // Assert
+    expect(unknown.status).toBe(422);
+    expect(extra.status).toBe(422);
+    expect(verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it.each(['signin', 'signup'])(
+    'is a 401 for a bad token with intent %s, creating nothing',
+    async (intent) => {
+      // Arrange
+      verifyIdToken.mockRejectedValue(new Error('Token used too late'));
+
+      // Act
+      const response = await google({ credential: 'tok', intent });
+
+      // Assert
+      expect(response.status).toBe(401);
+      expect(await prisma.user.count()).toBe(0);
+    },
+  );
+});
+
 describe('GET /api/auth/me', () => {
   it('returns the session user for a valid cookie', async () => {
     // Arrange

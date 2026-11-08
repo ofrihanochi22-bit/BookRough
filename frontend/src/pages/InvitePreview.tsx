@@ -101,8 +101,9 @@ function InviteContent({ token }: { token: string }) {
               <JoinAction token={token} preview={preview.data} />
             ) : (
               <div className="flex w-full flex-col items-center gap-3">
-                <p className="text-sm">Continue with Google to join</p>
-                <GoogleSignIn />
+                <p className="text-sm">Sign in or create an account to join</p>
+                {/* Someone opening an invite is usually new (sign-in-sign-up.md §5.3). */}
+                <GoogleSignIn defaultIntent="signup" />
               </div>
             )}
           </>

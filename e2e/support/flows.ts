@@ -4,11 +4,21 @@ import { newGoogleAccount, stubGoogle } from './googleStandIn';
 
 /** Steps shared by the golden loops. Each asserts the screen it starts on. */
 
-export async function signIn(page: Page, sub: string) {
+/**
+ * Welcome's Sign in / Create account switch, then its one Google button
+ * (docs/features/sign-in-sign-up.md). A new account is created; `signin` is for
+ * an account that already exists.
+ */
+export async function signIn(page: Page, sub: string, intent: 'signin' | 'signup' = 'signup') {
   await stubGoogle(page, sub);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'BookRough' })).toBeVisible();
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  if (intent === 'signup') {
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await page.getByRole('button', { name: 'Sign up with Google' }).click();
+  } else {
+    await page.getByRole('button', { name: 'Sign in with Google' }).click();
+  }
 }
 
 export async function completeProfile(page: Page, displayName: string, service = 'Apple Music') {
@@ -72,7 +82,8 @@ export async function joinThroughLink(
   const account = newGoogleAccount();
   await stubGoogle(friend, account.sub);
   await friend.goto(link);
-  await friend.getByRole('button', { name: 'Continue with Google' }).click();
+  // The invite preview starts on Create account.
+  await friend.getByRole('button', { name: 'Sign up with Google' }).click();
   await completeProfile(friend, account.displayName, service);
   await friend.getByRole('button', { name: 'Join community' }).click();
   await expect(friend.getByRole('link', { name: 'Settings' })).toBeVisible();

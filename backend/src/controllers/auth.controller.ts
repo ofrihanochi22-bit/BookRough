@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { authenticateWithGoogle } from '../services/auth.service.js';
+import { AppError } from '../utils/AppError.js';
 import { sessionUser } from '../middleware/requireAuth.js';
 import { verifySessionToken } from '../utils/jwt.js';
 import { createLogger } from '../utils/logger.js';
@@ -15,19 +16,29 @@ const log = createLogger('auth');
 const googleSignInSchema = z
   .object({
     credential: z.string().min(1).max(4096),
+    /** Optional, so a client cached before the split still signs in (sign-in-sign-up.md §4). */
+    intent: z.enum(['signin', 'signup']).optional(),
   })
   .strict();
 
 /** POST /api/auth/google */
 export const signInWithGoogle: RequestHandler = async (req, res, next) => {
   try {
-    const { credential } = parseBody(googleSignInSchema, req.body);
-    const { user, isNewUser } = await authenticateWithGoogle(credential);
+    const { credential, intent } = parseBody(googleSignInSchema, req.body);
+    const { user, isNewUser } = await authenticateWithGoogle(credential, intent).catch(
+      (error: unknown) => {
+        if (error instanceof AppError && error.statusCode === 404) {
+          log.info({ intent }, 'Sign in without an account');
+        }
+        throw error;
+      },
+    );
 
     setSessionCookie(res, user.id);
-    log.info({ userId: user.id, isNewUser }, 'Signed in');
+    log.info({ userId: user.id, isNewUser, intent }, 'Signed in');
 
-    res.status(200).json(success(sessionPayload(user)));
+    // `created` tells a Create account that found an existing account (D3).
+    res.status(200).json(success({ ...sessionPayload(user), created: isNewUser }));
   } catch (error) {
     next(error);
   }
