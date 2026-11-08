@@ -30,7 +30,7 @@ const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess,
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
   }));
-vi.mock('../api/posts', () => ({ retryConversion, deletePost }));
+vi.mock('../api/posts', () => ({ retryConversion, deletePost, editPostComment: vi.fn() }));
 vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
@@ -563,5 +563,79 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     // Assert
     expect(screen.queryByText(/★/)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View ratings' })).toBeInTheDocument();
+  });
+});
+
+describe('PostCard — editing the comment (edit-post-comment.md §5)', () => {
+  const RECIPIENT = { id: 'r1', displayName: 'Noam', profilePictureUrl: null };
+
+  it('offers Edit comment to the author, above Delete post, and opens the sheet', async () => {
+    // Arrange
+    renderCard(makePost({ isMine: true, canDelete: true, comment: 'Old' }));
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
+    const labels = screen.getAllByRole('button').map((button) => button.textContent);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit comment' }));
+
+    // Assert
+    expect(labels.indexOf('Edit comment')).toBeLessThan(labels.indexOf('Delete post'));
+    expect(screen.getByRole('dialog', { name: 'Edit comment' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Comment')).toHaveValue('Old');
+  });
+
+  it('does not offer it to an admin who is not the author', async () => {
+    // Arrange
+    renderCard(makePost({ isMine: false, canDelete: true }));
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Edit comment' })).not.toBeInTheDocument();
+  });
+
+  it('offers it on a direct item only while the two are friends', async () => {
+    // Arrange
+    renderCard(
+      makePost({
+        isMine: true,
+        canDelete: true,
+        direct: { recipient: RECIPIENT, isFriend: false },
+      }),
+    );
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Edit comment' })).not.toBeInTheDocument();
+    cleanup();
+
+    // Arrange
+    renderCard(
+      makePost({ isMine: true, canDelete: true, direct: { recipient: RECIPIENT, isFriend: true } }),
+    );
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
+
+    // Assert
+    expect(screen.getByRole('button', { name: 'Edit comment' })).toBeInTheDocument();
+  });
+
+  it('marks an edited comment, and not an unedited one', () => {
+    // Arrange & Act
+    renderCard(makePost({ commentEditedAt: '2026-11-08T10:00:00.000Z' }));
+
+    // Assert
+    expect(screen.getByText('· edited')).toBeInTheDocument();
+    cleanup();
+
+    // Arrange & Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.queryByText('· edited')).not.toBeInTheDocument();
   });
 });

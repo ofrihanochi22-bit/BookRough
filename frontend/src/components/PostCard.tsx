@@ -17,6 +17,7 @@ import { ratingSummaryLine } from '../lib/ratingCopy';
 import { deleteDirectBody, noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
+import { EditCommentSheet } from './EditCommentSheet';
 import { PersonLink } from './PersonLink';
 import { Button } from './ui/Button';
 import { CoverArt } from './ui/CoverArt';
@@ -143,12 +144,15 @@ export function PostCard({
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const main = mainLink(post, viewerService);
   const detailPath = `/posts/${post.id}`;
   const summary = ratingSummaryLine(post.ratingSummary);
-  const hasMenu = post.canDelete || onHide !== undefined;
+  // The author edits their comment; a direct item only while still friends (edit-post-comment.md §5.1).
+  const canEdit = post.isMine && (!post.direct || post.direct.isFriend);
+  const hasMenu = canEdit || post.canDelete || onHide !== undefined;
   const person = post.direct && post.isMine ? post.direct.recipient : post.author;
 
   async function retry() {
@@ -184,6 +188,14 @@ export function PostCard({
         <time dateTime={post.createdAt} className="text-xs text-muted">
           {relativeTime(post.createdAt)}
         </time>
+        {post.commentEditedAt && (
+          <span
+            title={`Edited ${new Date(post.commentEditedAt).toLocaleString('en')}`}
+            className="-ml-2 text-xs text-muted"
+          >
+            · edited
+          </span>
+        )}
         {post.myScore !== null ? (
           <p className="text-xs text-muted">You rated {post.myScore}/10</p>
         ) : (
@@ -222,6 +234,18 @@ export function PostCard({
               }}
             >
               Hide
+            </Button>
+          )}
+          {canEdit && (
+            <Button
+              variant="secondary"
+              disabled={!online}
+              onClick={() => {
+                setMenuOpen(false);
+                setEditing(true);
+              }}
+            >
+              Edit comment
             </Button>
           )}
           {post.canDelete && (
@@ -319,6 +343,16 @@ export function PostCard({
         <p role="status" className="text-xs text-muted">
           {retryMessage}
         </p>
+      )}
+
+      {editing && (
+        <EditCommentSheet
+          post={post}
+          online={online}
+          onClose={() => setEditing(false)}
+          onSaved={onUpdated}
+          onStale={onStale}
+        />
       )}
 
       {deleting && (

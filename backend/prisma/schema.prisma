@@ -203,6 +203,9 @@ model Post {
   universalLinkTidal   String?           @map("universal_link_tidal") @db.VarChar(2048)
   universalLinkDeezer  String?           @map("universal_link_deezer") @db.VarChar(2048)
   textComment          String?           @map("text_comment")
+  /// When the author last changed the comment; null if never. Shown as
+  /// "· edited" (docs/features/edit-post-comment.md §3).
+  commentEditedAt      DateTime?         @map("comment_edited_at") @db.Timestamptz(3)
   /// The conversion could not run (squigly down, timeout, unreadable page).
   conversionPending    Boolean           @default(false) @map("conversion_pending")
   createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)

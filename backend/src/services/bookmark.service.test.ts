@@ -61,6 +61,7 @@ function row(postId: string, createdAt: Date, role: 'MEMBER' | 'ADMIN' | null = 
       universalLinkTidal: null,
       universalLinkDeezer: null,
       textComment: null,
+      commentEditedAt: null,
       conversionPending: false,
       createdAt,
       updatedAt: createdAt,

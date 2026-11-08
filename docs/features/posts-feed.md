@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `edit-post-comment.md` (N7, 2026-11-08).** §2's "Editing a post or its comment" is now half in scope: the author may edit the **comment** (`PATCH /api/posts/:postId/comment`, "· edited" marker). The link and song still never change.
+
 > **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** Bandcamp and SoundCloud tracks, albums and sets, and YouTube videos that squigly finds on no other service, are now shared without conversion: `source_service` is nullable, a new `link_platform` marks such a post, `PostKind` gains `VIDEO` and `SET`, and `PublicPost` gains `platform`. Converted posts, §4.1's shapes and the converter are unchanged, except that a YouTube "could not be found" is no longer refused unless YouTube confirms it, and `youtube.com/live/<id>` is accepted.
 
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** `posts.community_id` is now nullable, and a post may instead have a recipient. Community posting, feeds and permissions are unchanged. `prepareSharedLink` is shared with direct recommendations.
