@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `role-notifications.md` (N5, 2026-11-08).** Two more types, `COMMUNITY_ADMIN` and `COMMUNITY_OWNER`, written by `changeRole` (a real promotion only) and `transferOwnership`. They're shown only while the reader is still a member, like `COMMUNITY_POSTS`, and there's one unread row per (member, type, community).
+
 ## 0. Where this comes from
 
 Notes from the manual test session (`docs/manual-tests/2026-11-04.md` §7):

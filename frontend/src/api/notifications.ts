@@ -9,7 +9,9 @@ export type NotificationType =
   | 'RATING'
   | 'FRIEND_REQUEST'
   | 'FRIEND_ACCEPTED'
-  | 'COMMUNITY_INVITATION';
+  | 'COMMUNITY_INVITATION'
+  | 'COMMUNITY_ADMIN'
+  | 'COMMUNITY_OWNER';
 
 /** docs/features/notifications.md §4 (UC-21). */
 export interface PublicNotification {

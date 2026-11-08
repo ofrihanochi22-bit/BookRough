@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f → 6.1g… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -2148,6 +2148,64 @@ cd backend && npx vitest run src/services/auth.service.test.ts
 
 ```bash
 cd frontend && npx vitest run src/components/GoogleSignIn.test.tsx src/pages/Welcome.test.tsx src/pages/InvitePreview.test.tsx
+```
+
+### Step 6.1g — Tell a member when they're made an admin or the owner (Phase 6 — UC-14 and UC-21 amended, manual-test note N5)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/role-notifications
+Spec: docs/features/role-notifications.md
+
+Goal: A member learns from the bell that they were trusted with a community.
+
+Tasks:
+
+- [x] Spec: docs/features/role-notifications.md approved. Notify only (no consent). Notify when made an admin or the owner, and keep a demotion silent.
+- [x] DB: migration `add_role_notifications` adds `COMMUNITY_ADMIN` and `COMMUNITY_OWNER` to `NotificationType`.
+- [x] Backend: `notifyRole` (one unread row per member, type and community), called by `changeRole` on a real MEMBER → ADMIN, and by `transferOwnership` after the commit. Both types are visible only while the reader is a member.
+- [x] Frontend: two rows on the Notifications screen ("Dana made you an admin of …" / "… the owner of …"), each opening the community.
+- [x] Review: `/code-review` (2 findings: the tests fixed here, and a rare race recorded in spec §6) and `/security-review` (no findings).
+- [x] Tests: unit, integration and component. No E2E.
+
+What I did:
+
+- **Backend:**
+  - `changeRole` notifies only when the update changed a MEMBER into an ADMIN. It now also logs only when a row actually changed.
+  - `transferOwnership` notifies the new owner once the transaction commits. The old owner gets nothing.
+  - The visibility filter gains both types under the membership rule.
+- **Frontend:** `NotificationType` gains the two values, and `notificationCopy.ts` has their lines and targets.
+- **Docs:** `use cases` UC-14 (role changes notify) and UC-21 (the list of events), and `tables` (the `NotificationType` values), .md + .docx. Amendment notes in `notifications.md` and `communities-membership.md`.
+- **Tests:**
+  - Backend unit: `notifyRole` create and refresh. In membership, a promotion notifies, while a re-promotion, a demotion and a refused change don't. A transfer notifies, and a failed transfer doesn't.
+  - Integration (CI only, `music_app_test_db`): a promotion with the count, a demotion silent with one row after re-promotion, a transfer notifying only the new owner, and removal hiding the row.
+  - Component: both new rows' copy and destination.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Use two accounts in one community (for example OfriChrome as the owner and OfriEdge as a member).
+
+1. As the owner, go to Settings → ⋯ on the member → **Make admin**.
+2. As the member, the Home tab shows a count. The bell shows "OfriChrome made you an admin of …", and tapping it opens the community.
+3. **Make member** sends nothing. **Make owner** sends "… made you the owner of …".
+
+```bash
+cd backend && npx vitest run src/services/membership.service.test.ts src/services/notification.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Notifications.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

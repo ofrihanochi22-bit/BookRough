@@ -408,3 +408,77 @@ describe('POST /api/notifications/read-all', () => {
     await request(app).post('/api/notifications/read-all').expect(401);
   });
 });
+
+/** Role notifications — docs/features/role-notifications.md §7. */
+describe('role notifications', () => {
+  const setRole = (who: Person, communityId: string, userId: string, role: string) =>
+    request(app)
+      .patch(`/api/communities/${communityId}/members/${userId}`)
+      .set('Cookie', who.cookie)
+      .send({ role });
+
+  it('tells a member they were made an admin, and the count goes up', async () => {
+    // Arrange
+    const [dana, noam] = await Promise.all([person('Dana'), person('Noam')]);
+    const jazz = await community(dana, noam);
+
+    // Act
+    await setRole(dana, jazz, noam.id, 'ADMIN').expect(200);
+
+    // Assert
+    expect(await items(noam)).toMatchObject([
+      { type: 'COMMUNITY_ADMIN', actor: { id: dana.id }, community: { id: jazz } },
+    ]);
+    expect(await unread(noam)).toBe(1);
+  });
+
+  it('keeps a demotion silent, and a demote then re-promote leaves one unread row', async () => {
+    // Arrange
+    const [dana, noam] = await Promise.all([person('Dana'), person('Noam')]);
+    const jazz = await community(dana, noam);
+    await setRole(dana, jazz, noam.id, 'ADMIN').expect(200);
+
+    // Act
+    await setRole(dana, jazz, noam.id, 'MEMBER').expect(200);
+    const afterDemotion = await items(noam);
+    await setRole(dana, jazz, noam.id, 'ADMIN').expect(200);
+
+    // Assert
+    expect(afterDemotion).toHaveLength(1);
+    expect(await items(noam)).toMatchObject([{ type: 'COMMUNITY_ADMIN', read: false }]);
+  });
+
+  it('tells the new owner after a transfer, and the old owner nothing', async () => {
+    // Arrange
+    const [dana, noam] = await Promise.all([person('Dana'), person('Noam')]);
+    const jazz = await community(dana, noam);
+
+    // Act
+    await request(app)
+      .post(`/api/communities/${jazz}/ownership`)
+      .set('Cookie', dana.cookie)
+      .send({ userId: noam.id })
+      .expect(200);
+
+    // Assert
+    expect(await items(noam)).toMatchObject([
+      { type: 'COMMUNITY_OWNER', actor: { id: dana.id }, community: { id: jazz } },
+    ]);
+    expect(await items(dana)).toEqual([]);
+  });
+
+  it('hides the notice once the member is removed', async () => {
+    // Arrange
+    const [dana, noam] = await Promise.all([person('Dana'), person('Noam')]);
+    const jazz = await community(dana, noam);
+    await setRole(dana, jazz, noam.id, 'ADMIN').expect(200);
+    await setRole(dana, jazz, noam.id, 'MEMBER').expect(200);
+
+    // Act
+    await as(dana).delete(`/api/communities/${jazz}/members/${noam.id}`).expect(200);
+
+    // Assert
+    expect(await items(noam)).toEqual([]);
+    expect(await unread(noam)).toBe(0);
+  });
+});

@@ -218,7 +218,7 @@
   - The Admin confirms the action.
   - The backend successfully updates the database arrays.
   - The UI instantly removes the user from the Admin's visible member list.
-- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them." The Owner cannot be removed or demoted at all; ownership only moves when the Owner transfers it.
+- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them." The Owner cannot be removed or demoted at all; ownership only moves when the Owner transfers it. When a member is made an Admin, or receives ownership, they are notified (UC-21, `docs/features/role-notifications.md`); a demotion stays silent.
 
 ### UC-15: User Joins a Community (via Invite Link)
 
@@ -314,7 +314,7 @@
 
 ### UC-21: User Receives Notifications
 
-- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), or an invitation to a community (UC-9). There is no push and no email.
+- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), an invitation to a community (UC-9), or being made an admin or the owner of one (UC-14). There is no push and no email.
 - **Pre-conditions:** The user is logged in and has finished onboarding.
 - **Post-conditions:** Each event leaves a notification for the person it concerns. Reading one marks only that one; "Mark all as read" marks the rest. The user never sees a notification about a community they no longer belong to or a post they can no longer open.
 - **Trigger:** A count on the Home tab, or the bell in the Home header.

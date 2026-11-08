@@ -144,7 +144,39 @@ export function notifyInvitations(input: {
 }
 
 /**
- * What a reader may still see (§4): a community's posts only while a member,
+ * A member was made an admin or the owner (role-notifications.md §4). At most one
+ * unread row per (member, type, community): a demote and re-promote before
+ * reading refreshes it rather than stacking another.
+ */
+export function notifyRole(input: {
+  communityId: string;
+  userId: string;
+  actorId: string;
+  role: 'ADMIN' | 'OWNER';
+}) {
+  const type =
+    input.role === 'ADMIN' ? NotificationType.COMMUNITY_ADMIN : NotificationType.COMMUNITY_OWNER;
+  return writeSafely('role', async () => {
+    const where = { userId: input.userId, type, communityId: input.communityId, readAt: null };
+    const { count } = await prisma.notification.updateMany({
+      where,
+      data: { actorId: input.actorId, updatedAt: new Date() },
+    });
+    if (count === 0) {
+      await prisma.notification.create({
+        data: {
+          userId: input.userId,
+          type,
+          actorId: input.actorId,
+          communityId: input.communityId,
+        },
+      });
+    }
+  });
+}
+
+/**
+ * What a reader may still see (§4): a community's posts and role notices only while a member,
  * an invitation unless banned, a post only while Post Detail would open it.
  * Filtered on every read, so leaving hides rows and rejoining shows them again.
  */
@@ -153,7 +185,16 @@ function visibleTo(userId: string): Prisma.NotificationWhereInput {
     userId,
     OR: [
       { type: { in: [NotificationType.FRIEND_REQUEST, NotificationType.FRIEND_ACCEPTED] } },
-      { type: NotificationType.COMMUNITY_POSTS, community: { members: { some: { userId } } } },
+      {
+        type: {
+          in: [
+            NotificationType.COMMUNITY_POSTS,
+            NotificationType.COMMUNITY_ADMIN,
+            NotificationType.COMMUNITY_OWNER,
+          ],
+        },
+        community: { members: { some: { userId } } },
+      },
       { type: NotificationType.COMMUNITY_INVITATION, community: { bans: { none: { userId } } } },
       {
         type: { in: [NotificationType.RECOMMENDATION, NotificationType.RATING] },

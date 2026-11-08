@@ -15,6 +15,7 @@ import {
   notifyInvitations,
   notifyRating,
   notifyRecommendation,
+  notifyRole,
 } from './notification.service.js';
 
 /**
@@ -175,6 +176,37 @@ describe('writers', () => {
         { userId: ME.id, type: 'COMMUNITY_INVITATION', actorId: DANA, communityId: COMMUNITY },
       ],
     });
+  });
+
+  it('notifyRole creates a COMMUNITY_ADMIN row when none is unread', async () => {
+    // Arrange
+    db.notification.updateMany.mockResolvedValue({ count: 0 });
+
+    // Act
+    await notifyRole({ communityId: COMMUNITY, userId: ME.id, actorId: DANA, role: 'ADMIN' });
+
+    // Assert
+    expect(db.notification.updateMany).toHaveBeenCalledWith({
+      where: { userId: ME.id, type: 'COMMUNITY_ADMIN', communityId: COMMUNITY, readAt: null },
+      data: { actorId: DANA, updatedAt: expect.any(Date) },
+    });
+    expect(db.notification.create).toHaveBeenCalledWith({
+      data: { userId: ME.id, type: 'COMMUNITY_ADMIN', actorId: DANA, communityId: COMMUNITY },
+    });
+  });
+
+  it('notifyRole refreshes an unread COMMUNITY_OWNER row instead of stacking one', async () => {
+    // Arrange
+    db.notification.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    await notifyRole({ communityId: COMMUNITY, userId: ME.id, actorId: DANA, role: 'OWNER' });
+
+    // Assert
+    expect(db.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ type: 'COMMUNITY_OWNER' }) }),
+    );
+    expect(db.notification.create).not.toHaveBeenCalled();
   });
 
   it('a failing write is caught and warned about, never thrown', async () => {

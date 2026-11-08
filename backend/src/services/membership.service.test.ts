@@ -20,8 +20,9 @@ import {
  * moment a concurrent change makes a conditional write match nothing.
  */
 
-const { memberDb, banDb, postDb, ratingDb, invitationDb, transaction, getCommunity } = vi.hoisted(
-  () => ({
+const { memberDb, banDb, postDb, ratingDb, invitationDb, transaction, getCommunity, notifyRole } =
+  vi.hoisted(() => ({
+    notifyRole: vi.fn(),
     memberDb: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
@@ -34,13 +35,13 @@ const { memberDb, banDb, postDb, ratingDb, invitationDb, transaction, getCommuni
     invitationDb: { deleteMany: vi.fn() },
     transaction: vi.fn(),
     getCommunity: vi.fn(),
-  }),
-);
+  }));
 
 vi.mock('../db/prisma.js', () => ({
   prisma: { communityMember: memberDb, communityBan: banDb, $transaction: transaction },
 }));
 vi.mock('./community.service.js', () => ({ getCommunity }));
+vi.mock('./notification.service.js', () => ({ notifyRole }));
 
 const CALLER = 'caller-id';
 const TARGET = 'target-id';
@@ -266,5 +267,97 @@ describe('unblock', () => {
 
     // Act & Assert
     await expectAppError(unblock(caller, COMMUNITY, TARGET), 404, "This person isn't blocked.");
+  });
+});
+
+/** Role notifications — docs/features/role-notifications.md §7. */
+describe('changeRole and transferOwnership — notifications', () => {
+  const readBack = (role: string) =>
+    memberDb.findUnique.mockResolvedValueOnce({
+      role,
+      joinedAt: new Date('2026-11-01T00:00:00.000Z'),
+      user: { id: TARGET, displayName: 'Noam', profilePictureUrl: null },
+    });
+
+  it('tells a member they were made an admin', async () => {
+    // Arrange
+    roles({ [CALLER]: 'ADMIN' }, { [TARGET]: 'MEMBER' });
+    readBack('ADMIN');
+    memberDb.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    await changeRole(caller, COMMUNITY, TARGET, 'ADMIN');
+
+    // Assert
+    expect(notifyRole).toHaveBeenCalledWith({
+      communityId: COMMUNITY,
+      userId: TARGET,
+      actorId: CALLER,
+      role: 'ADMIN',
+    });
+  });
+
+  it('tells nobody when the member already was an admin', async () => {
+    // Arrange
+    roles({ [CALLER]: 'ADMIN' }, { [TARGET]: 'ADMIN' });
+    readBack('ADMIN');
+    memberDb.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    await changeRole(caller, COMMUNITY, TARGET, 'ADMIN');
+
+    // Assert
+    expect(notifyRole).not.toHaveBeenCalled();
+  });
+
+  it('keeps a demotion silent', async () => {
+    // Arrange
+    roles({ [CALLER]: 'ADMIN' }, { [TARGET]: 'ADMIN' });
+    readBack('MEMBER');
+    memberDb.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    await changeRole(caller, COMMUNITY, TARGET, 'MEMBER');
+
+    // Assert
+    expect(notifyRole).not.toHaveBeenCalled();
+  });
+
+  it('tells nobody when the change was refused (the target became the owner)', async () => {
+    // Arrange
+    roles({ [CALLER]: 'ADMIN' }, { [TARGET]: 'MEMBER' }, { [TARGET]: 'OWNER' });
+    memberDb.updateMany.mockResolvedValue({ count: 0 });
+
+    // Act & Assert
+    await expectAppError(changeRole(caller, COMMUNITY, TARGET, 'ADMIN'), 409);
+    expect(notifyRole).not.toHaveBeenCalled();
+  });
+
+  it('tells the new owner after a transfer, and nobody when it fails', async () => {
+    // Arrange
+    roles({ [CALLER]: 'OWNER' }, { [TARGET]: 'MEMBER' });
+    memberDb.updateMany.mockResolvedValue({ count: 1 });
+    getCommunity.mockResolvedValue({ id: COMMUNITY, myRole: 'ADMIN' });
+
+    // Act
+    await transferOwnership(caller, COMMUNITY, TARGET);
+
+    // Assert
+    expect(notifyRole).toHaveBeenCalledWith({
+      communityId: COMMUNITY,
+      userId: TARGET,
+      actorId: CALLER,
+      role: 'OWNER',
+    });
+
+    // Arrange — the target left meanwhile.
+    notifyRole.mockClear();
+    roles({ [CALLER]: 'OWNER' }, { [TARGET]: 'MEMBER' });
+    memberDb.updateMany.mockReset();
+    memberDb.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+
+    // Act & Assert
+    await expectAppError(transferOwnership(caller, COMMUNITY, TARGET), 404);
+    expect(notifyRole).not.toHaveBeenCalled();
   });
 });
