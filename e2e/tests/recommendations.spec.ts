@@ -52,9 +52,12 @@ test('friends send a song directly, each on their own service, and rate it', asy
   await sheet.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText(`Sent to ${receiverAccount.displayName}`)).toBeVisible();
 
-  // Assert — the receiver sees the badge, and the song in their own service.
+  // Assert — the receiver is notified on the Home tab (notifications.md §5.3: the
+  // Friends badge counts only what waits for an answer), and finds the song in
+  // their own service from the Recommendations row.
   await tab(receiver, 'Search').click();
-  await tab(receiver, 'Friends, 1 waiting').click();
+  await expect(tab(receiver, /^Home, \d+ unread$/)).toBeVisible();
+  await tab(receiver, 'Friends').click();
   await receiver.getByRole('link', { name: 'Recommendations, 1 new' }).click();
   const card = receiver.getByRole('article').filter({ hasText: 'Stand-in Song' });
   await expect(card.getByText('Reminds me of our trip')).toBeVisible();
