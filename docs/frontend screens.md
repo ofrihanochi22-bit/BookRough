@@ -1,10 +1,10 @@
 ### 1. Authentication & Onboarding Flow
 
-Google Sign-In is the only authentication method, so this group collapsed from five screens to two. Sign-up and login are the same button.
+Google Sign-In is the only authentication method, so this group collapsed from five screens to two. Sign-up and login are two choices, "Sign in" and "Create account", above one Google button (`docs/features/sign-in-sign-up.md`).
 
 - **1.1. Welcome / Landing Screen (UC-1, UC-2)**
   - **Purpose:** The single entry point for unauthenticated users. Handles both registration and login.
-  - **Key UI:** App logo, brief value proposition, and one **"Continue with Google"** button. Below it, a short line of copy setting expectations: that the app never asks for a password and never stores an email address.
+  - **Key UI:** App logo, brief value proposition, a "Sign in" / "Create account" switch (Sign in first), and one Google button whose words follow it ("Sign in with Google" / "Sign up with Google"). Sign in with no account shows "No account for this Google account yet." with "Create account" and "Use another Google account". Below it, a short line of copy setting expectations: that the app never asks for a password and never stores an email address.
   - **States:** idle; signing-in (button disabled with spinner while the popup is open and the token is being verified); error ("Sign-in failed. Please try again.").
   - **Install hint:** on an iPhone or iPad browser — not in apps' in-app browsers, never inside the installed app — a dismissible bar at the top: "Install BookRough: tap Share (in Safari it's under •••), then Add to Home Screen." A dismissal is remembered on the device (`docs/features/pwa-installable.md` §5.1).
   - **No** "Log In" / "Sign Up" split, **no** email or password fields, **no** "Forgot Password?" link.
@@ -68,7 +68,7 @@ These are the most heavily trafficked screens where the primary value exchange h
   - **Key UI:** At /posts/:id. A back link to the community, or to Recommendations on a direct recommendation (2.5); the song card as in the feed (its ⋯ menu edits your comment, or deletes the post and returns to the community); a large average ("7.5 out of 10 · 4 ratings", or "No ratings yet"); and every member's rating, newest first: avatar, name ("You" for yours), score n/10, comment and time. Your own rating has "Edit" (on a direct recommendation, only while you are friends), which opens the rating sheet pre-filled ("Edit your rating", "Save changes", toast "Rating updated"). States: skeletons; a post you cannot see shows the not-found page; "Could not load comments at this time." with Try again while the card stays; offline disables Edit (`docs/features/post-detail.md`).
 - **3.5. Join Community / Invite Preview (UC-15)**
   - **Purpose:** What a friend sees when they open an invite link — signed in or not, with an account or not.
-  - **Key UI:** The community's generated cover, name and member count under "You're invited to". Signed out: the Google sign-in with "Continue with Google to join"; a new user completes their profile and returns here. Signed in: a "Join community" button, or "You're already in this community." with an Open link.
+  - **Key UI:** The community's generated cover, name and member count under "You're invited to". Signed out: the Sign in / Create account switch (Create account first) and the Google button, under "Sign in or create an account to join"; a new user completes their profile and returns here. Signed in: a "Join community" button, or "You're already in this community." with an Open link.
   - **States:** loading skeleton; joining ("Joining…"); invalid or reset link (the UC-15 message, with a link home); other load failure (Try again); offline (Join disabled).
   - **Install hint:** the same dismissible bar as on Welcome (1.1).
 

@@ -21,18 +21,21 @@ afterEach(() => {
 });
 
 describe('auth API module', () => {
-  it('signInWithGoogle posts the credential and unwraps the session, skipping the global toast', async () => {
+  it('signInWithGoogle posts the credential and the intent, and unwraps the session, skipping the global toast', async () => {
     // Arrange
-    const session = makeSession();
+    const session = { ...makeSession(), created: false };
     const seen = respondWith({ status: 'success', data: session });
 
     // Act
-    const result = await signInWithGoogle('id-token');
+    const result = await signInWithGoogle('id-token', 'signin');
 
     // Assert
     expect(result).toEqual(session);
     expect(seen[0]?.url).toBe('/auth/google');
-    expect(JSON.parse(seen[0]?.data as string)).toEqual({ credential: 'id-token' });
+    expect(JSON.parse(seen[0]?.data as string)).toEqual({
+      credential: 'id-token',
+      intent: 'signin',
+    });
     expect(seen[0]?.skipErrorToast).toBe(true);
   });
 

@@ -217,3 +217,93 @@ describe('findSessionUser', () => {
     await expect(findSessionUser('gone')).resolves.toBeNull();
   });
 });
+
+/** The two intents — docs/features/sign-in-sign-up.md §7. */
+describe('authenticateWithGoogle — intent', () => {
+  beforeEach(() => {
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/old' });
+  });
+
+  it('signin with an account signs in', async () => {
+    // Arrange
+    const user = makeUser();
+    userDb.findUnique.mockResolvedValue(user);
+
+    // Act
+    const result = await authenticateWithGoogle('token', 'signin');
+
+    // Assert
+    expect(result).toEqual({ user, isNewUser: false });
+  });
+
+  it('signin without an account is a 404 and creates nothing', async () => {
+    // Arrange
+    userDb.findUnique.mockResolvedValue(null);
+
+    // Act
+    const error = await authenticateWithGoogle('token', 'signin').catch(
+      (caught: unknown) => caught,
+    );
+
+    // Assert
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      message: 'No account for this Google account yet.',
+    });
+    expect(userDb.create).not.toHaveBeenCalled();
+  });
+
+  it('signup without an account creates it', async () => {
+    // Arrange
+    const created = makeUser();
+    userDb.findUnique.mockResolvedValue(null);
+    userDb.create.mockResolvedValue(created);
+
+    // Act
+    const result = await authenticateWithGoogle('token', 'signup');
+
+    // Assert
+    expect(result).toEqual({ user: created, isNewUser: true });
+  });
+
+  it('signup with an account signs into it, creating nothing', async () => {
+    // Arrange
+    const user = makeUser();
+    userDb.findUnique.mockResolvedValue(user);
+
+    // Act
+    const result = await authenticateWithGoogle('token', 'signup');
+
+    // Assert
+    expect(result).toEqual({ user, isNewUser: false });
+    expect(userDb.create).not.toHaveBeenCalled();
+  });
+
+  it('no intent keeps find-or-create, for a client cached before the split', async () => {
+    // Arrange
+    const created = makeUser();
+    userDb.findUnique.mockResolvedValue(null);
+    userDb.create.mockResolvedValue(created);
+
+    // Act
+    const result = await authenticateWithGoogle('token');
+
+    // Assert
+    expect(result.isNewUser).toBe(true);
+  });
+
+  it('signup racing another first sign-in lands on the same account, not new', async () => {
+    // Arrange
+    const existing = makeUser();
+    userDb.findUnique.mockResolvedValue(null);
+    userDb.create.mockRejectedValue(uniqueViolation());
+    userDb.findUniqueOrThrow.mockResolvedValue(existing);
+
+    // Act
+    const result = await authenticateWithGoogle('token', 'signup');
+
+    // Assert
+    expect(result).toEqual({ user: existing, isNewUser: false });
+  });
+});

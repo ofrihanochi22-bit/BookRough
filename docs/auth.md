@@ -32,15 +32,15 @@ participant G as Google OAuth Server
 participant N as Node.js Backend
 participant DB as PostgreSQL DB
 
-U->>R: Clicks "Continue with Google"
+U->>R: Chooses "Sign in" or "Create account", then clicks the Google button
 R->>G: Opens Google Login Popup (Client ID)
 G-->>R: Returns Google Identity Token (JWT)
-R->>N: POST /api/auth/google (Sends Identity Token)
+R->>N: POST /api/auth/google (Sends Identity Token + intent)
 N->>G: Validates Token Signature & Audience
 G-->>N: Token is Valid (Returns User Profile Data)
 N->>N: Read sub and picture - DISCARD the email claim
 N->>DB: SELECT user WHERE google_sub = sub
-alt User is New
+alt User is New and intent is signup (or absent)
 N->>DB: INSERT User (google_sub, picture) - no email, no password
 N-->>R: Session JWT + needsOnboarding = true
 R->>U: Redirect to Complete Your Profile
@@ -49,6 +49,8 @@ N->>DB: Retrieve User ID
 N-->>R: Session JWT (HttpOnly Cookie)
 R->>U: Redirect to Communities Dashboard
 end
+
+**Sign in and Create account are separate intents** (amended 2026-11-08, `docs/features/sign-in-sign-up.md`). The request carries `intent: signin | signup`. `signin` for a `sub` with no account is a `404` with nothing written and no cookie; the frontend keeps the token in memory and offers "Create account", which resends it with `signup`. `signup` for an existing account signs in, and the response says `created: false`. An absent intent keeps find-or-create, so a client cached before the change still works.
 
 ### 3. Step-by-Step Implementation Guide
 

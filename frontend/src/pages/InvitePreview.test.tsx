@@ -28,9 +28,15 @@ vi.mock('../api/auth', () => ({ signInWithGoogle }));
 // Google's button is an external boundary: one plain button that succeeds.
 vi.mock('@react-oauth/google', () => ({
   GoogleOAuthProvider: ({ children }: { children: React.ReactNode }) => children,
-  GoogleLogin: ({ onSuccess }: { onSuccess: (response: { credential?: string }) => void }) => (
+  GoogleLogin: ({
+    onSuccess,
+    text,
+  }: {
+    onSuccess: (response: { credential?: string }) => void;
+    text?: string;
+  }) => (
     <button onClick={() => onSuccess({ credential: 'google-id-token' })}>
-      Continue with Google
+      {text === 'signin_with' ? 'Sign in with Google' : 'Sign up with Google'}
     </button>
   ),
 }));
@@ -116,8 +122,13 @@ describe('InvitePreview — signed out', () => {
     // Assert
     expect(await screen.findByRole('heading', { name: 'Friday Jazz' })).toBeInTheDocument();
     expect(screen.getByText('3 members')).toBeInTheDocument();
-    expect(screen.getByText('Continue with Google to join')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByText('Sign in or create an account to join')).toBeInTheDocument();
+    // An invite's reader is usually new, so Create account is chosen first.
+    expect(screen.getByRole('button', { name: 'Create account' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Sign up with Google' })).toBeInTheDocument();
     expect(previewInvite).toHaveBeenCalledWith(TOKEN);
     expect(pendingInvite()).toBe(`/invite/${TOKEN}`);
   });
@@ -129,7 +140,7 @@ describe('InvitePreview — signed out', () => {
     renderPreview();
 
     // Act
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign up with Google' }));
 
     // Assert
     expect(await screen.findByRole('button', { name: 'Join community' })).toBeInTheDocument();
@@ -148,7 +159,7 @@ describe('InvitePreview — signed out', () => {
     renderPreview();
 
     // Act
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sign up with Google' }));
 
     // Assert
     expect(await screen.findByText('At /onboarding by REPLACE')).toBeInTheDocument();

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `sign-in-sign-up.md` (N9, 2026-11-08).** Sign-up and login are no longer one button: Welcome and the invite preview show a Sign in / Create account switch above one Google button, and `POST /api/auth/google` takes an `intent`. `signin` without an account is a `404` that creates nothing. CLAUDE.md §5 was updated.
+
 ## 0. Why three steps became one feature
 
 `DEVELOPMENT.md` split Phase 1 by layer: the `users` table (1.1), the auth API (1.3) and the Welcome screen (1.5). Neither 1.1 nor 1.3 would have shipped anything a person could click, which is exactly what CLAUDE.md §11 forbids ("don't merge backend only"). They are merged into one vertical slice. Onboarding (former 1.6) stays a separate, second feature because it carries its own UX decisions; Phase 1 E2E (former 1.7) stays last because its golden loop runs through onboarding.
