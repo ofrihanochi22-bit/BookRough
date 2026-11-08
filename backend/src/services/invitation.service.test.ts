@@ -25,7 +25,7 @@ const { db, access, friends, notify } = vi.hoisted(() => {
     communityBan: { findMany: vi.fn() },
     communityInvitation: {
       findMany: vi.fn(),
-      createMany: vi.fn(),
+      createManyAndReturn: vi.fn(),
       deleteMany: vi.fn(),
       count: vi.fn(),
     },
@@ -35,14 +35,14 @@ const { db, access, friends, notify } = vi.hoisted(() => {
     db,
     access: { requireAdmin: vi.fn(), isBanned: vi.fn() },
     friends: { listFriends: vi.fn() },
-    notify: { notifyInvitation: vi.fn() },
+    notify: { notifyInvitations: vi.fn() },
   };
 });
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
 vi.mock('./communityAccess.js', () => access);
 vi.mock('./friend.service.js', () => friends);
-vi.mock('./invitationNotification.js', () => notify);
+vi.mock('./notification.service.js', () => notify);
 
 const ME = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -117,20 +117,38 @@ describe('inviteFriends', () => {
   it('invites only the invitable friends, once each, and notifies each', async () => {
     // Arrange
     standings();
+    db.communityInvitation.createManyAndReturn.mockResolvedValue([{ userId: 'dov' }]);
 
     // Act
     await inviteFriends(ME, COMMUNITY, ['dov', 'dov', 'ada', 'bea', 'cai', 'stranger']);
 
     // Assert
-    expect(db.communityInvitation.createMany).toHaveBeenCalledWith({
+    expect(db.communityInvitation.createManyAndReturn).toHaveBeenCalledWith({
       data: [{ communityId: COMMUNITY, userId: 'dov', invitedById: ME.id }],
       skipDuplicates: true,
+      select: { userId: true },
     });
-    expect(notify.notifyInvitation).toHaveBeenCalledTimes(1);
-    expect(notify.notifyInvitation).toHaveBeenCalledWith({
+    expect(notify.notifyInvitations).toHaveBeenCalledTimes(1);
+    expect(notify.notifyInvitations).toHaveBeenCalledWith({
       communityId: COMMUNITY,
-      userId: 'dov',
       invitedById: ME.id,
+      userIds: ['dov'],
+    });
+  });
+
+  it('notifies only the invitations this call created, not a racing duplicate', async () => {
+    // Arrange: another admin invited dov a moment earlier, so nothing is created here.
+    standings();
+    db.communityInvitation.createManyAndReturn.mockResolvedValue([]);
+
+    // Act
+    await inviteFriends(ME, COMMUNITY, ['dov']);
+
+    // Assert
+    expect(notify.notifyInvitations).toHaveBeenCalledWith({
+      communityId: COMMUNITY,
+      invitedById: ME.id,
+      userIds: [],
     });
   });
 
@@ -142,20 +160,8 @@ describe('inviteFriends', () => {
     const candidates = await inviteFriends(ME, COMMUNITY, ['ada', 'stranger']);
 
     // Assert
-    expect(db.communityInvitation.createMany).not.toHaveBeenCalled();
+    expect(db.communityInvitation.createManyAndReturn).not.toHaveBeenCalled();
     expect(candidates).toHaveLength(4);
-  });
-
-  it('keeps the invitations when the notification stub throws', async () => {
-    // Arrange
-    standings();
-    notify.notifyInvitation.mockImplementation(() => {
-      throw new Error('stub broke');
-    });
-
-    // Act & Assert
-    await expect(inviteFriends(ME, COMMUNITY, ['dov'])).resolves.toHaveLength(4);
-    expect(db.communityInvitation.createMany).toHaveBeenCalled();
   });
 
   it('refuses a non-admin before reading anything', async () => {

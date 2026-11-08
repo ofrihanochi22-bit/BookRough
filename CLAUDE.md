@@ -200,9 +200,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Eleven tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Twelve tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -212,6 +212,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `posts` holds community posts and direct recommendations: `community_id` is nullable, and exactly one of it and `recipient_id` is set, guarded by two hand-written CHECKs in the `add_direct_recommendations` migration, `posts_one_target` and `posts_not_self` — likewise invisible to Prisma. `recipient_id` must stay `Cascade`, because `SetNull` would break the first (docs/features/direct-recommendations.md §3).
 
 - `posts` also holds **link-only posts** (Bandcamp, SoundCloud, YouTube videos): exactly one of `source_service` and `link_platform` is set, guarded by the hand-written CHECK `posts_one_source`, and `posts_link_only_unconverted` keeps a link-only post never pending and without universal links — both in the `add_link_only_posts` migration, invisible to Prisma (docs/features/link-only-posts.md §3).
+
+- `notifications` is the in-app inbox (UC-21): the hand-written partial unique index `notifications_one_open_group` keeps one unread `COMMUNITY_POSTS` group per reader and community — it is the target of the grouping upsert, which is raw SQL because Prisma cannot target a partial index — and the CHECK `notifications_count_positive` guards `count`; both in the `add_notifications` migration, invisible to Prisma. What a reader sees is filtered when read, never by deleting (docs/features/notifications.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
@@ -246,10 +248,10 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 ## 8. Frontend screens
 
-The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Sixteen screens**, five groups:
+The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Seventeen screens**, five groups:
 
 - **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
-- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile, Recommendations (direct, friend to friend).
+- **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile, Recommendations (direct, friend to friend), Notifications (from the bell on Home).
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.
 - **Administration**: the Admin screen (users, communities, settings) — admins only (§17).
@@ -273,6 +275,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-17 is withdrawn** (password reset). Its number is kept, not reused, so UC-18 keeps its identity.
 - **UC-19 is new**: the administrative area — see §17.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
+- **UC-21 is new**: the in-app notification center — new community posts, direct recommendations, ratings, friend requests and invitations (docs/features/notifications.md). No push, no email.
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---
@@ -420,7 +423,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b.
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b. The manual-test notes followed from Step 6.1c: a visible sign-out (6.1c) and notifications, UC-21 (6.1d).
 
 ---
 

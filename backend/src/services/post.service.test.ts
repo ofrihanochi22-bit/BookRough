@@ -24,22 +24,30 @@ import { INVALID_LINK } from './supportedLinks.js';
  * paths are proven end to end in routes/posts.integration.test.ts.
  */
 
-const { db, convertLink, fetchLinkMetadata, fetchYoutubeMetadata, resolveSoundcloudShortLink } =
-  vi.hoisted(() => ({
-    db: {
-      communityMember: { findUnique: vi.fn() },
-      post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
-      $queryRaw: vi.fn(),
-      $transaction: vi.fn(),
-    },
-    convertLink: vi.fn(),
-    fetchLinkMetadata: vi.fn(),
-    fetchYoutubeMetadata: vi.fn(),
-    resolveSoundcloudShortLink: vi.fn(),
-  }));
+const {
+  db,
+  convertLink,
+  fetchLinkMetadata,
+  fetchYoutubeMetadata,
+  resolveSoundcloudShortLink,
+  notifyCommunityPost,
+} = vi.hoisted(() => ({
+  db: {
+    communityMember: { findUnique: vi.fn() },
+    post: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(),
+  },
+  convertLink: vi.fn(),
+  fetchLinkMetadata: vi.fn(),
+  fetchYoutubeMetadata: vi.fn(),
+  resolveSoundcloudShortLink: vi.fn(),
+  notifyCommunityPost: vi.fn(),
+}));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
 vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
+vi.mock('./notification.service.js', () => ({ notifyCommunityPost }));
 vi.mock('./linkMetadata.service.js', async (importOriginal) => ({
   ...(await importOriginal<typeof LinkMetadataService>()),
   fetchLinkMetadata,
@@ -112,6 +120,7 @@ describe('createPost', () => {
     // Act & Assert
     await expectAppError(createPost(USER, COMMUNITY, { url: TRACK }), 404);
     expect(db.post.create).not.toHaveBeenCalled();
+    expect(notifyCommunityPost).not.toHaveBeenCalled();
   });
 
   it('is a 404 when the community was deleted meanwhile (foreign key)', async () => {

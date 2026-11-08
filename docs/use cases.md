@@ -299,15 +299,29 @@
 
 - **Description:** A user sends a music recommendation — the same song or album link and optional comment as a post — directly to one friend, with no community in common. The recipient sees it in their own streaming service. Posting to a Community (UC-11) is unchanged and exists alongside this.
 - **Pre-conditions:** The user is logged in, has finished onboarding, and has an accepted friendship with the recipient.
-- **Post-conditions:** A Post record with a recipient and no community exists, visible only to the two of them. The recipient's badge counts it until they open Received. The item stays visible to both after unfriending; a new rating or an edit then needs friendship again.
+- **Post-conditions:** A Post record with a recipient and no community exists, visible only to the two of them. The recipient is notified (UC-21), and the Recommendations row counts it until they open Received. The item stays visible to both after unfriending; a new rating or an edit then needs friendship again.
 - **Trigger:** The user taps "Send a song" on the Recommendations screen or on a friend's profile.
 - **Step-by-step scenario (Success):**
   - The user opens Recommendations from the Friends tab and taps "Send a song", then picks one friend. From a friend's profile, that friend is already chosen.
   - The user pastes a link and optionally adds a comment of up to 280 characters.
   - The user taps "Send". The backend converts the link exactly as for a post, while the user sees "Finding this track on other services…".
   - The system saves the item and shows "Sent to {name}". It appears under Sent.
-  - The recipient sees a badge on the Friends tab, opens Recommendations, and finds it under Received. Its main button opens the service they chose, falling back to the original link.
+  - The recipient sees a notification (UC-21), opens Recommendations, and finds it under Received. Its main button opens the service they chose, falling back to the original link.
   - The recipient can rate it there, save it to My List, or hide it. The sender sees the rating under Sent and on Post Detail.
 - **Fail description (Alternative Scenario):** The recipient is not a friend — a stranger, a pending request in either direction, or someone who unfriended the sender, even during the conversion. The system refuses with "You can only send songs to friends.", saves nothing, and keeps the draft. A link that is invalid is refused as in UC-11, and Bandcamp, SoundCloud and live YouTube videos are shared without conversion exactly as there (`docs/features/link-only-posts.md`). If the conversion cannot run, the item is still saved with the original link and a quiet "Other services unavailable" note, and the sender can tap "Find on other services" later.
 
 > **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient hides an item for themselves only, and the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md.
+
+### UC-21: User Receives Notifications
+
+- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), or an invitation to a community (UC-9). There is no push and no email.
+- **Pre-conditions:** The user is logged in and has finished onboarding.
+- **Post-conditions:** Each event leaves a notification for the person it concerns. Reading one marks only that one; "Mark all as read" marks the rest. The user never sees a notification about a community they no longer belong to or a post they can no longer open.
+- **Trigger:** A count on the Home tab, or the bell in the Home header.
+- **Step-by-step scenario (Success):**
+  - A friend posts in a community the user belongs to.
+  - The Home tab and the bell in the Home header show a count.
+  - The user taps the bell and sees "Dana posted in Friday Jazz", newest first, with unread rows marked.
+  - The user taps it: it is marked read, the count drops, and the community's feed opens.
+  - More posts in the same community while it is unread share one row: "3 new posts in Friday Jazz".
+- **Fail description (Alternative Scenario):** The user is offline: the list shows what was last loaded, and marking read is disabled with "You're offline. Connect to mark them as read." If a notification cannot be written, the post, rating, request or invitation that caused it is still saved; only the notice is lost. A user removed from a community stops seeing its notifications. Specified in docs/features/notifications.md.

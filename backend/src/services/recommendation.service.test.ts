@@ -43,7 +43,7 @@ const { db, convertLink, notifyRecommendation } = vi.hoisted(() => ({
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
 vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
-vi.mock('./recommendationNotification.js', () => ({ notifyRecommendation }));
+vi.mock('./notification.service.js', () => ({ notifyRecommendation }));
 vi.mock('./profile.service.js', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileService>()),
   findProfileUser: vi.fn(async (id: string) => {
@@ -238,19 +238,6 @@ describe('sendRecommendation', () => {
       'Comments can be up to 280 characters.',
     );
     expect(convertLink).not.toHaveBeenCalled();
-  });
-
-  it('a failing notification never fails the send', async () => {
-    // Arrange
-    notifyRecommendation.mockImplementation(() => {
-      throw new Error('channel down');
-    });
-
-    // Act
-    const post = await sendRecommendation(sender, input());
-
-    // Assert
-    expect(post.id).toBe(POST_ID);
   });
 });
 
