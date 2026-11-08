@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -1932,6 +1932,76 @@ cd frontend && npx vitest run src/components/SignOutSheet.test.tsx src/pages/Das
 
 ```bash
 cd frontend && npm run test:unit
+```
+
+### Step 6.1d — Notification center (Phase 6 — UC-21, manual-test notes N1 and N2)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/notifications
+Spec: docs/features/notifications.md
+
+Goal: When something concerns you, the Home tab shows a count, and the bell on Home lists who did what. Authors finally hear that their post was rated.
+
+Tasks:
+
+- [x] Spec: docs/features/notifications.md approved, with a new UC-21. Five events (community posts grouped per community while unread, direct recommendations, first ratings, friend requests and accepts, invitations), a bell in the Home header plus a Home-tab badge, per-item read with Mark all as read, and the Friends badge narrowed to pending items. N2 is folded in.
+- [x] DB: migration `add_notifications`, which adds `NotificationType`, `notifications`, the hand-written partial unique index `notifications_one_open_group` and the CHECK `notifications_count_positive`.
+- [x] Backend: `notification.service.ts` (the writers, list, count, mark read, mark all), the controller, `routes/notifications.ts`, and the five event sites. The four log-only stubs are deleted. The cursor helpers moved to `utils/cursor.ts`.
+- [x] Frontend: `api/notifications.ts`, `stores/notifications.ts`, `lib/notificationCopy.ts`, `pages/Notifications.tsx`, the bell on Dashboard, the Home-tab badge, and the narrowed Friends badge.
+- [x] Review: `/code-review` (7 findings: 6 fixed in code and spec, 1 fixed in Stage 4) and `/security-review` (no findings).
+- [x] Tests: unit, integration, component and E2E per spec §7.
+
+What I did:
+
+Delivered UC-21, the in-app notification center, per `docs/features/notifications.md`.
+
+- **Schema:** one `notifications` table. A reader, a type, an actor, an optional community or post, a `count` for post groups, `updated_at` as the list's order, and `read_at`. Cascades remove a notification with its reader, actor, post or community.
+- **Writing:** every event writes after its own commit and never fails because of a notification (`writeSafely` logs a `warn`).
+  - A community post fans out to every other member in one raw-SQL statement. `ON CONFLICT` on the partial index grows the member's unread group ("3 new posts in Friday Jazz").
+  - A friend request keeps one unread row per sender.
+  - Invitations notify only the rows `createManyAndReturn` created.
+  - A rating notifies on create only. The row shows the rater's current score, joined at read time.
+- **Reading:** `GET /api/notifications?before=`, `GET /api/notifications/unread-count`, `POST /api/notifications/:id/read` and `POST /api/notifications/read-all`, all in tier 4 only.
+  - Visibility is filtered on every read: a former member stops seeing a community's posts, a banned user its invitation, and nobody sees a post they can't open.
+  - Another user's id, a malformed id or a hidden row is the same `404`.
+- **Frontend:**
+  - The Home header has a bell next to Sign out, with a count. The Home tab shows the unread count, refreshed on every navigation.
+  - `/notifications` lists the newest first. A tap marks a row read and opens the feed, Recommendations, the post, Friends or the profile.
+  - The screen has Mark all as read and Load more, plus skeleton, empty, error and offline states (PR #40's pattern).
+  - The Friends badge counts only requests and invitations waiting for an answer.
+- **Review:** `/code-review` found a request sent again stacking rows, duplicate invitation notices in a race, `markRead` writing before its visibility check, an import cycle between `post.service` and the new service, a stale badge decrement, and spec drift, all fixed. It also found old tests mocking the deleted stubs, fixed in Stage 4. `/security-review` found nothing: the raw SQL is parameterised, and every read and write is scoped to the session user.
+- **Docs:** `use cases` (new UC-21, and UC-20 now points to it), `tables` (table 12, so twelve tables) and `frontend screens` (2.6 Notifications, Home's bell and badge, the Friends badge, seventeen screens), all .md + .docx. Also CLAUDE.md §6, §8, §9 and §12, and amendment notes in `rate-post.md`, `friend-requests.md`, `invite-friends.md`, `direct-recommendations.md` and `communities-create.md`.
+- **Tests:** backend unit 53 files and 827 tests, plus `routes/notifications.integration.test.ts`. Frontend 64 files, 788 tests, 98.68% lines. E2E: `tests/notifications.spec.ts`. **Integration and E2E weren't run locally**, because both use `music_app_test_db`. They run in CI (`test:integration` in `pr.yml`, `test:e2e` in `main.yml`).
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px. You'll need two accounts in one community, for example OfriChrome in Chrome and OfriEdge in Edge.
+
+1. As OfriEdge, post twice in the shared community.
+2. As OfriChrome, the Home tab and the bell show **1**. Open the bell: "**2 new posts** in … · latest from OfriEdge". Tap it, and the feed opens and the count clears.
+3. As OfriChrome, save one of those songs, then rate it from **My List**. As OfriEdge, the bell shows "OfriChrome rated … n/10".
+4. Send a friend request, a direct recommendation, or a community invitation between the two, and each one appears as a row. Accepting a request tells the sender.
+5. **Mark all as read** clears every dot and the badge. In DevTools → Network → Offline, it's disabled with "You're offline. Connect to mark them as read."
+6. Remove a member from the community. Their post group for it disappears from the list and the count.
+
+```bash
+cd backend && npx vitest run src/services/notification.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Notifications.test.tsx src/components/TabLayout.test.tsx src/pages/Dashboard.test.tsx src/api/notifications.test.ts
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

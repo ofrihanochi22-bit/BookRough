@@ -8,6 +8,7 @@ import {
 
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
+import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from '../utils/cursor.js';
 import { createLogger } from '../utils/logger.js';
 import { postInclude, type PublicPost, toPublicPost } from '../utils/publicPost.js';
 import { NO_RATINGS } from '../utils/ratingSummary.js';
@@ -29,6 +30,7 @@ import {
   type ConversionResult,
   convertLink,
 } from './linkScraper.service.js';
+import { notifyCommunityPost } from './notification.service.js';
 import { checkPostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
@@ -49,7 +51,8 @@ export const AUTHOR_ONLY = 'Only the author can do this.';
 export const ALREADY_CONVERTED = 'This post already has its links.';
 export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
 export const SENDER_ONLY = 'Only the sender can delete this.';
-export const PAGE_SIZE = 20;
+// The keyset cursor lives in utils/cursor.ts, shared with notifications; re-exported for callers.
+export { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE };
 
 export interface NewPost {
   url: string;
@@ -251,6 +254,8 @@ export async function createPost(
       },
       'Post created',
     );
+    // After the commit; it never fails the post (notifications.md §4.5).
+    await notifyCommunityPost({ communityId, authorId: user.id });
     // The author may always delete their own post; a new post has no ratings yet.
     return toPublicPost(post, user.id, false, NO_RATINGS);
   } catch (error) {
@@ -259,44 +264,6 @@ export async function createPost(
     }
     throw error;
   }
-}
-
-interface Cursor {
-  createdAt: Date;
-  id: string;
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export function encodeCursor(post: { createdAt: Date; id: string }): string {
-  return Buffer.from(JSON.stringify([post.createdAt.toISOString(), post.id])).toString('base64url');
-}
-
-/** Opaque to clients; anything that does not decode cleanly is a 422. */
-export function decodeCursor(raw: string): Cursor {
-  try {
-    const value: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (Array.isArray(value) && value.length === 2) {
-      const [createdAt, id] = value as unknown[];
-      const date = typeof createdAt === 'string' ? new Date(createdAt) : null;
-      if (date && !Number.isNaN(date.getTime()) && typeof id === 'string' && UUID.test(id)) {
-        return { createdAt: date, id };
-      }
-    }
-  } catch {
-    // Falls through to the 422.
-  }
-  throw new AppError('The request query is invalid.', 422);
-}
-
-/** The keyset filter for rows ordered by createdAt, then id, both descending. */
-export function beforeCursor(cursor: Cursor) {
-  return {
-    OR: [
-      { createdAt: { lt: cursor.createdAt } },
-      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-    ],
-  };
 }
 
 /** GET /communities/:id/posts — newest first, keyset-paginated. */

@@ -14,6 +14,7 @@ import { Friends } from './pages/Friends';
 import { InvitePreview } from './pages/InvitePreview';
 import { MyList } from './pages/MyList';
 import { NotFound } from './pages/NotFound';
+import { Notifications } from './pages/Notifications';
 import { PostDetail } from './pages/PostDetail';
 import { Profile } from './pages/Profile';
 import { PublicProfile } from './pages/PublicProfile';
@@ -64,6 +65,7 @@ export function App() {
             }
           >
             <Route path="/home" element={<Dashboard />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/communities/:id" element={<Community />} />
             <Route path="/communities/:id/settings" element={<CommunitySettings />} />
             <Route path="/posts/:postId" element={<PostDetail />} />

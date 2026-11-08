@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `notifications.md` (UC-21, 2026-11-08).** The §4.2 stub is gone: a first rating now writes a `RATING` notification for the author through `notification.service.ts`, still after the commit and never failing the rating. An edit notifies no one.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** The My List-only rule holds for community posts. A direct recommendation's recipient may also rate it from Received, and needs current friendship to rate or edit.
 
 ## 1. Goal

@@ -139,8 +139,24 @@ Pending invitations to join a community, sent by its Admins to their friends (UC
 - **created_at** (TIMESTAMP, Default Current Time).
 - (Composite Primary Key: community_id, user_id, so a person is invited at most once per community. Indexed on user_id and created_at, newest first, for their invitations and the Friends tab badge; and on invited_by_id, for the set-null. Joining by the invite link or being removed from the community deletes a pending invitation.)
 
+### 12. notifications Table
+
+The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per notice for one reader; a community's new posts share one unread row.
+
+- **id** (UUID, Primary Key).
+- **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the reader.
+- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED` or `COMMUNITY_INVITATION`.
+- **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster.
+- **community_id** (UUID, Nullable, Foreign Key referencing communities(id), cascade on delete): for post groups and invitations.
+- **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations and ratings.
+- **count** (INTEGER, Not Null, Default 1): above 1 only for a post group; the hand-written CHECK `notifications_count_positive` keeps it at least 1.
+- **created_at** (TIMESTAMP, Default Current Time).
+- **updated_at** (TIMESTAMP, Default Current Time): bumped when a group grows; the list is ordered by it.
+- **read_at** (TIMESTAMP, Nullable): set when the reader marks it read.
+- (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing.)
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is eleven tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`.
+> **The schema is twelve tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

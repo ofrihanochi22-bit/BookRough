@@ -9,6 +9,7 @@ import { friendsRouter } from './friends.js';
 import { healthRouter } from './health.js';
 import { invitationsRouter } from './invitations.js';
 import { invitesRouter } from './invites.js';
+import { notificationsRouter } from './notifications.js';
 import { postsRouter } from './posts.js';
 import { recommendationsRouter } from './recommendations.js';
 import { settingsRouter } from './settings.js';
@@ -25,6 +26,7 @@ apiRouter.use('/invites', invitesRouter);
 apiRouter.use('/invitations', invitationsRouter);
 apiRouter.use('/posts', postsRouter);
 apiRouter.use('/recommendations', recommendationsRouter);
+apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/settings', settingsRouter);
 

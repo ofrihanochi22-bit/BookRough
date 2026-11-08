@@ -15,7 +15,7 @@ import { POST_NOT_FOUND } from './communityAccess.js';
 import { areFriends } from './friendship.js';
 import { type PostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
-import { notifyAuthorOfRating } from './ratingNotification.js';
+import { notifyRating } from './notification.service.js';
 
 const log = createLogger('rating.service');
 
@@ -99,12 +99,8 @@ export async function ratePost(
   }
 
   log.info({ userId: user.id, postId, score }, 'Post rated');
-  // The rating is saved: a notification problem must never undo or fail it.
-  try {
-    notifyAuthorOfRating({ authorId: post.authorId, raterId: user.id, postId, score });
-  } catch (error) {
-    log.warn({ err: error, postId }, 'Rating notification failed');
-  }
+  // The rating is saved: a notification problem never undoes or fails it (notifications.md §4.5).
+  await notifyRating({ authorId: post.authorId, raterId: user.id, postId });
   return toPublicRating(rating);
 }
 

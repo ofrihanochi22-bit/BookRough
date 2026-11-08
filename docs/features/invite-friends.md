@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `notifications.md` (UC-21, 2026-11-08).** The stub is gone: each invitation actually created writes a `COMMUNITY_INVITATION` notification for the invitee (`createManyAndReturn`, so a racing duplicate notifies no one).
+
 ## 1. Goal
 
 A community's admins invite their friends from inside the app — on the Create Community form (replacing the static "Invite friends" card) and from the community's **Invite friends** panel. An invited friend sees the invitation on the **Friends** tab, whose badge now counts it, and taps **Join** or **Decline**. Nobody is added to a community without saying yes. The invite link (UC-15) keeps working alongside.

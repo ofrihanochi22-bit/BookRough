@@ -13,8 +13,8 @@ import {
 import { createLogger } from '../utils/logger.js';
 import { isBanned, requireAdmin } from './communityAccess.js';
 import { listFriends } from './friend.service.js';
-import { notifyInvitation } from './invitationNotification.js';
 import { ADMINS_ONLY } from './invite.service.js';
+import { notifyInvitations } from './notification.service.js';
 import { requireOnboarded } from './profile.service.js';
 
 const log = createLogger('invitation.service');
@@ -85,18 +85,19 @@ export async function inviteFriends(
 
   if (toInvite.length > 0) {
     // skipDuplicates: a second admin inviting the same friend at once is a no-op.
-    await prisma.communityInvitation.createMany({
+    const created = await prisma.communityInvitation.createManyAndReturn({
       data: toInvite.map((userId) => ({ communityId, userId, invitedById: user.id })),
       skipDuplicates: true,
+      select: { userId: true },
     });
-    log.info({ userId: user.id, communityId, count: toInvite.length }, 'Invitations sent');
-    for (const userId of toInvite) {
-      try {
-        notifyInvitation({ communityId, userId, invitedById: user.id });
-      } catch (error) {
-        log.warn({ err: error, communityId }, 'Invitation notification failed');
-      }
-    }
+    log.info({ userId: user.id, communityId, count: created.length }, 'Invitations sent');
+    // Only the rows this call created: a racing second admin's duplicate notifies no one.
+    // Never fails the invitations, which are saved (notifications.md §4.5).
+    await notifyInvitations({
+      communityId,
+      invitedById: user.id,
+      userIds: created.map((invitation) => invitation.userId),
+    });
   }
   return candidatesFor(user, communityId);
 }

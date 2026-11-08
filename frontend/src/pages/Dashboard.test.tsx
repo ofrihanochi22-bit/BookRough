@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { httpError, makeCommunity } from '../test/fixtures';
+import { useNotifications } from '../stores/notifications';
 import { Dashboard } from './Dashboard';
 
 const { listMyCommunities } = vi.hoisted(() => ({ listMyCommunities: vi.fn() }));
@@ -169,5 +170,35 @@ describe('Dashboard — sign out in the header', () => {
     // Assert
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
+  });
+});
+
+describe('Dashboard — the notifications bell', () => {
+  it('links to Notifications, naming the unread count', async () => {
+    // Arrange
+    useNotifications.setState({ unread: 3 });
+    listMyCommunities.mockResolvedValue([]);
+    renderDashboard();
+    await screen.findByRole('heading', { name: 'Start your first community' });
+
+    // Act
+    const bell = screen.getByRole('link', { name: 'Notifications, 3 unread' });
+
+    // Assert
+    expect(within(bell).getByText('3')).toBeInTheDocument();
+    expect(bell).toHaveAttribute('href', '/notifications');
+  });
+
+  it('is plainly named with nothing unread', async () => {
+    // Arrange
+    useNotifications.setState({ unread: 0 });
+    listMyCommunities.mockResolvedValue([]);
+
+    // Act
+    renderDashboard();
+    await screen.findByRole('heading', { name: 'Start your first community' });
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument();
   });
 });

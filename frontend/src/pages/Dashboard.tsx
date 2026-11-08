@@ -9,6 +9,9 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
 import { roleLabel } from '../lib/communityRoles';
+import { badgeText } from '../lib/friendCopy';
+import { bellLabel } from '../lib/notificationCopy';
+import { useNotifications } from '../stores/notifications';
 
 const CREATE_PATH = '/communities/new';
 
@@ -23,8 +26,11 @@ export function Dashboard() {
     <ScreenLayout>
       <header className="mb-6 flex items-center justify-between gap-3">
         <h1 className="min-w-0 truncate font-display text-2xl font-medium">Your communities</h1>
-        {/* Sign-out where the app opens — visible-sign-out.md §5.1. */}
-        <SignOutButton className="shrink-0 px-4" />
+        <div className="flex shrink-0 items-center gap-2">
+          <NotificationsBell />
+          {/* Sign-out where the app opens — visible-sign-out.md §5.1. */}
+          <SignOutButton className="px-4" />
+        </div>
       </header>
 
       {communities.status === 'loading' && (
@@ -46,6 +52,40 @@ export function Dashboard() {
           <CommunityList items={communities.data} />
         ))}
     </ScreenLayout>
+  );
+}
+
+/** The way into the notification center — notifications.md §5.1. */
+function NotificationsBell() {
+  const unread = useNotifications((state) => state.unread);
+  return (
+    <Link
+      to="/notifications"
+      aria-label={bellLabel(unread)}
+      className="relative flex size-11 items-center justify-center rounded-full border border-line bg-surface"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="size-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" />
+        <path d="M10 20a2 2 0 0 0 4 0" />
+      </svg>
+      {unread > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium leading-none text-on-accent"
+        >
+          {badgeText(unread)}
+        </span>
+      )}
+    </Link>
   );
 }
 
