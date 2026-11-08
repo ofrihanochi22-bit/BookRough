@@ -160,7 +160,7 @@
 
 - **Description:** A user shares a music recommendation — a song or album link from Spotify, Apple Music, YouTube, Tidal or Deezer — or a track, album or set from Bandcamp or SoundCloud, or a YouTube video of a live performance, shared without conversion — with an optional comment of up to 280 characters — to a Community feed. Sending one to a single friend is UC-20.
 - **Pre-conditions:** The user is logged in and is an active member of the Community where they are attempting to post.
-- **Post-conditions:** A new Post record is added to the database containing the authorId, communityId, and songMetadata. The post is pushed to the posts array of the Community.
+- **Post-conditions:** A new Post record is added to the database containing the authorId, communityId, and songMetadata. The post is pushed to the posts array of the Community. The author may later edit the comment, never the song; an edited comment shows "· edited" (docs/features/edit-post-comment.md).
 - **Trigger:** The user pastes a URL into the Community's input field and taps "Post" or "Send".
 - **Step-by-step scenario (Success):**
   - The user opens the target Community.
@@ -299,7 +299,7 @@
 
 - **Description:** A user sends a music recommendation — the same song or album link and optional comment as a post — directly to one friend, with no community in common. The recipient sees it in their own streaming service. Posting to a Community (UC-11) is unchanged and exists alongside this.
 - **Pre-conditions:** The user is logged in, has finished onboarding, and has an accepted friendship with the recipient.
-- **Post-conditions:** A Post record with a recipient and no community exists, visible only to the two of them. The recipient is notified (UC-21), and the Recommendations row counts it until they open Received. The item stays visible to both after unfriending; a new rating or an edit then needs friendship again.
+- **Post-conditions:** A Post record with a recipient and no community exists, visible only to the two of them. The sender may edit its comment while they are friends (docs/features/edit-post-comment.md). The recipient is notified (UC-21), and the Recommendations row counts it until they open Received. The item stays visible to both after unfriending; a new rating or an edit then needs friendship again.
 - **Trigger:** The user taps "Send a song" on the Recommendations screen or on a friend's profile.
 - **Step-by-step scenario (Success):**
   - The user opens Recommendations from the Friends tab and taps "Send a song", then picks one friend. From a friend's profile, that friend is already chosen.

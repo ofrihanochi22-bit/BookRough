@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `edit-post-comment.md` (N7, 2026-11-08).** §2's "Editing the sender's comment" is now in scope: the sender may edit it while the two are friends, like a rating edit.
+
 > **Amended by `notifications.md` (UC-21, 2026-11-08).** The §4.8 stub is gone: sending writes a `RECOMMENDATION` notification for the recipient. Unseen recommendations no longer add to the Friends tab badge (§5.1); the Recommendations row keeps its own count, and `recommendations_seen_at` stays for it.
 
 > **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** A direct recommendation may also be a link-only post — Bandcamp, SoundCloud or a YouTube video — sent exactly like any other; `prepareSharedLink` handles both targets.

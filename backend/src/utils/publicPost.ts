@@ -24,6 +24,8 @@ export interface PublicPost {
   /** Only the services a link was found for. */
   links: Partial<Record<StreamingService, string>>;
   comment: string | null;
+  /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */
+  commentEditedAt: string | null;
   conversionPending: boolean;
   createdAt: string;
   /** The viewer saved it to Listen Later. Only ever the viewer's own (bookmarks-my-list.md §4). */
@@ -100,6 +102,7 @@ export function toPublicPost(
     coverArtUrl: post.songCoverArtUrl,
     links,
     comment: post.textComment,
+    commentEditedAt: post.commentEditedAt?.toISOString() ?? null,
     conversionPending: post.conversionPending,
     createdAt: post.createdAt.toISOString(),
     isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),

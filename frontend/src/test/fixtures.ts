@@ -66,6 +66,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
       DEEZER: 'https://www.deezer.com/track/1',
     },
     comment: null,
+    commentEditedAt: null,
     conversionPending: false,
     createdAt: '2026-10-04T10:00:00.000Z',
     isBookmarked: false,

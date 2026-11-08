@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `edit-post-comment.md` (N7, 2026-11-08).** A link-only post's comment can be edited like any other; changing its link or platform stays out of scope.
+
 ## 0. Why, and what the tests showed
 
 Much of the music friends share exists nowhere else: Bandcamp releases, SoundCloud uploads and mixes, live sessions on YouTube (KEXP, NPR Tiny Desk). Converting such a link is pointless — the matching item does not exist on other services — and today Bandcamp and SoundCloud links cannot be shared at all.

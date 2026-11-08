@@ -27,6 +27,7 @@ function bookmark(members: Array<{ role: CommunityRole }>): BookmarkWithPost {
       universalLinkTidal: null,
       universalLinkDeezer: null,
       textComment: null,
+      commentEditedAt: null,
       conversionPending: false,
       createdAt: at,
       updatedAt: at,

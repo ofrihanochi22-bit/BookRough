@@ -80,6 +80,7 @@ The core entity for music recommendations, to a community or, with UC-20, to one
 - **universal_link_tidal** (VARCHAR, Nullable).
 - **universal_link_deezer** (VARCHAR, Nullable).
 - **text_comment** (TEXT, Nullable): The author's optional comment — at most 280 characters, line breaks kept.
+- **comment_edited_at** (TIMESTAMP, Nullable): when the author last changed the comment; null if never. Shown as "· edited" (`docs/features/edit-post-comment.md` §3).
 - **created_at** (TIMESTAMP, Default Current Time).
 - **conversion_pending** (BOOLEAN, Default false): True when the conversion could not run (squigly.link down, a timeout, an unreadable page); the author can retry it.
 - **updated_at** (TIMESTAMP): Set on every write.
