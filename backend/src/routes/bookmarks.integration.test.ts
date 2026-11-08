@@ -422,6 +422,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'author',
         'canDelete',
         'comment',
+        'commentEditedAt',
         'conversionPending',
         'coverArtUrl',
         'createdAt',
