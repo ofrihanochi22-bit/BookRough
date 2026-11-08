@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../stores/auth';
-import { api, onUnauthorized, resolveApiBaseUrl } from './client';
+import { api, onUnauthorized, resolveApiBaseUrl, resolveApiUrl } from './client';
 
 vi.mock('react-hot-toast', () => ({
   default: { error: vi.fn(), success: vi.fn() },
@@ -186,5 +186,25 @@ describe('resolveApiBaseUrl', () => {
   it('defaults to the local API in development', () => {
     // Act & Assert
     expect(resolveApiBaseUrl({ PROD: false })).toBe('http://localhost:4000/api');
+  });
+});
+
+describe('resolveApiUrl (avatar-upload.md §3)', () => {
+  const upload = '/api/users/0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40/avatar?v=1';
+
+  it('points a server path at the API: another origin in development, the same in production', () => {
+    // Act & Assert
+    expect(resolveApiUrl(upload, { PROD: false })).toBe(`http://localhost:4000${upload}`);
+    expect(resolveApiUrl(upload, { PROD: true })).toBe(upload);
+    expect(resolveApiUrl(upload, { VITE_API_BASE_URL: 'https://x.test/api', PROD: true })).toBe(
+      `https://x.test${upload}`,
+    );
+  });
+
+  it('leaves any other URL, such as a Google photo, unchanged', () => {
+    // Act & Assert
+    expect(resolveApiUrl('https://lh3.googleusercontent.com/a/x', { PROD: false })).toBe(
+      'https://lh3.googleusercontent.com/a/x',
+    );
   });
 });

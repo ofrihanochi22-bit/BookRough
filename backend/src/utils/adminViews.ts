@@ -1,5 +1,7 @@
 import type { StreamingService } from '@prisma/client';
 
+import { isUploadedAvatarUrl } from './avatarUrl.js';
+
 /**
  * The admin area's only shapes (docs/features/admin-panel.md §4). Field by
  * field, never a spread: `googleSub`, `displayNameKey`, `useGooglePicture` (read, never sent) and
@@ -25,6 +27,18 @@ export interface AdminCommunity {
   owner: { id: string; displayName: string | null } | null;
 }
 
+/** What Prisma must select for `toAdminUser` — and nothing more. */
+export const adminUserSelect = {
+  id: true,
+  displayName: true,
+  profilePictureUrl: true,
+  useGooglePicture: true,
+  preferredService: true,
+  createdAt: true,
+  role: true,
+  _count: { select: { memberships: true } },
+} as const;
+
 export function toAdminUser(user: {
   id: string;
   displayName: string | null;
@@ -40,7 +54,11 @@ export function toAdminUser(user: {
     displayName: user.displayName,
     // Before onboarding the column holds a photo kept only to be offered; it
     // is shown only once the user has chosen it (docs/features/onboarding.md §3).
-    profilePictureUrl: user.useGooglePicture ? user.profilePictureUrl : null,
+    // An upload is always the user's own choice (avatar-upload.md §5.2).
+    profilePictureUrl:
+      user.useGooglePicture || isUploadedAvatarUrl(user.profilePictureUrl)
+        ? user.profilePictureUrl
+        : null,
     preferredService: user.preferredService,
     createdAt: user.createdAt.toISOString(),
     onboarded: user.displayName !== null && user.preferredService !== null,

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `avatar-upload.md` (N10, 2026-11-08).** The avatar block gains **Upload a photo** in every state. With an uploaded photo, **Use generated avatar** deletes it, and its line reads "Your photo will be deleted from BookRough." Re-choosing the Google photo also replaces an upload.
+
 > **Amended by `visible-sign-out.md` (UC-3, 2026-11-08).** Sign out now opens a "Sign out?" confirmation (the same one as Home's header) instead of signing out at once. Offline, that confirmation's Sign out is disabled with "You're offline. Connect to sign out.", replacing §5.1's "Sign out stays enabled".
 
 ## 1. Goal

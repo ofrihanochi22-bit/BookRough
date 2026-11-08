@@ -7,12 +7,15 @@ import { DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { pendingInvite, rememberPendingInvite } from '../lib/pendingInvite';
 import { useAuthStore, type PublicUser } from '../stores/auth';
 import { httpError, makeSession, makeUser, networkError, setOnline } from '../test/fixtures';
+import type * as AvatarImage from '../lib/avatarImage';
 import { Profile } from './Profile';
 
 const api = vi.hoisted(() => ({
   checkDisplayName: vi.fn(),
   updateProfile: vi.fn(),
   chooseGooglePhoto: vi.fn(),
+  uploadAvatar: vi.fn(),
+  prepareAvatar: vi.fn(),
   logout: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -21,6 +24,12 @@ vi.mock('../api/users', () => ({
   checkDisplayName: api.checkDisplayName,
   updateProfile: api.updateProfile,
   chooseGooglePhoto: api.chooseGooglePhoto,
+  uploadAvatar: api.uploadAvatar,
+}));
+// The canvas work is the browser's; its own tests are in lib/avatarImage.test.ts.
+vi.mock('../lib/avatarImage', async (importOriginal) => ({
+  ...(await importOriginal<typeof AvatarImage>()),
+  prepareAvatar: api.prepareAvatar,
 }));
 vi.mock('../api/auth', () => ({ logout: api.logout }));
 vi.mock('react-hot-toast', () => ({ default: { success: api.toastSuccess } }));
@@ -353,5 +362,101 @@ describe('Profile — admin link', () => {
 
     // Assert
     expect(screen.queryByRole('link', { name: /Admin area/ })).not.toBeInTheDocument();
+  });
+});
+
+/** Uploading a photo — docs/features/avatar-upload.md §5.1. */
+describe('Profile — upload a photo', () => {
+  const UPLOADED = '/api/users/0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40/avatar?v=1';
+  const UNSUPPORTED = "That file isn't a supported image. Use a JPEG, PNG or WebP.";
+  const file = () => new File(['x'], 'me.jpg', { type: 'image/jpeg' });
+  const picker = () => screen.getByLabelText(/Upload a photo|Uploading/) as HTMLInputElement;
+
+  it('prepares, uploads, toasts and shows the new photo', async () => {
+    // Arrange
+    signedInAs();
+    const prepared = new Blob(['webp'], { type: 'image/webp' });
+    api.prepareAvatar.mockResolvedValue(prepared);
+    api.uploadAvatar.mockResolvedValue(sessionWith({ profilePictureUrl: UPLOADED }));
+    render(<Profile />);
+
+    // Act
+    await userEvent.upload(picker(), file());
+
+    // Assert
+    expect(api.uploadAvatar).toHaveBeenCalledWith(prepared);
+    expect(api.toastSuccess).toHaveBeenCalledWith('Photo updated');
+    expect(useAuthStore.getState().user?.profilePictureUrl).toBe(UPLOADED);
+    expect(
+      await screen.findByText('Your photo will be deleted from BookRough.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows "Uploading…" while it runs', async () => {
+    // Arrange
+    signedInAs();
+    api.prepareAvatar.mockReturnValue(new Promise(() => {}));
+    render(<Profile />);
+
+    // Act
+    await userEvent.upload(picker(), file());
+
+    // Assert
+    expect(screen.getByText('Uploading…')).toBeInTheDocument();
+  });
+
+  it('shows the server message inline when the upload is refused', async () => {
+    // Arrange
+    signedInAs();
+    api.prepareAvatar.mockResolvedValue(new Blob(['x'], { type: 'image/webp' }));
+    api.uploadAvatar.mockRejectedValue(httpError(422, UNSUPPORTED));
+    render(<Profile />);
+
+    // Act
+    await userEvent.upload(picker(), file());
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent(UNSUPPORTED);
+  });
+
+  it('refuses a file the browser cannot prepare, before any upload', async () => {
+    // Arrange
+    signedInAs();
+    const { AvatarImageError } = await import('../lib/avatarImage');
+    api.prepareAvatar.mockRejectedValue(new AvatarImageError('That image is too large.'));
+    render(<Profile />);
+
+    // Act
+    await userEvent.upload(picker(), file());
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent('That image is too large.');
+    expect(api.uploadAvatar).not.toHaveBeenCalled();
+  });
+
+  it('is disabled offline', () => {
+    // Arrange
+    setOnline(false);
+    signedInAs();
+
+    // Act
+    render(<Profile />);
+
+    // Assert
+    expect(picker()).toBeDisabled();
+  });
+
+  it('Use generated avatar removes an uploaded photo', async () => {
+    // Arrange
+    signedInAs({ profilePictureUrl: UPLOADED });
+    api.updateProfile.mockResolvedValue(sessionWith({ profilePictureUrl: null }));
+    render(<Profile />);
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Use generated avatar' }));
+
+    // Assert
+    expect(api.updateProfile).toHaveBeenCalledWith({ useGooglePicture: false });
+    expect(useAuthStore.getState().user?.profilePictureUrl).toBeNull();
   });
 });

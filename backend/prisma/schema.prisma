@@ -105,6 +105,7 @@ model User {
   invitationsSent         CommunityInvitation[] @relation("InvitationInviter")
   notifications           Notification[]        @relation("NotificationReader")
   notificationsCaused     Notification[]        @relation("NotificationActor")
+  avatar                  UserAvatar?
 
   @@map("users")
 }
@@ -359,6 +360,10 @@ enum NotificationType {
   FRIEND_ACCEPTED
   /// A community admin invited the reader (UC-9).
   COMMUNITY_INVITATION
+  /// The reader was made an admin of a community (UC-14; role-notifications.md).
+  COMMUNITY_ADMIN
+  /// The reader was made the owner of a community (UC-14; role-notifications.md).
+  COMMUNITY_OWNER
 }
 
 /// The in-app inbox — docs/features/notifications.md §3 (UC-21).
@@ -399,4 +404,20 @@ model Notification {
   @@index([postId])
   @@index([communityId])
   @@map("notifications")
+}
+
+/// A user's uploaded photo — docs/features/avatar-upload.md §3 (UC-4).
+///
+/// Always the server's own re-encode (256×256 WebP, metadata stripped), never
+/// the uploaded bytes. One row at most; it reaches clients only through
+/// `users.profile_picture_url` = `/api/users/<id>/avatar?v=<updatedAt ms>`, so
+/// every existing serializer works unchanged. Its own table keeps the bytes
+/// out of every `users` read.
+model UserAvatar {
+  userId    String   @id @map("user_id") @db.Uuid
+  image     Bytes
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
 }

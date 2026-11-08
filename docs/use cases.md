@@ -65,7 +65,7 @@
   - The system displays a "Profile updated" toast notification and the screen shows the saved values.
 - **Fail description (Alternative Scenario):** The user attempts to save a display name that is already taken by another account. The system prevents the save action and displays an inline error message: "That display name is already taken."
 
-> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. On My Profile the avatar can be switched both ways: "Use generated avatar" deletes the stored photo, and going back to the Google photo requires a fresh Google sign-in from the same account, which fetches the current photo (`docs/features/profile-settings.md` §4). There is no upload control anywhere in the product; see `docs/general.md` §4.1.
+> **Note on profile pictures.** Avatars are **generated**, not uploaded — initials over a colour derived deterministically from the user id. Users may choose the picture Google supplies during onboarding; the generated avatar is the default, and a declined photo is not stored. On My Profile the avatar can be switched both ways: "Use generated avatar" deletes the stored photo, and going back to the Google photo requires a fresh Google sign-in from the same account, which fetches the current photo (`docs/features/profile-settings.md` §4). Since 2026-11-08 a user may also upload their own photo on My Profile; the server re-encodes it to a small WebP without metadata (`docs/features/avatar-upload.md`). Community covers stay generated.
 
 ### UC-5: User Searches Other Users
 
@@ -218,7 +218,7 @@
   - The Admin confirms the action.
   - The backend successfully updates the database arrays.
   - The UI instantly removes the user from the Admin's visible member list.
-- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them." The Owner cannot be removed or demoted at all; ownership only moves when the Owner transfers it.
+- **Fail description (Alternative Scenario):** The Admin attempts to remove another user who also holds Admin privileges. The system prevents the removal and displays an error message: "Cannot remove an Admin. You must demote this user to a standard member before removing them." The Owner cannot be removed or demoted at all; ownership only moves when the Owner transfers it. When a member is made an Admin, or receives ownership, they are notified (UC-21, `docs/features/role-notifications.md`); a demotion stays silent.
 
 ### UC-15: User Joins a Community (via Invite Link)
 
@@ -293,7 +293,7 @@
 >
 > **Honest limit:** this reduces *incidental* exposure. It is not a cryptographic guarantee — the operator runs the server and can change the code. The protection is that there is no personal data in the system to expose in the first place.
 >
-> **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody, and the settings list is fixed in code.
+> **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody — the one exception is removing a user's photo, which returns them to the generated avatar (`docs/features/avatar-upload.md`) — and the settings list is fixed in code.
 
 ### UC-20: User Sends a Recommendation to a Friend
 
@@ -314,7 +314,7 @@
 
 ### UC-21: User Receives Notifications
 
-- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), or an invitation to a community (UC-9). There is no push and no email.
+- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), an invitation to a community (UC-9), or being made an admin or the owner of one (UC-14). There is no push and no email.
 - **Pre-conditions:** The user is logged in and has finished onboarding.
 - **Post-conditions:** Each event leaves a notification for the person it concerns. Reading one marks only that one; "Mark all as read" marks the rest. The user never sees a notification about a community they no longer belong to or a post they can no longer open.
 - **Trigger:** A count on the Home tab, or the bell in the Home header.

@@ -30,6 +30,15 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return response.data.data.users;
 }
 
+/** The one write on users: remove a photo (avatar-upload.md §4). The caller toasts. */
+export async function removeUserPhoto(userId: string): Promise<AdminUser> {
+  const response = await api.delete<SuccessBody<{ user: AdminUser }>>(
+    `/admin/users/${encodeURIComponent(userId)}/avatar`,
+    { skipErrorToast: true },
+  );
+  return response.data.data.user;
+}
+
 export async function listAdminCommunities(): Promise<AdminCommunity[]> {
   const response = await api.get<SuccessBody<{ communities: AdminCommunity[] }>>(
     '/admin/communities',

@@ -9,7 +9,7 @@ Stores the core authentication and profile data.
 - **google_sub** (VARCHAR, Unique, Not Null): The `sub` claim from the Google identity token. **This is the account key.** It is stable for the lifetime of the Google account and is opaque — it identifies the account to Google, not a person to us.
 - **display_name** (VARCHAR(50), Nullable until onboarding): The one user-chosen name, shown everywhere and used for search. Free text in any language (Hebrew, emoji, spaces), editable later, and unique through `display_name_key`. There is deliberately no separate `username`: profile URLs use `id`, so no URL-safe handle is needed.
 - **display_name_key** (VARCHAR(50), Unique, Nullable): Hidden, server-derived normalised form of `display_name` (whitespace collapsed, lower-cased). It carries the uniqueness, so "Ofri" and "ofri " collide while each is still shown as typed. Never sent to a client.
-- **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google. Held before onboarding only so it can be offered as a choice; kept afterwards only if the user chose it (`use_google_picture`), otherwise set to null and never stored again. When null the UI shows the generated avatar.
+- **profile_picture_url** (VARCHAR, Nullable): The `picture` URL supplied by Google — or, for an uploaded photo, the server's own `/api/users/<id>/avatar?v=<ms>` (`docs/features/avatar-upload.md` §3). Held before onboarding only so it can be offered as a choice; kept afterwards only if the user chose it (`use_google_picture`), otherwise set to null and never stored again. When null the UI shows the generated avatar.
 - **use_google_picture** (BOOLEAN, Not Null, Default false): The user chose their Google photo as their avatar during onboarding. False means the generated avatar.
 - **preferred_service** (ENUM, Nullable until onboarding): 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Deliberately no default, so "has not chosen" stays distinguishable from "chose Spotify".
 - **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
@@ -146,7 +146,7 @@ The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per noti
 
 - **id** (UUID, Primary Key).
 - **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the reader.
-- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED` or `COMMUNITY_INVITATION`.
+- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN` or `COMMUNITY_OWNER` (the last two from `docs/features/role-notifications.md`).
 - **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster.
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id), cascade on delete): for post groups and invitations.
 - **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations and ratings.
@@ -156,8 +156,16 @@ The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per noti
 - **read_at** (TIMESTAMP, Nullable): set when the reader marks it read.
 - (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing.)
 
+### 13. user_avatars Table
+
+A user's uploaded photo (UC-4, `docs/features/avatar-upload.md` §3). One row at most per user; deleted when they switch to the generated avatar or their Google photo, or when an admin removes it. Kept apart from `users` so the bytes are never read with a user.
+
+- **user_id** (UUID, Primary Key, Foreign Key referencing users(id), cascade on delete).
+- **image** (BYTEA, Not Null): the server's own re-encode — a 256×256 WebP of at most 100 KB, no metadata. The uploaded bytes are never stored.
+- **updated_at** (TIMESTAMP, Not Null): set on every upload; it versions the URL in `users.profile_picture_url`, so caches never show an old photo.
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is twelve tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`.
+> **The schema is thirteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

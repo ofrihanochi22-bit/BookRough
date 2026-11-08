@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-import { chooseGooglePhoto, updateProfile, type ProfileUpdate } from '../api/users';
+import { chooseGooglePhoto, updateProfile, uploadAvatar, type ProfileUpdate } from '../api/users';
 import { DisplayNameField } from '../components/DisplayNameField';
 import { GoogleCredentialButton } from '../components/GoogleCredentialButton';
 import { SignOutButton } from '../components/SignOutSheet';
@@ -13,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { AVATAR_COPY, AvatarImageError, isUploadedAvatar, prepareAvatar } from '../lib/avatarImage';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type PublicUser, type StreamingService } from '../stores/auth';
 
@@ -171,13 +172,36 @@ interface AvatarSectionProps {
 }
 
 /**
- * Switch between the Google photo and the generated avatar. After onboarding,
- * a stored photo URL means the user chose their Google photo (a declined one is
- * deleted — docs/features/onboarding.md §3), so the URL alone tells which is in use.
+ * Switch between a photo — the Google one or an upload (avatar-upload.md §5.1) —
+ * and the generated avatar. After onboarding, a stored photo URL means the user
+ * chose a photo (a declined Google one is deleted — docs/features/onboarding.md
+ * §3), and its shape tells an upload from a Google photo.
  */
 function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSectionProps) {
   const [error, setError] = useState<string | null>(null);
-  const usingGooglePhoto = user.profilePictureUrl !== null;
+  const [uploading, setUploading] = useState(false);
+  const usingPhoto = user.profilePictureUrl !== null;
+  const uploaded = isUploadedAvatar(user.profilePictureUrl);
+
+  async function upload(file: File) {
+    onBusyChange(true);
+    setUploading(true);
+    setError(null);
+    try {
+      const image = await prepareAvatar(file);
+      useAuthStore.getState().setSession(await uploadAvatar(image));
+      toast.success(AVATAR_COPY.uploaded);
+    } catch (caught) {
+      setError(
+        caught instanceof AvatarImageError
+          ? caught.message
+          : messageOf(caught, 'Uploading failed. Please try again.'),
+      );
+    } finally {
+      setUploading(false);
+      onBusyChange(false);
+    }
+  }
 
   async function switchToGenerated() {
     onBusyChange(true);
@@ -195,17 +219,43 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
     <section className="flex flex-col items-center gap-3 text-center">
       <Avatar id={user.id} name={user.displayName} pictureUrl={user.profilePictureUrl} size={80} />
 
-      {usingGooglePhoto ? (
+      <label
+        className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line bg-surface px-6 text-sm font-medium ${
+          offline || saving || busy ? 'pointer-events-none opacity-60' : ''
+        }`}
+      >
+        {uploading ? 'Uploading…' : 'Upload a photo'}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          className="sr-only"
+          disabled={offline || saving || busy}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            // Cleared, so choosing the same file again still uploads.
+            event.target.value = '';
+            if (file) {
+              void upload(file);
+            }
+          }}
+        />
+      </label>
+
+      {usingPhoto ? (
         <>
           <Button
             variant="secondary"
-            busy={busy}
-            disabled={offline || saving}
+            busy={busy && !uploading}
+            disabled={offline || saving || busy}
             onClick={() => void switchToGenerated()}
           >
-            {busy ? 'Switching…' : 'Use generated avatar'}
+            {busy && !uploading ? 'Switching…' : 'Use generated avatar'}
           </Button>
-          <p className="text-xs text-muted">Your Google photo will be deleted from BookRough.</p>
+          <p className="text-xs text-muted">
+            {uploaded
+              ? 'Your photo will be deleted from BookRough.'
+              : 'Your Google photo will be deleted from BookRough.'}
+          </p>
         </>
       ) : (
         <>

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `avatar-upload.md` (N10, 2026-11-08).** The users list is read-only with one exception: **Remove photo** on a row with a photo (an upload or a Google photo), confirmed in a sheet. It's recorded as a log line, not in `setting_changes`.
+
 ## 1. Goal
 
 The application owner — any user whose `users.role` is `ADMIN`, set directly in the database — gets a private area inside the app. There they can see who uses BookRough and which communities exist, and change three presentation settings that take effect for everyone: an announcement banner, the accent colour, and the Welcome tagline. Every settings change is kept in a history that shows who changed what, and when. Nobody else can reach the area or tell that it exists.

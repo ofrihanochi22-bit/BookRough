@@ -307,3 +307,24 @@ describe('authenticateWithGoogle — intent', () => {
     expect(result).toEqual({ user: existing, isNewUser: false });
   });
 });
+
+describe('authenticateWithGoogle — an uploaded photo (avatar-upload.md §3)', () => {
+  it('never touches an uploaded photo on sign-in', async () => {
+    // Arrange
+    const uploaded = '/api/users/a3b0c6a2-3c55-4d0f-8f7e-1d9a6c2e5b10/avatar?v=1700000000000';
+    const user = makeUser({
+      displayName: 'Ofri',
+      preferredService: 'SPOTIFY',
+      profilePictureUrl: uploaded,
+    });
+    verifyGoogleIdToken.mockResolvedValue({ sub: 'sub-1', picture: 'https://pic/new' });
+    userDb.findUnique.mockResolvedValue(user);
+
+    // Act
+    const result = await authenticateWithGoogle('token', 'signin');
+
+    // Assert
+    expect(result).toEqual({ user, isNewUser: false });
+    expect(userDb.update).not.toHaveBeenCalled();
+  });
+});
