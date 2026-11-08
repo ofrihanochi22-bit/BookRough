@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `avatar-upload.md` (N10, 2026-11-08).** Uploading a photo is on My Profile only, not during onboarding. A sign-in never touches an uploaded photo (§3's picture refresh skips it).
+
 ## 1. Goal
 
 A user who has just signed in for the first time chooses a display name, a preferred streaming service, and whether their avatar is their Google photo or a generated one. Until they do, the home screen is unreachable. After they do, they land on home, and every later sign-in goes straight there.

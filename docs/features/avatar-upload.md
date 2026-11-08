@@ -8,7 +8,7 @@
 | **Use cases** | UC-4 (edit account details) and UC-19 (administration), amended       |
 | **Phase**     | 6 — Step 6.1h of `DEVELOPMENT.md`, from manual-test note **N10** (§0) |
 | **Branch**    | `feat/avatar-upload`                                                  |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged    |
 
 ---
 
@@ -77,7 +77,7 @@ model UserAvatar {
 ### `PUT /api/users/me/avatar`
 
 - **Auth:** required, and onboarding must be finished.
-- **Rate limit:** tier 3 (`outreach`, 30 an hour per user). Uploads are heavier than ordinary requests.
+- **Rate limit:** tier 3 (`outreach`, 30 an hour per user, **shared** with friend requests, invitations and community creation). Uploads are heavier than ordinary requests. Sharing the budget is accepted at this scale, and `production-hardening.md` §3.1's table lists the endpoint (Stage 3).
 - **Request:** the raw image bytes, with `Content-Type` `image/webp`, `image/jpeg` or `image/png`, **at most 2 MB** (`express.raw`, mounted on this route only).
 - **Behaviour:**
   1. The magic bytes must match one of the three formats, whatever the header says. Otherwise `422`.
@@ -122,7 +122,7 @@ model UserAvatar {
 - **Busy:** "Uploading…". The other avatar actions and Save are disabled meanwhile.
 - **Success:** the toast "Photo updated", and the avatar shows the new photo.
 - **Errors:** the server's message, inline under the avatar.
-- With an uploaded photo, the existing **Use generated avatar** removes it ("Your photo will be deleted from BookRough."). **Use my Google photo** stays available.
+- With an uploaded photo, the existing **Use generated avatar** removes it ("Your photo will be deleted from BookRough."). **Use my Google photo** appears once the avatar is generated again: the same two-state switch as today, so a photo is always replaced through one clear step (amended in Stage 3).
 - **Offline:** Upload is disabled, under the existing banner.
 
 ### 5.2 Admin users list (`admin-panel.md` §5)
@@ -195,10 +195,12 @@ None.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                 | Reason                                                                                |
-| ---------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| 2026-11-08 | D1, D2 (§0); `sharp` approved                                            | Developer's choices in the spec session.                                              |
-| 2026-11-08 | Bytes in Postgres, in their own table                                    | No new service. Neon Free fits it easily, and `users` reads stay lean.                |
-| 2026-11-08 | The uploaded photo is exposed through the existing `profile_picture_url` | Every serializer and the `Avatar` component work unchanged.                           |
-| 2026-11-08 | Raw body, not multipart                                                  | No multipart parser dependency, and one image per request.                            |
-| 2026-11-08 | The admin's removal is recorded as a log line, not a table               | `setting_changes` is for settings. One moderation action doesn't justify a new table. |
+| Date       | Decision                                                                                                                                                  | Reason                                                                                |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 2026-11-08 | D1, D2 (§0); `sharp` approved                                                                                                                             | Developer's choices in the spec session.                                              |
+| 2026-11-08 | Bytes in Postgres, in their own table                                                                                                                     | No new service. Neon Free fits it easily, and `users` reads stay lean.                |
+| 2026-11-08 | The uploaded photo is exposed through the existing `profile_picture_url`                                                                                  | Every serializer and the `Avatar` component work unchanged.                           |
+| 2026-11-08 | Raw body, not multipart                                                                                                                                   | No multipart parser dependency, and one image per request.                            |
+| 2026-11-08 | In development the API is another origin, so `Avatar` resolves `/api/…` photo URLs against it (`resolveApiUrl`)                                           | Found live: the relative URL hit the Vite server. Production is one origin.           |
+| 2026-11-08 | `/code-review`: the avatar deletion and the user update run in one transaction, the image is decoded once, and the frontend pattern matches the backend's | Review findings.                                                                      |
+| 2026-11-08 | The admin's removal is recorded as a log line, not a table                                                                                                | `setting_changes` is for settings. One moderation action doesn't justify a new table. |

@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f → 6.1g… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f → 6.1g → 6.1h… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -2206,6 +2206,70 @@ cd backend && npx vitest run src/services/membership.service.test.ts src/service
 
 ```bash
 cd frontend && npx vitest run src/pages/Notifications.test.tsx
+```
+
+### Step 6.1h — Upload your own profile photo (Phase 6 — UC-4 and UC-19 amended, manual-test note N10)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/avatar-upload
+Spec: docs/features/avatar-upload.md
+
+Goal: A user replaces the initials circle with their own photo, stored small and safely. The site admin can remove an inappropriate one.
+
+Tasks:
+
+- [x] Spec approved, including the new dependency `sharp` (0.35.5, pinned) and an admin removal recorded as a log line.
+- [x] DB: migration `add_user_avatars`.
+- [x] Backend:
+  - `avatar.service.ts`: signature check, a `sharp` re-encode to 256×256 WebP of at most 100 KB with no metadata, upload, removal and admin removal.
+  - `avatar.controller.ts` and the routes: `PUT`/`DELETE /users/me/avatar`, `GET /users/:id/avatar`, `DELETE /admin/users/:id/avatar`.
+  - Sign-in keeps an upload. Use generated avatar and re-choosing the Google photo delete it, in a transaction.
+- [x] Frontend: `lib/avatarImage.ts` (a centre crop to 512px WebP in the browser), Upload a photo on My Profile, Remove photo on Admin users, and `resolveApiUrl` for photo URLs.
+- [x] Review: `/code-review` (6 findings: 5 fixed, 1 documented) and `/security-review` (no findings).
+- [x] Tests: unit (real `sharp` on generated images), integration and component. No E2E.
+
+What I did:
+
+- **Reversals:** CLAUDE.md §2, §8 and §17 (one admin write) are updated, and `sharp` is recorded in `tech stack` §5.
+- **Storage:** the bytes live in Postgres (`user_avatars`), and only the server's own re-encode is stored. The photo reaches clients through `profile_picture_url`, so no serializer changed.
+- **Guards:**
+  - A 2 MB cap, and magic bytes rather than headers or names.
+  - A 25-megapixel limit, and `failOn: 'error'`.
+  - Tier 3 rate-limits the upload (shared with outreach, documented in `production-hardening.md` §3.1).
+  - The image is served only to signed-in users, as `image/webp` with `nosniff` and an immutable cache on a versioned URL.
+- **A bug found live in Chrome:** in development the API is another origin, so a relative `/api/…` photo URL hit Vite. `Avatar` now resolves it (`resolveApiUrl`); production is one origin.
+- **Verified live:** in Chrome, uploading a 1200×800 JPEG with EXIF stored a 2.7 KB 256×256 WebP with no EXIF or ICC. The dev data was restored afterwards.
+- **Docs:** `general` §4.1, `tech stack` §5, `frontend screens` (4.3, 5.1, the conventions), `use cases` (UC-4 note, UC-19 scope) and `tables` (`profile_picture_url`, plus table 13, so thirteen tables), all .md + .docx. Also CLAUDE.md, and notes in `profile-settings.md`, `onboarding.md` and `admin-panel.md`.
+- **Tests:**
+  - Backend unit: 54 files, 870 tests, including `avatar.service.test.ts` (17).
+  - Integration: `routes/avatar.integration.test.ts`. It runs in CI, not locally, because it uses `music_app_test_db`.
+  - Frontend: 67 files, 828 tests, 97.97% lines.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm install && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/profile` and tap **Upload a photo**. Choose a JPEG or PNG under 2 MB, and the avatar becomes the photo, square and centred. The toast says "Photo updated".
+2. **Use generated avatar** removes it.
+3. As an admin, open `/admin/users`. A row with a photo has **Remove photo**. Confirm it, and the row's photo is gone.
+4. Rename a `.txt` file to `.png` and upload it. You get "That file isn't a supported image."
+
+```bash
+cd backend && npx vitest run src/services/avatar.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Profile.test.tsx src/pages/Admin.test.tsx src/lib/avatarImage.test.ts
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -66,11 +66,14 @@ export async function updateProfile(user: User, update: ProfileUpdate): Promise<
 
   let updated: User;
   try {
-    // Leaving an uploaded photo deletes it (avatar-upload.md §4).
-    if (useGooglePicture === false) {
-      await prisma.userAvatar.deleteMany({ where: { userId: user.id } });
-    }
-    updated = await prisma.user.update({ where: { id: user.id }, data });
+    // Leaving an uploaded photo deletes it (avatar-upload.md §4) — in the same
+    // transaction, so a refused save (a taken name) keeps the photo and its URL.
+    updated = await prisma.$transaction(async (tx) => {
+      if (useGooglePicture === false) {
+        await tx.userAvatar.deleteMany({ where: { userId: user.id } });
+      }
+      return tx.user.update({ where: { id: user.id }, data });
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new AppError(DISPLAY_NAME_MESSAGES.taken, 409);
@@ -140,11 +143,15 @@ export async function rechooseGooglePicture(user: User, credential: string): Pro
     throw new AppError(GOOGLE_PHOTO_MESSAGES.noPhoto, 422);
   }
 
-  // Choosing the Google photo replaces an uploaded one (avatar-upload.md §4).
-  await prisma.userAvatar.deleteMany({ where: { userId: user.id } });
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: { profilePictureUrl: identity.picture, useGooglePicture: true },
+  // Choosing the Google photo replaces an uploaded one (avatar-upload.md §4),
+  // atomically, so the URL never points at a deleted upload.
+  const picture = identity.picture;
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.userAvatar.deleteMany({ where: { userId: user.id } });
+    return tx.user.update({
+      where: { id: user.id },
+      data: { profilePictureUrl: picture, useGooglePicture: true },
+    });
   });
   log.info({ userId: user.id }, 'Google photo re-chosen');
   return updated;

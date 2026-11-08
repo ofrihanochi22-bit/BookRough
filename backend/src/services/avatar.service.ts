@@ -1,5 +1,5 @@
 import type { User } from '@prisma/client';
-import sharp from 'sharp';
+import sharp, { type OutputInfo } from 'sharp';
 
 import { prisma } from '../db/prisma.js';
 import { toAdminUser, type AdminUser, adminUserSelect } from '../utils/adminViews.js';
@@ -52,22 +52,27 @@ export async function processAvatar(bytes: Buffer): Promise<Buffer> {
   if (!hasImageSignature(bytes)) {
     throw new AppError(AVATAR_MESSAGES.unsupported, 422);
   }
+  // Decoded and resized once; only the small result is encoded per quality step.
+  let square: { data: Buffer; info: OutputInfo };
+  try {
+    square = await sharp(bytes, {
+      limitInputPixels: AVATAR_LIMITS.maxInputPixels,
+      failOn: 'error',
+      animated: false,
+    })
+      .rotate()
+      .resize(AVATAR_LIMITS.size, AVATAR_LIMITS.size, { fit: 'cover', position: 'centre' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+  } catch {
+    // Truncated, corrupt, or too many pixels: all the same to the user.
+    throw new AppError(AVATAR_MESSAGES.unsupported, 422);
+  }
+  const { width, height, channels } = square.info;
   for (const quality of [80, 60, 40]) {
-    let output: Buffer;
-    try {
-      output = await sharp(bytes, {
-        limitInputPixels: AVATAR_LIMITS.maxInputPixels,
-        failOn: 'error',
-        animated: false,
-      })
-        .rotate()
-        .resize(AVATAR_LIMITS.size, AVATAR_LIMITS.size, { fit: 'cover', position: 'centre' })
-        .webp({ quality })
-        .toBuffer();
-    } catch {
-      // Truncated, corrupt, or too many pixels: all the same to the user.
-      throw new AppError(AVATAR_MESSAGES.unsupported, 422);
-    }
+    const output = await sharp(square.data, { raw: { width, height, channels } })
+      .webp({ quality })
+      .toBuffer();
     if (output.length <= AVATAR_LIMITS.maxOutputBytes) {
       return output;
     }

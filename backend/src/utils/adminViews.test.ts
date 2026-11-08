@@ -57,6 +57,23 @@ describe('toAdminUser', () => {
   });
 });
 
+describe('toAdminUser — an uploaded photo (avatar-upload.md §5.2)', () => {
+  it("shows an upload, which is always the user's own choice", () => {
+    // Arrange
+    const uploaded = '/api/users/0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40/avatar?v=1700000000000';
+
+    // Act
+    const result = toAdminUser({
+      ...userRow,
+      useGooglePicture: false,
+      profilePictureUrl: uploaded,
+    });
+
+    // Assert
+    expect(result.profilePictureUrl).toBe(uploaded);
+  });
+});
+
 describe('toAdminCommunity', () => {
   const communityRow = {
     id: 'c-1',

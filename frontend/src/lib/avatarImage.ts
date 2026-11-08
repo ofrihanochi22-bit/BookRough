@@ -14,7 +14,8 @@ export const AVATAR_COPY = {
   uploaded: 'Photo updated',
 } as const;
 
-const UPLOADED = /^\/api\/users\/[^/]+\/avatar\?v=\d+$/;
+/** Mirrors backend/src/utils/avatarUrl.ts — keep the two patterns identical. */
+const UPLOADED = /^\/api\/users\/[0-9a-f-]{36}\/avatar\?v=\d+$/;
 
 /** Whether the avatar URL is the user's own upload (not a Google photo). */
 export function isUploadedAvatar(url: string | null): boolean {

@@ -30,6 +30,7 @@ The API layer that handles business logic, database interactions, and authentica
 - **Pino:** Structured JSON logging with levels and context.
 - **p-limit:** Caps concurrent Playwright scrapes at two. Each headless Chromium instance costs significant memory, and the deployment target is a small instance — without this cap, several friends posting at once will exhaust memory and take the server down.
 - **express-rate-limit (8.7.3, pinned):** Four request limits on the API — conversion, sign-in, outreach and a global safety net — counted in each instance's memory (`docs/features/production-hardening.md` §3.1). Chosen over hand-written middleware because it clears old counters, groups IPv6 addresses by subnet and warns when `trust proxy` is wrong. **Without it** the app still works, but sign-in floods, conversion spam and friend-request spam are unthrottled. No account or cost; it adds one package, `ip-address`.
+- **sharp (0.35.5, pinned):** Re-encodes an uploaded profile photo to a 256×256 WebP and strips its metadata (location included), so only the server's own bytes are ever stored (`docs/features/avatar-upload.md`). Chosen because it is the standard libvips binding for Node, ships prebuilt Linux binaries (no build tools in the Docker image) and decodes JPEG, PNG and WebP with a pixel limit. **Without it** photo uploads fail with `500`; everything else works. No account or cost; it adds about 10–15 MB to the backend image (watch Vercel's storage meters, CLAUDE.md §16).
 
 ### 3. Database & Infrastructure
 
