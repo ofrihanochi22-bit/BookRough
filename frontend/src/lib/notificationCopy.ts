@@ -50,6 +50,19 @@ export function viewOf(item: PublicNotification): NotificationView {
       };
     case 'COMMUNITY_INVITATION':
       return { lead: actor, rest: ` invited you to ${community}`, to: '/friends' };
+    // role-notifications.md §5.1
+    case 'COMMUNITY_ADMIN':
+      return {
+        lead: actor,
+        rest: ` made you an admin of ${community}`,
+        to: `/communities/${item.community?.id ?? ''}`,
+      };
+    case 'COMMUNITY_OWNER':
+      return {
+        lead: actor,
+        rest: ` made you the owner of ${community}`,
+        to: `/communities/${item.community?.id ?? ''}`,
+      };
   }
 }
 

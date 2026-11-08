@@ -137,6 +137,16 @@ describe('Notifications — rows', () => {
       'Dana invited you to Friday Jazz',
       'Friends screen',
     ],
+    [
+      note({ type: 'COMMUNITY_ADMIN', community: { id: 'jazz', name: 'Friday Jazz' } }),
+      'Dana made you an admin of Friday Jazz',
+      'Community screen',
+    ],
+    [
+      note({ type: 'COMMUNITY_OWNER', community: { id: 'jazz', name: 'Friday Jazz' } }),
+      'Dana made you the owner of Friday Jazz',
+      'Community screen',
+    ],
   ])('%#: says "%s" and opens its screen', async (item, text, destination) => {
     // Arrange
     api.listNotifications.mockResolvedValue({ items: [item], nextCursor: null });

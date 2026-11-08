@@ -13,6 +13,7 @@ import { createLogger } from '../utils/logger.js';
 import { type PublicCommunity } from '../utils/publicCommunity.js';
 import { getCommunity } from './community.service.js';
 import { requireAdmin, requireMember, requireOwner } from './communityAccess.js';
+import { notifyRole } from './notification.service.js';
 
 const log = createLogger('membership.service');
 
@@ -180,8 +181,12 @@ export async function changeRole(
       throw new AppError(OWNER_ROLE_FIXED, 409);
     }
   }
-  if (current !== role) {
+  if (current !== role && count > 0) {
     log.info({ userId: user.id, communityId, targetUserId, role }, 'Changed member role');
+    // Only a real promotion is told; a demotion stays silent (role-notifications.md D2).
+    if (role === CommunityRole.ADMIN) {
+      await notifyRole({ communityId, userId: targetUserId, actorId: user.id, role: 'ADMIN' });
+    }
   }
 
   const member = await prisma.communityMember.findUnique({
@@ -236,6 +241,8 @@ export async function transferOwnership(
     throw error;
   }
   log.info({ userId: user.id, communityId, targetUserId }, 'Transferred ownership');
+  // After the commit: a failed transfer never notifies (role-notifications.md §6).
+  await notifyRole({ communityId, userId: targetUserId, actorId: user.id, role: 'OWNER' });
   return getCommunity(user, communityId);
 }
 

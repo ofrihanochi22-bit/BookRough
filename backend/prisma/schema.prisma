@@ -359,6 +359,10 @@ enum NotificationType {
   FRIEND_ACCEPTED
   /// A community admin invited the reader (UC-9).
   COMMUNITY_INVITATION
+  /// The reader was made an admin of a community (UC-14; role-notifications.md).
+  COMMUNITY_ADMIN
+  /// The reader was made the owner of a community (UC-14; role-notifications.md).
+  COMMUNITY_OWNER
 }
 
 /// The in-app inbox — docs/features/notifications.md §3 (UC-21).

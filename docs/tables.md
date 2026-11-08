@@ -146,7 +146,7 @@ The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per noti
 
 - **id** (UUID, Primary Key).
 - **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the reader.
-- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED` or `COMMUNITY_INVITATION`.
+- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN` or `COMMUNITY_OWNER` (the last two from `docs/features/role-notifications.md`).
 - **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster.
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id), cascade on delete): for post groups and invitations.
 - **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations and ratings.

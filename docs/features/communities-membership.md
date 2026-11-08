@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `role-notifications.md` (N5, 2026-11-08).** Making a member an Admin, and transferring ownership, now notify that member in the notification center. A demotion and a removal stay silent.
+
 ## 1. Goal
 
 Every community gets a **Settings & Members** screen. Anyone can see who is in the community and leave it. Admins can remove members — which also blocks them from rejoining — unblock them, promote members to admin and demote admins, edit the community's name and description, and open the invite panel. The community's **owner** (its creator) cannot be demoted or removed, is the only one who can delete the community, and hands ownership to someone else before leaving.
