@@ -1,6 +1,7 @@
 import { Prisma, type User } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
+import { AppError } from '../utils/AppError.js';
 import { needsOnboarding } from '../utils/publicUser.js';
 import { verifyGoogleIdToken } from './googleIdentity.service.js';
 
@@ -10,21 +11,37 @@ export interface SignInResult {
 }
 
 /**
- * Sign-up and sign-in are one action (CLAUDE.md §5): verify the Google token,
- * then find the account by `google_sub` or create it.
+ * What the person chose on Welcome (docs/features/sign-in-sign-up.md §4).
+ * Absent means a client from before the split: find or create, as before.
+ */
+export type SignInIntent = 'signin' | 'signup';
+
+export const NO_ACCOUNT = 'No account for this Google account yet.';
+
+/**
+ * Verify the Google token, then find the account by `google_sub` — and, for
+ * `signup` (or no intent), create it when there is none. `signin` never
+ * creates: without an account it is a 404 with nothing written. `signup` for
+ * an existing account simply signs in (CLAUDE.md §5, sign-in-sign-up.md §0).
  *
  * The Google photo is kept only while it can still be chosen (before
  * onboarding) or after the user chose it — then it is refreshed, because Google
  * picture URLs change. A user who declined it never has it stored again
  * (docs/features/onboarding.md §3).
  */
-export async function authenticateWithGoogle(credential: string): Promise<SignInResult> {
+export async function authenticateWithGoogle(
+  credential: string,
+  intent?: SignInIntent,
+): Promise<SignInResult> {
   const { sub, picture } = await verifyGoogleIdToken(credential);
 
   const existing = await prisma.user.findUnique({ where: { googleSub: sub } });
   if (existing) {
     const keep = needsOnboarding(existing) || existing.useGooglePicture;
     return { user: await syncPicture(existing, keep ? picture : null), isNewUser: false };
+  }
+  if (intent === 'signin') {
+    throw new AppError(NO_ACCOUNT, 404);
   }
 
   try {

@@ -21,6 +21,8 @@ interface GoogleCredentialButtonProps {
   onCredential: (credential: string) => Promise<void>;
   /** Shown with a spinner while `onCredential` runs, e.g. "Signing you in…". */
   busyLabel: string;
+  /** The words on Google's button (sign-in-sign-up.md §5.1). */
+  text?: 'continue_with' | 'signin_with' | 'signup_with';
 }
 
 /**
@@ -49,6 +51,7 @@ export function GoogleCredentialButton(props: GoogleCredentialButtonProps) {
 function Controls({
   onCredential,
   busyLabel,
+  text = 'continue_with',
   scriptFailed,
 }: GoogleCredentialButtonProps & { scriptFailed: boolean }) {
   const [busy, setBusy] = useState(false);
@@ -93,9 +96,11 @@ function Controls({
         ) : (
           !blockingMessage && (
             <GoogleLogin
+              // Keyed by its words, so Google redraws its button when they change.
+              key={text}
               onSuccess={(response) => void handleCredential(response.credential)}
               onError={() => setError(MESSAGES.googleFailed)}
-              text="continue_with"
+              text={text}
               shape="pill"
               size="large"
               theme={prefersDark ? 'filled_black' : 'outline'}

@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -2071,6 +2071,83 @@ cd backend && npx vitest run src/services/post.service.test.ts
 
 ```bash
 cd frontend && npx vitest run src/components/EditCommentSheet.test.tsx src/components/PostCard.test.tsx src/pages/PostDetail.test.tsx
+```
+
+### Step 6.1f — Separate Sign in from Create account (Phase 6 — UC-1 and UC-2 amended, manual-test note N9)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/sign-in-sign-up
+Spec: docs/features/sign-in-sign-up.md
+
+Goal: A newcomer knowingly creates an account, and a returning friend knowingly signs in. The wrong choice never makes a stray account or leaves a dead end.
+
+Tasks:
+
+- [x] Spec: docs/features/sign-in-sign-up.md approved.
+  - Two intents. Sign in without an account creates nothing and offers Create account in one tap. Create account for an existing account signs in, with a toast.
+  - A switch above **one** Google button, because Google's script keeps a single global callback.
+  - The decision in CLAUDE.md §5 is reversed.
+- [x] Backend: `authenticateWithGoogle(credential, intent?)` and `POST /api/auth/google` with an optional `intent`.
+  - `signin` without an account is a `404` with nothing written.
+  - Success now returns `created`.
+  - An absent `intent` keeps find-or-create, for cached clients.
+- [x] Frontend: `GoogleSignIn` has a Sign in / Create account toggle and one `GoogleLogin` whose `text` follows it. It also has the no-account notice (Create account, or Use another Google account) and the "already have an account" toast. Welcome defaults to Sign in, and the invite preview to Create account.
+- [x] Review: `/code-review` (4 findings: 3 fixed, 1 in Stage 4) and `/security-review` (no findings).
+- [x] Tests: unit, integration, component and E2E.
+
+What I did:
+
+Delivered N9 per `docs/features/sign-in-sign-up.md`, and reversed the "same button" decision in CLAUDE.md §5.
+
+- **Backend:** the token is verified first, as before.
+  - `signin` with no account is a `404` "No account for this Google account yet.", with no row and no cookie. It reveals only the caller's own account status.
+  - `signup` for an existing account signs in, with `created: false`.
+  - The log records `intent`, never the token or email.
+- **Frontend:**
+  - `GoogleCredentialButton` gains a `text` prop. Only the `GoogleLogin` is keyed by it, so Google's script loads once.
+  - `GoogleSignIn` has the two-button toggle (`aria-pressed`), busy copy per intent, and the D2 notice. The notice keeps the credential in memory only. An expired token there says so, and Try again switches to Create account.
+  - Welcome uses the toggle. The invite preview reads "Sign in or create an account to join" and starts on Create account.
+- **Review:**
+  - `/code-review` found that a remount reloaded Google's script on every toggle, the radio role lacked the keyboard model, and Try again after expiry stayed on Sign in. All three are fixed.
+  - The old Welcome and InvitePreview tests are updated.
+  - `/security-review` found nothing.
+- **Docs:**
+  - CLAUDE.md §5 and §8, and `auth` (sequence, plus the new intent paragraph), .md + .docx.
+  - `use cases` UC-1 and UC-2, and `frontend screens` (group intro, 1.1 Welcome, 3.5 Join Community), .md + .docx.
+  - An amendment note in `google-auth.md`.
+- **Tests:**
+  - Backend unit: 6 new intent cases.
+  - Integration: 8 new intent cases in `routes/auth.integration.test.ts`. They run in CI, not locally, because they use `music_app_test_db`.
+  - Frontend: 66 files, 812 tests, 98.64% lines. That includes `GoogleSignIn.test.tsx` (10 tests).
+  - E2E: the stub button follows Google's `text`. `signIn()` takes an intent, the invite flow uses Sign up, and there's a new auth-flow case: Sign in with a new account, then the notice, then Create account, then Complete Your Profile.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` signed out, at 375px.
+
+1. Welcome shows **Sign in** (selected) | **Create account**, and below them "Sign in with Google". Tap Create account, and the button reads "Sign up with Google".
+2. With **Sign in** chosen and a Google account that has no BookRough account, you see "No account for this Google account yet." Tap **Create account**, and Complete Your Profile opens with no second Google popup.
+3. With **Create account** chosen and a Google account that already has one, you see "You already have an account. Signing you in." and land on Home.
+4. Open an invite link while signed out. It reads "Sign in or create an account to join", with Create account chosen.
+
+```bash
+cd backend && npx vitest run src/services/auth.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/components/GoogleSignIn.test.tsx src/pages/Welcome.test.tsx src/pages/InvitePreview.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -171,13 +171,13 @@ Every JSON response uses one of these two shapes:
 
 Full detail in [docs/auth.md](docs/auth.md) (companion `docs/auth.docx`).
 
-- **Google Sign-In is the only authentication method.** No email/password login, no password hashing, no password recovery. Sign-up and login are the same button.
+- **Google Sign-In is the only authentication method.** No email/password login, no password hashing, no password recovery. Sign-up and login are **two choices** — "Sign in" and "Create account" — above one Google button (reversed from "the same button" on 2026-11-08, manual-test note N9; docs/features/sign-in-sign-up.md).
 - The account key is the Google **`sub` claim**, stored as `users.google_sub` (unique). Not the email.
 - Flow:
   1. Frontend uses `@react-oauth/google` `<GoogleLogin>` to obtain a Google identity token.
-  2. Frontend `POST`s the token to `/api/auth/google`.
+  2. Frontend `POST`s the token to `/api/auth/google`, with the chosen `intent` (`signin` / `signup`).
   3. Backend verifies the token with `google-auth-library` (audience = `GOOGLE_CLIENT_ID`).
-  4. Backend reads `sub` and `picture`, looks up the user by `google_sub`, and creates a row if none exists. The picture is kept only until onboarding, or afterwards if the user chose it (docs/features/onboarding.md §3) — including re-choosing it later on My Profile with a fresh Google sign-in (docs/features/profile-settings.md §4).
+  4. Backend reads `sub` and `picture`, looks up the user by `google_sub`, and creates a row if none exists — unless the intent is `signin`, which never creates: it answers `404` and the frontend offers "Create account". The picture is kept only until onboarding, or afterwards if the user chose it (docs/features/onboarding.md §3) — including re-choosing it later on My Profile with a fresh Google sign-in (docs/features/profile-settings.md §4).
   5. Backend issues the app JWT as an `HttpOnly`, `Secure` cookie named `token`, plus `needsOnboarding`.
   6. Users needing onboarding are routed to **Complete Your Profile** to set `display_name` and `preferred_service` before the dashboard is reachable.
 - **Account collision cannot occur.** One provider, one unique key, no merge logic.
@@ -250,7 +250,7 @@ Scraping a live site in a headless browser takes **3–8 seconds**. That is inhe
 
 The full screen catalog is in [docs/frontend screens.md](<docs/frontend screens.md>) (companion `docs/frontend screens.docx`). **Seventeen screens**, five groups:
 
-- **Auth & Onboarding**: Welcome (one "Continue with Google" button — registration and login in the same action), Complete Your Profile.
+- **Auth & Onboarding**: Welcome (a "Sign in" / "Create account" switch above one Google button), Complete Your Profile.
 - **Main Navigation & Social**: Communities Dashboard (home), Global Search, Friends & Requests, Public User Profile, Recommendations (direct, friend to friend), Notifications (from the bell on Home).
 - **Community & Music**: Community Feed, Create Community, Community Settings & Members, Post Detail / Feedback, Join Community (invite preview).
 - **Personal**: My List (Listen Later), Submit Rating modal, My Profile / Settings.

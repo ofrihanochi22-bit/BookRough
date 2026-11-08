@@ -36,17 +36,24 @@ vi.mock('@react-oauth/google', () => ({
     onSuccess,
     onError,
     theme,
+    text,
   }: {
     onSuccess: (response: { credential?: string }) => void;
     onError: () => void;
     theme?: string;
+    text?: string;
   }) => {
     google.theme = theme;
+    // Google's words follow the `text` option, as the real button's do.
+    const label =
+      text === 'signin_with'
+        ? 'Sign in with Google'
+        : text === 'signup_with'
+          ? 'Sign up with Google'
+          : 'Sign in with Google';
     return (
       <>
-        <button onClick={() => onSuccess({ credential: google.credential })}>
-          Continue with Google
-        </button>
+        <button onClick={() => onSuccess({ credential: google.credential })}>{label}</button>
         <button onClick={() => onError()}>Simulate Google failure</button>
       </>
     );
@@ -118,7 +125,7 @@ describe('Welcome', () => {
     expect(
       screen.getByText('Share music with friends, on whatever app they use.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
     expect(screen.getByText('No passwords. We never store your email.')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -129,11 +136,11 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByText('Signing you in…')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).not.toBeInTheDocument();
   });
 
   it('stores the session after a successful sign-in', async () => {
@@ -143,10 +150,10 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
-    expect(signInWithGoogle).toHaveBeenCalledWith('google-id-token');
+    expect(signInWithGoogle).toHaveBeenCalledWith('google-id-token', 'signin');
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedIn', needsOnboarding: true });
   });
 
@@ -169,7 +176,7 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent("Google sign-in didn't complete.");
@@ -182,11 +189,11 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent('Google sign-in failed. Please try again.');
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
     expect(useAuthStore.getState().status).not.toBe('signedIn');
   });
 
@@ -197,11 +204,11 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent(message);
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
   });
 
   it('falls back to a generic message when the error body has none', async () => {
@@ -210,7 +217,7 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent('Sign-in failed. Please try again.');
@@ -222,7 +229,7 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent("Can't reach the server.");
@@ -234,7 +241,7 @@ describe('Welcome', () => {
     render(<Welcome />);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }));
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent('Sign-in failed. Please try again.');
@@ -249,7 +256,7 @@ describe('Welcome', () => {
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load Google sign-in.");
-    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).not.toBeInTheDocument();
   });
 
   it('shows the offline message instead of the button, and recovers when back online', () => {
@@ -257,7 +264,7 @@ describe('Welcome', () => {
     setOnline(false);
     render(<Welcome />);
     expect(screen.getByRole('alert')).toHaveTextContent("You're offline. Connect to sign in.");
-    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in with Google' })).not.toBeInTheDocument();
 
     // Act
     setOnline(true);
@@ -267,7 +274,7 @@ describe('Welcome', () => {
 
     // Assert
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument();
   });
 
   it("uses Google's dark button when the device prefers dark mode", () => {

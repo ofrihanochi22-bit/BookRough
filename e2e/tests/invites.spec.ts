@@ -25,10 +25,10 @@ test('a new friend opens the link signed out, signs up through it, and joins', a
   // Assert — the public preview.
   await expect(friend.getByRole('heading', { name: 'Friday Jazz' })).toBeVisible();
   await expect(friend.getByText('1 member')).toBeVisible();
-  await expect(friend.getByText('Continue with Google to join')).toBeVisible();
+  await expect(friend.getByText('Sign in or create an account to join')).toBeVisible();
 
   // Act — sign up through the preview; onboarding brings B back to the invite.
-  await friend.getByRole('button', { name: 'Continue with Google' }).click();
+  await friend.getByRole('button', { name: 'Sign up with Google' }).click();
   await completeProfile(friend, account.displayName);
   await expect(friend).toHaveURL(new URL(link).pathname);
   await friend.getByRole('button', { name: 'Join community' }).click();
