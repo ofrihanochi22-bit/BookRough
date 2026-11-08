@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -2002,6 +2002,75 @@ cd backend && npx vitest run src/services/notification.service.test.ts
 
 ```bash
 cd frontend && npx vitest run src/pages/Notifications.test.tsx src/components/TabLayout.test.tsx src/pages/Dashboard.test.tsx src/api/notifications.test.ts
+```
+
+### Step 6.1e — Edit a post's comment (Phase 6 — UC-11 and UC-20 amended, manual-test note N7)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/edit-post-comment
+Spec: docs/features/edit-post-comment.md
+
+Goal: An author fixes or adds to their comment in place, and readers can see it changed.
+
+Tasks:
+
+- [x] Spec: docs/features/edit-post-comment.md approved. It covers the comment only, an "· edited" marker, the author only (admins still only delete), and a direct item only while friends.
+- [x] DB: migration `add_post_comment_edited_at`, which adds the nullable `posts.comment_edited_at`.
+- [x] Backend: `editComment` in `post.service.ts`, `PATCH /api/posts/:postId/comment`, and `commentEditedAt` in `PublicPost`.
+- [x] Frontend: `EditCommentSheet`, Edit comment in the ⋯ menu (feed, Post Detail, Sent), and the "· edited" marker.
+- [x] Review: `/code-review` (4 findings: 3 fixed, 1 recorded in the spec) and `/security-review` (no findings).
+- [x] Tests: unit, integration and component per spec §7. No E2E.
+
+What I did:
+
+Delivered N7 per `docs/features/edit-post-comment.md`.
+
+- **Backend:**
+  - `editComment` cleans the comment with the posting rules (`422` when it's too long).
+  - It reads the post once for both the access check and the stored text. A non-member or unknown post gets `404`, anyone but the author `403` (admins included), and a direct item after unfriending `403`.
+  - It writes only when the cleaned text differs, setting `comment_edited_at`.
+  - The response is the same `PublicPost` as the feed's.
+  - `profile.service` now takes its cursor helpers from `utils/cursor.ts`, which avoids an import cycle.
+- **Frontend:**
+  - Edit comment sits above Delete post for the author, and on a direct item only while friends.
+  - The sheet is prefilled, shows `n/280`, and Save is disabled while unchanged, too long or offline.
+  - Saving shows "Saving…", then the toast "Comment updated".
+  - A `422` shows inline. A `403` or `404` toasts, closes and reloads.
+  - "· edited" sits beside the time, with the edit time as a tooltip.
+- **Docs:** `use cases` (UC-11, UC-20), `tables` (`comment_edited_at`) and `frontend screens` (3.1, 3.4), all .md + .docx. Amendment notes in `posts-feed.md`, `posts-delete.md`, `link-only-posts.md` and `direct-recommendations.md`.
+- **Tests:**
+  - Backend unit: 53 files, 835 tests.
+  - Backend integration: `routes/editComment.integration.test.ts` runs in CI's `test:integration`. It wasn't run locally, because it uses `music_app_test_db`.
+  - Frontend: 65 files, 802 tests, 98.61% lines. That includes `EditCommentSheet.test.tsx` and new PostCard and PostDetail cases.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px, signed in, on a community with one of your posts.
+
+1. On your post, tap ⋯. **Edit comment** sits above Delete post.
+2. Change the text, then tap **Save**. "Comment updated" appears, and the card shows the new text and "· edited".
+3. Open it again without changing anything, and Save stays disabled. Clear the text and save: the comment disappears, and "· edited" stays.
+4. On someone else's post, an admin's ⋯ has no Edit comment.
+5. In DevTools → Network → Offline, Save is disabled with "You're offline. Connect to edit."
+
+```bash
+cd backend && npx vitest run src/services/post.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/components/EditCommentSheet.test.tsx src/components/PostCard.test.tsx src/pages/PostDetail.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

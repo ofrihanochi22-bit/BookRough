@@ -16,14 +16,21 @@ import {
 } from '../test/fixtures';
 import { PostDetail } from './PostDetail';
 
-const { getPost, deletePost, listPostRatings, editRating, toastSuccess } = vi.hoisted(() => ({
-  getPost: vi.fn(),
-  deletePost: vi.fn(),
-  listPostRatings: vi.fn(),
-  editRating: vi.fn(),
-  toastSuccess: vi.fn(),
+const { getPost, deletePost, listPostRatings, editRating, toastSuccess, editPostComment } =
+  vi.hoisted(() => ({
+    editPostComment: vi.fn(),
+    getPost: vi.fn(),
+    deletePost: vi.fn(),
+    listPostRatings: vi.fn(),
+    editRating: vi.fn(),
+    toastSuccess: vi.fn(),
+  }));
+vi.mock('../api/posts', () => ({
+  getPost,
+  deletePost,
+  editPostComment,
+  retryConversion: vi.fn(),
 }));
-vi.mock('../api/posts', () => ({ getPost, deletePost, retryConversion: vi.fn() }));
 vi.mock('../api/ratings', () => ({ listPostRatings, editRating, ratePost: vi.fn() }));
 vi.mock('../api/bookmarks', () => ({ saveBookmark: vi.fn(), removeBookmark: vi.fn() }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: vi.fn() } }));
@@ -318,5 +325,31 @@ describe('PostDetail (post-detail.md §5.2)', () => {
 
     // Assert
     expect(await screen.findByText('Recommendations screen')).toBeInTheDocument();
+  });
+});
+
+describe('PostDetail — editing the comment (edit-post-comment.md §7)', () => {
+  it('updates the page in place, marked edited', async () => {
+    // Arrange
+    const mine = makePost({ isMine: true, canDelete: true, comment: 'Old' });
+    getPost.mockResolvedValue({ post: mine, community: COMMUNITY });
+    editPostComment.mockResolvedValue({
+      ...mine,
+      comment: 'New words',
+      commentEditedAt: '2026-11-08T10:00:00.000Z',
+    });
+    renderDetail();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Post options' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Edit comment' }));
+    await userEvent.clear(screen.getByLabelText('Comment'));
+    await userEvent.type(screen.getByLabelText('Comment'), 'New words');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // Assert
+    expect(await screen.findByText('New words')).toBeInTheDocument();
+    expect(screen.getByText('· edited')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Edit comment' })).not.toBeInTheDocument();
   });
 });

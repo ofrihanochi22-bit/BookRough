@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `edit-post-comment.md` (N7, 2026-11-08).** The ⋯ menu now lists Edit comment above Delete post for the author. Editing the comment is in scope there; editing anything else stays out.
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** On a direct recommendation only the sender deletes, for both people; the recipient hides it instead.
 
 ## 1. Goal

@@ -26,6 +26,7 @@ describe('toProfileRating', () => {
         originalUrl: 'https://open.spotify.com/album/x',
         authorId: 'a1',
         textComment: 'secret comment',
+        commentEditedAt: null,
         community: { id: 'c1', name: 'Friday Jazz', inviteToken: 'token' },
       },
     } as RatingWithPost;

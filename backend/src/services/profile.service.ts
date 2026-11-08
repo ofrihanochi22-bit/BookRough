@@ -11,7 +11,7 @@ import {
 } from '../utils/profileRating.js';
 import { type ProfileUser, profileUserSelect, toProfileUser } from '../utils/profileUser.js';
 import { displayNameKey } from './displayName.js';
-import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from './post.service.js';
+import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from '../utils/cursor.js';
 import { cleanLine } from './textRules.js';
 
 export const USER_NOT_FOUND = 'User not found.';

@@ -96,6 +96,7 @@ function row(overrides: object = {}) {
     universalLinkTidal: null,
     universalLinkDeezer: null,
     textComment: null,
+    commentEditedAt: null,
     conversionPending: false,
     createdAt: new Date('2026-11-02T10:00:00.000Z'),
     updatedAt: new Date('2026-11-02T10:00:00.000Z'),

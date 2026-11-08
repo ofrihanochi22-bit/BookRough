@@ -5,6 +5,7 @@ import { sessionUser } from '../middleware/requireAuth.js';
 import {
   createPost,
   deletePost,
+  editComment,
   getPost,
   listPosts,
   POST_NOT_FOUND,
@@ -26,6 +27,8 @@ const createPostSchema = z
 const listPostsQuerySchema = z.object({ before: z.string().max(200).optional() }).strict();
 
 const postIdSchema = z.string().uuid();
+/** Raw length is generous; the real limit applies after cleaning (edit-post-comment.md §4). */
+const editCommentSchema = z.object({ comment: z.string().max(4000).nullable() }).strict();
 
 /** A malformed post id is a 404 like any post the caller cannot see. */
 export function parsePostId(raw: unknown): string {
@@ -75,6 +78,18 @@ export const destroy: RequestHandler = async (req, res, next) => {
   try {
     await deletePost(sessionUser(req), parsePostId(req.params.postId));
     res.status(200).json(success(null));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** PATCH /api/posts/:postId/comment — the author only; the comment is all that changes. */
+export const editPostComment: RequestHandler = async (req, res, next) => {
+  try {
+    const postId = parsePostId(req.params.postId);
+    const { comment } = parseBody(editCommentSchema, req.body);
+    const post = await editComment(sessionUser(req), postId, comment);
+    res.status(200).json(success({ post }));
   } catch (error) {
     next(error);
   }

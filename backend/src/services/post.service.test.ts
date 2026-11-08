@@ -10,6 +10,8 @@ import {
   createPost,
   decodeCursor,
   deletePost,
+  EDIT_FRIENDS_ONLY,
+  editComment,
   encodeCursor,
   getPost,
   POST_NOT_FOUND,
@@ -31,6 +33,7 @@ const {
   fetchYoutubeMetadata,
   resolveSoundcloudShortLink,
   notifyCommunityPost,
+  areFriends,
 } = vi.hoisted(() => ({
   db: {
     communityMember: { findUnique: vi.fn() },
@@ -43,11 +46,17 @@ const {
   fetchYoutubeMetadata: vi.fn(),
   resolveSoundcloudShortLink: vi.fn(),
   notifyCommunityPost: vi.fn(),
+  areFriends: vi.fn(),
 }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
 vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
 vi.mock('./notification.service.js', () => ({ notifyCommunityPost }));
+vi.mock('./friendship.js', () => ({ areFriends, friendsOnPosts: vi.fn(async () => new Set()) }));
+vi.mock('./ratingSummary.js', () => ({
+  ratingSummaries: vi.fn(async () => new Map()),
+  summaryFor: () => ({ average: null, count: 0 }),
+}));
 vi.mock('./linkMetadata.service.js', async (importOriginal) => ({
   ...(await importOriginal<typeof LinkMetadataService>()),
   fetchLinkMetadata,
@@ -670,5 +679,166 @@ describe('retryConversion — link-only posts and the YouTube rule', () => {
 
     // Assert
     expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * Editing a comment — docs/features/edit-post-comment.md §7. Only the comment
+ * ever changes, and only by its author.
+ */
+describe('editComment', () => {
+  const RECIPIENT = '55555555-5555-4555-8555-555555555555';
+  const AUTHOR = { ...USER, displayName: 'Ofri', preferredService: 'SPOTIFY' } as User;
+  const MID_ONBOARDING = { id: USER.id, displayName: null, preferredService: null } as User;
+
+  /** The access read, then getPost's two reads (its access check and the full row). */
+  function stored(fields: Record<string, unknown>) {
+    const target = { authorId: USER.id, communityId: COMMUNITY, recipientId: null, ...fields };
+    db.post.findUnique
+      .mockResolvedValueOnce({ textComment: 'Old', ...target })
+      .mockResolvedValueOnce(target)
+      .mockResolvedValueOnce({
+        id: POST_ID,
+        ...target,
+        originalUrl: TRACK,
+        sourceService: 'SPOTIFY',
+        linkPlatform: null,
+        kind: 'TRACK',
+        songTitle: 'Song',
+        songArtist: 'Band',
+        songCoverArtUrl: null,
+        universalLinkSpotify: TRACK,
+        universalLinkApple: null,
+        universalLinkYoutube: null,
+        universalLinkTidal: null,
+        universalLinkDeezer: null,
+        textComment: 'New',
+        commentEditedAt: new Date('2026-11-08T10:00:00.000Z'),
+        conversionPending: false,
+        createdAt: new Date('2026-11-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-11-08T10:00:00.000Z'),
+        recipientHiddenAt: null,
+        author: { id: USER.id, displayName: 'Ofri', profilePictureUrl: null },
+        recipient: fields.recipientId
+          ? { id: RECIPIENT, displayName: 'Noam', profilePictureUrl: null }
+          : null,
+        bookmarks: [],
+        ratings: [],
+        community: fields.recipientId ? null : { id: COMMUNITY, name: 'Jazz' },
+      });
+  }
+
+  beforeEach(() => {
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it('saves a changed comment, stamps it edited, and returns the post', async () => {
+    // Arrange
+    stored({});
+
+    // Act
+    const post = await editComment(AUTHOR, POST_ID, '  New  ');
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledWith({
+      where: { id: POST_ID, authorId: USER.id },
+      data: { textComment: 'New', commentEditedAt: expect.any(Date) },
+    });
+    expect(post).toMatchObject({
+      id: POST_ID,
+      comment: 'New',
+      commentEditedAt: '2026-11-08T10:00:00.000Z',
+    });
+  });
+
+  it('clears a blank comment to null, which still counts as an edit', async () => {
+    // Arrange
+    stored({});
+
+    // Act
+    await editComment(AUTHOR, POST_ID, '   ');
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { textComment: null, commentEditedAt: expect.any(Date) } }),
+    );
+  });
+
+  it('writes nothing when the cleaned comment is unchanged', async () => {
+    // Arrange
+    stored({});
+
+    // Act
+    await editComment(AUTHOR, POST_ID, ' Old ');
+
+    // Assert
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('lets the sender edit a direct item while they are friends', async () => {
+    // Arrange
+    stored({ communityId: null, recipientId: RECIPIENT });
+    areFriends.mockResolvedValue(true);
+
+    // Act
+    await editComment(AUTHOR, POST_ID, 'New');
+
+    // Assert
+    expect(areFriends).toHaveBeenCalledWith(USER.id, RECIPIENT);
+    expect(db.post.updateMany).toHaveBeenCalled();
+  });
+
+  it('refuses a direct item after unfriending', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue({
+      authorId: USER.id,
+      communityId: null,
+      recipientId: RECIPIENT,
+      textComment: 'Old',
+    });
+    areFriends.mockResolvedValue(false);
+
+    // Act & Assert
+    await expectAppError(editComment(AUTHOR, POST_ID, 'New'), 403, EDIT_FRIENDS_ONLY);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses anyone but the author, an admin of the community included', async () => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue({
+      authorId: 'someone-else',
+      communityId: COMMUNITY,
+      recipientId: null,
+      textComment: 'Old',
+    });
+    db.communityMember.findUnique.mockResolvedValue({ role: 'ADMIN' });
+
+    // Act & Assert
+    await expectAppError(editComment(AUTHOR, POST_ID, 'New'), 403, AUTHOR_ONLY);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 for an unknown post and for a caller outside its community', async () => {
+    // Arrange, Act & Assert — unknown
+    db.post.findUnique.mockResolvedValue(null);
+    await expectAppError(editComment(AUTHOR, POST_ID, 'New'), 404, POST_NOT_FOUND);
+
+    // Arrange, Act & Assert — not a member
+    db.post.findUnique.mockResolvedValue({
+      authorId: USER.id,
+      communityId: COMMUNITY,
+      recipientId: null,
+      textComment: 'Old',
+    });
+    db.communityMember.findUnique.mockResolvedValue(null);
+    await expectAppError(editComment(AUTHOR, POST_ID, 'New'), 404, POST_NOT_FOUND);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses a too-long comment before reading anything, and a caller mid-onboarding', async () => {
+    // Act & Assert
+    await expectAppError(editComment(AUTHOR, POST_ID, 'x'.repeat(281)), 422);
+    await expectAppError(editComment(MID_ONBOARDING, POST_ID, 'New'), 403);
+    expect(db.post.findUnique).not.toHaveBeenCalled();
   });
 });

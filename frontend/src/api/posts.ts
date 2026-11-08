@@ -34,6 +34,8 @@ export interface PublicPost {
   coverArtUrl: string | null;
   links: Partial<Record<StreamingService, string>>;
   comment: string | null;
+  /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */
+  commentEditedAt: string | null;
   conversionPending: boolean;
   createdAt: string;
   /** The viewer saved it to Listen Later (bookmarks-my-list.md §4). */
@@ -85,6 +87,16 @@ export async function listPosts(communityId: string, before?: string): Promise<P
 }
 
 /** The card shows its own outcome, so no toast. */
+/** The author edits their comment; the rest of a post never changes (edit-post-comment.md §4). */
+export async function editPostComment(postId: string, comment: string | null): Promise<PublicPost> {
+  const response = await api.patch<SuccessBody<{ post: PublicPost }>>(
+    `/posts/${encodeURIComponent(postId)}/comment`,
+    { comment },
+    { skipErrorToast: true },
+  );
+  return response.data.data.post;
+}
+
 export async function retryConversion(postId: string): Promise<PublicPost> {
   const response = await api.post<SuccessBody<{ post: PublicPost }>>(
     `/posts/${encodeURIComponent(postId)}/conversion`,

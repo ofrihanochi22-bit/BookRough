@@ -18,7 +18,7 @@ import {
   POST_NOT_FOUND,
   requireMember,
 } from './communityAccess.js';
-import { friendsOnPosts } from './friendship.js';
+import { areFriends, friendsOnPosts } from './friendship.js';
 import {
   fetchLinkMetadata,
   fetchYoutubeMetadata,
@@ -33,6 +33,7 @@ import {
 import { notifyCommunityPost } from './notification.service.js';
 import { checkPostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
+import { requireOnboarded } from './profile.service.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
 import {
   conversionUrl,
@@ -51,6 +52,7 @@ export const AUTHOR_ONLY = 'Only the author can do this.';
 export const ALREADY_CONVERTED = 'This post already has its links.';
 export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
 export const SENDER_ONLY = 'Only the sender can delete this.';
+export const EDIT_FRIENDS_ONLY = 'You can only edit songs you sent to friends.';
 // The keyset cursor lives in utils/cursor.ts, shared with notifications; re-exported for callers.
 export { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE };
 
@@ -393,6 +395,52 @@ export async function deletePost(user: User, postId: string): Promise<void> {
     },
     'Post deleted',
   );
+}
+
+/**
+ * PATCH /posts/:postId/comment — the author edits their own comment; nothing
+ * else of a post is ever editable (docs/features/edit-post-comment.md §4). On a
+ * direct item the two must still be friends, like a rating edit. An unchanged
+ * comment writes nothing, so "· edited" never marks a no-op.
+ */
+export async function editComment(
+  user: User,
+  postId: string,
+  rawComment: string | null,
+): Promise<PublicPost> {
+  requireOnboarded(user);
+  const comment = checkPostComment(rawComment);
+  if (!comment.ok) {
+    throw new AppError(comment.message, 422);
+  }
+  // One read gives both the access check and the stored text.
+  const stored = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { authorId: true, communityId: true, recipientId: true, textComment: true },
+  });
+  if (!stored) {
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  const access = await checkPostAccess(user, stored);
+  if (access.authorId !== user.id) {
+    throw new AppError(AUTHOR_ONLY, 403);
+  }
+  if (access.scope === 'DIRECT' && !(await areFriends(user.id, access.recipientId))) {
+    throw new AppError(EDIT_FRIENDS_ONLY, 403);
+  }
+
+  if (stored.textComment !== comment.value) {
+    // Scoped to the author, so a post deleted meanwhile changes nothing.
+    const { count } = await prisma.post.updateMany({
+      where: { id: postId, authorId: user.id },
+      data: { textComment: comment.value, commentEditedAt: new Date() },
+    });
+    if (count > 0) {
+      log.info({ userId: user.id, postId }, 'Post comment edited');
+    }
+  }
+  // A post deleted meanwhile is a 404 here.
+  return (await getPost(user, postId)).post;
 }
 
 /**
