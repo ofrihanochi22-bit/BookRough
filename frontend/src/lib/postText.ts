@@ -40,3 +40,26 @@ export function checkPostComment(raw: string): TextCheck<string | null> {
   }
   return { ok: true, value: comment };
 }
+
+/** A discussion comment — mirrors checkDiscussionBody (discussion-threads.md §4). */
+export const DISCUSSION_MAX_GRAPHEMES = 500;
+const DISCUSSION_MAX_CODE_POINTS = 2000;
+
+export const DISCUSSION_MESSAGES = {
+  length: `Comments can be up to ${DISCUSSION_MAX_GRAPHEMES} characters.`,
+  character: POST_TEXT_MESSAGES.commentCharacter,
+} as const;
+
+/** null when the cleaned body can be sent; empty is not an error, just unsendable. */
+export function discussionBodyProblem(cleaned: string): string | null {
+  if (
+    graphemeCount(cleaned) > DISCUSSION_MAX_GRAPHEMES ||
+    codePointCount(cleaned) > DISCUSSION_MAX_CODE_POINTS
+  ) {
+    return DISCUSSION_MESSAGES.length;
+  }
+  if (cleaned.length > 0 && !hasOnlyPrintableCharacters(cleaned)) {
+    return DISCUSSION_MESSAGES.character;
+  }
+  return null;
+}

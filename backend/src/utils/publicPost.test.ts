@@ -48,6 +48,7 @@ describe('toPublicPost', () => {
         'author',
         'canDelete',
         'comment',
+        'commentCount',
         'commentEditedAt',
         'conversionPending',
         'coverArtUrl',

@@ -36,3 +36,30 @@ export function checkPostComment(raw: string | null | undefined): TextCheck<stri
   }
   return { ok: true, value: comment };
 }
+
+/** A discussion comment — docs/features/discussion-threads.md §4: required, up to 500. */
+export const DISCUSSION_MAX_GRAPHEMES = 500;
+const DISCUSSION_MAX_CODE_POINTS = 2000;
+
+export const DISCUSSION_MESSAGES = {
+  empty: 'Write something first.',
+  length: `Comments can be up to ${DISCUSSION_MAX_GRAPHEMES} characters.`,
+  character: POST_TEXT_MESSAGES.commentCharacter,
+} as const;
+
+export function checkDiscussionBody(raw: string): TextCheck<string> {
+  const body = cleanCommunityDescription(raw);
+  if (body.length === 0) {
+    return { ok: false, message: DISCUSSION_MESSAGES.empty };
+  }
+  if (
+    graphemeCount(body) > DISCUSSION_MAX_GRAPHEMES ||
+    codePointCount(body) > DISCUSSION_MAX_CODE_POINTS
+  ) {
+    return { ok: false, message: DISCUSSION_MESSAGES.length };
+  }
+  if (!hasOnlyPrintableCharacters(body)) {
+    return { ok: false, message: DISCUSSION_MESSAGES.character };
+  }
+  return { ok: true, value: body };
+}

@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 
 import { getPost, type PostWithCommunity, type PublicPost } from '../api/posts';
 import { listPostRatings, type PublicPostRating } from '../api/ratings';
+import { DiscussionSection, Thread } from '../components/Discussion';
 import { PostCard } from '../components/PostCard';
 import { RatingSheet } from '../components/RatingSheet';
 import { PersonLink } from '../components/PersonLink';
@@ -11,10 +12,12 @@ import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { useDiscussion } from '../hooks/useDiscussion';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { relativeTime } from '../lib/postLinks';
 import { RATINGS_FAILED } from '../lib/ratingCopy';
+import { noLongerFriends } from '../lib/recommendationCopy';
 import { useAuthStore } from '../stores/auth';
 import { NotFound } from './NotFound';
 
@@ -40,6 +43,7 @@ export function PostDetail() {
   const loadRatings = useCallback(() => listPostRatings(postId), [postId]);
   const loaded = useRequest(loadPost);
   const ratings = useRequest(loadRatings);
+  const discussion = useDiscussion(postId);
   const [local, setLocal] = useState<LocalPost | null>(null);
   const [editing, setEditing] = useState<PublicPostRating | null>(null);
   // Access lost while here (the post deleted, or the viewer removed). Kept per id.
@@ -50,7 +54,12 @@ export function PostDetail() {
   }
 
   const data = loaded.status === 'ready' ? loaded.data : null;
-  const post = data ? (local?.base === data ? local.post : data.post) : null;
+  const shownPost = data ? (local?.base === data ? local.post : data.post) : null;
+  // Once the discussion is loaded, the card's count follows it (discussion-threads.md §5.2).
+  const post =
+    shownPost && discussion.state.status === 'ready'
+      ? { ...shownPost, commentCount: discussion.comments.filter((c) => !c.deleted).length }
+      : shownPost;
   const summary =
     ratings.status === 'ready' ? ratings.data.ratingSummary : (post?.ratingSummary ?? null);
 
@@ -65,7 +74,14 @@ export function PostDetail() {
   function reloadAll() {
     loaded.reload();
     ratings.reload();
+    discussion.state.reload();
   }
+
+  // Writing on a direct item needs current friendship, like rating (discussion-threads.md §4).
+  const canWrite = post !== null && post.direct?.isFriend !== false;
+  const otherName = post?.direct
+    ? (post.isMine ? post.direct.recipient : post.author).displayName
+    : null;
 
   return (
     <ScreenLayout>
@@ -163,11 +179,33 @@ export function PostDetail() {
                     Edit
                   </Button>
                 )}
+                {/* A review opens a thread (discussion-threads.md D1). */}
+                {/* Replies outlive a review emptied later; only a review takes new ones. */}
+                {discussion.state.status === 'ready' &&
+                  (rating.comment ||
+                    discussion.repliesTo({ kind: 'review', ratingId: rating.id }).length > 0) && (
+                    <Thread
+                      opener={{ kind: 'review', ratingId: rating.id }}
+                      openerAuthor={rating.rater}
+                      online={online}
+                      canWrite={canWrite && rating.comment !== null}
+                      discussion={discussion}
+                    />
+                  )}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {data && post && (
+        <DiscussionSection
+          discussion={discussion}
+          online={online}
+          canWrite={canWrite}
+          noLongerFriendsNote={!canWrite && otherName ? noLongerFriends(otherName) : null}
+        />
+      )}
 
       {editing && post && (
         <RatingSheet

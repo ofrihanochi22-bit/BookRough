@@ -63,6 +63,15 @@ export function viewOf(item: PublicNotification): NotificationView {
         rest: ` made you the owner of ${community}`,
         to: `/communities/${item.community?.id ?? ''}`,
       };
+    // discussion-threads.md §5.3
+    case 'COMMENT_REPLY': {
+      const on = title ?? 'your post';
+      return {
+        lead: item.count > 1 ? `${item.count} new replies` : actor,
+        rest: item.count > 1 ? ` on ${on} · latest from ${actor}` : ` replied to you on ${on}`,
+        to: `/posts/${item.post?.id ?? ''}`,
+      };
+    }
   }
 }
 

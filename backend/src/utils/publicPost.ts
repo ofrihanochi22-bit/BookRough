@@ -24,6 +24,8 @@ export interface PublicPost {
   /** Only the services a link was found for. */
   links: Partial<Record<StreamingService, string>>;
   comment: string | null;
+  /** The discussion's size on the card (discussion-threads.md §5.2). */
+  commentCount: number;
   /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */
   commentEditedAt: string | null;
   conversionPending: boolean;
@@ -45,6 +47,8 @@ export type PostWithAuthor = Post & {
   bookmarks: Array<{ userId: string }>;
   /** The viewer's own rating, if any — never anyone else's. */
   ratings: Array<{ userId: string; score: number }>;
+  /** Comments not deleted (discussion-threads.md §4); absent in rows read without it. */
+  _count?: { comments: number };
 };
 
 /**
@@ -58,6 +62,7 @@ export function postInclude(viewerId: string) {
     recipient: { select: memberUserSelect },
     bookmarks: { where: { userId: viewerId }, select: { userId: true } },
     ratings: { where: { userId: viewerId }, select: { userId: true, score: true } },
+    _count: { select: { comments: { where: { deletedAt: null } } } },
   } as const;
 }
 
@@ -102,6 +107,7 @@ export function toPublicPost(
     coverArtUrl: post.songCoverArtUrl,
     links,
     comment: post.textComment,
+    commentCount: post._count?.comments ?? 0,
     commentEditedAt: post.commentEditedAt?.toISOString() ?? null,
     conversionPending: post.conversionPending,
     createdAt: post.createdAt.toISOString(),

@@ -1669,7 +1669,7 @@ npm test --prefix e2e                                     # 41 runs (+3 skipped)
 >
 > CI moved to Phase 0 (Step 0.5) — a merge gate that arrives at the end has already failed at its job.
 
-> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f → 6.1g → 6.1h… → 6.2 → 6.5.
+> **Manual-test notes added 2026-11-08.** The developer chose to build notes N1–N10 from the manual test session (`docs/manual-tests/2026-11-04.md` §7) before Step 6.2, one feature per PR, as Steps 6.1c onwards. PR #40 (Step 6.2) stays open because its iPhone checks need a Vercel preview, and the team is paused until 2026-11-11. New write controls follow its offline-write pattern so the rebase stays simple. N4 (the onboarding tutorial) comes last, after a UI redesign. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.4 → 6.1c → 6.1d → 6.1e → 6.1f → 6.1g → 6.1h → 6.1i… → 6.2 → 6.5.
 
 > **Link-only posts added 2026-11-03** as Step 6.1b, built while PR #40 (Step 6.2) waits on the Vercel pause, an exception to one open PR at a time. The order is now 6.3 → 6.1 → 6.3a → 6.1a → 6.1b → 6.2 → 6.4 → 6.5.
 
@@ -2210,7 +2210,7 @@ cd frontend && npx vitest run src/pages/Notifications.test.tsx
 
 ### Step 6.1h — Upload your own profile photo (Phase 6 — UC-4 and UC-19 amended, manual-test note N10)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #52)
 Branch: feat/avatar-upload
 Spec: docs/features/avatar-upload.md
 
@@ -2270,6 +2270,77 @@ cd backend && npx vitest run src/services/avatar.service.test.ts
 
 ```bash
 cd frontend && npx vitest run src/pages/Profile.test.tsx src/pages/Admin.test.tsx src/lib/avatarImage.test.ts
+```
+
+### Step 6.1i — Discussion threads on a post (Phase 6 — a new UC-22, manual-test note N3)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/discussion-threads
+Spec: docs/features/discussion-threads.md
+
+Goal: Friends talk about a song where it's shared. Anyone who can see a post comments on it or replies to a review, and the person replied to hears about it from the bell.
+
+Tasks:
+
+- [x] Spec approved: post comments and review replies (D1), one flat thread per opener (D2), only the person replied to is notified, grouped per post (D3), edit and delete like posts (D4).
+- [x] DB: migrations `add_comments` (the table, plus the CHECKs `comments_one_thread` and `comments_body_or_deleted`) and `add_comment_reply_group` (the partial unique index, kept apart because a new enum value can't be used in the transaction that adds it).
+- [x] Backend:
+  - `comment.service.ts`: list, create, edit and delete, with access through `requirePostAccess`.
+  - Writing on a direct item needs friendship. A reply's "to" is checked against the thread.
+  - A post comment with replies is hidden, not removed. The thread's opener row is locked while deleting.
+  - `notifyCommentReply`: a raw upsert on the partial index.
+  - `commentCount` on every post.
+- [x] Frontend:
+  - `components/Discussion.tsx` and `hooks/useDiscussion.ts`: the composer (n/500), threads, Reply, Edit and Delete, and the offline and unfriended states.
+  - "· N comments" on the card, and the `COMMENT_REPLY` notification row.
+- [x] Review: `/code-review` (7 findings: 6 fixed, 1 kept as the project's convention) and `/security-review` (no findings).
+- [x] Tests: unit, integration, component, and one E2E (`e2e/tests/discussion.spec.ts`).
+
+What I did:
+
+- **Code-review fixes:**
+  - Replies under a review that was later emptied stay visible, but take no new replies.
+  - Each composer has its own field id.
+  - Deletes lock the thread's opener, so a reply inserted meanwhile is never cascade-deleted silently. A reply whose opener vanished gets "That comment is gone."
+  - The page's card count follows the discussion.
+  - The browser mirrors the server's code-point and character checks.
+  - Every reason a post is out of reach gives the same "Comment not found."
+- **A11y fix found by the tests:** the form and its field shared one accessible name.
+- **Browser check:** not done locally. Claude in Chrome was not connected, and the local E2E harness uses `music_app_test_db`. The new E2E covers the screen in CI on `main`.
+- **Docs:** `use cases` (UC-22, and UC-21's list), `tables` (table 14 `comments`, so fourteen tables, and the `NotificationType` value and index) and `frontend screens` (3.1 the card, 3.4 Post Detail), all .md + .docx. Also CLAUDE.md §6, §9 and §12, plus amendment notes in `post-detail.md`, `notifications.md` and `direct-recommendations.md`.
+- **Tests:**
+  - Backend unit: 55 files, 903 tests, including `comment.service.test.ts` (31) and two `notifyCommentReply` tests.
+  - Integration: `routes/comments.integration.test.ts`, run in CI, not locally.
+  - Frontend: 850 tests, 97.6% lines.
+  - E2E: A posts, B comments, A opens the bell notification and replies.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in as two members of one community. As the first, post a song.
+2. As the second, open the post (**View ratings**). Under **Discussion**, type in **Add a comment** and tap **Send**. The comment appears, and the card says "· 1 comment".
+3. As the first, the bell shows "… replied to you on …". Open it, tap **Reply** under the comment, and send. The reply joins the thread.
+4. Rate the post with a review as the second member. As the first, tap **Reply** under that review.
+5. Open a comment's **⋯** menu: **Edit** marks it "· edited". **Delete** on a comment with replies leaves "Comment deleted".
+6. Go offline (DevTools → Network → Offline). Send and Reply are disabled with "You're offline. Connect to comment."
+
+```bash
+cd backend && npx vitest run src/services/comment.service.test.ts src/services/notification.service.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/PostDetail.test.tsx src/components/PostCard.test.tsx src/pages/Notifications.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -18,3 +18,8 @@ export function ratingSummaryLine(summary: {
   }
   return `★ ${summary.average} · ${summary.count} ${summary.count === 1 ? 'rating' : 'ratings'}`;
 }
+
+/** "3 comments" for the card, or null with none (discussion-threads.md §5.2). */
+export function commentCountLine(count: number): string | null {
+  return count > 0 ? `${count} ${count === 1 ? 'comment' : 'comments'}` : null;
+}

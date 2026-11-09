@@ -314,7 +314,7 @@
 
 ### UC-21: User Receives Notifications
 
-- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), an invitation to a community (UC-9), or being made an admin or the owner of one (UC-14). There is no push and no email.
+- **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), an invitation to a community (UC-9), being made an admin or the owner of one (UC-14), or a reply to them in a discussion (UC-22). There is no push and no email.
 - **Pre-conditions:** The user is logged in and has finished onboarding.
 - **Post-conditions:** Each event leaves a notification for the person it concerns. Reading one marks only that one; "Mark all as read" marks the rest. The user never sees a notification about a community they no longer belong to or a post they can no longer open.
 - **Trigger:** A count on the Home tab, or the bell in the Home header.
@@ -325,3 +325,16 @@
   - The user taps it: it is marked read, the count drops, and the community's feed opens.
   - More posts in the same community while it is unread share one row: "3 new posts in Friday Jazz".
 - **Fail description (Alternative Scenario):** The user is offline: the list shows what was last loaded, and marking read is disabled with "You're offline. Connect to mark them as read." If a notification cannot be written, the post, rating, request or invitation that caused it is still saved; only the notice is lost. A user removed from a community stops seeing its notifications. Specified in docs/features/notifications.md.
+
+### UC-22: User Discusses a Recommendation
+
+- **Description:** Anyone who can see a post comments on it without rating, or replies to someone's review. Each post comment and each review opens one flat thread; a reply to a reply joins the same thread, labelled with who it answers.
+- **Pre-conditions:** The user is logged in, has finished onboarding, and can see the post: a member of its community, or one of the two people a direct recommendation is between, while they are still friends.
+- **Post-conditions:** The comment is saved and shown to everyone who can see the post. The person replied to (the post's author for a post comment) is notified (UC-21), grouped per post while unread. The author may edit it (marked "· edited") or delete it; a community's admins and owner may delete any comment there.
+- **Trigger:** "Add a comment" in the Discussion on Post Detail, or "Reply" under a review or comment.
+- **Step-by-step scenario (Success):**
+  - Noam opens a post in Friday Jazz and reads Dana's review.
+  - He taps Reply under it, writes "You'd love their live version" and sends.
+  - The reply appears in the review's thread, and Dana's bell shows "Noam replied to you on Blue".
+  - Dana opens it, lands on the post, and replies back in the same thread.
+- **Fail description (Alternative Scenario):** An empty comment or one over 500 characters is refused before sending. Offline, Send and Reply are disabled with "You're offline. Connect to comment." A reply to a comment deleted meanwhile is refused with "That comment is gone." After unfriending, a direct recommendation's discussion stays readable but takes no new comments. A deleted comment with replies reads "Comment deleted" and keeps its thread. Specified in docs/features/discussion-threads.md.
