@@ -548,6 +548,22 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     );
   });
 
+  it('shows the discussion size alone when nobody has rated (discussion-threads.md §5.2)', () => {
+    // Arrange & Act
+    renderCard(makePost({ commentCount: 1 }));
+
+    // Assert
+    expect(screen.getByText('1 comment')).toBeInTheDocument();
+  });
+
+  it('joins ratings and comments on one line', () => {
+    // Arrange & Act
+    renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 }, commentCount: 3 }));
+
+    // Assert
+    expect(screen.getByText('★ 7.5 · 4 ratings · 3 comments')).toBeInTheDocument();
+  });
+
   it('says "1 rating", and shows no average before anyone rates', () => {
     // Arrange & Act
     renderCard(makePost({ ratingSummary: { average: 9, count: 1 } }));

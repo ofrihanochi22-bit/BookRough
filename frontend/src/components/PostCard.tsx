@@ -13,7 +13,7 @@ import {
   relativeTime,
 } from '../lib/postLinks';
 import { CONVERTING_COPY } from '../lib/postText';
-import { ratingSummaryLine } from '../lib/ratingCopy';
+import { commentCountLine, ratingSummaryLine } from '../lib/ratingCopy';
 import { deleteDirectBody, noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
 import { BookmarkButton } from './BookmarkButton';
@@ -149,7 +149,10 @@ export function PostCard({
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
   const main = mainLink(post, viewerService);
   const detailPath = `/posts/${post.id}`;
-  const summary = ratingSummaryLine(post.ratingSummary);
+  const summary =
+    [ratingSummaryLine(post.ratingSummary), commentCountLine(post.commentCount)]
+      .filter(Boolean)
+      .join(' · ') || null;
   // The author edits their comment; a direct item only while still friends (edit-post-comment.md §5.1).
   const canEdit = post.isMine && (!post.direct || post.direct.isFriend);
   const hasMenu = canEdit || post.canDelete || onHide !== undefined;

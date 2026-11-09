@@ -144,6 +144,34 @@ export function notifyInvitations(input: {
 }
 
 /**
+ * Someone replied to the reader in a post's discussion (discussion-threads.md
+ * D3): one unread group per reader and post, grown by each reply — the
+ * partial index `notifications_one_open_reply_group` is the upsert's target,
+ * which Prisma cannot express (CLAUDE.md §4). Nobody is told about their own reply.
+ */
+export async function notifyCommentReply(input: {
+  postId: string;
+  readerId: string;
+  actorId: string;
+}) {
+  if (input.readerId === input.actorId) {
+    return;
+  }
+  await writeSafely('commentReply', () =>
+    prisma.$executeRaw(Prisma.sql`
+      INSERT INTO notifications (user_id, type, actor_id, post_id)
+      VALUES (${input.readerId}::uuid, 'COMMENT_REPLY'::"NotificationType",
+              ${input.actorId}::uuid, ${input.postId}::uuid)
+      ON CONFLICT (user_id, post_id)
+        WHERE type = 'COMMENT_REPLY' AND read_at IS NULL
+      DO UPDATE SET
+        count = notifications.count + 1,
+        actor_id = EXCLUDED.actor_id,
+        updated_at = now()`),
+  );
+}
+
+/**
  * A member was made an admin or the owner (role-notifications.md §4). At most one
  * unread row per (member, type, community): a demote and re-promote before
  * reading refreshes it rather than stacking another.
@@ -197,7 +225,13 @@ function visibleTo(userId: string): Prisma.NotificationWhereInput {
       },
       { type: NotificationType.COMMUNITY_INVITATION, community: { bans: { none: { userId } } } },
       {
-        type: { in: [NotificationType.RECOMMENDATION, NotificationType.RATING] },
+        type: {
+          in: [
+            NotificationType.RECOMMENDATION,
+            NotificationType.RATING,
+            NotificationType.COMMENT_REPLY,
+          ],
+        },
         post: {
           OR: [
             { communityId: null, OR: [{ authorId: userId }, { recipientId: userId }] },

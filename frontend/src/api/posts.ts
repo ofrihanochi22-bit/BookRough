@@ -44,6 +44,8 @@ export interface PublicPost {
   myScore: number | null;
   /** Every member's ratings at a glance (post-detail.md §4). */
   ratingSummary: RatingSummary;
+  /** Comments and replies not deleted (discussion-threads.md §4). */
+  commentCount: number;
   /** Set on a direct recommendation (direct-recommendations.md §4). */
   direct: { recipient: MemberUser; isFriend: boolean } | null;
 }

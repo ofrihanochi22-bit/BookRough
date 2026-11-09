@@ -13,6 +13,7 @@ import {
   notifyFriendAccepted,
   notifyFriendRequest,
   notifyInvitations,
+  notifyCommentReply,
   notifyRating,
   notifyRecommendation,
   notifyRole,
@@ -126,6 +127,27 @@ describe('writers', () => {
 
     // Assert
     expect(db.notification.create).not.toHaveBeenCalled();
+  });
+
+  it('notifyCommentReply grows one unread group per reader and post', async () => {
+    // Act
+    await notifyCommentReply({ postId: POST, readerId: ME.id, actorId: DANA });
+
+    // Assert
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    const [sql] = db.$executeRaw.mock.calls[0] as [{ sql: string; values: unknown[] }];
+    expect(sql.sql).toContain('ON CONFLICT (user_id, post_id)');
+    expect(sql.sql).toContain("type = 'COMMENT_REPLY' AND read_at IS NULL");
+    expect(sql.sql).toContain('count = notifications.count + 1');
+    expect(sql.values).toEqual([ME.id, DANA, POST]);
+  });
+
+  it('notifyCommentReply writes nothing for a reply to yourself', async () => {
+    // Act
+    await notifyCommentReply({ postId: POST, readerId: ME.id, actorId: ME.id });
+
+    // Assert
+    expect(db.$executeRaw).not.toHaveBeenCalled();
   });
 
   it('notifyFriendRequest creates a row when there is no unread one from that sender', async () => {

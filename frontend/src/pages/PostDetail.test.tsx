@@ -1,8 +1,9 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { PublicComment } from '../api/comments';
 import type { PublicPostRating } from '../api/ratings';
 import { useAuthStore } from '../stores/auth';
 import {
@@ -16,15 +17,28 @@ import {
 } from '../test/fixtures';
 import { PostDetail } from './PostDetail';
 
-const { getPost, deletePost, listPostRatings, editRating, toastSuccess, editPostComment } =
-  vi.hoisted(() => ({
-    editPostComment: vi.fn(),
-    getPost: vi.fn(),
-    deletePost: vi.fn(),
-    listPostRatings: vi.fn(),
-    editRating: vi.fn(),
-    toastSuccess: vi.fn(),
-  }));
+const {
+  getPost,
+  deletePost,
+  listPostRatings,
+  editRating,
+  toastSuccess,
+  editPostComment,
+  comments,
+} = vi.hoisted(() => ({
+  comments: {
+    listComments: vi.fn(),
+    addComment: vi.fn(),
+    editComment: vi.fn(),
+    deleteComment: vi.fn(),
+  },
+  editPostComment: vi.fn(),
+  getPost: vi.fn(),
+  deletePost: vi.fn(),
+  listPostRatings: vi.fn(),
+  editRating: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
 vi.mock('../api/posts', () => ({
   getPost,
   deletePost,
@@ -32,6 +46,7 @@ vi.mock('../api/posts', () => ({
   retryConversion: vi.fn(),
 }));
 vi.mock('../api/ratings', () => ({ listPostRatings, editRating, ratePost: vi.fn() }));
+vi.mock('../api/comments', () => comments);
 vi.mock('../api/bookmarks', () => ({ saveBookmark: vi.fn(), removeBookmark: vi.fn() }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: vi.fn() } }));
 
@@ -79,6 +94,7 @@ beforeEach(() => {
     .setSession(makeSession({ user: makeUser({ preferredService: 'SPOTIFY' }) }));
   getPost.mockResolvedValue({ post: POST, community: COMMUNITY });
   listPostRatings.mockResolvedValue(RATINGS);
+  comments.listComments.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -351,5 +367,313 @@ describe('PostDetail — editing the comment (edit-post-comment.md §7)', () => 
     expect(await screen.findByText('New words')).toBeInTheDocument();
     expect(screen.getByText('· edited')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Edit comment' })).not.toBeInTheDocument();
+  });
+});
+
+function comment(overrides: Partial<PublicComment>): PublicComment {
+  return {
+    id: 'c1',
+    author: { id: 'u2', displayName: 'Dana', profilePictureUrl: null },
+    body: 'Love this one',
+    deleted: false,
+    createdAt: '2026-11-09T10:00:00.000Z',
+    editedAt: null,
+    ratingId: null,
+    parentId: null,
+    replyTo: null,
+    isMine: false,
+    canDelete: false,
+    ...overrides,
+  };
+}
+
+const discussion = () => screen.getByRole('region', { name: 'Discussion' });
+const ready = () => screen.findByRole('region', { name: 'Discussion' });
+
+describe('PostDetail — discussion (discussion-threads.md §7)', () => {
+  it('shows a skeleton, then the empty state', async () => {
+    // Arrange
+    let resolve: (value: PublicComment[]) => void = () => {};
+    comments.listComments.mockReturnValue(new Promise((done) => (resolve = done)));
+
+    // Act
+    renderDetail();
+
+    // Assert
+    expect(
+      await screen.findByRole('status', { name: 'Loading the discussion' }),
+    ).toBeInTheDocument();
+    resolve([]);
+    expect(
+      await within(await ready()).findByText('No comments yet. Start the conversation.'),
+    ).toBeInTheDocument();
+  });
+
+  it('adds a comment to the list, clearing the box', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.addComment.mockResolvedValue(comment({ isMine: true, body: 'Great pick' }));
+    renderDetail();
+    const box = await within(await ready()).findByLabelText('Add a comment');
+
+    // Act
+    await user.type(box, '  Great pick ');
+    await user.click(within(discussion()).getByRole('button', { name: 'Send' }));
+
+    // Assert
+    expect(comments.addComment).toHaveBeenCalledWith(POST.id, { body: 'Great pick' });
+    expect(await within(await ready()).findByText('Great pick')).toBeInTheDocument();
+    expect(box).toHaveValue('');
+  });
+
+  it('keeps the draft and shows the reason when sending fails', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.addComment.mockRejectedValue(
+      httpError(403, 'You can only comment on songs from friends.'),
+    );
+    renderDetail();
+    const box = await within(await ready()).findByLabelText('Add a comment');
+
+    // Act
+    await user.type(box, 'Hello');
+    await user.click(within(discussion()).getByRole('button', { name: 'Send' }));
+
+    // Assert
+    expect(
+      await screen.findByText('You can only comment on songs from friends.'),
+    ).toBeInTheDocument();
+    expect(box).toHaveValue('Hello');
+  });
+
+  it('refuses over 500 characters before sending', async () => {
+    // Arrange
+    renderDetail();
+    const box = await within(await ready()).findByLabelText('Add a comment');
+
+    // Act
+    fireEvent.change(box, { target: { value: 'a'.repeat(501) } });
+
+    // Assert
+    expect(within(discussion()).getByText('501/500')).toBeInTheDocument();
+    expect(within(discussion()).getByRole('alert')).toHaveTextContent(
+      'Comments can be up to 500 characters.',
+    );
+    expect(within(discussion()).getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+
+  it('shows a thread under a review and replies to someone in it', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.listComments.mockResolvedValue([
+      comment({
+        id: 'c2',
+        ratingId: 'noa',
+        author: { id: 'u3', displayName: 'Ada', profilePictureUrl: null },
+        replyTo: { id: 'u1', displayName: 'Noa', profilePictureUrl: null },
+        body: 'Agreed',
+      }),
+    ]);
+    comments.addComment.mockResolvedValue(
+      comment({ id: 'c3', ratingId: 'noa', isMine: true, body: 'Me too' }),
+    );
+    renderDetail();
+    expect(await screen.findByText('Agreed')).toBeInTheDocument();
+    const noaRow = within(ratingsRegion()).getAllByRole('listitem')[1]!;
+
+    // Act
+    await user.click(within(noaRow).getAllByRole('button', { name: 'Reply' })[1]!);
+    expect(within(noaRow).getByText(/Replying to Ada/)).toBeInTheDocument();
+    await user.type(within(noaRow).getByLabelText('Your reply'), 'Me too');
+    await user.click(within(noaRow).getByRole('button', { name: 'Send' }));
+
+    // Assert
+    expect(comments.addComment).toHaveBeenCalledWith(POST.id, {
+      body: 'Me too',
+      ratingId: 'noa',
+      replyToId: 'u3',
+    });
+    expect(await within(noaRow).findByText('Me too')).toBeInTheDocument();
+  });
+
+  it('cancels a reply without sending', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.listComments.mockResolvedValue([comment({})]);
+    renderDetail();
+    await within(await ready()).findByText('Love this one');
+
+    // Act
+    await user.click(within(discussion()).getByRole('button', { name: 'Reply' }));
+    expect(within(discussion()).getByText(/Replying to Dana/)).toBeInTheDocument();
+    await user.click(within(discussion()).getByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(within(discussion()).queryByText(/Replying to/)).not.toBeInTheDocument();
+    expect(comments.addComment).not.toHaveBeenCalled();
+  });
+
+  it('edits your comment in place, marked edited', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    const mine = { isMine: true, canDelete: true };
+    comments.listComments.mockResolvedValue([comment(mine)]);
+    comments.editComment.mockResolvedValue(
+      comment({ ...mine, body: 'Even better', editedAt: '2026-11-09T11:00:00.000Z' }),
+    );
+    renderDetail();
+    await within(await ready()).findByText('Love this one');
+
+    // Act
+    await user.click(within(discussion()).getByRole('button', { name: 'Comment options' }));
+    await user.click(within(discussion()).getByRole('button', { name: 'Edit' }));
+    const box = within(discussion()).getByLabelText('Edit comment');
+    await user.clear(box);
+    await user.type(box, 'Even better');
+    await user.click(within(discussion()).getByRole('button', { name: 'Save' }));
+
+    // Assert
+    expect(comments.editComment).toHaveBeenCalledWith('c1', 'Even better');
+    expect(await within(await ready()).findByText('Even better')).toBeInTheDocument();
+    expect(within(discussion()).getByText('· edited')).toBeInTheDocument();
+  });
+
+  it('deletes after confirming; a comment with replies stays as "Comment deleted"', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.listComments.mockResolvedValue([
+      comment({ isMine: true, canDelete: true }),
+      comment({ id: 'c2', parentId: 'c1', body: 'A reply' }),
+    ]);
+    comments.deleteComment.mockResolvedValue('hidden');
+    renderDetail();
+    await within(await ready()).findByText('Love this one');
+
+    // Act
+    await user.click(within(discussion()).getByRole('button', { name: 'Comment options' }));
+    await user.click(within(discussion()).getByRole('button', { name: 'Delete' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete this comment?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    // Assert
+    expect(comments.deleteComment).toHaveBeenCalledWith('c1');
+    expect(await within(await ready()).findByText('Comment deleted')).toBeInTheDocument();
+    expect(within(discussion()).getByText('A reply')).toBeInTheDocument();
+  });
+
+  it('keeps a comment when deleting fails, and removes it on a second try', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.listComments.mockResolvedValue([comment({ canDelete: true })]);
+    comments.deleteComment.mockRejectedValueOnce(networkError()).mockResolvedValueOnce('removed');
+    renderDetail();
+    await within(await ready()).findByText('Love this one');
+    const confirmDelete = async () => {
+      const dialog = screen.getByRole('dialog', { name: 'Delete this comment?' });
+      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    };
+
+    // Act
+    await user.click(within(discussion()).getByRole('button', { name: 'Comment options' }));
+    await user.click(within(discussion()).getByRole('button', { name: 'Delete' }));
+    await confirmDelete();
+    expect(within(discussion()).getByText('Love this one')).toBeInTheDocument();
+    await confirmDelete();
+
+    // Assert
+    expect(
+      await within(await ready()).findByText('No comments yet. Start the conversation.'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the error with Try again when the discussion fails to load', async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.listComments
+      .mockRejectedValueOnce(networkError())
+      .mockResolvedValueOnce([comment({})]);
+    renderDetail();
+
+    // Act
+    expect(
+      await within(await ready()).findByText("Couldn't load the discussion."),
+    ).toBeInTheDocument();
+    await user.click(within(discussion()).getByRole('button', { name: 'Try again' }));
+
+    // Assert
+    expect(await within(await ready()).findByText('Love this one')).toBeInTheDocument();
+  });
+
+  it('disables Send and Reply offline, with a note', async () => {
+    // Arrange
+    setOnline(false);
+    comments.listComments.mockResolvedValue([comment({})]);
+
+    // Act
+    renderDetail();
+
+    // Assert
+    await within(await ready()).findByText('Love this one');
+    expect(
+      within(discussion()).getByText("You're offline. Connect to comment."),
+    ).toBeInTheDocument();
+    expect(within(discussion()).getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(within(discussion()).getByRole('button', { name: 'Reply' })).toBeDisabled();
+  });
+
+  it('after unfriending, the discussion is read-only with a note', async () => {
+    // Arrange
+    getPost.mockResolvedValue({
+      post: makePost({
+        direct: {
+          recipient: { id: 'me', displayName: 'Me', profilePictureUrl: null },
+          isFriend: false,
+        },
+      }),
+      community: null,
+    });
+    comments.listComments.mockResolvedValue([comment({})]);
+
+    // Act
+    renderDetail();
+
+    // Assert
+    await within(await ready()).findByText('Love this one');
+    expect(within(discussion()).getByText(/no longer friends with/)).toBeInTheDocument();
+    expect(within(discussion()).queryByLabelText('Add a comment')).not.toBeInTheDocument();
+    expect(within(discussion()).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
+  });
+
+  it('keeps replies under a review that was emptied, without a Reply', async () => {
+    // Arrange
+    listPostRatings.mockResolvedValue({
+      ...RATINGS,
+      ratings: [rating({ id: 'noa', comment: null })],
+    });
+    comments.listComments.mockResolvedValue([comment({ ratingId: 'noa', body: 'Still here' })]);
+
+    // Act
+    renderDetail();
+
+    // Assert
+    expect(await screen.findByText('Still here')).toBeInTheDocument();
+    const row = within(ratingsRegion()).getAllByRole('listitem')[0]!;
+    expect(within(row).getByText('Still here')).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
+  });
+
+  it("counts the discussion on the page's card as it changes", async () => {
+    // Arrange
+    const user = userEvent.setup();
+    comments.addComment.mockResolvedValue(comment({ isMine: true }));
+    renderDetail();
+    const box = await within(await ready()).findByLabelText('Add a comment');
+
+    // Act
+    await user.type(box, 'Hi');
+    await user.click(within(discussion()).getByRole('button', { name: 'Send' }));
+
+    // Assert
+    expect(await screen.findByText(/1 comment/)).toBeInTheDocument();
   });
 });

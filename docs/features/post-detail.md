@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `discussion-threads.md` (UC-22, 2026-11-09).** Each review opens a thread of replies, and a Discussion section below the ratings holds post comments with their own threads. The page's card shows the discussion's size and follows it as comments are added or deleted.
+
 > **Amended by `link-only-posts.md` (UC-11, 2026-11-03).** A link-only post's card shows one platform button and no Other services or Find on other services.
 
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Post Detail also opens a direct recommendation for its two people, with `community: null` and a back link to Recommendations. Editing a rating there needs current friendship.

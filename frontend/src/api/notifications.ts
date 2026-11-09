@@ -11,7 +11,8 @@ export type NotificationType =
   | 'FRIEND_ACCEPTED'
   | 'COMMUNITY_INVITATION'
   | 'COMMUNITY_ADMIN'
-  | 'COMMUNITY_OWNER';
+  | 'COMMUNITY_OWNER'
+  | 'COMMENT_REPLY';
 
 /** docs/features/notifications.md §4 (UC-21). */
 export interface PublicNotification {
