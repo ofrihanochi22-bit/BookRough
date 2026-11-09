@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `discussion-threads.md` (UC-22, 2026-11-09).** A ninth type, `COMMENT_REPLY`, for the person a comment answers (the post's author for a post comment). One unread row per reader and post grows with each reply, through the partial unique index `notifications_one_open_reply_group`, and it's shown only while the reader can still open the post, like `RATING`.
+
 > **Amended by `role-notifications.md` (N5, 2026-11-08).** Two more types, `COMMUNITY_ADMIN` and `COMMUNITY_OWNER`, written by `changeRole` (a real promotion only) and `transferOwnership`. They're shown only while the reader is still a member, like `COMMUNITY_POSTS`, and there's one unread row per (member, type, community).
 
 ## 0. Where this comes from

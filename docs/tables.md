@@ -146,15 +146,15 @@ The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per noti
 
 - **id** (UUID, Primary Key).
 - **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the reader.
-- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN` or `COMMUNITY_OWNER` (the last two from `docs/features/role-notifications.md`).
+- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN`, `COMMUNITY_OWNER` (these two from `docs/features/role-notifications.md`) or `COMMENT_REPLY` (`docs/features/discussion-threads.md`).
 - **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster.
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id), cascade on delete): for post groups and invitations.
-- **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations and ratings.
+- **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations, ratings and discussion replies.
 - **count** (INTEGER, Not Null, Default 1): above 1 only for a post group; the hand-written CHECK `notifications_count_positive` keeps it at least 1.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Default Current Time): bumped when a group grows; the list is ordered by it.
 - **read_at** (TIMESTAMP, Nullable): set when the reader marks it read.
-- (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing.)
+- (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community; `notifications_one_open_reply_group` on (user_id, post_id), where type is `COMMENT_REPLY` and read_at is null, keeps one unread group of replies per post. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing.)
 
 ### 13. user_avatars Table
 
@@ -164,8 +164,24 @@ A user's uploaded photo (UC-4, `docs/features/avatar-upload.md` §3). One row at
 - **image** (BYTEA, Not Null): the server's own re-encode — a 256×256 WebP of at most 100 KB, no metadata. The uploaded bytes are never stored.
 - **updated_at** (TIMESTAMP, Not Null): set on every upload; it versions the URL in `users.profile_picture_url`, so caches never show an old photo.
 
+### 14. comments Table
+
+The discussion on a post (UC-22, `docs/features/discussion-threads.md` §3). A post comment has no rating and no parent; a reply sits in one thread, under a review (`rating_id`) or under a post comment (`parent_id`).
+
+- **id** (UUID, Primary Key).
+- **post_id** (UUID, Foreign Key referencing posts(id), cascade on delete).
+- **author_id** (UUID, Foreign Key referencing users(id), cascade on delete).
+- **rating_id** (UUID, Nullable, Foreign Key referencing ratings(id), cascade on delete): a reply under that review.
+- **parent_id** (UUID, Nullable, Foreign Key referencing comments(id), cascade on delete): a reply under that post comment.
+- **reply_to_id** (UUID, Nullable, Foreign Key referencing users(id), set null on delete): who a reply answers, for its "↩ to" label.
+- **body** (TEXT, Nullable): up to 500 characters; null only once deleted.
+- **created_at** (TIMESTAMP, Default Current Time).
+- **edited_at** (TIMESTAMP, Nullable): shown as "· edited".
+- **deleted_at** (TIMESTAMP, Nullable): set when a post comment with replies is deleted, so its thread stays; anything else is removed.
+- (Indexed on post_id and created_at, for the discussion; on rating_id, parent_id and author_id for the cascades. The hand-written CHECKs `comments_one_thread` (at most one of rating_id and parent_id) and `comments_body_or_deleted` (a body unless deleted) are invisible to Prisma.)
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is thirteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`.
+> **The schema is fourteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

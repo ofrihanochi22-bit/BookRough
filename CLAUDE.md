@@ -201,9 +201,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Thirteen tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Fourteen tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -217,6 +217,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `notifications` is the in-app inbox (UC-21): the hand-written partial unique index `notifications_one_open_group` keeps one unread `COMMUNITY_POSTS` group per reader and community — it is the target of the grouping upsert, which is raw SQL because Prisma cannot target a partial index — and the CHECK `notifications_count_positive` guards `count`; both in the `add_notifications` migration, invisible to Prisma. What a reader sees is filtered when read, never by deleting (docs/features/notifications.md §3).
 
 - `user_avatars` holds an uploaded profile photo — only the server's own 256×256 WebP re-encode, never the uploaded bytes — and reaches clients through `users.profile_picture_url` = `/api/users/<id>/avatar?v=<ms>` (docs/features/avatar-upload.md §3).
+
+- `comments` holds the discussion on a post (UC-22): a post comment, or a reply in one flat thread under a review (`rating_id`) or a post comment (`parent_id`). The hand-written CHECKs `comments_one_thread` and `comments_body_or_deleted` in the `add_comments` migration, and the partial unique index `notifications_one_open_reply_group` in `add_comment_reply_group` (the target of the reply-grouping upsert), are invisible to Prisma (docs/features/discussion-threads.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API.
@@ -279,6 +281,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-19 is new**: the administrative area — see §17.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 - **UC-21 is new**: the in-app notification center — new community posts, direct recommendations, ratings, friend requests and invitations (docs/features/notifications.md). No push, no email.
+- **UC-22 is new**: discussing a recommendation — comments on a post and replies in a flat thread under a review or a comment, with the person replied to notified (docs/features/discussion-threads.md).
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---
@@ -426,7 +429,7 @@ The five-phase roadmap from [docs/development strategy.md](<docs/development str
 4. **Phase 4** — Engagement & Feedback (UC-12, 13, 16)
 5. **Phase 5** — Social Discovery (UC-5, 6, 7, 8)
 
-Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b. The manual-test notes followed from Step 6.1c: a visible sign-out (6.1c), notifications, UC-21 (6.1d), comment editing (6.1e), Sign in / Create account (6.1f), role notifications (6.1g) and photo uploads (6.1h).
+Phase 0 (local environment) and Phase 6 (CI + production hardening) are added in DEVELOPMENT.md as practical bookends. UC-20 joined later, as Step 6.1a, and link-only posts (UC-11, amended) as Step 6.1b. The manual-test notes followed from Step 6.1c: a visible sign-out (6.1c), notifications, UC-21 (6.1d), comment editing (6.1e), Sign in / Create account (6.1f), role notifications (6.1g), photo uploads (6.1h) and discussion threads, UC-22 (6.1i).
 
 ---
 

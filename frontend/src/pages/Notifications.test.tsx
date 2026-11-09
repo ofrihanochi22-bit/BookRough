@@ -147,6 +147,22 @@ describe('Notifications — rows', () => {
       'Dana made you the owner of Friday Jazz',
       'Community screen',
     ],
+    // discussion-threads.md §5.3
+    [
+      note({ type: 'COMMENT_REPLY', post: { id: 'p1', title: 'Blue' } }),
+      'Dana replied to you on Blue',
+      'Post screen',
+    ],
+    [
+      note({ type: 'COMMENT_REPLY', count: 3, post: { id: 'p1', title: 'Blue' } }),
+      '3 new replies on Blue · latest from Dana',
+      'Post screen',
+    ],
+    [
+      note({ type: 'COMMENT_REPLY', post: { id: 'p1', title: null } }),
+      'Dana replied to you on your post',
+      'Post screen',
+    ],
   ])('%#: says "%s" and opens its screen', async (item, text, destination) => {
     // Arrange
     api.listNotifications.mockResolvedValue({ items: [item], nextCursor: null });

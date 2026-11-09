@@ -106,6 +106,8 @@ model User {
   notifications           Notification[]        @relation("NotificationReader")
   notificationsCaused     Notification[]        @relation("NotificationActor")
   avatar                  UserAvatar?
+  comments                Comment[]             @relation("CommentAuthor")
+  commentsRepliedTo       Comment[]             @relation("CommentReplyTo")
 
   @@map("users")
 }
@@ -218,6 +220,7 @@ model Post {
   bookmarks            Bookmark[]
   ratings              Rating[]
   notifications        Notification[]
+  comments             Comment[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
@@ -291,6 +294,8 @@ model Rating {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// One rating per user per post; also serves "the ratings of a post".
+  comments Comment[]
+
   @@unique([postId, userId])
   /// A user's ratings, newest first: the profile's history
   /// (docs/features/find-people.md §3), `myScore`, and the account cascade.
@@ -364,6 +369,8 @@ enum NotificationType {
   COMMUNITY_ADMIN
   /// The reader was made the owner of a community (UC-14; role-notifications.md).
   COMMUNITY_OWNER
+  /// Someone replied to the reader in a post's discussion, grouped per post while unread (UC-22).
+  COMMENT_REPLY
 }
 
 /// The in-app inbox — docs/features/notifications.md §3 (UC-21).
@@ -420,4 +427,41 @@ model UserAvatar {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_avatars")
+}
+
+/// A post's discussion — docs/features/discussion-threads.md §3 (UC-22).
+///
+/// Three kinds: a post comment (rating_id and parent_id null), a reply under a
+/// review (rating_id set), a reply in a post comment's thread (parent_id set,
+/// always to a post comment, so threads stay flat). Hand-written in the
+/// add_comments migration, invisible to Prisma: the CHECKs `comments_one_thread`
+/// and `comments_body_or_deleted`.
+model Comment {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  postId    String    @map("post_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  /// A reply under this review.
+  ratingId  String?   @map("rating_id") @db.Uuid
+  /// A reply in this post comment's thread.
+  parentId  String?   @map("parent_id") @db.Uuid
+  /// Whom a reply answers ("↩ to Dana", and the notification).
+  replyToId String?   @map("reply_to_id") @db.Uuid
+  /// Null once deleted with its replies kept ("Comment deleted").
+  body      String?
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  editedAt  DateTime? @map("edited_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  rating    Rating?   @relation(fields: [ratingId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("Thread")
+  replyTo   User?     @relation("CommentReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
+
+  /// The discussion, oldest first.
+  @@index([postId, createdAt])
+  @@index([ratingId])
+  @@index([parentId])
+  @@index([authorId])
+  @@map("comments")
 }

@@ -66,6 +66,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
     isBookmarked: false,
     myScore: null,
     ratingSummary: { average: null, count: 0 },
+    commentCount: 0,
     ...overrides,
   };
 }
