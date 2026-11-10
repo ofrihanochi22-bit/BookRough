@@ -5,7 +5,7 @@ import { StripeBand } from './CommunityCover';
 import { TAPE_PAPER } from './tape';
 
 /**
- * A person's header under Mixtape (ui-redesign.md §5.6, §5.11): a `tape` paper
+ * A person's header (ui-redesign.md §5.6, §5.11): a `tape` paper
  * card with a stripe band in the user's own hue — the same hue as their
  * generated avatar — and the screen's content inside it.
  */

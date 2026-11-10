@@ -11,6 +11,7 @@ import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import {
@@ -21,7 +22,6 @@ import {
   SEARCH_OFFLINE,
 } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 
 /** How long typing must pause before the search runs. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -42,7 +42,6 @@ export function Search() {
   const online = useOnlineStatus();
   const viewerId = useAuthStore((state) => state.user?.id);
   const field = useRef<HTMLInputElement>(null);
-  const mixtape = useMixtape();
   // The query this screen last wrote, to tell it apart from a navigation.
   const written = useRef(query);
 
@@ -104,39 +103,29 @@ export function Search() {
       disabled={!online}
       onChange={(event) => setValue(event.target.value)}
       className={
-        mixtape
-          ? 'min-h-12 w-full rounded-full border-[1.5px] border-line bg-surface pr-4 pl-11 text-base text-ink outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/35 disabled:opacity-50'
-          : 'mb-6 mt-4 min-h-11 w-full rounded-xl border border-line bg-surface px-4 text-base disabled:opacity-50'
+        'min-h-12 w-full rounded-full border-[1.5px] border-line bg-surface pr-4 pl-11 text-base text-ink outline-none focus:border-accent focus-visible:ring-2 focus-visible:ring-accent/35 disabled:opacity-50'
       }
     />
   );
 
   return (
     <ScreenLayout>
-      {mixtape && <TopBar />}
-      <h1
-        className={`font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
-      >
-        Search
-      </h1>
+      <TopBar />
+      <h1 className={MIXTAPE_H1}>Search</h1>
 
       <label htmlFor="people-search" className="sr-only">
         Search people
       </label>
-      {mixtape ? (
-        // A pill field with a leading search icon (ui-redesign.md §5.7).
-        <div className="relative mt-4 mb-6">
-          <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted">
-            <LineIcon>
-              <circle cx="11" cy="11" r="6" />
-              <path d="M20 20l-4.5-4.5" />
-            </LineIcon>
-          </span>
-          {input}
-        </div>
-      ) : (
-        input
-      )}
+      {/* A pill field with a leading search icon (ui-redesign.md §5.7). */}
+      <div className="relative mt-4 mb-6">
+        <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-muted">
+          <LineIcon>
+            <circle cx="11" cy="11" r="6" />
+            <path d="M20 20l-4.5-4.5" />
+          </LineIcon>
+        </span>
+        {input}
+      </div>
 
       <div className="flex flex-col gap-4">
         {!online && (
@@ -149,9 +138,9 @@ export function Search() {
 
         {query && results.status === 'loading' && (
           <div role="status" aria-label="Searching" className="flex flex-col gap-3">
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
           </div>
         )}
 
@@ -162,27 +151,16 @@ export function Search() {
         {results.status === 'ready' && results.data && (
           <>
             {results.data.users.length === 0 ? (
-              mixtape ? (
-                <KitEmptyState>{SEARCH_EMPTY}</KitEmptyState>
-              ) : (
-                <p className="text-sm text-muted">{SEARCH_EMPTY}</p>
-              )
+              <KitEmptyState>{SEARCH_EMPTY}</KitEmptyState>
             ) : (
               <ul
                 aria-label="Results"
-                className={
-                  mixtape
-                    ? 'flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4'
-                    : 'flex flex-col'
-                }
+                className="flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4"
               >
                 {results.data.users.map((user) => {
                   const friendship = friendshipOf(user);
                   return (
-                    <li
-                      key={user.id}
-                      className={`flex items-center gap-3 ${mixtape ? 'py-1.5' : 'py-1'}`}
-                    >
+                    <li key={user.id} className="flex items-center gap-3 py-1.5">
                       <PersonLink
                         user={user}
                         avatarSize={36}

@@ -2742,7 +2742,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1o — UI redesign "Mixtape", slice 5: the swap (Phase 6 — presentation of every UC; UC-19 touched)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #59)
 Branch: feat/redesign-swap
 Spec: docs/features/ui-redesign.md (slice 5 of six, §6)
 
@@ -2801,6 +2801,65 @@ cd backend && npm run test:integration -- src/routes/settings.integration.test.t
 
 ```bash
 cd frontend && npx vitest run src/lib/design.test.ts src/components/DesignSync.test.tsx src/components/AppSettings.test.tsx
+```
+
+```bash
+cd e2e && npx playwright test
+```
+
+### Step 6.1p — UI redesign "Mixtape", slice 6: cleanup (Phase 6 — presentation of every UC; UC-19 touched)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: chore/redesign-cleanup
+Spec: docs/features/ui-redesign.md (slice 6 of six, §6 — the spec is now marked done)
+
+Goal: Mixtape is the only design. The Current design, the per-device switch and Space Grotesk are gone, so every screen has one code path.
+
+Tasks:
+
+- [x] Tokens: `frontend/src/index.css` holds the Mixtape values on `:root` (light and dark) and the five accent shades on `[data-accent]`; the Current values and the `data-design` selectors are gone.
+- [x] Switch removed: `lib/design.ts`, `stores/design.ts`, `DesignSync`, `DesignSwitch` (Admin), `?design=`, and the Current pin in `src/test/setup.ts`. `index.html` drops `data-design`; its static `theme-color` tags are all that is needed.
+- [x] Every `useMixtape()` branch folded to its Mixtape side, across 25 pages and components; `PostCardMixtape.tsx` became `PostCard.tsx`, and the Mixtape-only names (`MixtapeDashboard`, `MixtapeNav`, …) became the plain ones.
+- [x] Space Grotesk (`@fontsource/space-grotesk`) uninstalled — approved by the developer (CLAUDE.md §11); `docs/tech stack` (.md + .docx) updated (§18).
+- [x] PWA icons and apple-touch-icon left as they are — the developer chose a separate feature for redrawing them from the logo.
+- [x] Review: `/code-review`.
+- [x] Tests: Current-only tests removed, behaviour tests moved onto the Mixtape controls; frontend, backend and E2E suites green.
+
+What I did:
+
+- **No functionality changes.** What everyone has seen since the swap is now the only code: about 2,700 lines of the Current design deleted. The per-device switch on Admin and `?design=` no longer exist; a value a device stored for them (`bookrough.design`) is simply never read.
+- **Tokens:** with one design, the `data-design` attribute selected nothing, so the Mixtape tokens moved to `:root` and the accent shades to plain `[data-accent='…']` blocks (any element can still carry one, so the Admin swatches keep their own colour). `index.html` keeps Mixtape's `theme-color` per scheme; no script changes it any more.
+- **Font:** `@fontsource/space-grotesk` uninstalled and its import removed from `main.tsx`; the build carries Inter and Bricolage Grotesque only.
+- **Tests:** the old Current-era behaviour suites now run against Mixtape. They choose scores on the star radios ("N out of 10"), open the feed's composer pill before posting, find the back links by their plain names, find roles by their group lists ("Owner", "Admins"), and check "You: N" and the rating sticker. Tests that only proved the Current look (the old card's rating line, the old tab bar, the switch) are gone; Mixtape tests already cover the same behaviour. `Dashboard.mixtape.test.tsx` was folded into `Dashboard.test.tsx`; the kit suite is now `ui/kit.test.tsx` and the card's `PostCard.mixtape.test.tsx`. The other `*.mixtape.test.tsx` suites stay beside the behaviour suites, because their mocks differ (decision in the spec's log). A new `manifest.test.ts` check ties both `theme-color` tags to the canvas tokens, replacing what `DesignSync.test.tsx` covered.
+- **Docs:** `ui-redesign.md` marked done, §4 marked historical, four decisions-log rows (tokens on `:root`, the font removal, the icons, the test files); `google-auth.md` notes its placeholder identity is superseded; `docs/tech stack` (.md + .docx) Fontsource entry.
+- **Code review** (6 findings, all fixed): a dead comment-count override on Post Detail (the card there shows no count); no test tied `theme-color` to the tokens any more; four screens repeated the h1 classes instead of `MIXTAPE_H1`; a lost comment on the invite screen's `defaultIntent="signup"`; a stray blank line; `TILE_FOCUS` folded into `TILE`.
+- **Tests:** frontend 86 files, 1035 tests, 97.83% lines; backend 77 files, 1418 tests, 98.96% lines (unchanged code); E2E 26 tests on Chromium and iPhone 13, green. In a local full run, mobile-safari onboarding timed out under parallel load while the backend suites ran alongside; alone with 1 worker, as CI runs it, all of mobile-safari passed.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/`: Welcome shows the cassette logo, as before. Sign in.
+2. Walk Home, a community feed, Post Detail, Friends, My List and Profile: everything looks and works exactly as after the swap.
+3. As an admin, `/admin`: the "Design on this device" switch is gone; the section tabs and settings work as before. Adding `?design=old` to any URL changes nothing.
+4. Pick another accent on Admin → Settings: buttons and the active tab follow it, in light and dark mode.
+
+```bash
+cd frontend && npm run test:unit
+```
+
+```bash
+cd frontend && npx vitest run src/manifest.test.ts src/components/ui/kit.test.tsx src/components/PostCard.test.tsx
 ```
 
 ```bash

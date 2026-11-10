@@ -39,7 +39,6 @@ import {
 } from '../lib/friendCopy';
 import { INVITATION_GONE, invitedBy, joinedCommunity } from '../lib/invitationCopy';
 import { relativeTime } from '../lib/postLinks';
-import { useMixtape } from '../stores/design';
 import { useFriendRequests } from '../stores/friendRequests';
 
 interface FriendsData {
@@ -88,7 +87,6 @@ export function Friends() {
   const [busy, setBusy] = useState<string | null>(null);
   const [removing, setRemoving] = useState<FriendView | null>(null);
   const navigate = useNavigate();
-  const mixtape = useMixtape();
 
   const data = loaded.status === 'ready' ? loaded.data : null;
   const changes = data && local?.base === data ? local : null;
@@ -196,11 +194,9 @@ export function Friends() {
 
   // Mixtape (ui-redesign.md §5.4): sections are `surface` cards without an
   // outline, labelled in `muted`; offline buttons get the kit's dashed look.
-  const listClass = mixtape
-    ? 'flex flex-col divide-y divide-line rounded-[22px] bg-surface'
-    : 'flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface';
-  const sectionTitle = mixtape ? 'text-sm font-medium text-muted' : 'font-medium';
-  const offline = mixtape && !online;
+  const listClass = 'flex flex-col divide-y divide-line rounded-[22px] bg-surface';
+  const sectionTitle = 'text-sm font-medium text-muted';
+  const offline = !online;
   const recommendationsLabel = unseen > 0 ? `Recommendations, ${unseen} new` : 'Recommendations';
   const badge = unseen > 0 && (
     <span
@@ -222,41 +218,24 @@ export function Friends() {
 
   return (
     <ScreenLayout>
-      {mixtape ? (
-        <>
-          <TopBar>
-            <SearchIconLink />
-          </TopBar>
-          <h1 className={`mb-6 ${MIXTAPE_H1}`}>Friends</h1>
-        </>
-      ) : (
-        <h1 className="mb-6 font-display text-2xl font-medium">Friends</h1>
-      )}
+      <TopBar>
+        <SearchIconLink />
+      </TopBar>
+      <h1 className={`mb-6 ${MIXTAPE_H1}`}>Friends</h1>
 
       <div className="flex flex-col gap-6">
-        {mixtape ? (
-          <Link
-            to="/recommendations"
-            aria-label={recommendationsLabel}
-            className={`flex min-h-16 items-center gap-3 rounded-[22px] px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${TAPE_PAPER}`}
-          >
-            <LineIcon className="size-6">
-              <rect x="3" y="5" width="18" height="14" rx="2" />
-              <path d="M3 7l9 6 9-6" />
-            </LineIcon>
-            <span className="flex-1 font-display text-lg font-bold">Recommendations</span>
-            {badge}
-          </Link>
-        ) : (
-          <Link
-            to="/recommendations"
-            aria-label={recommendationsLabel}
-            className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 font-medium"
-          >
-            Recommendations
-            {badge}
-          </Link>
-        )}
+        <Link
+          to="/recommendations"
+          aria-label={recommendationsLabel}
+          className={`flex min-h-16 items-center gap-3 rounded-[22px] px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${TAPE_PAPER}`}
+        >
+          <LineIcon className="size-6">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 7l9 6 9-6" />
+          </LineIcon>
+          <span className="flex-1 font-display text-lg font-bold">Recommendations</span>
+          {badge}
+        </Link>
 
         {!online && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -266,9 +245,9 @@ export function Friends() {
 
         {loaded.status === 'loading' && (
           <div role="status" aria-label="Loading your friends" className="flex flex-col gap-3">
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
-            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
+            <Skeleton className="h-14" />
           </div>
         )}
 
@@ -276,18 +255,9 @@ export function Friends() {
           <LoadError message={FRIENDS_LOAD_FAILED} onRetry={loaded.reload} />
         )}
 
-        {data &&
-          invitations.length === 0 &&
-          requests.length === 0 &&
-          friends.length === 0 &&
-          (mixtape ? (
-            <KitEmptyState title="No friends yet">{noFriendsBody}</KitEmptyState>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-              <p className="font-medium">No friends yet</p>
-              <p className="mt-1 text-sm text-muted">{noFriendsBody}</p>
-            </div>
-          ))}
+        {data && invitations.length === 0 && requests.length === 0 && friends.length === 0 && (
+          <KitEmptyState title="No friends yet">{noFriendsBody}</KitEmptyState>
+        )}
 
         {invitations.length > 0 && (
           <section aria-labelledby="community-invitations" className="flex flex-col gap-2">
@@ -391,24 +361,15 @@ export function Friends() {
             ) : (
               <ul className={listClass}>
                 {friends.map((friend) => (
-                  <li
-                    key={friend.user.id}
-                    className={`flex items-center gap-2 px-4 ${mixtape ? 'py-1.5' : 'py-1'}`}
-                  >
-                    <PersonLink
-                      user={friend.user}
-                      avatarSize={mixtape ? 36 : undefined}
-                      className="text-sm"
-                    />
+                  <li key={friend.user.id} className="flex items-center gap-2 px-4 py-1.5">
+                    <PersonLink user={friend.user} avatarSize={36} className="text-sm" />
                     <button
                       type="button"
                       aria-label={`Actions for ${friend.user.displayName}`}
-                      aria-haspopup={mixtape ? 'dialog' : undefined}
+                      aria-haspopup="dialog"
                       disabled={!online}
                       onClick={() => setRemoving(friend)}
-                      className={`flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50 ${
-                        mixtape ? '-mr-2 shrink-0' : ''
-                      }`}
+                      className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50 -mr-2 shrink-0"
                     >
                       <span aria-hidden="true" className="text-lg leading-none">
                         ⋯

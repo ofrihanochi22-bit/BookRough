@@ -11,7 +11,6 @@ import { getInvite, inviteUrl, resetInvite } from '../api/invites';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { ACTION_FAILED } from '../lib/friendCopy';
-import { useMixtape } from '../stores/design';
 import { FriendPicker } from './FriendPicker';
 import { Button } from './ui/Button';
 import { LoadError } from './ui/LoadError';
@@ -93,7 +92,6 @@ function LinkActions({
   const [error, setError] = useState<string | null>(null);
   const canShare = typeof navigator.share === 'function';
   const online = useOnlineStatus();
-  const mixtape = useMixtape();
 
   useEffect(() => {
     if (!copied) {
@@ -156,9 +154,7 @@ function LinkActions({
         readOnly
         value={url}
         onFocus={(event) => event.target.select()}
-        className={`min-h-11 rounded-xl border-line bg-canvas px-4 text-sm text-ink ${
-          mixtape ? 'border-[1.5px]' : 'border'
-        }`}
+        className="min-h-11 rounded-xl border-[1.5px] border-line bg-canvas px-4 text-sm text-ink"
       />
       {wasReset && (
         <p role="status" className="text-xs text-muted">
@@ -187,9 +183,7 @@ function LinkActions({
         <div
           role="group"
           aria-label="Confirm reset"
-          className={`flex flex-col gap-3 border-line p-4 ${
-            mixtape ? 'rounded-[22px] border-[1.5px]' : 'rounded-xl border'
-          }`}
+          className="flex flex-col gap-3 rounded-[22px] border-[1.5px] border-line p-4"
         >
           <p className="text-sm">
             Reset the invite link? The current link will stop working for anyone who hasn&apos;t

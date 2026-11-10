@@ -12,7 +12,6 @@ import {
   makeSession,
   makeUser,
   resetAuthStore,
-  setDesign,
   setOnline,
 } from '../test/fixtures';
 import { PostDetail } from './PostDetail';
@@ -93,7 +92,6 @@ function renderDetail() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession({ user: makeUser() }));
   getPost.mockResolvedValue({ post: POST, community: COMMUNITY });
@@ -104,10 +102,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('Post Detail under Mixtape (ui-redesign.md §5.3)', () => {
+describe('Post Detail (ui-redesign.md §5.3)', () => {
   it('shows the back link beside the logo, and the song as the h1 with a full-width cover', async () => {
     // Act
     renderDetail();

@@ -15,11 +15,11 @@ import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { REMOVE_FAILED, REMOVED } from '../lib/bookmarkCopy';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 
 /** Changes made on this screen since the first page loaded. */
 interface LocalChanges {
@@ -50,7 +50,6 @@ export function MyList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [rating, setRating] = useState<SavedPost | null>(null);
-  const mixtape = useMixtape();
 
   // Local changes belong to the page they were made on; a reload starts over.
   const changes =
@@ -114,12 +113,8 @@ export function MyList() {
 
   return (
     <ScreenLayout>
-      {mixtape && <TopBar />}
-      <h1
-        className={`font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
-      >
-        My List
-      </h1>
+      <TopBar />
+      <h1 className={MIXTAPE_H1}>My List</h1>
       <p className="mb-6 mt-1 text-sm text-muted">Songs you saved to listen later.</p>
 
       <div className="flex flex-col gap-4">
@@ -141,16 +136,9 @@ export function MyList() {
           <LoadError message="Couldn't load your list." onRetry={first.reload} />
         )}
 
-        {changes &&
-          items.length === 0 &&
-          (mixtape ? (
-            <KitEmptyState title={EMPTY_TITLE}>{EMPTY_BODY}</KitEmptyState>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-              <p className="font-medium">{EMPTY_TITLE}</p>
-              <p className="mt-1 text-sm text-muted">{EMPTY_BODY}</p>
-            </div>
-          ))}
+        {changes && items.length === 0 && (
+          <KitEmptyState title={EMPTY_TITLE}>{EMPTY_BODY}</KitEmptyState>
+        )}
 
         {items.map((item) => (
           <SavedPostCard

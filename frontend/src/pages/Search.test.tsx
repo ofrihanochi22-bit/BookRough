@@ -13,7 +13,6 @@ import {
   makeUser,
   networkError,
   resetAuthStore,
-  setDesign,
   setOnline,
 } from '../test/fixtures';
 import { Search } from './Search';
@@ -273,8 +272,6 @@ describe('Search', () => {
 const row = (name: string) => within(screen.getByText(name).closest('li')!);
 
 describe('Search — the friend control on each row (search-friend-button.md §5.1)', () => {
-  afterEach(() => setDesign('current'));
-
   it('shows the control for each state, a quiet label for friends, and none on your own row', async () => {
     // Arrange
     searchUsers.mockResolvedValue(
@@ -444,9 +441,8 @@ describe('Search — the friend control on each row (search-friend-button.md §5
     expect(row('Daniel Cohen').getByRole('button', { name: 'Respond' })).toBeDisabled();
   });
 
-  it('under Mixtape, Add Friend and Respond are the accent pill; Request sent is outlined', async () => {
+  it('Add Friend and Respond are the accent pill; Request sent is outlined', async () => {
     // Arrange
-    setDesign('mixtape');
     searchUsers.mockResolvedValue(
       found([
         DANA,

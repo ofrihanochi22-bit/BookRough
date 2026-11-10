@@ -1,9 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setDesign, setOnline } from '../test/fixtures';
+import { setOnline } from '../test/fixtures';
 import { CreateCommunity } from './CreateCommunity';
 
 vi.mock('../api/communities', () => ({ createCommunity: vi.fn() }));
@@ -24,16 +24,13 @@ function renderForm() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   listFriends.mockResolvedValue([
     { user: { id: 'dana', displayName: 'Dana', profilePictureUrl: null }, since: 'x' },
   ]);
 });
 
-afterEach(() => setDesign('current'));
-
-describe('Create Community under Mixtape (ui-redesign.md §5.15)', () => {
+describe('Create Community (ui-redesign.md §5.15)', () => {
   it('shows the logo, the heading and Cancel', () => {
     // Act
     renderForm();

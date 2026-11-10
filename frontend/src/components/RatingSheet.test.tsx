@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
-import { httpError, makePendingPost, makePost, networkError, setDesign } from '../test/fixtures';
+import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
 import { RatingSheet } from './RatingSheet';
 
 const { ratePost, editRating, toastSuccess, toastError } = vi.hoisted(() => ({
@@ -40,10 +40,13 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     expect(submit()).toBeDisabled();
 
     // Act
-    await userEvent.click(screen.getByRole('radio', { name: '7' }));
+    await userEvent.click(screen.getByRole('radio', { name: '7 out of 10' }));
 
     // Assert
-    expect(screen.getByRole('radio', { name: '7' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '7 out of 10' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
     expect(submit()).toBeEnabled();
   });
 
@@ -60,7 +63,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     let finish!: () => void;
     ratePost.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
     const { onDone } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '7' }));
+    await userEvent.click(screen.getByRole('radio', { name: '7 out of 10' }));
     await userEvent.type(comment(), '  Still sounds fresh  ');
 
     // Act
@@ -73,7 +76,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     });
     expect(screen.getByRole('button', { name: 'Submitting…' })).toBeInTheDocument();
     expect(comment()).toHaveAttribute('readonly');
-    expect(screen.getByRole('radio', { name: '7' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: '7 out of 10' })).toBeDisabled();
 
     // Act
     finish();
@@ -86,7 +89,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
   it('counts the comment and refuses one over 280 characters before any request', async () => {
     // Arrange
     renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
 
     // Act
     await userEvent.click(comment());
@@ -103,7 +106,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     // Arrange
     ratePost.mockRejectedValue(httpError(404, 'Post not found.'));
     const { onDone } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
 
     // Act
     await userEvent.click(submit());
@@ -121,7 +124,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     // Arrange
     ratePost.mockRejectedValue(httpError(409, 'You already rated this post.'));
     const { onDone } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
 
     // Act
     await userEvent.click(submit());
@@ -135,7 +138,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     // Arrange
     ratePost.mockRejectedValue(httpError(403, "You can't rate your own post."));
     const { onClose, onDone } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
 
     // Act
     await userEvent.click(submit());
@@ -150,7 +153,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     // Arrange
     ratePost.mockRejectedValue(httpError(422, 'Choose a score from 1 to 10.'));
     const { onDone } = renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
     await userEvent.type(comment(), 'Nice');
 
     // Act
@@ -167,7 +170,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     // Arrange
     ratePost.mockRejectedValue(networkError());
     renderSheet();
-    await userEvent.click(screen.getByRole('radio', { name: '9' }));
+    await userEvent.click(screen.getByRole('radio', { name: '9 out of 10' }));
     await userEvent.type(comment(), 'Nice');
 
     // Act
@@ -178,7 +181,10 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
       "Couldn't submit your rating. Check your connection and try again.",
     );
     expect(comment()).toHaveValue('Nice');
-    expect(screen.getByRole('radio', { name: '9' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '9 out of 10' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('disables Submit offline', async () => {
@@ -186,7 +192,7 @@ describe('RatingSheet (rate-post.md §5.2)', () => {
     renderSheet(makePost(), false);
 
     // Act
-    await userEvent.click(screen.getByRole('radio', { name: '5' }));
+    await userEvent.click(screen.getByRole('radio', { name: '5 out of 10' }));
 
     // Assert
     expect(submit()).toBeDisabled();
@@ -216,11 +222,14 @@ describe('RatingSheet editing (post-detail.md §5.2)', () => {
     editRating.mockResolvedValue({});
     const { onDone } = renderEdit();
     expect(screen.getByRole('dialog', { name: 'Edit your rating' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: '6' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: '6 out of 10' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
     expect(comment()).toHaveValue('nise song');
 
     // Act
-    await userEvent.click(screen.getByRole('radio', { name: '9' }));
+    await userEvent.click(screen.getByRole('radio', { name: '9 out of 10' }));
     await userEvent.clear(comment());
     await userEvent.type(comment(), 'nice song');
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
@@ -272,7 +281,7 @@ describe('RatingSheet editing (post-detail.md §5.2)', () => {
     );
 
     // Act
-    await user.click(screen.getByRole('radio', { name: '8' }));
+    await user.click(screen.getByRole('radio', { name: '8 out of 10' }));
     await user.click(screen.getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
@@ -281,10 +290,7 @@ describe('RatingSheet editing (post-detail.md §5.2)', () => {
   });
 });
 
-describe('RatingSheet under Mixtape — one row of ten stars (ui-redesign.md §5.10)', () => {
-  beforeEach(() => setDesign('mixtape'));
-  afterEach(() => setDesign('current'));
-
+describe('RatingSheet — one row of ten stars (ui-redesign.md §5.10)', () => {
   const star = (score: number) => screen.getByRole('radio', { name: `${score} out of 10` });
   const readout = () => screen.getByTestId('score-readout');
 

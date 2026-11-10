@@ -8,7 +8,7 @@ import type { MyInvitation } from '../api/invitations';
 import { FRIENDS_LOAD_FAILED, FRIENDS_OFFLINE } from '../lib/friendCopy';
 import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
-import { makeSession, networkError, resetAuthStore, setDesign, setOnline } from '../test/fixtures';
+import { makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
 import { Friends } from './Friends';
 
 const api = vi.hoisted(() => ({
@@ -67,7 +67,6 @@ function renderFriends() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession());
   useFriendRequests.setState({ count: 0, unseen: 0 });
@@ -80,10 +79,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('Friends under Mixtape (ui-redesign.md §5.4)', () => {
+describe('Friends (ui-redesign.md §5.4)', () => {
   it('shows the logo and a Search icon in the header that opens Search', async () => {
     // Arrange
     renderFriends();

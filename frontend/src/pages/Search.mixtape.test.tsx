@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SEARCH_EMPTY, SEARCH_FAILED, SEARCH_HINT } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
-import { makeSession, networkError, resetAuthStore, setDesign, setOnline } from '../test/fixtures';
+import { makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
 import { Search } from './Search';
 
 const { searchUsers } = vi.hoisted(() => ({ searchUsers: vi.fn() }));
@@ -26,7 +26,6 @@ function renderSearch(path = '/search') {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession());
 });
@@ -34,10 +33,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('Search under Mixtape (ui-redesign.md §5.7)', () => {
+describe('Search (ui-redesign.md §5.7)', () => {
   it('shows the logo, the heading and the pill field with its label and placeholder', () => {
     // Act
     renderSearch();
