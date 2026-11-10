@@ -64,13 +64,25 @@ afterAll(async () => {
 });
 
 describe('GET /api/settings', () => {
-  it('serves the defaults when nothing was ever saved', async () => {
+  it('serves the defaults, with the orange accent, when nothing was ever saved', async () => {
     // Act
     const response = await request(app).get('/api/settings');
 
     // Assert
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual({ accentColor: 'purple', welcomeTagline: DEFAULT_TAGLINE });
+    expect(response.body.data).toEqual({ accentColor: 'orange', welcomeTagline: DEFAULT_TAGLINE });
+  });
+
+  it('keeps an accent saved before the swap instead of the new default', async () => {
+    // Arrange
+    await prisma.appSetting.create({ data: { key: 'ACCENT_COLOR', value: 'purple' } });
+
+    // Act
+    const response = await request(app).get('/api/settings');
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.accentColor).toBe('purple');
   });
 
   it('gives the banner to signed-in callers only, and null when it is off', async () => {
@@ -107,7 +119,7 @@ describe('PATCH /api/admin/settings', () => {
     expect(response.body.data.changes).toEqual([
       expect.objectContaining({
         key: 'accentColor',
-        oldValue: 'purple',
+        oldValue: 'orange',
         newValue: 'green',
         changedBy: { id: user.id, displayName: 'Boss' },
       }),

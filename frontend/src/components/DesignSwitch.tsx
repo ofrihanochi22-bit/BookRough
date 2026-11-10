@@ -29,7 +29,7 @@ export function DesignSwitch() {
         value={design}
         onChange={setDesign}
       />
-      <p className="text-xs text-muted">Only this device. Everyone else sees Current.</p>
+      <p className="text-xs text-muted">Only this device. Everyone else sees Mixtape.</p>
     </div>
   );
 }

@@ -2,13 +2,13 @@ import { readDeviceValue, writeDeviceValue } from './deviceStorage';
 
 /**
  * The per-device design switch — docs/features/ui-redesign.md §4. Two looks
- * live side by side until the swap PR: `current` (today's, the default for
- * everyone) and `mixtape`. The choice is kept on this device only and never
- * sent to the server. Removed in the cleanup PR.
+ * live side by side until the cleanup PR: `mixtape` (the default for everyone
+ * since the swap, §6 slice 5) and `current` (the previous look). The choice is
+ * kept on this device only and never sent to the server.
  */
 export type Design = 'current' | 'mixtape';
 
-export const DEFAULT_DESIGN: Design = 'current';
+export const DEFAULT_DESIGN: Design = 'mixtape';
 export const DESIGN_STORAGE_KEY = 'bookrough.design';
 
 /** `?design=new` / `?design=old` on any URL; any other value is ignored. */
@@ -49,8 +49,9 @@ export function initialDesign(search: string): Design {
 
 /**
  * The browser bar colour (`theme-color`) per design and scheme. index.html
- * carries the Current values statically; under Mixtape they are replaced at
- * runtime, since the HTML cannot know the device's choice.
+ * carries the Mixtape values (and `data-design`) statically, so the default
+ * paints right before any script runs; a device on Current gets them replaced
+ * at runtime, since the HTML cannot know the device's choice.
  */
 export const THEME_COLORS: Readonly<Record<Design, { light: string; dark: string }>> = {
   current: { light: '#fbfaf7', dark: '#151413' },

@@ -99,7 +99,7 @@ describe('Admin under Mixtape (ui-redesign.md §5.17)', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByText('Only this device. Everyone else sees Current.')).toBeInTheDocument();
+    expect(screen.getByText('Only this device. Everyone else sees Mixtape.')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Admin sections' });
     expect(within(tabs).getByRole('link', { name: 'Users' })).toHaveClass('bg-tape');
     expect(within(tabs).getByRole('link', { name: 'Settings' })).not.toHaveClass('bg-tape');

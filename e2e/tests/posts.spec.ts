@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * Phase 3 golden loop — docs/features/posts-feed.md §7. squigly.link is the
@@ -17,7 +22,7 @@ const LIVE_TRACK = 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv';
 const postsOn = (page: Page) => page.getByRole('region', { name: 'Posts' }).getByRole('article');
 
 async function share(page: Page, url: string, comment?: string) {
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(url);
   if (comment) {
     await composer.getByLabel(/Comment/).fill(comment);

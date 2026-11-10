@@ -2677,7 +2677,7 @@ cd frontend && npx vitest run src/pages/Search.test.tsx src/components/FriendBut
 
 ### Step 6.1n — UI redesign "Mixtape", slice 4: entry and admin screens (Phase 6 — presentation of UC-1, UC-2, UC-15, UC-19)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #58)
 Branch: feat/redesign-entry-admin
 Spec: docs/features/ui-redesign.md (slice 4 of six, §6)
 
@@ -2738,6 +2738,73 @@ cd frontend && npx vitest run src/pages/Welcome.mixtape.test.tsx src/pages/Compl
 
 ```bash
 cd frontend && npm run test:unit
+```
+
+### Step 6.1o — UI redesign "Mixtape", slice 5: the swap (Phase 6 — presentation of every UC; UC-19 touched)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/redesign-swap
+Spec: docs/features/ui-redesign.md (slice 5 of six, §6)
+
+Goal: Mixtape becomes the look everyone sees, with the orange accent as the default. The Current design and the Admin switch stay until the cleanup PR (slice 6), so a device can still go back.
+
+Tasks:
+
+- [x] `DEFAULT_DESIGN` → `mixtape` (`frontend/src/lib/design.ts`); `index.html` ships `data-design="mixtape"` and Mixtape's `theme-color` values, so the first paint is already Mixtape.
+- [x] Accent default → `orange`: `DEFAULT_ACCENT` (`frontend/src/lib/appSettings.ts`) and `accentColor.defaultValue` (`backend/src/services/appSettings.ts`). A database that stores a choice keeps it.
+- [x] Admin switch line: "Only this device. Everyone else sees Mixtape."
+- [x] `manifest.webmanifest` colours follow the new default (found in review).
+- [x] E2E suite on Mixtape: Search through the header icon, posting from the feed's collapsed composer.
+- [x] Docs: `docs/frontend screens` (.md + .docx) — tab bar, Share sheet, Search entry, composer pill, star row; CLAUDE.md §8 records the star-row touch-target exception.
+- [x] Review: `/code-review`.
+- [x] Tests: the spec §8 backend unit and integration tests for the swap; the full suite green.
+
+What I did:
+
+- **No functionality changes.** Every screen does what it did; only the default look and the default accent change. A device that chose Current (the Admin switch, or `?design=old`) stays on Current until the cleanup PR.
+- **First paint:** `index.html` now carries `data-design="mixtape"` and Mixtape's `theme-color` values, and `manifest.webmanifest` Mixtape's light canvas (`#eceaf4`), so a load or an installed-PWA launch no longer shows the Current canvas for a moment. `DesignSync` still swaps both on a Current device.
+- **Tests that assumed Current:** `src/test/setup.ts` pins the store to Current before each test, so the Current suites stay that look's regression tests; the `*.mixtape` tests set Mixtape themselves. The default itself is tested in `lib/design.test.ts` (Mixtape with nothing stored; a stored Current kept) and `DesignSync.test.tsx` (the static attribute kept on the default, removed on Current). `manifest.test.ts` now reads Mixtape's canvas.
+- **Accent:** backend unit tests for the orange default and a stored purple winning over it; integration tests for `GET /api/settings` on an empty table (`orange`) and with a purple row saved before the swap (spec §8).
+- **E2E on Mixtape:** two helpers in `e2e/support/flows.ts` — `openSearch` (Home, then the Search icon in its header) and `openComposer` (the feed's "Share a song or album" pill). Card checks moved to the rating sticker ("★ 8 · 1 rating" opens Post Detail), "You: 8", the "Comments" chip, and score stickers ("8/10"). The admin-settings test now restores `orange`, the default.
+- **Docs:** `docs/frontend screens` (.md + .docx): tab bar, Share sheet, Search from the header icon, the collapsed composer, the star row and its touch-target exception. CLAUDE.md §8 records the exception. `ui-redesign.md`: the switch line, the static first paint, a decisions-log row.
+- **Code review** (5 findings; 3 fixed, 2 left): fixed — the manifest still had Current's colours; a long line after Prettier; `openSearch` matched any "Search" link instead of the header's. Left — a device on Current briefly paints Mixtape before the script runs (only the admin's device can be on Current; recorded in the spec); the find-people back-link check no longer includes the "←" (Post Detail has one link with that name).
+- **CI `secrets`:** gitleaks flagged the slice-4 fake invite token again under PR #58's squash commit on `main` (`e7d2459`); squash-merging re-creates the commit, so the branch fingerprint no longer matched. `.gitleaksignore` gains the squash-commit fingerprint for the same line, under the same approval. A fingerprint added on a branch has to be repeated for its squash commit after the merge.
+- **Tests:** frontend 89 files, 1060 tests, 98.01% lines; backend 77 files, 1418 tests, 98.96% lines; E2E 25 tests on Chromium and iPhone 13, green (one local mobile-safari timeout under parallel load passed on rerun).
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/` in a private window (nothing stored): Welcome is the Mixtape one, with the big cassette logo. Sign in.
+2. Home has the tab bar Home · Friends · **Share** · My List · Profile, and a Search icon beside the bell. Tap it to reach Search; the Friends header has the same icon.
+3. Tap **Share** → To a community → pick one → post a link: the sheet closes on the community's feed with the post on top. In the feed itself, tap the "Share a song or album" pill to post from there.
+4. If nobody ever saved an accent, buttons and the active tab are orange. An accent saved earlier (say purple) stays.
+5. As an admin, `/admin` → the switch line reads "Everyone else sees Mixtape."; tap **Current** to see the old look on this device only (or open any URL with `?design=old`).
+
+```bash
+cd backend && npx vitest run src/services/appSettings.test.ts
+```
+
+```bash
+cd backend && npm run test:integration -- src/routes/settings.integration.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/lib/design.test.ts src/components/DesignSync.test.tsx src/components/AppSettings.test.tsx
+```
+
+```bash
+cd e2e && npx playwright test
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * The notification center's golden loop — docs/features/notifications.md §7
@@ -23,7 +28,7 @@ test('a post reaches a member through the bell, and their rating reaches the aut
   await joinThroughLink(friend, link);
 
   // Act — A posts.
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   await expect(postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) })).toBeVisible();

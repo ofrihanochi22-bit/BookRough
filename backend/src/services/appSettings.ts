@@ -104,7 +104,9 @@ const REGISTRY: { [N in SettingName]: Entry<Settings[N]> } = {
   },
   accentColor: {
     key: 'ACCENT_COLOR',
-    defaultValue: 'purple',
+    // Orange since the Mixtape swap (docs/features/ui-redesign.md §3.2); a
+    // stored choice still wins.
+    defaultValue: 'orange',
     check: (value) =>
       typeof value === 'string' ? checkAccentColor(value) : { ok: false, message: 'bad shape' },
   },

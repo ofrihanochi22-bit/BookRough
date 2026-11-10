@@ -18,10 +18,12 @@ function addThemeMeta(media: string, content: string) {
 let light: HTMLMetaElement;
 let dark: HTMLMetaElement;
 
+// As index.html ships since the swap: Mixtape's attribute and bar colours.
 beforeEach(() => {
   window.localStorage.clear();
-  light = addThemeMeta('(prefers-color-scheme: light)', '#fbfaf7');
-  dark = addThemeMeta('(prefers-color-scheme: dark)', '#151413');
+  document.documentElement.dataset.design = 'mixtape';
+  light = addThemeMeta('(prefers-color-scheme: light)', '#ECEAF4');
+  dark = addThemeMeta('(prefers-color-scheme: dark)', '#1B1A2E');
 });
 
 afterEach(() => {
@@ -32,7 +34,20 @@ afterEach(() => {
 });
 
 describe('DesignSync (ui-redesign.md §4)', () => {
-  it('leaves <html> without data-design and keeps the Current theme colours', () => {
+  it('keeps the static Mixtape attribute and colours on a device left on the default', () => {
+    // Arrange
+    setDesign('mixtape');
+
+    // Act
+    render(<DesignSync />);
+
+    // Assert
+    expect(document.documentElement).toHaveAttribute('data-design', 'mixtape');
+    expect(light.content).toBe('#ECEAF4');
+    expect(dark.content).toBe('#1B1A2E');
+  });
+
+  it('removes data-design and sets the Current theme colours on a device on Current', () => {
     // Act
     render(<DesignSync />);
 

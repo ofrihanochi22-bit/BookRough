@@ -10,3 +10,6 @@
 5cfa61c9565b5ea140bd4c0a200c1b1fcee1a1fc:e2e/support/googleStandIn.ts:generic-api-key:31
 # 2026-11-10: the same fake invite token, in the slice-4 Mixtape test (PR #58).
 d57fe8aa89ada14a99069cc3fcb28c99d825bb22:frontend/src/pages/InvitePreview.mixtape.test.tsx:generic-api-key:30
+# The same line again under PR #58's squash commit on main: squash-merging
+# re-creates the commit, so the branch fingerprint above no longer matches.
+e7d2459d61739baf08b42a4b76ecc1d09ff106f4:frontend/src/pages/InvitePreview.mixtape.test.tsx:generic-api-key:30
