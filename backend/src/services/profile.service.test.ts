@@ -22,6 +22,7 @@ const { db } = vi.hoisted(() => ({
   db: {
     user: { findMany: vi.fn(), findFirst: vi.fn() },
     rating: { findMany: vi.fn() },
+    friend: { findMany: vi.fn() },
   },
 }));
 
@@ -75,6 +76,7 @@ function ratingRow(id: string, createdAt: Date) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.friend.findMany.mockResolvedValue([]);
 });
 
 describe('searchUsers', () => {
@@ -86,7 +88,13 @@ describe('searchUsers', () => {
     const result = await searchUsers(VIEWER, '  DÁNA_% ');
 
     // Assert: cleaned, keyed (lower case, no accent), wildcards escaped.
-    expect(result).toEqual({ users: [member(1), member(2)], hasMore: false });
+    expect(result).toEqual({
+      users: [
+        { ...member(1), friendship: 'NONE' },
+        { ...member(2), friendship: 'NONE' },
+      ],
+      hasMore: false,
+    });
     const [prefixQuery, restQuery] = db.user.findMany.mock.calls.map((call) => call[0]);
     expect(prefixQuery.where.displayNameKey).toEqual({ startsWith: 'dana\\_\\%' });
     expect(prefixQuery.take).toBe(SEARCH_LIMIT + 1);
@@ -149,6 +157,53 @@ describe('searchUsers', () => {
     // Assert
     expect(result).toEqual({ users: [], hasMore: false });
     expect(db.user.findMany).not.toHaveBeenCalled();
+    expect(db.friend.findMany).not.toHaveBeenCalled();
+  });
+
+  it("attaches the viewer's friendship to each result, NONE for themselves and strangers", async () => {
+    // Arrange: the viewer, a friend, someone they asked, someone who asked them, a stranger.
+    const self = { id: VIEWER.id, displayName: 'Ofri', profilePictureUrl: null };
+    db.user.findMany
+      .mockResolvedValueOnce([self, member(1), member(2)])
+      .mockResolvedValueOnce([member(3), member(4)]);
+    db.friend.findMany.mockResolvedValue([
+      { requesterId: member(1).id, addresseeId: VIEWER.id, status: 'ACCEPTED' },
+      { requesterId: VIEWER.id, addresseeId: member(2).id, status: 'PENDING' },
+      { requesterId: member(3).id, addresseeId: VIEWER.id, status: 'PENDING' },
+    ]);
+
+    // Act
+    const result = await searchUsers(VIEWER, 'fp');
+
+    // Assert: one friendship query, about the others shown only.
+    expect(result.users.map((u) => [u.id, u.friendship])).toEqual([
+      [VIEWER.id, 'NONE'],
+      [member(1).id, 'FRIENDS'],
+      [member(2).id, 'REQUEST_SENT'],
+      [member(3).id, 'REQUEST_RECEIVED'],
+      [member(4).id, 'NONE'],
+    ]);
+    expect(db.friend.findMany).toHaveBeenCalledTimes(1);
+    const others = [1, 2, 3, 4].map((n) => member(n).id);
+    expect(db.friend.findMany.mock.calls[0]![0].where).toEqual({
+      OR: [
+        { requesterId: VIEWER.id, addresseeId: { in: others } },
+        { addresseeId: VIEWER.id, requesterId: { in: others } },
+      ],
+    });
+  });
+
+  it('asks about the 20 shown only, not the extra one fetched to detect more', async () => {
+    // Arrange
+    db.user.findMany.mockResolvedValueOnce(Array.from({ length: 21 }, (_, i) => member(i)));
+
+    // Act
+    await searchUsers(VIEWER, 'fp');
+
+    // Assert
+    const asked = db.friend.findMany.mock.calls[0]![0].where.OR[0].addresseeId.in;
+    expect(asked).toHaveLength(SEARCH_LIMIT);
+    expect(asked).not.toContain(member(20).id);
   });
 
   it('throws 422 for a query that is blank after cleaning', async () => {

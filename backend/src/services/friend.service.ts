@@ -1,23 +1,22 @@
-import { Prisma, type Friend, type User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { memberUserSelect } from '../utils/communityMember.js';
 import { type FriendView, toFriendView } from '../utils/friendView.js';
 import { createLogger } from '../utils/logger.js';
+import { type Friendship, type Pair, relation } from './friendship.js';
 import { notifyFriendAccepted, notifyFriendRequest } from './notification.service.js';
 import { findProfileUser, requireOnboarded } from './profile.service.js';
 
 const log = createLogger('friend.service');
 
-/** The viewer's relation to another user — never anyone else's (friend-requests.md §4). */
-export type Friendship = 'NONE' | 'REQUEST_SENT' | 'REQUEST_RECEIVED' | 'FRIENDS';
+export type { Friendship } from './friendship.js';
 
 export const SELF_REQUEST = "You can't add yourself.";
 export const SENDER_GONE = 'This request is no longer valid as the user account does not exist.';
 export const REQUEST_GONE = 'This request is no longer available.';
 
-type Pair = Pick<Friend, 'requesterId' | 'addresseeId' | 'status'>;
 type Client = Prisma.TransactionClient | typeof prisma;
 
 /** The one row between two users, in whichever direction it was sent. */
@@ -31,16 +30,6 @@ function findPair(client: Client, a: string, b: string): Promise<Pair | null> {
     },
     select: { requesterId: true, addresseeId: true, status: true },
   });
-}
-
-function relation(row: Pair | null, viewerId: string): Friendship {
-  if (!row) {
-    return 'NONE';
-  }
-  if (row.status === 'ACCEPTED') {
-    return 'FRIENDS';
-  }
-  return row.requesterId === viewerId ? 'REQUEST_SENT' : 'REQUEST_RECEIVED';
 }
 
 /** The viewer's relation to `targetId`; `NONE` for themselves. */

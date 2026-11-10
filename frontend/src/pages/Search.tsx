@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { searchUsers, type SearchResults } from '../api/profiles';
+import type { Friendship } from '../api/friends';
+import { searchUsers, type SearchResults, type SearchUser } from '../api/profiles';
+import { FriendButton } from '../components/FriendButton';
 import { PersonLink } from '../components/PersonLink';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { LineIcon } from '../components/ui/LineIcon';
@@ -27,7 +29,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 const noSearch = (): Promise<SearchResults | null> => Promise.resolve(null);
 
 /**
- * Global Search — docs/features/find-people.md §5.1 (UC-5). Searches as you
+ * Global Search — docs/features/find-people.md §5.1 (UC-5), with a friend
+ * control on each row (search-friend-button.md §5.1). Searches as you
  * type; the query lives in the URL so Back from a profile restores it.
  * `useRequest` drops a late answer to an older query, so the newest wins.
  */
@@ -69,6 +72,24 @@ export function Search() {
 
   const load = useCallback(() => (query ? searchUsers(query) : noSearch()), [query]);
   const results = useRequest(load);
+  // Each row's answer from the server after an action, for the results they
+  // were made on: a new search or a reload starts from its own data (§5.1).
+  const [changed, setChanged] = useState<{
+    base: SearchResults;
+    values: Record<string, Friendship>;
+  } | null>(null);
+  const loaded = results.status === 'ready' ? results.data : null;
+  const friendshipOf = (user: SearchUser): Friendship =>
+    (changed && changed.base === loaded ? changed.values[user.id] : undefined) ?? user.friendship;
+  function setRowFriendship(userId: string, value: Friendship) {
+    if (!loaded) {
+      return;
+    }
+    setChanged((previous) => ({
+      base: loaded,
+      values: { ...(previous?.base === loaded ? previous.values : {}), [userId]: value },
+    }));
+  }
 
   const input = (
     <input
@@ -155,21 +176,45 @@ export function Search() {
                     : 'flex flex-col'
                 }
               >
-                {results.data.users.map((user) => (
-                  <li key={user.id} className={mixtape ? 'py-1.5' : 'py-1'}>
-                    <PersonLink
-                      user={user}
-                      avatarSize={36}
-                      className="text-sm font-medium"
-                      label={
-                        <>
-                          {user.displayName}
-                          {user.id === viewerId && <span className="text-muted"> · You</span>}
-                        </>
-                      }
-                    />
-                  </li>
-                ))}
+                {results.data.users.map((user) => {
+                  const friendship = friendshipOf(user);
+                  return (
+                    <li
+                      key={user.id}
+                      className={`flex items-center gap-3 ${mixtape ? 'py-1.5' : 'py-1'}`}
+                    >
+                      <PersonLink
+                        user={user}
+                        avatarSize={36}
+                        className="text-sm font-medium"
+                        label={
+                          <>
+                            {user.displayName}
+                            {user.id === viewerId && <span className="text-muted"> · You</span>}
+                          </>
+                        }
+                      />
+                      {user.id !== viewerId &&
+                        (friendship === 'FRIENDS' ? (
+                          // A label, not a button: Remove lives on the profile (§5.1).
+                          <span className="shrink-0 text-sm text-muted">
+                            <span aria-hidden="true">✓ </span>Friends
+                          </span>
+                        ) : (
+                          <FriendButton
+                            userId={user.id}
+                            name={user.displayName}
+                            friendship={friendship}
+                            online={online}
+                            onChanged={(value) => setRowFriendship(user.id, value)}
+                            onStale={results.reload}
+                            emphasis="row"
+                            className="shrink-0 whitespace-nowrap"
+                          />
+                        ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
             {results.data.hasMore && <p className="text-sm text-muted">{SEARCH_MORE}</p>}
