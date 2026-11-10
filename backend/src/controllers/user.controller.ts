@@ -9,7 +9,7 @@ import {
 } from '../services/user.service.js';
 import { TUTORIAL_ITEMS, markTutorialSeen } from '../services/tutorial.service.js';
 import { sessionUser } from '../middleware/requireAuth.js';
-import { sessionPayload } from '../utils/publicUser.js';
+import { sessionPayload, tutorialPayload } from '../utils/publicUser.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
 
@@ -64,8 +64,8 @@ const tutorialSeenSchema = z.object({ seen: z.enum(TUTORIAL_ITEMS) }).strict();
 export const tutorialSeen: RequestHandler = async (req, res, next) => {
   try {
     const { seen } = parseBody(tutorialSeenSchema, req.body);
-    const tutorial = await markTutorialSeen(sessionUser(req), seen);
-    res.status(200).json(success({ tutorial }));
+    const user = await markTutorialSeen(sessionUser(req), seen);
+    res.status(200).json(success(tutorialPayload(user)));
   } catch (error) {
     next(error);
   }

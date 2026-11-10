@@ -114,7 +114,10 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
       aria-modal="true"
       aria-label="How BookRough works"
       onKeyDown={handleKeyDown}
-      onPointerDown={(event) => (dragStart.current = event.clientX)}
+      onPointerDown={(event) => {
+        // Touch only: a mouse drag is text selection, not a swipe.
+        dragStart.current = event.pointerType === 'mouse' ? null : event.clientX;
+      }}
       onPointerUp={handlePointerUp}
       onPointerCancel={() => (dragStart.current = null)}
       className="fixed inset-0 z-30 flex flex-col bg-canvas px-6 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] text-ink"
@@ -138,16 +141,18 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
       </div>
 
       <div className="mx-auto w-full max-w-md">
-        <ol aria-label="Steps" className="mb-6 flex justify-center gap-2">
+        <p className="sr-only">
+          Step {index + 1} of {WALKTHROUGH_CARDS.length}
+        </p>
+        <div aria-hidden="true" className="mb-6 flex justify-center gap-2">
           {WALKTHROUGH_CARDS.map((item, position) => (
-            <li
+            <span
               key={item.title}
-              aria-current={position === index ? 'step' : undefined}
-              aria-label={`Step ${position + 1} of ${WALKTHROUGH_CARDS.length}`}
+              data-current={position === index || undefined}
               className={`size-2 rounded-full ${position === index ? 'bg-accent' : 'bg-line'}`}
             />
           ))}
-        </ol>
+        </div>
         <div className="flex gap-3">
           {index > 0 && (
             <Button variant="secondary" className="flex-1" onClick={() => go(index - 1)}>

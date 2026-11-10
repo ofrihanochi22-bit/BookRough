@@ -2,8 +2,6 @@ import type { User } from '@prisma/client';
 
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
-import { AppError } from '../utils/AppError.js';
-import { needsOnboarding } from '../utils/publicUser.js';
 
 /**
  * The onboarding tutorial's seen state — docs/features/onboarding-tutorial.md.
@@ -30,11 +28,12 @@ export function setTutorialEnabled(value: boolean): void {
 
 /**
  * What the client should still show. Nothing while the profile is unfinished
- * (the walkthrough follows onboarding, never covers it) or when
- * TUTORIAL_ENABLED=false.
+ * (`onboarding`: the walkthrough follows onboarding, never covers it) or when
+ * TUTORIAL_ENABLED=false. The caller passes the onboarding state, so this
+ * module does not import utils/publicUser, which imports it.
  */
-export function tutorialState(user: User): TutorialState {
-  const show = enabled && !needsOnboarding(user);
+export function tutorialState(user: User, onboarding: boolean): TutorialState {
+  const show = enabled && !onboarding;
   return {
     walkthrough: show && user.walkthroughSeenAt === null,
     saveTip: show && user.saveTipSeenAt === null,
@@ -43,24 +42,19 @@ export function tutorialState(user: User): TutorialState {
 }
 
 /**
- * Records that an item was seen. Only a null column is written, so a second
- * device closing the same walkthrough keeps the first time.
+ * Records that an item was seen and returns the caller's updated user. Only a
+ * null column is written, so a second device closing the same walkthrough
+ * keeps the first time; either way the column is set afterwards.
  */
-export async function markTutorialSeen(user: User, item: TutorialItem): Promise<TutorialState> {
-  if (!TUTORIAL_ITEMS.includes(item)) {
-    throw new AppError('Unknown tutorial item.', 422);
-  }
+export async function markTutorialSeen(user: User, item: TutorialItem): Promise<User> {
   const column = COLUMN[item];
   if (user[column] !== null) {
-    return tutorialState(user);
+    return user;
   }
+  const now = new Date();
   await prisma.user.updateMany({
     where: { id: user.id, [column]: null },
-    data: { [column]: new Date() },
+    data: { [column]: now },
   });
-  const fresh = await prisma.user.findUnique({ where: { id: user.id } });
-  if (!fresh) {
-    throw new AppError('User not found.', 404);
-  }
-  return tutorialState(fresh);
+  return { ...user, [column]: now };
 }

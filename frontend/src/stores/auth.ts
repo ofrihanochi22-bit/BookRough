@@ -45,6 +45,12 @@ interface AuthState {
   needsOnboarding: boolean;
   isAdmin: boolean;
   tutorial: TutorialState;
+  /**
+   * Items closed on this device since sign-in. A later session from the server
+   * (a profile save, say) may still say "show" if the background PATCH failed
+   * or has not landed yet; these stay hidden regardless until sign-out.
+   */
+  tutorialClosed: TutorialItem[];
   setSession: (session: Session) => void;
   /** Hides one tutorial item at once; the server is told separately (lib/tutorial.ts). */
   markTutorialSeen: (item: TutorialItem) => void;
@@ -57,9 +63,26 @@ export const useAuthStore = create<AuthState>()((set) => ({
   needsOnboarding: false,
   isAdmin: false,
   tutorial: NO_TUTORIAL,
-  setSession: ({ user, needsOnboarding, isAdmin, tutorial }) =>
-    set({ status: 'signedIn', user, needsOnboarding, isAdmin, tutorial: tutorial ?? NO_TUTORIAL }),
-  markTutorialSeen: (item) => set((state) => ({ tutorial: { ...state.tutorial, [item]: false } })),
+  tutorialClosed: [],
+  setSession: ({ user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL }) =>
+    set((state) => ({
+      status: 'signedIn',
+      user,
+      needsOnboarding,
+      isAdmin,
+      tutorial: {
+        walkthrough: tutorial.walkthrough && !state.tutorialClosed.includes('walkthrough'),
+        saveTip: tutorial.saveTip && !state.tutorialClosed.includes('saveTip'),
+        listTip: tutorial.listTip && !state.tutorialClosed.includes('listTip'),
+      },
+    })),
+  markTutorialSeen: (item) =>
+    set((state) => ({
+      tutorial: { ...state.tutorial, [item]: false },
+      tutorialClosed: state.tutorialClosed.includes(item)
+        ? state.tutorialClosed
+        : [...state.tutorialClosed, item],
+    })),
   clear: () =>
     set({
       status: 'signedOut',
@@ -67,6 +90,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       needsOnboarding: false,
       isAdmin: false,
       tutorial: NO_TUTORIAL,
+      tutorialClosed: [],
     }),
 }));
 
