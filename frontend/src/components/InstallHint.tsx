@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { readDeviceValue, writeDeviceValue } from '../lib/deviceStorage';
 import { shouldOfferInstall } from '../lib/installHint';
+import { useMixtape } from '../stores/design';
 import { DismissibleBar } from './ui/DismissibleBar';
 
 const DISMISSED_KEY = 'bookrough.installHintDismissed';
@@ -20,6 +21,7 @@ export function InstallHint() {
   const [visible, setVisible] = useState(
     () => offerInstall() && readDeviceValue(DISMISSED_KEY) !== '1',
   );
+  const mixtape = useMixtape();
 
   if (!visible) {
     return null;
@@ -33,7 +35,8 @@ export function InstallHint() {
         writeDeviceValue(DISMISSED_KEY, '1');
         setVisible(false);
       }}
-      className="mb-6 rounded-xl text-left"
+      paper={mixtape}
+      className={`mb-6 text-left ${mixtape ? 'rounded-[22px]' : 'rounded-xl'}`}
     >
       Install BookRough: tap <strong>Share</strong> (in Safari it&apos;s under •••), then{' '}
       <strong>Add to Home Screen</strong>.

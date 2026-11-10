@@ -6,12 +6,17 @@ import { DisplayNameField } from '../components/DisplayNameField';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
+import { CommunityCover } from '../components/ui/CommunityCover';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { TAPE_PAPER } from '../components/ui/tape';
+import { TopBar } from '../components/ui/TopBar';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSignOut } from '../hooks/useSignOut';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type StreamingService } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 
 type AvatarChoice = 'generated' | 'google';
 
@@ -26,6 +31,7 @@ export function CompleteProfile() {
   const user = useAuthStore((state) => state.user);
   const online = useOnlineStatus();
   const { signingOut, signOut } = useSignOut();
+  const mixtape = useMixtape();
 
   const [name, setName] = useState('');
   const [service, setService] = useState<StreamingService | null>(null);
@@ -82,8 +88,11 @@ export function CompleteProfile() {
 
   return (
     <ScreenLayout>
+      {mixtape && <TopBar />}
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-8">
-        <h1 className="font-display text-2xl font-medium">Complete your profile</h1>
+        <h1 className={mixtape ? MIXTAPE_H1 : 'font-display text-2xl font-medium'}>
+          Complete your profile
+        </h1>
 
         {!online && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -91,11 +100,19 @@ export function CompleteProfile() {
           </p>
         )}
 
+        {mixtape && (
+          // "Your cassette" (ui-redesign.md §5.13): the name as it is typed, on a
+          // label striped in the user's own hue. Presentation only — the field
+          // holds the value — so the cover stays decorative; ♪ while it is empty.
+          <CommunityCover id={user.id} name={cleaned} variant="card" />
+        )}
+
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-3 text-sm font-medium">Your avatar</legend>
           <div className="flex gap-3">
             <AvatarTile
               label="Generated"
+              mixtape={mixtape}
               selected={avatar === 'generated'}
               onSelect={() => setAvatar('generated')}
             >
@@ -109,6 +126,7 @@ export function CompleteProfile() {
             {googlePhoto && (
               <AvatarTile
                 label="Google photo"
+                mixtape={mixtape}
                 selected={avatar === 'google'}
                 onSelect={() => setAvatar('google')}
               >
@@ -159,19 +177,34 @@ export function CompleteProfile() {
 
 interface AvatarTileProps {
   label: string;
+  /** Mixtape (§5.13): the selected tile on tape paper, the other outlined in `line`. */
+  mixtape: boolean;
   selected: boolean;
   onSelect: () => void;
   children: ReactNode;
 }
 
-function AvatarTile({ label, selected, onSelect, children }: AvatarTileProps) {
+const TILE_CURRENT = {
+  selected: 'rounded-xl border border-accent bg-accent-soft text-accent-ink',
+  other: 'rounded-xl border border-line bg-surface text-ink',
+};
+
+const TILE_MIXTAPE = {
+  // Same 1.5px border box either way, so choosing a tile never shifts the row.
+  selected: `rounded-[22px] border-[1.5px] border-transparent font-semibold ${TAPE_PAPER}`,
+  other: 'rounded-[22px] border-[1.5px] border-line text-ink',
+};
+
+const TILE_FOCUS =
+  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent';
+
+function AvatarTile({ label, mixtape, selected, onSelect, children }: AvatarTileProps) {
+  const look = mixtape ? TILE_MIXTAPE : TILE_CURRENT;
   return (
     <label
-      className={`flex flex-1 cursor-pointer flex-col items-center gap-2 rounded-xl border p-4 text-sm ${
-        selected
-          ? 'border-accent bg-accent-soft text-accent-ink'
-          : 'border-line bg-surface text-ink'
-      }`}
+      className={`flex flex-1 cursor-pointer flex-col items-center gap-2 p-4 text-sm ${
+        selected ? look.selected : look.other
+      } ${mixtape ? TILE_FOCUS : ''}`}
     >
       <input
         type="radio"

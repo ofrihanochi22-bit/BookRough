@@ -5,8 +5,10 @@ import toast from 'react-hot-toast';
 import { type SignInIntent, signInWithGoogle } from '../api/auth';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useAuthStore } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 import { GoogleCredentialButton } from './GoogleCredentialButton';
 import { Button } from './ui/Button';
+import { PillTrack } from './ui/PillTrack';
 
 export const SIGN_IN_COPY = {
   question: 'How do you want to continue?',
@@ -35,6 +37,7 @@ export function GoogleSignIn({ defaultIntent = 'signin' }: { defaultIntent?: Sig
   /** Set after Sign in found no account: the credential to create it with. */
   const [pending, setPending] = useState<string | null>(null);
   const online = useOnlineStatus();
+  const mixtape = useMixtape();
 
   async function finish(credential: string, chosen: SignInIntent) {
     const session = await signInWithGoogle(credential, chosen);
@@ -63,26 +66,39 @@ export function GoogleSignIn({ defaultIntent = 'signin' }: { defaultIntent?: Sig
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <div
-        role="group"
-        aria-label={SIGN_IN_COPY.question}
-        className="flex w-full max-w-xs rounded-full border border-line p-1"
-      >
-        {OPTIONS.map((option) => (
-          <button
-            key={option.intent}
-            type="button"
-            aria-pressed={intent === option.intent}
+      {mixtape ? (
+        // ui-redesign.md §5.12: the kit's pill track, the selected side on tape paper.
+        <div className="w-full max-w-xs">
+          <PillTrack
+            label={SIGN_IN_COPY.question}
+            options={OPTIONS.map((option) => ({ value: option.intent, label: option.label }))}
+            value={intent}
+            onChange={setIntent}
             disabled={!online}
-            onClick={() => setIntent(option.intent)}
-            className={`min-h-11 flex-1 rounded-full text-sm font-medium disabled:opacity-60 ${
-              intent === option.intent ? 'bg-accent text-on-accent' : 'text-muted'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+          />
+        </div>
+      ) : (
+        <div
+          role="group"
+          aria-label={SIGN_IN_COPY.question}
+          className="flex w-full max-w-xs rounded-full border border-line p-1"
+        >
+          {OPTIONS.map((option) => (
+            <button
+              key={option.intent}
+              type="button"
+              aria-pressed={intent === option.intent}
+              disabled={!online}
+              onClick={() => setIntent(option.intent)}
+              className={`min-h-11 flex-1 rounded-full text-sm font-medium disabled:opacity-60 ${
+                intent === option.intent ? 'bg-accent text-on-accent' : 'text-muted'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
       <GoogleCredentialButton
         text={intent === 'signin' ? 'signin_with' : 'signup_with'}
         busyLabel={intent === 'signin' ? 'Signing you in…' : 'Creating your account…'}
