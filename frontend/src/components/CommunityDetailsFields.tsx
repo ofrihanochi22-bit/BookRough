@@ -6,6 +6,8 @@ import {
   NAME_MAX_GRAPHEMES,
 } from '../lib/communityText';
 import { graphemeCount } from '../lib/textRules';
+import { useMixtape } from '../stores/design';
+import { fieldClass } from './ui/field';
 
 const inputClass =
   'rounded-xl border bg-surface px-4 text-base text-ink outline-none focus:border-accent';
@@ -18,6 +20,12 @@ interface CommunityDetailsFieldsProps {
 
 /** The Name and Description fields with their counters and error lines. */
 export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsProps) {
+  const mixtape = useMixtape();
+  /** Current keeps today's classes; Mixtape uses the kit's field (ui-redesign.md §5.0c). */
+  const look = (error: string | null) =>
+    mixtape
+      ? fieldClass(true, error !== null)
+      : `${inputClass} ${error ? 'border-danger' : 'border-line'}`;
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -41,7 +49,7 @@ export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsP
           autoComplete="off"
           aria-invalid={form.nameError !== null}
           aria-describedby="community-name-error"
-          className={`min-h-11 ${inputClass} ${form.nameError ? 'border-danger' : 'border-line'}`}
+          className={`min-h-11 ${look(form.nameError)}`}
         />
         <p id="community-name-error" aria-live="polite" className="min-h-5 text-xs text-danger">
           {form.nameError}
@@ -68,7 +76,7 @@ export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsP
           maxLength={4000}
           aria-invalid={form.descriptionError !== null}
           aria-describedby="community-description-error"
-          className={`py-3 ${inputClass} ${form.descriptionError ? 'border-danger' : 'border-line'}`}
+          className={`py-3 ${look(form.descriptionError)}`}
         />
         <p
           id="community-description-error"

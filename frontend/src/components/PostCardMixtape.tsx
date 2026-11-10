@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { PublicPost } from '../api/posts';
@@ -12,48 +12,43 @@ import { BookmarkButton } from './BookmarkButton';
 import { EditCommentSheet } from './EditCommentSheet';
 import { PersonLink } from './PersonLink';
 import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postCardParts';
+import { ActionSheet, type SheetAction } from './ui/ActionSheet';
 import { Button } from './ui/Button';
 import { ReelCassette } from './ui/Cassette';
+import { CHIP } from './ui/chip';
 import { CoverArt } from './ui/CoverArt';
-import { Sheet } from './ui/Sheet';
+import { LineIcon } from './ui/LineIcon';
 import { TAPE_PAPER } from './ui/tape';
-
-const chip =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-line px-4 text-sm font-medium text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
-
-function RowIcon({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="size-5 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {children}
-    </svg>
-  );
-}
 
 /**
  * The rating sticker on the cover (ui-redesign.md §3.6): the group average
  * large, the number of ratings small. Absent until someone rates. Leads to
  * Post Detail, as "View ratings" did.
  */
-function RatingSticker({ post, to }: { post: PublicPost; to: string | null }) {
+function RatingSticker({
+  post,
+  to,
+  large,
+}: {
+  post: PublicPost;
+  to: string | null;
+  /** Post Detail's large sticker (§5.3). */
+  large: boolean;
+}) {
   const line = ratingSummaryLine(post.ratingSummary);
   if (line === null) {
     return null;
   }
   const disc = (
     <>
-      <span className="font-display text-lg leading-none font-extrabold">
+      <span
+        className={`font-display leading-none font-extrabold ${large ? 'text-3xl' : 'text-lg'}`}
+      >
         {post.ratingSummary.average}
       </span>
-      <span className="flex items-center gap-0.5 text-[10px] leading-none font-semibold">
+      <span
+        className={`flex items-center gap-0.5 leading-none font-semibold ${large ? 'text-xs' : 'text-[10px]'}`}
+      >
         <svg aria-hidden="true" viewBox="0 0 12 12" className="size-2.5" fill="currentColor">
           <circle cx="6" cy="3.5" r="2.5" />
           <path d="M1 11.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4z" />
@@ -62,8 +57,9 @@ function RatingSticker({ post, to }: { post: PublicPost; to: string | null }) {
       </span>
     </>
   );
-  const className =
-    'absolute -top-2 -right-2 flex size-14 rotate-6 flex-col items-center justify-center gap-0.5 rounded-full bg-sticker text-sticker-ink shadow-[0_2px_6px_rgb(0_0_0/0.25)]';
+  const className = `absolute -top-2 -right-2 flex rotate-6 flex-col items-center justify-center gap-0.5 rounded-full bg-sticker text-sticker-ink shadow-[0_2px_6px_rgb(0_0_0/0.25)] ${
+    large ? 'size-20' : 'size-14'
+  }`;
   return to ? (
     <Link to={to} aria-label={line} data-testid="rating-sticker" className={className}>
       {disc}
@@ -75,29 +71,37 @@ function RatingSticker({ post, to }: { post: PublicPost; to: string | null }) {
   );
 }
 
-/** The cover slot: album art, or a `tape` square with two reels while conversion is pending. */
+/**
+ * The cover slot: album art, or a `tape` square with two reels while
+ * conversion is pending. A 116px thumbnail on the card; the card's full width
+ * on Post Detail (§5.3).
+ */
 function Cover({
   post,
   retrying,
   detailPath,
+  large,
 }: {
   post: PublicPost;
   retrying: boolean;
   detailPath: string | null;
+  large: boolean;
 }) {
   return (
-    <div className="relative shrink-0">
+    <div className={`relative shrink-0 ${large ? 'w-full' : ''}`}>
       {post.conversionPending ? (
         <div
           data-testid="pending-cover"
-          className={`flex size-[116px] items-center justify-center rounded-xl ${TAPE_PAPER}`}
+          className={`flex items-center justify-center ${
+            large ? 'aspect-square w-full rounded-2xl' : 'size-[116px] rounded-xl'
+          } ${TAPE_PAPER}`}
         >
-          <ReelCassette spinning={retrying} className="w-20" />
+          <ReelCassette spinning={retrying} className={large ? 'w-40' : 'w-20'} />
         </div>
       ) : (
-        <CoverArt url={post.coverArtUrl} size={116} />
+        <CoverArt url={post.coverArtUrl} size={large ? 'full' : 116} />
       )}
-      <RatingSticker post={post} to={detailPath} />
+      <RatingSticker post={post} to={detailPath} large={large} />
       {post.myScore !== null && (
         <span className="absolute -bottom-1.5 -left-1.5 rounded-md bg-tape-ink px-1.5 py-0.5 text-xs font-bold text-tape shadow-[0_1px_3px_rgb(0_0_0/0.25)]">
           You: {post.myScore}
@@ -124,53 +128,46 @@ function PostActionsSheet({
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
-  const row =
-    'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-base font-medium disabled:opacity-50';
-  return (
-    <Sheet title="Post options" onClose={onClose}>
-      <ul className="flex flex-col gap-1">
-        {onHide && (
-          <li>
-            <button type="button" className={row} disabled={!online} onClick={onHide}>
-              <RowIcon>
-                <path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 9 4.5 10 6-.4.7-1.4 2-2.8 3.3M6.5 7.6C4.6 8.9 3.4 10.6 2 12c1 1.5 5 6 10 6 1.6 0 3-.4 4.3-1" />
-              </RowIcon>
-              Hide
-            </button>
-          </li>
-        )}
-        {onEdit && (
-          <li>
-            <button type="button" className={row} disabled={!online} onClick={onEdit}>
-              <RowIcon>
-                <path d="M4 20h4L19 9l-4-4L4 16z" />
-                <path d="M13.5 6.5l4 4" />
-              </RowIcon>
-              Edit comment
-            </button>
-          </li>
-        )}
-        {onDelete && (
-          <li>
-            <button
-              type="button"
-              className={`${row} text-danger`}
-              disabled={!online}
-              onClick={onDelete}
-            >
-              <RowIcon>
-                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
-              </RowIcon>
-              Delete post
-            </button>
-          </li>
-        )}
-      </ul>
-      <Button variant="secondary" onClick={onClose} className="mt-4 w-full">
-        Cancel
-      </Button>
-    </Sheet>
-  );
+  const actions: SheetAction[] = [];
+  if (onHide) {
+    actions.push({
+      label: 'Hide',
+      disabled: !online,
+      onSelect: onHide,
+      icon: (
+        <LineIcon>
+          <path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 9 4.5 10 6-.4.7-1.4 2-2.8 3.3M6.5 7.6C4.6 8.9 3.4 10.6 2 12c1 1.5 5 6 10 6 1.6 0 3-.4 4.3-1" />
+        </LineIcon>
+      ),
+    });
+  }
+  if (onEdit) {
+    actions.push({
+      label: 'Edit comment',
+      disabled: !online,
+      onSelect: onEdit,
+      icon: (
+        <LineIcon>
+          <path d="M4 20h4L19 9l-4-4L4 16z" />
+          <path d="M13.5 6.5l4 4" />
+        </LineIcon>
+      ),
+    });
+  }
+  if (onDelete) {
+    actions.push({
+      label: 'Delete post',
+      danger: true,
+      disabled: !online,
+      onSelect: onDelete,
+      icon: (
+        <LineIcon>
+          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+        </LineIcon>
+      ),
+    });
+  }
+  return <ActionSheet title="Post options" actions={actions} onClose={onClose} />;
 }
 
 /**
@@ -198,6 +195,11 @@ export function MixtapePostCard({
   const { retrying, retryMessage, retry } = useRetryConversion(post, onUpdated, onStale);
   const main = mainLink(post, viewerService);
   const detailPath = linkToDetail ? `/posts/${post.id}` : null;
+  // Post Detail shows the card in its detail mode (§5.3): full-width cover, large sticker.
+  const large = !linkToDetail;
+  const titleSize = large ? 'text-2xl' : 'text-lg';
+  // On Post Detail the song's title is the page's h1; on a card it is text.
+  const Title = large ? 'h1' : 'p';
   // The author edits their comment; a direct item only while still friends (edit-post-comment.md §5.1).
   const canEdit = post.isMine && (!post.direct || post.direct.isFriend);
   const hasMenu = canEdit || post.canDelete || onHide !== undefined;
@@ -257,25 +259,25 @@ export function MixtapePostCard({
         </span>
       </header>
 
-      <div className="flex gap-4">
-        <Cover post={post} retrying={retrying} detailPath={detailPath} />
+      <div className={large ? 'flex flex-col gap-4' : 'flex gap-4'}>
+        <Cover post={post} retrying={retrying} detailPath={detailPath} large={large} />
         <div className="flex min-w-0 flex-col justify-center gap-1.5">
           {post.conversionPending ? (
             <>
-              <p className="font-display text-lg leading-tight font-bold break-words">
+              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
                 {pendingTitle(post)}
-              </p>
+              </Title>
               <p className="text-xs text-muted">Other services unavailable</p>
             </>
           ) : (
             <>
-              <p className="font-display text-lg leading-tight font-bold break-words">
+              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
                 {detailPath ? (
                   <Link to={detailPath}>{displayTitle(post)}</Link>
                 ) : (
                   displayTitle(post)
                 )}
-              </p>
+              </Title>
               {post.artist && <p className="text-sm break-words text-muted">{post.artist}</p>}
               {kind && (
                 <p className="w-fit rounded-sm border border-line px-1.5 text-xs text-muted">
@@ -321,14 +323,14 @@ export function MixtapePostCard({
           {main.text}
         </a>
         {!post.conversionPending && !post.platform && (
-          <button type="button" className={chip} onClick={() => setShowingLinks(true)}>
+          <button type="button" className={CHIP} onClick={() => setShowingLinks(true)}>
             Other services
           </button>
         )}
         {post.conversionPending && post.isMine && (
           <button
             type="button"
-            className={`${chip} ${online ? '' : 'border-dashed text-muted'}`}
+            className={`${CHIP} ${online ? '' : 'border-dashed text-muted'}`}
             disabled={!online || retrying}
             aria-busy={retrying || undefined}
             onClick={retry}
@@ -337,10 +339,10 @@ export function MixtapePostCard({
           </button>
         )}
         {detailPath && (
-          <Link to={detailPath} className={chip}>
-            <RowIcon>
+          <Link to={detailPath} className={CHIP}>
+            <LineIcon>
               <path d="M4 5h16v11H9l-5 4z" />
-            </RowIcon>
+            </LineIcon>
             {commentCountLine(post.commentCount) ?? 'Comments'}
           </Link>
         )}

@@ -12,10 +12,12 @@ import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { cleanCommunityName } from '../lib/communityText';
 import { INVITES_NOT_SENT, MAX_SELECTED } from '../lib/invitationCopy';
+import { useMixtape } from '../stores/design';
 
 /** A new community has no members, invitations or bans: every friend is invitable. */
 async function loadCandidates(): Promise<InviteCandidate[]> {
@@ -32,6 +34,7 @@ async function loadCandidates(): Promise<InviteCandidate[]> {
  */
 export function CreateCommunity() {
   const navigate = useNavigate();
+  const mixtape = useMixtape();
   const online = useOnlineStatus();
   const form = useCommunityDetailsForm();
   const [saving, setSaving] = useState(false);
@@ -90,9 +93,14 @@ export function CreateCommunity() {
 
   return (
     <ScreenLayout>
+      {mixtape && <TopBar />}
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
         <header className="flex items-center justify-between gap-4">
-          <h1 className="font-display text-2xl font-medium">New community</h1>
+          <h1
+            className={`font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
+          >
+            New community
+          </h1>
           <Link to="/home" className="flex min-h-11 items-center px-2 text-sm text-muted">
             Cancel
           </Link>
@@ -140,7 +148,13 @@ export function CreateCommunity() {
           </p>
         )}
 
-        <Button type="submit" busy={saving} disabled={!canSubmit} className="mb-4 w-full">
+        <Button
+          type="submit"
+          busy={saving}
+          offline={mixtape && !online}
+          disabled={!canSubmit}
+          className="mb-4 w-full"
+        >
           {saving ? 'Creating…' : 'Create'}
         </Button>
       </form>

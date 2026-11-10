@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { CandidateStatus, InviteCandidate } from '../api/invitations';
+import { useMixtape } from '../stores/design';
 import { PersonLink } from './PersonLink';
 import { Button } from './ui/Button';
 import { LoadError } from './ui/LoadError';
@@ -43,6 +44,7 @@ export function FriendPicker({
   onCancel,
   busy = null,
 }: FriendPickerProps) {
+  const mixtape = useMixtape();
   if (failed) {
     return <LoadError message="Couldn't load your friends." onRetry={onRetry} />;
   }
@@ -66,7 +68,13 @@ export function FriendPicker({
   }
 
   return (
-    <ul aria-label="Your friends" className="flex flex-col divide-y divide-line">
+    <ul
+      aria-label="Your friends"
+      className={`flex flex-col divide-y divide-line ${
+        // Mixtape, on the Create form: a `surface` card of rows (ui-redesign.md §5.15).
+        mixtape && mode === 'select' ? 'rounded-[22px] bg-surface px-4' : ''
+      }`}
+    >
       {candidates.map((candidate) => {
         const { user, status } = candidate;
         return (
