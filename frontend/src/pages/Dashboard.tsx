@@ -7,13 +7,17 @@ import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useRequest } from '../hooks/useRequest';
-import { memberCountLabel } from '../lib/communityCopy';
+import {
+  COMMUNITIES_LOAD_FAILED,
+  CREATE_COMMUNITY_PATH,
+  memberCountLabel,
+  NO_COMMUNITIES_BODY,
+  NO_COMMUNITIES_TITLE,
+} from '../lib/communityCopy';
 import { roleLabel } from '../lib/communityRoles';
 import { badgeText } from '../lib/friendCopy';
 import { bellLabel } from '../lib/notificationCopy';
 import { useNotifications } from '../stores/notifications';
-
-const CREATE_PATH = '/communities/new';
 
 /**
  * Communities Dashboard, the home screen — docs/features/communities-create.md
@@ -42,7 +46,7 @@ export function Dashboard() {
       )}
 
       {communities.status === 'error' && (
-        <LoadError message="Couldn't load your communities." onRetry={communities.reload} />
+        <LoadError message={COMMUNITIES_LOAD_FAILED} onRetry={communities.reload} />
       )}
 
       {communities.status === 'ready' &&
@@ -92,10 +96,10 @@ function NotificationsBell() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
-      <h2 className="font-display text-xl font-medium">Start your first community</h2>
-      <p className="max-w-xs text-sm text-muted">A community is where your friends share music.</p>
+      <h2 className="font-display text-xl font-medium">{NO_COMMUNITIES_TITLE}</h2>
+      <p className="max-w-xs text-sm text-muted">{NO_COMMUNITIES_BODY}</p>
       <Link
-        to={CREATE_PATH}
+        to={CREATE_COMMUNITY_PATH}
         className="mt-2 flex min-h-11 items-center rounded-full bg-accent px-6 text-sm font-medium text-on-accent"
       >
         Create community
@@ -131,7 +135,7 @@ function CommunityList({ items }: { items: PublicCommunity[] }) {
       {/* Floats above the tab bar, aligned with the phone-width column on desktop. */}
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] mx-auto flex max-w-md justify-end px-6">
         <Link
-          to={CREATE_PATH}
+          to={CREATE_COMMUNITY_PATH}
           className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-full bg-accent px-5 text-sm font-medium text-on-accent shadow-lg"
         >
           <span aria-hidden="true" className="text-lg leading-none">

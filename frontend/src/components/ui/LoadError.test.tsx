@@ -2,11 +2,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { resetAuthStore, setOnline } from '../../test/fixtures';
+import { resetAuthStore, setDesign, setOnline } from '../../test/fixtures';
 import { LoadError, NOT_LOADED_OFFLINE } from './LoadError';
 
 afterEach(() => {
   setOnline(true);
+  setDesign('current');
   resetAuthStore();
 });
 
@@ -34,5 +35,17 @@ describe('LoadError', () => {
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent(NOT_LOADED_OFFLINE);
     expect(onRetry).toHaveBeenCalled();
+  });
+
+  it('under Mixtape, offline still says this was never loaded', () => {
+    // Arrange
+    setOnline(false);
+    setDesign('mixtape');
+
+    // Act
+    render(<LoadError message="Couldn't load your list." onRetry={vi.fn()} />);
+
+    // Assert
+    expect(screen.getByRole('alert')).toHaveTextContent(NOT_LOADED_OFFLINE);
   });
 });

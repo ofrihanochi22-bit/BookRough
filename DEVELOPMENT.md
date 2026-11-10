@@ -2343,6 +2343,86 @@ cd backend && npx vitest run src/services/comment.service.test.ts src/services/n
 cd frontend && npx vitest run src/pages/PostDetail.test.tsx src/components/PostCard.test.tsx src/pages/Notifications.test.tsx
 ```
 
+### Step 6.1j — UI redesign "Mixtape", slice 1: the foundation (Phase 6 — presentation of existing UCs, UC-19 touched)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/redesign-foundation
+Spec: docs/features/ui-redesign.md (slice 1 of six, §6)
+
+Goal: The building blocks of the Mixtape look exist behind a per-device switch. Everyone still sees the Current design, and nothing changes in what any screen can do.
+
+Tasks:
+
+- [x] Spec approved (2026-11-09; logo amendment 2026-11-10).
+- [x] Design switch (§4): `?design=new` / `?design=old` on any URL, stored on the device (`lib/design.ts`, `stores/design.ts`); `components/DesignSync.tsx` sets `data-design="mixtape"` on `<html>` and the `theme-color` metas at runtime. Current stays the default.
+- [x] Tokens (§3.1–§3.2) in `index.css`, scoped under `data-design`: canvas, surface, ink, muted, line, the fixed `tape` / `tape-ink` / `sticker` / `sticker-ink`, a static `skeleton` tone, danger re-checked, and Mixtape shades for all five accent names in light and dark. Purple stays the default accent until the swap PR.
+- [x] Bricolage Grotesque (`@fontsource-variable/bricolage-grotesque`, approved 2026-11-09) as the Mixtape heading face.
+- [x] Kit (§5.0c): `Button` gains the meanings `rating` and `destructive` and an `offline` look (dashed); `ui/field.ts` for text fields; tape-paper toasts (`AppToaster`); `EmptyState`; quiet `LoadError`; static `Skeleton`; `Sheet` with a grab handle, a back arrow for sheets in steps, and a slide that stops under reduced motion.
+- [x] Tab bar with the central Share button (§3.4) and the Share sheet (§5.0b, `components/ShareSheet.tsx`): to a community through the existing `PostComposer`, to a friend through the existing `SendRecommendationSheet`.
+- [x] `PostCard` (§5.0, `components/PostCardMixtape.tsx`): 116px cover, rating sticker, "You: N" tag, comment on tape, one accent "Open in …" pill, chips, reels while pending, ⋯ as a bottom action sheet. The shared sheets moved to `postCardParts.tsx`, the retry to `hooks/useRetryConversion.ts`.
+- [x] `RatingSheet` (§5.10): one row of ten stars, with drag-to-set, arrow / Home / End keys and an "N/10" readout.
+- [x] Cassette `CommunityCover` (§3.5), the reel loader (§3.7: `Spinner`, the conversion wait in `LinkCommentForm`), and the logo: `Wordmark` with `hero` and `compact` variants (§3.8). Each screen places the logo in its own slice.
+- [x] Review: `/code-review` and `design:accessibility-review` at 375px, light and dark.
+- [x] Tests: the existing suite unchanged on the default design, plus the Mixtape tests from spec §8.
+
+What I did:
+
+- **No functionality changes.** The one new UI, the Share button, opens flows that already exist. To put a just-shared post on top when its feed is already open, `Community.tsx` keys the feed on a router-state value the Share sheet sets. `PostComposer` gained `onBusyChange` (so the sheet can't close mid-conversion) and `bare` (no card of its own inside a sheet).
+- **Code review** (8 findings, 2 fixed):
+  - The mini cassette now fills its 44px slot on Friends.
+  - The Share sheet renders outside the tab bar's navigation landmark.
+  - Left for the developer, and listed in the PR:
+    - Search has no entry under Mixtape until the header icons arrive (slices 2–3).
+    - A 404 from the composer returns to a freshly loaded list rather than closing the sheet (the spec wording is ambiguous).
+    - Sharing to the feed already open wipes a draft typed in that feed's own composer.
+    - Sending to a friend doesn't refresh a Recommendations screen open behind the sheet.
+    - The "Create community" pill styling exists twice.
+- **Accessibility review:** no critical or major findings; six minor ones:
+  - Unfilled stars in `line` are 1.7:1 against the sheet.
+  - Tape paper on a white surface in light mode is almost invisible.
+  - Light green and pink accent text on `canvas` is 4.45–4.47:1.
+  - Post-title links are 22px tall, as today.
+  - The star row is the declared 34×44px exception.
+  - Focus moves to Close rather than Back between Share steps.
+
+  The developer approved fixing the first two (2026-11-10): unfilled stars now use `muted` outlines, and tape paper gets a 1px `line` ring in light mode (`ui/tape.ts`). The spec is amended in §3.1, §5.10 and §10.
+
+- **Browser check** at 375px, dark and light: Home with cassette covers, the tab bar, all Share sheet steps, and a real post through the sheet (the reels spin, then it lands on top of the feed). Also the post cards with a sticker on Recommendations › Sent, and the ⋯ action sheet. `?design=old` brings back the Current look and its theme colours. The rating sheet was covered by tests only: the dev data has nothing this account can rate.
+- **Docs:** `docs/tech stack` .md + .docx — the font in the Fontsource entry (§1, beside the other self-hosted fonts), and the `frontend-design` and `Design` plugins in §5.2.
+- **Tests:** frontend 73 files, 927 tests (850 existing, unchanged), 97.8% lines. New:
+  - `lib/design.test.ts`, `DesignSync.test.tsx`, `AppToaster.test.tsx`.
+  - `ShareSheet.test.tsx`, `PostCardMixtape.test.tsx`, `ui/kit.mixtape.test.tsx`.
+  - The Mixtape blocks in `TabLayout.test.tsx` and `RatingSheet.test.tsx`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/`, then open `http://localhost:5173/home?design=new`. The page turns indigo (or lavender in light mode), communities are cassettes, and the tab bar reads Home · Friends · Share · My List · Profile.
+2. Tap **Share** → **To a community** → pick one, and paste `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`. Tap **Post**: the reels spin above "Finding this track on other services…", then the feed opens with the post on top.
+3. **Share** → **To a friend** opens the existing **Send a song** sheet with its friend picker.
+4. On a card, ⋯ opens **Post options** as a bottom sheet; a rated post shows the yellow sticker with its average and count.
+5. Open **Recommendations** › Received and use **Rate & Review**: one row of ten stars; tap, drag or use the arrow keys, and the "N/10" readout follows.
+6. Open `http://localhost:5173/home?design=old`: the Current look is back on this device.
+
+```bash
+cd frontend && npx vitest run src/lib/design.test.ts src/components/DesignSync.test.tsx src/components/ShareSheet.test.tsx src/components/PostCardMixtape.test.tsx src/components/RatingSheet.test.tsx src/components/TabLayout.test.tsx src/components/ui/kit.mixtape.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

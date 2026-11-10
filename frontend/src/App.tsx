@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppSettings } from './components/AppSettings';
+import { DesignSync } from './components/DesignSync';
 import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { TabLayout } from './components/TabLayout';
 import { AdminCommunities, AdminLayout, AdminUsers } from './pages/Admin';
@@ -30,6 +31,7 @@ export function App() {
   return (
     <>
       <AppSettings />
+      <DesignSync />
       <SessionGate>
         <Routes>
           <Route

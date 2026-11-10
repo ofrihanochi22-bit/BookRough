@@ -10,7 +10,10 @@ import {
 } from '../lib/postText';
 import { INVALID_LINK, parseSharedLink } from '../lib/supportedLinks';
 import { graphemeCount } from '../lib/textRules';
+import { useMixtape } from '../stores/design';
 import { Button } from './ui/Button';
+import { ReelCassette } from './ui/Cassette';
+import { fieldClass } from './ui/field';
 
 /** How a submit ended; anything but `done` keeps the draft. */
 export type LinkFormOutcome =
@@ -31,9 +34,6 @@ interface LinkCommentFormProps {
   className?: string;
 }
 
-const inputClass =
-  'w-full rounded-xl border bg-surface px-4 text-base text-ink outline-none focus:border-accent read-only:opacity-60';
-
 /**
  * Paste a link, optionally comment, submit — shared by the community composer
  * (docs/features/posts-feed.md §5.2) and the send sheet (direct-recommendations.md
@@ -49,6 +49,7 @@ export function LinkCommentForm({
   onBusyChange,
   className = '',
 }: LinkCommentFormProps) {
+  const mixtape = useMixtape();
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -117,7 +118,7 @@ export function LinkCommentForm({
           }}
           aria-invalid={linkError !== null}
           aria-describedby="post-url-error"
-          className={`min-h-11 ${inputClass} ${linkError ? 'border-danger' : 'border-line'}`}
+          className={`min-h-11 ${fieldClass(mixtape, linkError !== null)}`}
         />
         <p id="post-url-error" aria-live="polite" className="text-xs text-danger empty:hidden">
           {linkError}
@@ -142,7 +143,7 @@ export function LinkCommentForm({
           onChange={(event) => setComment(event.target.value)}
           aria-invalid={commentError !== null}
           aria-describedby="post-comment-error"
-          className={`py-3 ${inputClass} ${commentError ? 'border-danger' : 'border-line'}`}
+          className={`py-3 ${fieldClass(mixtape, commentError !== null)}`}
         />
         <p id="post-comment-error" aria-live="polite" className="text-xs text-danger empty:hidden">
           {commentError}
@@ -155,9 +156,13 @@ export function LinkCommentForm({
         </p>
       )}
 
+      {/* The signature wait (ui-redesign.md §3.7): the reels spin above the progress copy. */}
+      {mixtape && busy && <ReelCassette spinning className="mx-auto w-20" />}
+
       <Button
         type="submit"
         busy={busy}
+        offline={mixtape && !online}
         disabled={!online || url.trim() === '' || commentError !== null}
       >
         {busy ? busyCopy : submitLabel}

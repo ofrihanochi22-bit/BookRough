@@ -23,6 +23,13 @@
   --on-accent: #ffffff;
   --danger: #a32d2d;
   --danger-soft: #fcebeb;
+  --display-face: 'Space Grotesk', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Unused by the Current design; defined so the utilities always resolve. */
+  --tape: #fbf8f2;
+  --tape-ink: #1b1a2e;
+  --sticker: #ffc93c;
+  --sticker-ink: #4a3300;
+  --skeleton: var(--line);
   color-scheme: light;
 }
 
@@ -114,6 +121,178 @@
   }
 }
 
+/*
+ * Mixtape — docs/features/ui-redesign.md §3. Everything hangs off
+ * `data-design="mixtape"` on <html> (set per device, §4), so the Current values
+ * above stay untouched until the swap PR. The selectors carry two attributes
+ * (or an attribute plus :root) so they outrank the single-attribute Current
+ * blocks whatever their order.
+ *
+ * Accent shades (§3.2): `accent` per the spec; `accent-soft` / `accent-ink`
+ * derived per name and contrast-checked (≥ 4.5:1 for accent-ink on canvas,
+ * surface and accent-soft). Without a `data-accent` (never in the running
+ * app) the purple shades apply, matching the Current default until the swap.
+ * The `[data-accent] ` descendant forms keep a swatch showing its own colour
+ * under any page accent (the Admin swatches, admin-panel.md §5.4).
+ */
+:root[data-design='mixtape'] {
+  --canvas: #eceaf4;
+  --surface: #ffffff;
+  --ink: #1b1a2e;
+  --muted: #5a5870;
+  --line: #d5d2e3;
+  --tape: #fbf8f2;
+  --tape-ink: #1b1a2e;
+  --sticker: #ffc93c;
+  --sticker-ink: #4a3300;
+  --skeleton: #dedbea;
+  --accent: #5b47d6;
+  --accent-soft: #e7e3fb;
+  --accent-ink: #3e2fa0;
+  --on-accent: #ffffff;
+  --danger: #b42318;
+  --danger-soft: #fbe4e1;
+  --display-face:
+    'Bricolage Grotesque Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-design='mixtape'] {
+    --canvas: #1b1a2e;
+    --surface: #26253d;
+    --ink: #f2ede4;
+    --muted: #a9a6c4;
+    --line: #4a4870;
+    --tape: #f2ede4;
+    --skeleton: #33324f;
+    --accent: #9b8cff;
+    --accent-soft: #34306a;
+    --accent-ink: #cfc7ff;
+    --on-accent: #1b1a2e;
+    --danger: #ff8a80;
+    --danger-soft: #4a2230;
+  }
+}
+
+[data-design='mixtape'][data-accent='orange'],
+[data-design='mixtape'] [data-accent='orange'] {
+  --accent: #c23a17;
+  --accent-soft: #fbe3da;
+  --accent-ink: #8a2a10;
+  --on-accent: #ffffff;
+}
+[data-design='mixtape'][data-accent='purple'],
+[data-design='mixtape'] [data-accent='purple'] {
+  --accent: #5b47d6;
+  --accent-soft: #e7e3fb;
+  --accent-ink: #3e2fa0;
+  --on-accent: #ffffff;
+}
+[data-design='mixtape'][data-accent='blue'],
+[data-design='mixtape'] [data-accent='blue'] {
+  --accent: #1f64c4;
+  --accent-soft: #dce9fa;
+  --accent-ink: #164a93;
+  --on-accent: #ffffff;
+}
+[data-design='mixtape'][data-accent='green'],
+[data-design='mixtape'] [data-accent='green'] {
+  --accent: #1e7a4c;
+  --accent-soft: #d8f0e3;
+  --accent-ink: #155636;
+  --on-accent: #ffffff;
+}
+[data-design='mixtape'][data-accent='pink'],
+[data-design='mixtape'] [data-accent='pink'] {
+  --accent: #c2316f;
+  --accent-soft: #fadde9;
+  --accent-ink: #8c2150;
+  --on-accent: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-design='mixtape'][data-accent='orange'],
+  [data-design='mixtape'] [data-accent='orange'] {
+    --accent: #ff5a36;
+    --accent-soft: #4a2530;
+    --accent-ink: #ffb09c;
+    --on-accent: #1b1a2e;
+  }
+  [data-design='mixtape'][data-accent='purple'],
+  [data-design='mixtape'] [data-accent='purple'] {
+    --accent: #9b8cff;
+    --accent-soft: #34306a;
+    --accent-ink: #cfc7ff;
+    --on-accent: #1b1a2e;
+  }
+  [data-design='mixtape'][data-accent='blue'],
+  [data-design='mixtape'] [data-accent='blue'] {
+    --accent: #4fb0ff;
+    --accent-soft: #1e3a5c;
+    --accent-ink: #a9d6ff;
+    --on-accent: #1b1a2e;
+  }
+  [data-design='mixtape'][data-accent='green'],
+  [data-design='mixtape'] [data-accent='green'] {
+    --accent: #47d68f;
+    --accent-soft: #1a4038;
+    --accent-ink: #a6eec8;
+    --on-accent: #1b1a2e;
+  }
+  [data-design='mixtape'][data-accent='pink'],
+  [data-design='mixtape'] [data-accent='pink'] {
+    --accent: #ff6fae;
+    --accent-soft: #4a2440;
+    --accent-ink: #ffb8d7;
+    --on-accent: #1b1a2e;
+  }
+}
+
+/*
+ * Motion (§3.7): the reels are the one signature moment; everything else only
+ * answers an action. `prefers-reduced-motion: reduce` stills all of it.
+ */
+@keyframes mixtape-reel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes mixtape-sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+@keyframes mixtape-stick {
+  0% {
+    transform: rotate(-14deg) scale(1.35);
+  }
+  60% {
+    transform: rotate(4deg) scale(0.95);
+  }
+  100% {
+    transform: rotate(0) scale(1);
+  }
+}
+.mixtape-reel-spin {
+  animation: mixtape-reel-spin 1.6s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.mixtape-sheet-in {
+  animation: mixtape-sheet-in 180ms ease-out;
+}
+.mixtape-stick {
+  animation: mixtape-stick 260ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mixtape-reel-spin,
+  .mixtape-sheet-in,
+  .mixtape-stick {
+    animation: none;
+  }
+}
+
 @theme inline {
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
@@ -127,8 +306,15 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
 
+  /* Mixtape only (ui-redesign.md §3.1): fixed identity colours that never follow the accent. */
+  --color-tape: var(--tape);
+  --color-tape-ink: var(--tape-ink);
+  --color-sticker: var(--sticker);
+  --color-sticker-ink: var(--sticker-ink);
+  --color-skeleton: var(--skeleton);
+
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Space Grotesk', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--display-face);
 }
 
 html,
