@@ -11,9 +11,12 @@ import {
 } from '../api/notifications';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
+import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import {
@@ -24,6 +27,7 @@ import {
   viewOf,
 } from '../lib/notificationCopy';
 import { relativeTime } from '../lib/postLinks';
+import { useMixtape } from '../stores/design';
 import { useNotifications } from '../stores/notifications';
 
 /** Changes made on this screen since the first page loaded. */
@@ -36,6 +40,9 @@ interface LocalChanges {
   /** Mark all as read succeeded. */
   allRead: boolean;
 }
+
+const EMPTY_TITLE = 'No notifications yet';
+const EMPTY_BODY = 'When friends post, rate or send you something, it shows up here.';
 
 function fresh(page: NotificationsPage): LocalChanges {
   return { page, more: [], nextCursor: page.nextCursor, read: [], allRead: false };
@@ -56,6 +63,7 @@ export function Notifications() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const mixtape = useMixtape();
 
   // Local changes belong to the page they were made on; a reload starts over.
   const changes =
@@ -126,28 +134,43 @@ export function Notifications() {
     }
   }
 
+  const markAllButton = changes && items.length > 0 && (
+    <Button
+      variant="secondary"
+      busy={markingAll}
+      disabled={!online || !anyUnread}
+      onClick={() => void markAll()}
+      className="shrink-0 px-4"
+    >
+      Mark all as read
+    </Button>
+  );
+
   return (
     <ScreenLayout>
-      <Link to="/home" className="mb-2 inline-flex min-h-11 items-center text-sm text-muted">
-        <span aria-hidden="true" className="mr-1">
-          ‹
-        </span>
-        Home
-      </Link>
-      <header className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="min-w-0 truncate font-display text-2xl font-medium">Notifications</h1>
-        {changes && items.length > 0 && (
-          <Button
-            variant="secondary"
-            busy={markingAll}
-            disabled={!online || !anyUnread}
-            onClick={() => void markAll()}
-            className="shrink-0 px-4"
-          >
-            Mark all as read
-          </Button>
-        )}
-      </header>
+      {mixtape ? (
+        <>
+          <TopBar back={{ to: '/home', label: 'Home' }} />
+          {/* Wraps rather than truncates if the chip and the heading cannot share a row. */}
+          <header className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h1 className={`min-w-0 break-words ${MIXTAPE_H1}`}>Notifications</h1>
+            {markAllButton}
+          </header>
+        </>
+      ) : (
+        <>
+          <Link to="/home" className="mb-2 inline-flex min-h-11 items-center text-sm text-muted">
+            <span aria-hidden="true" className="mr-1">
+              ‹
+            </span>
+            Home
+          </Link>
+          <header className="mb-6 flex items-center justify-between gap-3">
+            <h1 className="min-w-0 truncate font-display text-2xl font-medium">Notifications</h1>
+            {markAllButton}
+          </header>
+        </>
+      )}
 
       <div className="flex flex-col gap-2">
         {!online && (
@@ -168,20 +191,26 @@ export function Notifications() {
           <LoadError message={NOTIFICATIONS_LOAD_FAILED} onRetry={first.reload} />
         )}
 
-        {changes && items.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">No notifications yet</p>
-            <p className="mt-1 text-sm text-muted">
-              When friends post, rate or send you something, it shows up here.
-            </p>
-          </div>
-        )}
+        {changes &&
+          items.length === 0 &&
+          (mixtape ? (
+            <KitEmptyState title={EMPTY_TITLE}>{EMPTY_BODY}</KitEmptyState>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+              <p className="font-medium">{EMPTY_TITLE}</p>
+              <p className="mt-1 text-sm text-muted">{EMPTY_BODY}</p>
+            </div>
+          ))}
 
         {items.length > 0 && (
           <ul className="flex flex-col gap-2">
             {items.map((item) => (
               <li key={item.id}>
-                <NotificationRow item={item} onOpen={open} />
+                {mixtape ? (
+                  <MixtapeNotificationRow item={item} onOpen={open} />
+                ) : (
+                  <NotificationRow item={item} onOpen={open} />
+                )}
               </li>
             ))}
           </ul>
@@ -229,6 +258,51 @@ function NotificationRow({
       />
       <span className="min-w-0 flex-1 text-sm">
         <span className="font-medium">{view.lead}</span>
+        {view.rest}
+        <span className="block text-xs text-muted">{relativeTime(item.at)}</span>
+      </span>
+      {!item.read && (
+        <span className="size-2.5 shrink-0 rounded-full bg-accent">
+          <span className="sr-only">Unread</span>
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/**
+ * A row under Mixtape (ui-redesign.md §5.8): unread is a raised `surface` card
+ * in `ink` with an accent dot; read lies flat on `canvas`, in `muted`, with a
+ * muted avatar.
+ */
+function MixtapeNotificationRow({
+  item,
+  onOpen,
+}: {
+  item: PublicNotification;
+  onOpen: (item: PublicNotification) => void;
+}) {
+  const view = viewOf(item);
+  return (
+    <Link
+      to={view.to}
+      onClick={() => onOpen(item)}
+      data-read={item.read || undefined}
+      className={`flex min-h-14 items-center gap-3 rounded-[18px] px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+        item.read ? 'text-muted' : 'bg-surface text-ink shadow-[0_1px_4px_rgb(0_0_0/0.12)]'
+      }`}
+    >
+      <span className={`shrink-0 ${item.read ? 'opacity-60 grayscale' : ''}`}>
+        <Avatar
+          id={item.actor.id}
+          name={item.actor.displayName}
+          pictureUrl={item.actor.profilePictureUrl}
+          size={40}
+          decorative
+        />
+      </span>
+      <span className="min-w-0 flex-1 text-sm">
+        <span className="font-semibold">{view.lead}</span>
         {view.rest}
         <span className="block text-xs text-muted">{relativeTime(item.at)}</span>
       </span>

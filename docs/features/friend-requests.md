@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `search-friend-button.md` (2026-11-10).** `FriendButton` also sits on each Global Search row (with `emphasis="row"`); a friend's row shows a label instead, so Remove stays on the profile and the Friends tab. The `relation` rule moved to `services/friendship.ts`.
+
 > **Amended by `notifications.md` (UC-21, 2026-11-08).** The §4.4 stubs are gone: a request writes a `FRIEND_REQUEST` notification (at most one unread per sender), and an accept a `FRIEND_ACCEPTED` one for the requester. The Friends tab badge counts pending requests and invitations only; unseen recommendations left it.
 
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Friendship now also allows sending a song, and a friend's profile gains **Send a song**. It still widens nothing a profile shows: direct ratings never appear there.

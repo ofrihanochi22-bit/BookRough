@@ -2425,7 +2425,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1k — UI redesign "Mixtape", slice 2: the core loop (Phase 6 — presentation of UC-9, UC-10, UC-11, UC-14, UC-16)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #55)
 Branch: feat/redesign-core-loop
 Spec: docs/features/ui-redesign.md (slice 2 of six, §6)
 
@@ -2524,6 +2524,155 @@ cd frontend && npx vitest run src/pages/Dashboard.mixtape.test.tsx src/pages/Com
 
 ```bash
 cd frontend && npm run test:unit
+```
+
+### Step 6.1l — UI redesign "Mixtape", slice 3: the social screens (Phase 6 — presentation of UC-4, UC-5, UC-6, UC-7, UC-8, UC-12, UC-20, UC-21)
+
+Status: ✅ Done (merged as PR #56)
+Branch: feat/redesign-social
+Spec: docs/features/ui-redesign.md (slice 3 of six, §6)
+
+Goal: Friends, Recommendations, Public Profile, Search, Notifications, My List and My Profile get the Mixtape look behind the per-device switch. The Current design stays the default and is unchanged, and nothing changes in what any screen can do.
+
+Tasks:
+
+- [x] One decision settled with the developer (2026-11-10), recorded in the spec's §5.7 and §10:
+  - Search rows keep today's content: avatar and name leading to the profile, with no `FriendButton`. The search API returns no friendship state, so a button would be a backend change. It is deferred to its own feature after the redesign.
+- [x] Friends (§5.4, `pages/Friends.tsx`):
+  - The compact logo, and the header Search icon deferred from slice 2.
+  - Recommendations as a tape-paper tile with an envelope and the accent badge.
+  - Invitations, Requests and Your friends as `surface` cards labelled in `muted`.
+  - Kit empty state with the existing copy and its Search link.
+- [x] Recommendations (§5.5): "‹ Friends" beside the logo, and Send a song on its own full-width row. Received / Sent is a pill track (`ui/PillTrack.tsx`) with the selected side on tape paper. Kit empty states.
+- [x] Public Profile (§5.6):
+  - A tape card with a stripe band in the user's own hue (`ui/ProfileTape.tsx`), the ringed avatar and the name as the h1.
+  - `FriendButton` (a secondary pill in every state under Mixtape) and Send a song, half width each.
+  - Rating rows with a 64px cover and a score sticker (`ui/ScoreSticker.tsx`, now shared with Post Detail).
+- [x] Search (§5.7): a pill field with a leading search icon; results as one `surface` card of divider rows; no results in the kit's dashed frame.
+- [x] Notifications (§5.8): "‹ Home" beside the logo and Mark all as read beside the heading. Unread rows are a raised `surface` card with the accent dot and the sr-only "Unread"; read rows lie flat in `muted`, with a muted avatar.
+- [x] My List (§5.9, `components/SavedPostCard.tsx`): the post card's shape with a 116px thumbnail and kind tag. Rate & Review is the sticker pill, Open in … the accent pill, and Remove an outlined pill.
+- [x] My Profile (§5.11):
+  - The avatar section on the profile tape card, with Google's own button.
+  - Kit name field (`DisplayNameField`) and service rows with the selected one on tape paper (`StreamingServicePicker`). Both are shared with Complete Your Profile, which gets them under Mixtape now.
+  - The Admin area row, and Sign out centred.
+- [x] Review: `/code-review`, `design:accessibility-review` at 375px in light and dark, and a browser check at 375px.
+- [x] Tests: the existing suite unchanged on the default design, plus Mixtape tests for the seven screens.
+
+What I did:
+
+- **No functionality changes.** Under Current every screen renders as before.
+- **Code review** (8 findings; 7 fixed, 1 left for the developer):
+  - Text inside the profile tape card used the scheme tokens, so the Google button's "Fetching your photo…" was about 2:1 on tape in dark mode. `ProfileTape` now points `--ink`, `--muted` and `--line` at `tape-ink` for its contents. This works because `@theme inline` utilities read those variables directly. The hand-made tape-ink pill it needed is gone, and Use generated avatar is the kit `Button` again.
+  - The selected service row lost its border, so the list jumped by 3px on each choice. Every row now keeps a 1.5px border box.
+  - The offline Remove chip relied on CSS order for its opacity. It is now the kit's secondary `Button` with `offline`.
+  - Duplication removed: `ScoreSticker` (Post Detail and profile ratings), `OPEN_IN_PILL` and `KIND_TAG` in `ui/chip.ts` (post card and My List), and `MIXTAPE_H1` in `ui/heading.ts`.
+  - Left as is: under Mixtape the Friends empty state still says "the Search tab", because the spec allows existing copy only. Listed in the PR for the developer.
+- **Kit changes:** `EmptyState` takes an optional heading `level` (an h3 inside the profile's Ratings section) and an optional title (Search's no-results sentence has none). `CoverArt` gains a 64px size, and `StripeBand` is exported from `CommunityCover`.
+- **Accessibility review** (`slice3-accessibility-review.md` in the session notes folder): a scripted pass over all seven screens in light and dark found no text below 4.5:1, no control under 44×44, and no unnamed control. Each screen has one h1 and an ordered outline. The one contrast issue had already been found and fixed by the code review. Not exercised live, because the local data had none: requests, invitations, notification rows, saved songs and profile ratings. The component tests cover them.
+- **Browser check** at 375px, dark and light, on local dev data: all seven screens with `?design=new`, including the profile tape cards in both schemes.
+- **Tests:** frontend 85 files, 1022 tests (971 existing, unchanged), 97.98% lines. New:
+  - `pages/Friends.mixtape.test.tsx`, `pages/Recommendations.mixtape.test.tsx`, `pages/PublicProfile.mixtape.test.tsx`.
+  - `pages/Search.mixtape.test.tsx`, `pages/Notifications.mixtape.test.tsx`, `pages/MyList.mixtape.test.tsx`, `pages/Profile.mixtape.test.tsx`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/`, then open `http://localhost:5173/friends?design=new`. The logo is top left, the Search icon top right, and Recommendations is a cream tile with an envelope. If you have unseen recommendations, the badge shows on it. Tap the Search icon: it opens Search.
+2. On **Search**, type part of a friend's name: one card of rows, each opening the profile.
+3. Open a friend's profile: a cream card with a coloured stripe (the same colour as their generated avatar), then **✓ Friends** and **Send a song** side by side.
+4. **Friends › Recommendations**: Send a song is a full-width row, and Received / Sent is a track whose selected side is cream.
+5. Home's bell → **Notifications**: unread rows are raised cards with a dot, and read rows lie flat and greyed.
+6. **My List**: save a song from a feed first. The card shows a 116px cover, a yellow Rate & Review, a coloured Open in …, and Remove.
+7. **Profile**: the avatar sits on a cream card. Choose another service: the chosen row turns cream and the list doesn't move.
+8. Repeat in light mode. Then open `http://localhost:5173/friends?design=old` to bring back the Current look.
+
+```bash
+cd frontend && npx vitest run src/pages/Friends.mixtape.test.tsx src/pages/Recommendations.mixtape.test.tsx src/pages/PublicProfile.mixtape.test.tsx src/pages/Search.mixtape.test.tsx src/pages/Notifications.mixtape.test.tsx src/pages/MyList.mixtape.test.tsx src/pages/Profile.mixtape.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
+```
+
+### Step 6.1m — A friend button on each search result (Phase 6 — UC-5, UC-6 and UC-7 amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/search-friend-button
+Spec: docs/features/search-friend-button.md
+
+Goal: find someone in Global Search and add them there, without opening their profile first. This was deferred out of the redesign (ui-redesign.md §5.7) because it needs a backend change.
+
+Tasks:
+
+- [x] Stage 1 with the developer (2026-11-10), recorded in the spec's §9:
+  - A friend's row shows a quiet "✓ Friends" label, not a button. Removing a friend stays on the profile and the Friends tab (option B).
+  - A request you sent is a "Request sent" button with Cancel request in a sheet, as on the profile (option A).
+- [x] Backend: `GET /api/users/search` gives each result the viewer's `friendship` (`NONE` / `REQUEST_SENT` / `REQUEST_RECEIVED` / `FRIENDS`). One more query over the ≤20 ids shown: `friendshipsWith` in `services/friendship.ts`. The `relation` rule and the `Friendship` type moved there from `friend.service.ts`, so both share one copy. No schema change.
+- [x] Frontend: each row except your own gets `FriendButton` (or the Friends label) beside `PersonLink`. After an action the row takes the server's answer in place, with no new search. An Accept answered 404 searches again. `FriendButton` gains `emphasis="row"`, which makes Add Friend and Respond the accent pill under Mixtape; the profile is unchanged.
+- [x] Docs: `use cases.md` and `.docx` (UC-6 pre-condition, trigger and steps; UC-7 trigger), `frontend screens.md` and `.docx` (2.2), and notes in `find-people.md`, `friend-requests.md` and `ui-redesign.md` §5.7.
+- [x] Review: `/code-review` and `/security-review`.
+- [x] Tests: unit, integration and component, good and bad paths (spec §7).
+
+What I did:
+
+- **Code review** (4 findings):
+  - Fixed: the old Search test fixtures had no `friendship` and broke the typecheck. Fixed in the tests.
+  - Fixed: a duplicate `Pair` type. It is now exported once from `friendship.ts`.
+  - Left as is: when a row's control changes state, keyboard focus drops to the page. The profile's `FriendButton` behaves the same way today; listed in the PR.
+  - Left as is, per the spec: an Accept answered 404 reloads the whole search rather than one row.
+- **Security review:** no findings. The value is only the viewer's own relation, which their profile already shows. The viewer comes from the session, never from the request, and no relation between two other people is returned.
+- **Spec amended in implementation:** no `compact` size for the row button. The kit button is already `text-sm` and 44px tall, and a padding override would fight its own class order in Tailwind 4.
+- **Not checked in a browser:** the live flow needs a Google sign-in with two accounts. The component tests cover every row state and action; the manual steps are below.
+- **Tests:** backend 77 files, 1415 tests, 98.96% lines (unit and integration together); frontend 85 files, 1032 tests, 97.96% lines. New:
+  - `friendship.test.ts`: `relation` and `friendshipsWith`, including no query for an empty list or the viewer alone.
+  - `profile.service.test.ts`: the friendship on each result, one query for the 20 shown only, and none for an empty or blank query.
+  - `profiles.integration.test.ts`: every relation from either side; no relation between two other people; an ignored request and a removed friend read as NONE.
+  - `Search.test.tsx`: each row state; Add Friend, Accept, Ignore and Cancel updating the row in place; a failed send; an Accept answered 404; a new search starting fresh; offline; the Mixtape accent pill. `FriendButton.test.tsx`: `emphasis="row"`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+You need two Google accounts, or a second user from the dev seed.
+
+1. Sign in at `http://localhost:5173/` and open **Search** (the icon on Home or Friends). Type part of another user's name. A stranger's row shows **Add Friend**; your own row ("· You") shows nothing.
+2. Tap **Add Friend**. A "Request sent" toast shows and the row turns into **Request sent** without the list reloading. Tap it: a sheet offers **Cancel request**. Cancel it and the row is **Add Friend** again.
+3. Send the request again. In a second browser profile, sign in as that user and search for your name. Your row shows **Respond**. Tap it, then **Accept**: the row becomes the quiet **✓ Friends** label, and the Friends-tab badge drops.
+4. Back as the first user, search again: the friend's row shows **✓ Friends** with no button. Removing them is still on their profile.
+5. Open `http://localhost:5173/search?design=new` (Mixtape): Add Friend and Respond are the accent pill, Request sent is outlined. `?design=old` brings back the Current look.
+6. Go offline (DevTools → Network → Offline): the field and every row's button are disabled.
+
+```bash
+cd backend && npx vitest run src/services/friendship.test.ts src/services/profile.service.test.ts
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/profiles.integration.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Search.test.tsx src/components/FriendButton.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -4,9 +4,14 @@ import type { Friendship } from './friends';
 import type { MemberUser } from './membership';
 import type { LinkPlatform, PostKind } from './posts';
 
+/** A result, with the viewer's friendship to them (search-friend-button.md §4). */
+export interface SearchUser extends MemberUser {
+  friendship: Friendship;
+}
+
 /** Mirrors the backend's search result (docs/features/find-people.md §4). */
 export interface SearchResults {
-  users: MemberUser[];
+  users: SearchUser[];
   /** More than 20 matched; only the first 20 are sent. */
   hasMore: boolean;
 }

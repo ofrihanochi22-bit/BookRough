@@ -3,13 +3,14 @@ import { useState } from 'react';
 interface CoverArtProps {
   url: string | null;
   /**
-   * 80px by default; 116px on the Mixtape post card (ui-redesign.md §5.0);
+   * 80px by default; 64px on Mixtape profile rating rows (ui-redesign.md §5.6); 116px on the Mixtape post card (ui-redesign.md §5.0);
    * `full` — the card's whole width, square, radius 16px — on Mixtape Post Detail (§5.3).
    */
-  size?: 80 | 116 | 'full';
+  size?: 64 | 80 | 116 | 'full';
 }
 
 const SIZE_CLASSES = {
+  64: 'size-16 rounded-xl',
   80: 'size-20 rounded-xl',
   116: 'size-[116px] rounded-xl',
   full: 'aspect-square w-full rounded-2xl',

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `search-friend-button.md` (2026-11-10).** Each Global Search result except your own now carries the viewer's `friendship` and a friend control (Add Friend / Request sent / Respond, or a quiet "✓ Friends" label).
+
 > **Amended by `direct-recommendations.md` (UC-20, 2026-11-02).** Direct ratings never appear in a profile's rating history, whoever the viewer is.
 
 ## 0. How Phase 5 was re-sliced

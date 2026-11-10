@@ -11,12 +11,18 @@ import {
 } from '../utils/profileRating.js';
 import { type ProfileUser, profileUserSelect, toProfileUser } from '../utils/profileUser.js';
 import { displayNameKey } from './displayName.js';
+import { type Friendship, friendshipsWith } from './friendship.js';
 import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from '../utils/cursor.js';
 import { cleanLine } from './textRules.js';
 
 export const USER_NOT_FOUND = 'User not found.';
 export const EMPTY_QUERY = 'Type a name to search.';
 export const SEARCH_LIMIT = 20;
+
+/** A search result: the person, and how the viewer relates to them (search-friend-button.md §4). */
+export interface SearchUser extends MemberUser {
+  friendship: Friendship;
+}
 
 /** Everyone who has finished onboarding — the directory (find-people.md §4). */
 const ONBOARDED = {
@@ -44,7 +50,7 @@ function escapeLike(value: string): string {
 export async function searchUsers(
   user: User,
   rawQuery: string,
-): Promise<{ users: MemberUser[]; hasMore: boolean }> {
+): Promise<{ users: SearchUser[]; hasMore: boolean }> {
   requireOnboarded(user);
   const cleaned = cleanLine(rawQuery);
   if (cleaned === '') {
@@ -82,8 +88,16 @@ export async function searchUsers(
       : [];
 
   const found = [...prefix, ...rest];
+  const shown = found.slice(0, SEARCH_LIMIT);
+  const friendships = await friendshipsWith(
+    user.id,
+    shown.map((match) => match.id),
+  );
   return {
-    users: found.slice(0, SEARCH_LIMIT).map(toMemberUser),
+    users: shown.map((match) => ({
+      ...toMemberUser(match),
+      friendship: friendships.get(match.id) ?? 'NONE',
+    })),
     hasMore: found.length > SEARCH_LIMIT,
   };
 }

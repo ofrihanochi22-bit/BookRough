@@ -11,6 +11,7 @@ import { PersonLink } from '../components/PersonLink';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { ScoreSticker } from '../components/ui/ScoreSticker';
 import { Skeleton } from '../components/ui/Skeleton';
 import { CHIP } from '../components/ui/chip';
 import { TopBar } from '../components/ui/TopBar';
@@ -174,13 +175,7 @@ export function PostDetail() {
               >
                 <div className="flex items-center gap-3">
                   {mixtape && (
-                    <span
-                      role="img"
-                      aria-label={`${rating.score}/10`}
-                      className="flex size-10 shrink-0 -rotate-6 items-center justify-center rounded-full bg-sticker font-display text-base font-extrabold text-sticker-ink"
-                    >
-                      {rating.score}
-                    </span>
+                    <ScoreSticker score={rating.score} className="size-10 -rotate-6 text-base" />
                   )}
                   <PersonLink
                     user={rating.rater}

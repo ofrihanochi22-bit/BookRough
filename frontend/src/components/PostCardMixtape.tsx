@@ -15,7 +15,7 @@ import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postC
 import { ActionSheet, type SheetAction } from './ui/ActionSheet';
 import { Button } from './ui/Button';
 import { ReelCassette } from './ui/Cassette';
-import { CHIP } from './ui/chip';
+import { CHIP, KIND_TAG, OPEN_IN_PILL } from './ui/chip';
 import { CoverArt } from './ui/CoverArt';
 import { LineIcon } from './ui/LineIcon';
 import { TAPE_PAPER } from './ui/tape';
@@ -279,11 +279,7 @@ export function MixtapePostCard({
                 )}
               </Title>
               {post.artist && <p className="text-sm break-words text-muted">{post.artist}</p>}
-              {kind && (
-                <p className="w-fit rounded-sm border border-line px-1.5 text-xs text-muted">
-                  {kind}
-                </p>
-              )}
+              {kind && <p className={KIND_TAG}>{kind}</p>}
             </>
           )}
         </div>
@@ -314,12 +310,7 @@ export function MixtapePostCard({
         ))}
 
       <div className="flex flex-wrap items-center gap-2">
-        <a
-          href={main.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-on-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+        <a href={main.url} target="_blank" rel="noopener noreferrer" className={OPEN_IN_PILL}>
           {main.text}
         </a>
         {!post.conversionPending && !post.platform && (
