@@ -2485,7 +2485,7 @@ What I did:
   - Text contrast passes on all five screens in both schemes. Every new control is at least 44×44.
   - Fixed: Post Detail had no h1, and Reply was 37px wide.
   - Left open (minor), and listed in the PR:
-    - `line` boundaries on fields, chips and the dashed tile are below 3:1. These are spec token values, and the field is the same as under Current.
+    - `line` boundaries on fields, chips and the dashed tile are below 3:1. These are spec token values, and the field is the same as under Current. The developer chose to keep them as specced (2026-11-10).
     - Post-title links are 22px tall, as in slice 1.
     - Action sheets open with focus on Close, as in slice 1.
 - **Browser check** at 375px, dark and light, signed in on local dev data:
