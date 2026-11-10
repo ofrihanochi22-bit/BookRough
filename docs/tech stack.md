@@ -9,7 +9,7 @@ The user-facing application where communities, feeds, and profiles live.
 - **@react-oauth/google:** The specific library to handle the Google Login popup and token retrieval.
 - **Zustand:** For global state management. Chosen over React Context and Redux because it is extremely lightweight and requires far less boilerplate for tracking the user's active session and preferred streaming service.
 - **Tailwind CSS:** A utility-first CSS framework. It drastically speeds up styling and ensures a consistent UI without writing sprawling custom CSS files. Classes are written mobile-first and expanded upward with `sm:` / `md:` / `lg:`.
-- **Fontsource (`@fontsource-variable/inter`, `@fontsource/space-grotesk`):** Self-hosted web fonts (Inter for text, Space Grotesk for the wordmark), bundled with the app instead of loaded from Google Fonts: the offline PWA needs them in the bundle, and no request reaches Google before the user chooses to sign in. Free (SIL Open Font License); if removed, text falls back to the system font and nothing breaks.
+- **Fontsource (`@fontsource-variable/inter`, `@fontsource/space-grotesk`, `@fontsource-variable/bricolage-grotesque`):** Self-hosted web fonts, bundled with the app instead of loaded from Google Fonts: the offline PWA needs them in the bundle, and no request reaches Google before the user chooses to sign in. Inter is the body text; Space Grotesk the headings of the Current design; Bricolage Grotesque (variable, weights 200–800) the headings and the logo word of the Mixtape redesign (`docs/features/ui-redesign.md` §3.3), approved by the developer on 2026-11-09. Space Grotesk is removed in the redesign's cleanup PR. Free (SIL Open Font License); if removed, text falls back to the system font and nothing breaks.
 - **React Router:** Client-side routing.
 - **Axios:** The HTTP client, configured as a single instance with a `401` interceptor and a global error toast.
 - **vite-plugin-pwa:** Generates the service worker and wires up the web app manifest, turning the site into an installable, offline-capable PWA. Built on Workbox. See `docs/deployment.md` §6 for the full PWA scope. Added in Step 6.2 together with the service worker; Step 6.1 ships the manifest as a static file without it.
@@ -79,6 +79,10 @@ Tools used to **build** the project. Nothing here ships, and nothing here is req
 **`/security-review`** - security review of the pending changes on a branch. **Mandatory for any feature touching authentication, authorisation, user input, or an external service**: all of Phase 1, the admin area, the link scraper, and the Phase 6 deployment work.
 
 **`/simplify`** - reuse, simplification and efficiency cleanups. Quality only; it does not hunt for bugs. Optional, useful when a slice grew messier than intended.
+
+**`frontend-design` plugin** - design guidance used while shaping a new visual direction: it helps choose an intentional look (type, colour, motion) rather than templated defaults. Used for the Mixtape redesign (`docs/features/ui-redesign.md`). Free, part of the Claude Code plugin catalogue; nothing in the app depends on it.
+
+**`Design` plugin** - design review skills: `design:design-critique` produced the critique that started the redesign, and `design:accessibility-review` audits each redesign slice at 375px in light and dark (Stage 3, spec §8). Free, part of the Claude Code plugin catalogue. Its optional connectors (Figma, Notion and others) are not connected and not needed. Without it, the same checks would have to be done by hand.
 
 **Desktop app CI monitoring** - watches the open pull request and wakes the session on CI failures, merge conflicts, and review comments, instead of polling. This is what makes the "conflicts come to us" rule in `docs/git workflow.md` section 1.5 practical rather than aspirational. Enabled per pull request, with the developer's approval.
 

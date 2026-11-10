@@ -1,10 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useFriendRequests } from '../stores/friendRequests';
 import { useNotifications } from '../stores/notifications';
+import { setDesign } from '../test/fixtures';
 import { TabLayout } from './TabLayout';
 
 const { countFriendRequests } = vi.hoisted(() => ({ countFriendRequests: vi.fn() }));
@@ -17,6 +18,8 @@ const { countUnseenRecommendations } = vi.hoisted(() => ({
 vi.mock('../api/recommendations', () => ({ countUnseenRecommendations }));
 const { countUnreadNotifications } = vi.hoisted(() => ({ countUnreadNotifications: vi.fn() }));
 vi.mock('../api/notifications', () => ({ countUnreadNotifications }));
+const { listMyCommunities } = vi.hoisted(() => ({ listMyCommunities: vi.fn() }));
+vi.mock('../api/communities', () => ({ listMyCommunities }));
 
 function renderAt(path: string) {
   return render(
@@ -179,5 +182,65 @@ describe('TabLayout and BottomNav', () => {
     // Assert
     const home = within(nav()).getByRole('link', { name: 'Home' });
     expect(within(home).queryByText(/\d/)).not.toBeInTheDocument();
+  });
+});
+
+describe('BottomNav under Mixtape (ui-redesign.md §3.4)', () => {
+  beforeEach(() => setDesign('mixtape'));
+  afterEach(() => setDesign('current'));
+
+  it('reads Home, Friends, Share, My List, Profile, with no Search tab', async () => {
+    // Act
+    renderAt('/home');
+
+    // Assert
+    const items = within(nav()).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Home',
+      'Friends',
+      'Share',
+      'My List',
+      'Profile',
+    ]);
+    expect(within(nav()).getByRole('button', { name: 'Share' })).toBeInTheDocument();
+    expect(within(nav()).queryByRole('link', { name: 'Search' })).not.toBeInTheDocument();
+    expect(within(nav()).getByRole('link', { name: 'Home' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await waitFor(() => expect(countFriendRequests).toHaveBeenCalled());
+  });
+
+  it('keeps the Home and Friends badges and their accessible names', async () => {
+    // Arrange
+    countUnreadNotifications.mockResolvedValue(3);
+    countFriendRequests.mockResolvedValue(2);
+
+    // Act
+    renderAt('/friends');
+
+    // Assert
+    const home = await within(nav()).findByRole('link', { name: 'Home, 3 unread' });
+    expect(within(home).getByText('3')).toBeInTheDocument();
+    const friends = await within(nav()).findByRole('link', { name: 'Friends, 2 waiting' });
+    expect(friends).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('opens the Share sheet from the central button, and closes it', async () => {
+    // Arrange
+    renderAt('/home');
+
+    // Act
+    await userEvent.click(within(nav()).getByRole('button', { name: 'Share' }));
+
+    // Assert
+    const sheet = screen.getByRole('dialog', { name: 'Share a song' });
+    expect(within(sheet).getByRole('button', { name: /To a community/ })).toBeInTheDocument();
+
+    // Act
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
