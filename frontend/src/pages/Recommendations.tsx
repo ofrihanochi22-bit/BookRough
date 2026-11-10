@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { getPost, type PostsPage, type PublicPost } from '../api/posts';
@@ -20,7 +19,6 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { LOAD_FAILED, OFFLINE } from '../lib/recommendationCopy';
 import { type StreamingService, useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 
 import { useFriendRequests } from '../stores/friendRequests';
 
@@ -70,7 +68,6 @@ function RecommendationList({ view, online, viewerService }: RecommendationListP
   const [moreFailed, setMoreFailed] = useState(false);
   const [rating, setRating] = useState<PublicPost | null>(null);
   const [hiding, setHiding] = useState<PublicPost | null>(null);
-  const mixtape = useMixtape();
 
   const loaded = first.status === 'ready' ? first.data : null;
   const changes = loaded ? (local?.page === loaded ? local : fresh(loaded)) : null;
@@ -155,16 +152,9 @@ function RecommendationList({ view, online, viewerService }: RecommendationListP
 
       {first.status === 'error' && <LoadError message={LOAD_FAILED} onRetry={first.reload} />}
 
-      {changes &&
-        posts.length === 0 &&
-        (mixtape ? (
-          <KitEmptyState title={EMPTY_TITLE[view]}>{EMPTY_BODY[view]}</KitEmptyState>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">{EMPTY_TITLE[view]}</p>
-            <p className="mt-1 text-sm text-muted">{EMPTY_BODY[view]}</p>
-          </div>
-        ))}
+      {changes && posts.length === 0 && (
+        <KitEmptyState title={EMPTY_TITLE[view]}>{EMPTY_BODY[view]}</KitEmptyState>
+      )}
 
       {posts.map((post) => (
         <PostCard
@@ -237,37 +227,15 @@ export function Recommendations() {
   const [sending, setSending] = useState(false);
   // A send reloads Sent, so the list always matches the server.
   const [sends, setSends] = useState(0);
-  const mixtape = useMixtape();
 
   return (
     <ScreenLayout>
-      {mixtape ? (
-        <>
-          <TopBar back={{ to: '/friends', label: 'Friends' }} />
-          <h1 className={`mb-4 break-words ${MIXTAPE_H1}`}>Recommendations</h1>
-          {/* Its own full-width row: the screen's one primary (ui-redesign.md §5.5). */}
-          <Button offline={!online} onClick={() => setSending(true)} className="mb-6 w-full">
-            Send a song
-          </Button>
-        </>
-      ) : (
-        <>
-          <Link
-            to="/friends"
-            className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
-          >
-            ← Friends
-          </Link>
-          <div className="mb-6 flex items-center justify-between gap-3">
-            <h1 className="min-w-0 break-words font-display text-2xl font-medium">
-              Recommendations
-            </h1>
-            <Button disabled={!online} onClick={() => setSending(true)}>
-              Send a song
-            </Button>
-          </div>
-        </>
-      )}
+      <TopBar back={{ to: '/friends', label: 'Friends' }} />
+      <h1 className={`mb-4 break-words ${MIXTAPE_H1}`}>Recommendations</h1>
+      {/* Its own full-width row: the screen's one primary (ui-redesign.md §5.5). */}
+      <Button offline={!online} onClick={() => setSending(true)} className="mb-6 w-full">
+        Send a song
+      </Button>
 
       <div className="flex flex-col gap-4">
         {!online && (
@@ -276,27 +244,7 @@ export function Recommendations() {
           </p>
         )}
 
-        {mixtape ? (
-          <PillTrack label="Which list" options={VIEWS} value={view} onChange={setView} />
-        ) : (
-          <div role="group" aria-label="Which list" className="flex gap-2">
-            {VIEWS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={view === option.value}
-                onClick={() => setView(option.value)}
-                className={`min-h-11 flex-1 rounded-full border text-sm font-medium ${
-                  view === option.value
-                    ? 'border-accent bg-accent text-on-accent'
-                    : 'border-line bg-surface'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <PillTrack label="Which list" options={VIEWS} value={view} onChange={setView} />
 
         <RecommendationList
           key={view === 'sent' ? `sent-${sends}` : view}

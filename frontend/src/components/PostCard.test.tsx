@@ -261,19 +261,6 @@ describe('PostCard — deleting', () => {
     expect(screen.queryByRole('button', { name: 'Post options' })).not.toBeInTheDocument();
   });
 
-  it('expands the menu to Delete post', async () => {
-    // Arrange
-    renderCard(makePost({ canDelete: true }));
-    const options = screen.getByRole('button', { name: 'Post options' });
-
-    // Act
-    await userEvent.click(options);
-
-    // Assert
-    expect(options).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', { name: 'Delete post' })).toBeInTheDocument();
-  });
-
   it("asks UC-18's question for your own post", async () => {
     // Arrange
     renderCard(makePost({ canDelete: true, isMine: true }));
@@ -508,15 +495,6 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     expect(save()).toBeDisabled();
   });
 
-  it('shows "You rated n/10" instead of the bookmark once rated', () => {
-    // Arrange & Act
-    renderCard(makePost({ myScore: 8 }));
-
-    // Assert
-    expect(screen.getByText('You rated 8/10')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Listen Later/ })).not.toBeInTheDocument();
-  });
-
   it('a save answered 409 (rated elsewhere) reverts, toasts and reloads the feed', async () => {
     // Arrange
     saveBookmark.mockRejectedValue(httpError(409, 'You already rated this post.'));
@@ -532,53 +510,12 @@ describe('PostCard bookmark (bookmarks-my-list.md §5.1)', () => {
     expect(save()).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('shows the average and count, and links the title and View ratings to Post Detail', () => {
-    // Arrange & Act
-    renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 } }));
-
-    // Assert
-    expect(screen.getByText('★ 7.5 · 4 ratings')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View ratings' })).toHaveAttribute(
-      'href',
-      `/posts/${makePost().id}`,
-    );
-    expect(screen.getByRole('link', { name: 'Bohemian Rhapsody' })).toHaveAttribute(
-      'href',
-      `/posts/${makePost().id}`,
-    );
-  });
-
   it('shows the discussion size alone when nobody has rated (discussion-threads.md §5.2)', () => {
     // Arrange & Act
     renderCard(makePost({ commentCount: 1 }));
 
     // Assert
     expect(screen.getByText('1 comment')).toBeInTheDocument();
-  });
-
-  it('joins ratings and comments on one line', () => {
-    // Arrange & Act
-    renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 }, commentCount: 3 }));
-
-    // Assert
-    expect(screen.getByText('★ 7.5 · 4 ratings · 3 comments')).toBeInTheDocument();
-  });
-
-  it('says "1 rating", and shows no average before anyone rates', () => {
-    // Arrange & Act
-    renderCard(makePost({ ratingSummary: { average: 9, count: 1 } }));
-
-    // Assert
-    expect(screen.getByText('★ 9 · 1 rating')).toBeInTheDocument();
-  });
-
-  it('shows no average when nobody has rated, but still links to the ratings', () => {
-    // Arrange & Act
-    renderCard(makePost());
-
-    // Assert
-    expect(screen.queryByText(/★/)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View ratings' })).toBeInTheDocument();
   });
 });
 

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore, type PublicUser } from '../stores/auth';
-import { makeSession, makeUser, resetAuthStore, setDesign, setOnline } from '../test/fixtures';
+import { makeSession, makeUser, resetAuthStore, setOnline } from '../test/fixtures';
 import { Profile } from './Profile';
 
 const api = vi.hoisted(() => ({
@@ -39,7 +39,6 @@ const saveButton = () => screen.getByRole('button', { name: 'Save changes' });
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   signedInAs();
   api.checkDisplayName.mockResolvedValue({ available: true, reason: null });
@@ -48,10 +47,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('My Profile under Mixtape (ui-redesign.md §5.11)', () => {
+describe('My Profile (ui-redesign.md §5.11)', () => {
   it('puts the avatar, Upload a photo and the Google photo choice on a tape card', () => {
     // Act
     renderProfile();

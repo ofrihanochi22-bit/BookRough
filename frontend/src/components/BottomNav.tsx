@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { badgeText } from '../lib/friendCopy';
-import { useMixtape } from '../stores/design';
 import { useFriendRequests } from '../stores/friendRequests';
 import { useNotifications } from '../stores/notifications';
 import { ShareSheet } from './ShareSheet';
@@ -39,16 +38,6 @@ const TABS: readonly Tab[] = [
     icon: (
       <Icon>
         <path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" />
-      </Icon>
-    ),
-  },
-  {
-    to: '/search',
-    label: 'Search',
-    icon: (
-      <Icon>
-        <circle cx="11" cy="11" r="6" />
-        <path d="M20 20l-4.5-4.5" />
       </Icon>
     ),
   },
@@ -91,25 +80,15 @@ function badgeFor(to: string, requests: number, unread: number) {
   return null;
 }
 
-/** Mixtape drops Search from the bar (it moves to the Home and Friends headers). */
-const MIXTAPE_LEFT = ['/home', '/friends'];
-const MIXTAPE_RIGHT = ['/my-list', '/profile'];
+/** The tabs either side of Share. */
+const LEFT_TABS = ['/home', '/friends'];
+const RIGHT_TABS = ['/my-list', '/profile'];
 
 function tabsFor(paths: readonly string[]): Tab[] {
   return paths.map((path) => TABS.find((tab) => tab.to === path)!);
 }
 
-function TabItem({
-  tab,
-  requests,
-  unread,
-  mixtape,
-}: {
-  tab: Tab;
-  requests: number;
-  unread: number;
-  mixtape: boolean;
-}) {
+function TabItem({ tab, requests, unread }: { tab: Tab; requests: number; unread: number }) {
   const badge = badgeFor(tab.to, requests, unread);
   return (
     <li className="flex-1">
@@ -119,7 +98,7 @@ function TabItem({
         className={({ isActive }) =>
           `flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs ${
             isActive ? 'text-accent' : 'text-muted'
-          }${mixtape ? ' font-medium' : ''}`
+          } font-medium`
         }
       >
         <span className="relative">
@@ -140,11 +119,18 @@ function TabItem({
 }
 
 /**
- * The Mixtape tab bar — docs/features/ui-redesign.md §3.4: Home · Friends ·
+ * The app's tab bar — docs/features/ui-redesign.md §3.4: Home · Friends ·
  * Share · My List · Profile. Share is a raised accent button in the centre that
- * opens the Share sheet (§5.0b); the badges keep their meaning.
+ * opens the Share sheet (§5.0b). Friends, with its pending-request badge, is
+ * docs/features/friend-requests.md §5.1 — since notifications.md §5.3 it counts
+ * only what waits for an answer; Home's badge counts unread notifications
+ * (§5.2). My List is docs/features/bookmarks-my-list.md §5.2. Search lives in
+ * the Home and Friends headers. Padded for the iPhone home indicator when the
+ * PWA runs full-screen.
  */
-function MixtapeNav({ requests, unread }: { requests: number; unread: number }) {
+export function BottomNav() {
+  const requests = useFriendRequests((state) => state.count);
+  const unread = useNotifications((state) => state.unread);
   const [sharing, setSharing] = useState(false);
   const online = useOnlineStatus();
 
@@ -155,8 +141,8 @@ function MixtapeNav({ requests, unread }: { requests: number; unread: number }) 
         className="fixed inset-x-0 bottom-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--line)]"
       >
         <ul className="mx-auto flex max-w-md items-end">
-          {tabsFor(MIXTAPE_LEFT).map((tab) => (
-            <TabItem key={tab.to} tab={tab} requests={requests} unread={unread} mixtape />
+          {tabsFor(LEFT_TABS).map((tab) => (
+            <TabItem key={tab.to} tab={tab} requests={requests} unread={unread} />
           ))}
           <li className="flex flex-1 justify-center">
             <button
@@ -176,45 +162,13 @@ function MixtapeNav({ requests, unread }: { requests: number; unread: number }) 
               Share
             </button>
           </li>
-          {tabsFor(MIXTAPE_RIGHT).map((tab) => (
-            <TabItem key={tab.to} tab={tab} requests={requests} unread={unread} mixtape />
+          {tabsFor(RIGHT_TABS).map((tab) => (
+            <TabItem key={tab.to} tab={tab} requests={requests} unread={unread} />
           ))}
         </ul>
       </nav>
       {/* Outside the landmark and its stacking context: a modal of its own. */}
       {sharing && <ShareSheet online={online} onClose={() => setSharing(false)} />}
     </>
-  );
-}
-
-/**
- * The app's tab bar — docs/features/communities-create.md §6.3. Search is
- * docs/features/find-people.md §5.1; Friends, with its pending-request badge,
- * docs/features/friend-requests.md §5.1 — since notifications.md §5.3 it counts only
- * what waits for an answer; Home's badge counts unread notifications (§5.2). My List
- * is docs/features/bookmarks-my-list.md §5.2. Under Mixtape, the bar with Share
- * (ui-redesign.md §3.4).
- * Padded for the iPhone home indicator when the PWA runs full-screen.
- */
-export function BottomNav() {
-  const requests = useFriendRequests((state) => state.count);
-  const unread = useNotifications((state) => state.unread);
-  const mixtape = useMixtape();
-
-  if (mixtape) {
-    return <MixtapeNav requests={requests} unread={unread} />;
-  }
-
-  return (
-    <nav
-      aria-label="Main"
-      className="fixed inset-x-0 bottom-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
-    >
-      <ul className="mx-auto flex max-w-md">
-        {TABS.map((tab) => (
-          <TabItem key={tab.to} tab={tab} requests={requests} unread={unread} mixtape={false} />
-        ))}
-      </ul>
-    </nav>
   );
 }

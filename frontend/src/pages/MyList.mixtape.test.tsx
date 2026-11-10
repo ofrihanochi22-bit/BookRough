@@ -11,7 +11,6 @@ import {
   makeUser,
   networkError,
   resetAuthStore,
-  setDesign,
   setOnline,
 } from '../test/fixtures';
 import { MyList } from './MyList';
@@ -51,7 +50,6 @@ const card = () => screen.getByRole('article');
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore
     .getState()
@@ -63,10 +61,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('My List under Mixtape (ui-redesign.md §5.9)', () => {
+describe('My List (ui-redesign.md §5.9)', () => {
   it('shows the logo, heading and the existing line', async () => {
     // Act
     renderList();

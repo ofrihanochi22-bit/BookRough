@@ -1,9 +1,9 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { httpError, makeCommunity, makePost, networkError, setDesign } from '../test/fixtures';
+import { httpError, makeCommunity, makePost, networkError } from '../test/fixtures';
 import { ShareSheet } from './ShareSheet';
 
 const { listMyCommunities, createPost, listFriends, sendRecommendation } = vi.hoisted(() => ({
@@ -59,12 +59,9 @@ async function chooseJazz() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   listMyCommunities.mockResolvedValue([jazz, rock]);
   listFriends.mockResolvedValue([]);
 });
-
-afterEach(() => setDesign('current'));
 
 describe('ShareSheet (ui-redesign.md §5.0b)', () => {
   it('offers both ways to share', () => {

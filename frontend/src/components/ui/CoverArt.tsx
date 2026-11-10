@@ -3,8 +3,8 @@ import { useState } from 'react';
 interface CoverArtProps {
   url: string | null;
   /**
-   * 80px by default; 64px on Mixtape profile rating rows (ui-redesign.md §5.6); 116px on the Mixtape post card (ui-redesign.md §5.0);
-   * `full` — the card's whole width, square, radius 16px — on Mixtape Post Detail (§5.3).
+   * 80px by default; 64px on profile rating rows (ui-redesign.md §5.6); 116px on the post card (ui-redesign.md §5.0);
+   * `full` — the card's whole width, square, radius 16px — on Post Detail (§5.3).
    */
   size?: 64 | 80 | 116 | 'full';
 }

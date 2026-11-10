@@ -64,7 +64,7 @@ describe('CreateCommunity — rendering', () => {
     expect(createButton()).toBeDisabled();
   });
 
-  it('updates the cover initials and the counter while typing', async () => {
+  it('updates the cover label and the counter while typing', async () => {
     // Arrange
     renderForm();
 
@@ -72,7 +72,7 @@ describe('CreateCommunity — rendering', () => {
     await userEvent.type(nameInput(), '  Friday   Jazz');
 
     // Assert
-    expect(screen.getByTestId('community-cover')).toHaveTextContent('FJ');
+    expect(screen.getByTestId('community-cover')).toHaveTextContent('Friday Jazz');
     expect(screen.getByText('11/40')).toBeInTheDocument();
     expect(createButton()).toBeEnabled();
   });

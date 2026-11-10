@@ -177,8 +177,8 @@ describe('Friends', () => {
     renderFriends();
 
     // Assert
-    expect(await screen.findByText('No friends yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search');
+    const empty = (await screen.findByText('No friends yet')).closest('div')!;
+    expect(within(empty).getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search');
     expect(screen.queryByRole('region', { name: 'Requests' })).not.toBeInTheDocument();
   });
 

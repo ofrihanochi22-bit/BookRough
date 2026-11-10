@@ -4,14 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../stores/auth';
-import {
-  httpError,
-  makeCommunity,
-  makeSession,
-  networkError,
-  setDesign,
-  setOnline,
-} from '../test/fixtures';
+import { httpError, makeCommunity, makeSession, networkError, setOnline } from '../test/fixtures';
 import { InvitePreview } from './InvitePreview';
 
 const { previewInvite, acceptInvite } = vi.hoisted(() => ({
@@ -55,17 +48,15 @@ function renderPreview() {
 beforeEach(() => {
   vi.resetAllMocks();
   sessionStorage.clear();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().clear();
 });
 
 afterEach(() => {
   window.localStorage.clear();
-  setDesign('current');
 });
 
-describe('Join Community under Mixtape (ui-redesign.md §5.14)', () => {
+describe('Join Community (ui-redesign.md §5.14)', () => {
   it('shows the community as a tilted cassette whose label is the h1, with its members', async () => {
     // Arrange
     previewInvite.mockResolvedValue(PREVIEW);

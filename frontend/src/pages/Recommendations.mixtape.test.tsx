@@ -7,14 +7,7 @@ import type { PublicPost } from '../api/posts';
 import { LOAD_FAILED, OFFLINE } from '../lib/recommendationCopy';
 import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
-import {
-  makePost,
-  makeSession,
-  networkError,
-  resetAuthStore,
-  setDesign,
-  setOnline,
-} from '../test/fixtures';
+import { makePost, makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
 import { Recommendations } from './Recommendations';
 
 const api = vi.hoisted(() => ({
@@ -66,7 +59,6 @@ const track = () => screen.getByRole('group', { name: 'Which list' });
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession());
   useFriendRequests.setState({
@@ -83,10 +75,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('Recommendations under Mixtape (ui-redesign.md §5.5)', () => {
+describe('Recommendations (ui-redesign.md §5.5)', () => {
   it('has the back link beside the logo, and Send a song on its own row under the heading', () => {
     // Act
     renderScreen();

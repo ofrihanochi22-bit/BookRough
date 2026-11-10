@@ -122,18 +122,17 @@ describe('PostDetail (post-detail.md §5.2)', () => {
     renderDetail();
 
     // Assert
-    expect(await screen.findByRole('link', { name: '← Friday Jazz' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Friday Jazz' })).toHaveAttribute(
       'href',
       `/communities/${COMMUNITY.id}`,
     );
-    expect(screen.getByText('You rated 6/10')).toBeInTheDocument();
+    expect(screen.getByText('You: 6')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'View ratings' })).not.toBeInTheDocument();
     const region = ratingsRegion();
-    expect(await within(region).findByText('7.5')).toBeInTheDocument();
-    expect(within(region).getByText('out of 10 · 2 ratings')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '★ 7.5 · 2 ratings' })).toBeInTheDocument();
     const rows = within(region).getAllByRole('listitem');
     expect(within(rows[0]!).getByText('You')).toBeInTheDocument();
-    expect(within(rows[0]!).getByText('6/10')).toBeInTheDocument();
+    expect(within(rows[0]!).getByRole('img', { name: '6/10' })).toBeInTheDocument();
     expect(within(rows[0]!).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Noa')).toBeInTheDocument();
     expect(within(rows[1]!).getByText(/Still gives me chills/)).toBeInTheDocument();
@@ -177,10 +176,13 @@ describe('PostDetail (post-detail.md §5.2)', () => {
     renderDetail();
     await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     const sheet = screen.getByRole('dialog', { name: 'Edit your rating' });
-    expect(within(sheet).getByRole('radio', { name: '6' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(sheet).getByRole('radio', { name: '6 out of 10' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
 
     // Act
-    await userEvent.click(within(sheet).getByRole('radio', { name: '9' }));
+    await userEvent.click(within(sheet).getByRole('radio', { name: '9 out of 10' }));
     await userEvent.click(within(sheet).getByRole('button', { name: 'Save changes' }));
 
     // Assert
@@ -223,8 +225,8 @@ describe('PostDetail (post-detail.md §5.2)', () => {
 
     // Assert
     expect(await screen.findByText('Could not load comments at this time.')).toBeInTheDocument();
-    expect(screen.getByText('You rated 6/10')).toBeInTheDocument();
-    expect(within(ratingsRegion()).getByText('7.5')).toBeInTheDocument();
+    expect(screen.getByText('You: 6')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '★ 7.5 · 2 ratings' })).toBeInTheDocument();
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -281,7 +283,7 @@ describe('PostDetail (post-detail.md §5.2)', () => {
     renderDetail();
 
     // Assert
-    const back = await screen.findByRole('link', { name: '← Recommendations' });
+    const back = await screen.findByRole('link', { name: 'Recommendations' });
     expect(back).toHaveAttribute('href', '/recommendations');
     expect(screen.getByText('From')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Post options' })).not.toBeInTheDocument();
@@ -660,20 +662,5 @@ describe('PostDetail — discussion (discussion-threads.md §7)', () => {
     const row = within(ratingsRegion()).getAllByRole('listitem')[0]!;
     expect(within(row).getByText('Still here')).toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
-  });
-
-  it("counts the discussion on the page's card as it changes", async () => {
-    // Arrange
-    const user = userEvent.setup();
-    comments.addComment.mockResolvedValue(comment({ isMine: true }));
-    renderDetail();
-    const box = await within(await ready()).findByLabelText('Add a comment');
-
-    // Act
-    await user.type(box, 'Hi');
-    await user.click(within(discussion()).getByRole('button', { name: 'Send' }));
-
-    // Assert
-    expect(await screen.findByText(/1 comment/)).toBeInTheDocument();
   });
 });

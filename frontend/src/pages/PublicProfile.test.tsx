@@ -96,7 +96,7 @@ describe('PublicProfile', () => {
     const link = await within(ratingsSection()).findByRole('link');
     expect(link).toHaveAttribute('href', '/posts/post-1');
     expect(link).toHaveTextContent('Song 1');
-    expect(link).toHaveTextContent('8/10');
+    expect(within(link).getByRole('img', { name: '8/10' })).toBeInTheDocument();
     expect(link).toHaveTextContent(/in Friday Jazz/);
     expect(within(link).getByText(/Still gives me chills/)).toBeInTheDocument();
     expect(listProfileRatings).toHaveBeenCalledWith(DANA.id);

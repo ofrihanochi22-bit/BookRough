@@ -29,7 +29,6 @@ import { displayTitle, pendingTitle, relativeTime } from '../lib/postLinks';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED, ratingsEmptyHint } from '../lib/profileCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 
 import { NotFound } from './NotFound';
 
@@ -64,7 +63,6 @@ export function PublicProfile() {
   const online = useOnlineStatus();
   // The page whose Load more failed, so the message never follows to another profile.
   const [moreFailed, setMoreFailed] = useState<ProfileRatingsPage | null>(null);
-  const mixtape = useMixtape();
 
   if (userId === viewerId) {
     return <Navigate to="/profile" replace />;
@@ -106,7 +104,7 @@ export function PublicProfile() {
 
   return (
     <ScreenLayout>
-      {mixtape && <TopBar />}
+      <TopBar />
       {profile.status === 'loading' && (
         <div role="status" aria-label="Loading the profile" className="flex items-center gap-4">
           <Skeleton className="size-20 rounded-full" />
@@ -118,7 +116,7 @@ export function PublicProfile() {
         <LoadError message={PROFILE_FAILED} onRetry={profile.reload} />
       )}
 
-      {loadedProfile && user && mixtape && (
+      {loadedProfile && user && (
         <ProfileTape userId={user.id}>
           <header className="flex items-center gap-4">
             <span className={`shrink-0 ${TAPE_AVATAR_RING}`}>
@@ -140,27 +138,9 @@ export function PublicProfile() {
         </ProfileTape>
       )}
 
-      {loadedProfile && user && !mixtape && (
-        <header className="flex items-center gap-4">
-          <Avatar
-            id={user.id}
-            name={user.displayName}
-            pictureUrl={user.profilePictureUrl}
-            size={80}
-            decorative
-          />
-          <div className="min-w-0">
-            <h1 className="break-words font-display text-2xl font-medium">{user.displayName}</h1>
-            <p className="text-sm text-muted">
-              Listens on {streamingServiceLabel(user.preferredService)}
-            </p>
-          </div>
-        </header>
-      )}
-
       {loadedProfile && user && (
-        // Mixtape: half width each, or the full row for a single button (§5.6).
-        <div className={`mt-4 flex gap-3 ${mixtape ? '' : 'flex-wrap'}`}>
+        // Half width each, or the full row for a single button (§5.6).
+        <div className="mt-4 flex gap-3">
           <FriendButton
             userId={user.id}
             name={user.displayName}
@@ -168,14 +148,14 @@ export function PublicProfile() {
             online={online}
             onChanged={(value) => setFriendship({ base: loadedProfile, value })}
             onStale={profile.reload}
-            className={mixtape ? 'flex-1 px-3' : ''}
+            className="flex-1 px-3"
           />
           {currentFriendship === 'FRIENDS' && (
             <Button
-              offline={mixtape && !online}
+              offline={!online}
               disabled={!online}
               onClick={() => setSending(true)}
-              className={mixtape ? 'flex-1 px-3' : ''}
+              className="flex-1 px-3"
             >
               Send a song
             </Button>
@@ -195,10 +175,7 @@ export function PublicProfile() {
 
       {profile.status !== 'error' && (
         <section aria-labelledby="profile-ratings" className="mt-8 flex flex-col gap-3">
-          <h2
-            id="profile-ratings"
-            className={mixtape ? 'font-display text-lg font-bold' : 'font-medium'}
-          >
+          <h2 id="profile-ratings" className="font-display text-lg font-bold">
             Ratings
           </h2>
 
@@ -213,25 +190,17 @@ export function PublicProfile() {
             <LoadError message={RATINGS_LOAD_FAILED} onRetry={ratings.reload} />
           )}
 
-          {first &&
-            items.length === 0 &&
-            user &&
-            (mixtape ? (
-              <KitEmptyState title="No ratings to show" level={3}>
-                {ratingsEmptyHint(user.displayName)}
-              </KitEmptyState>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-                <p className="font-medium">No ratings to show</p>
-                <p className="mt-1 text-sm text-muted">{ratingsEmptyHint(user.displayName)}</p>
-              </div>
-            ))}
+          {first && items.length === 0 && user && (
+            <KitEmptyState title="No ratings to show" level={3}>
+              {ratingsEmptyHint(user.displayName)}
+            </KitEmptyState>
+          )}
 
           {items.length > 0 && (
             <ul className="flex flex-col gap-3">
               {items.map((rating) => (
                 <li key={rating.id}>
-                  {mixtape ? <MixtapeRatingRow rating={rating} /> : <RatingRow rating={rating} />}
+                  <RatingRow rating={rating} />
                 </li>
               ))}
             </ul>
@@ -255,42 +224,11 @@ export function PublicProfile() {
   );
 }
 
-/** One rating, linking to its Post Detail. */
-function RatingRow({ rating }: { rating: ProfileRating }) {
-  const { post } = rating;
-  return (
-    <Link
-      to={`/posts/${encodeURIComponent(post.id)}`}
-      className="flex gap-3 rounded-2xl border border-line bg-surface p-4"
-    >
-      <CoverArt url={post.coverArtUrl} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {post.conversionPending ? (
-          <p className="font-medium">{pendingTitle(post)}</p>
-        ) : (
-          <>
-            <p className="truncate font-medium">{displayTitle(post)}</p>
-            <p className="truncate text-sm text-muted">{post.artist}</p>
-          </>
-        )}
-        <p className="text-sm font-medium">{rating.score}/10</p>
-        {rating.comment && (
-          <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
-        )}
-        <p className="text-xs text-muted">
-          in {rating.community.name} ·{' '}
-          <time dateTime={rating.createdAt}>{relativeTime(rating.createdAt)}</time>
-        </p>
-      </div>
-    </Link>
-  );
-}
-
 /**
- * One rating under Mixtape (ui-redesign.md §5.6): a `surface` card linking to
+ * One rating (ui-redesign.md §5.6): a `surface` card linking to
  * Post Detail, a 64px cover with a small sticker disc carrying the score.
  */
-function MixtapeRatingRow({ rating }: { rating: ProfileRating }) {
+function RatingRow({ rating }: { rating: ProfileRating }) {
   const { post } = rating;
   return (
     <Link

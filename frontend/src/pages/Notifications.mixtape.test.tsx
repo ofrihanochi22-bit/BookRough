@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicNotification } from '../api/notifications';
 import { NOTIFICATIONS_LOAD_FAILED } from '../lib/notificationCopy';
 import { useNotifications } from '../stores/notifications';
-import { networkError, setDesign, setOnline } from '../test/fixtures';
+import { networkError, setOnline } from '../test/fixtures';
 import { Notifications } from './Notifications';
 
 const api = vi.hoisted(() => ({
@@ -50,7 +50,6 @@ const rows = () => within(screen.getByRole('list')).getAllByRole('link');
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useNotifications.setState({ unread: 1, readOne: vi.fn(), setUnread: vi.fn() });
   api.markNotificationRead.mockResolvedValue(undefined);
@@ -63,10 +62,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  setDesign('current');
 });
 
-describe('Notifications under Mixtape (ui-redesign.md §5.8)', () => {
+describe('Notifications (ui-redesign.md §5.8)', () => {
   it('has the Home back link beside the logo and Mark all as read beside the heading', async () => {
     // Act
     renderScreen();

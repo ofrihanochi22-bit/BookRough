@@ -1,15 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AdminSettings } from '../api/settings';
 import { App } from '../App';
 import { DEFAULT_TAGLINE } from '../lib/appSettings';
-import { DESIGN_STORAGE_KEY } from '../lib/design';
 import { useAuthStore } from '../stores/auth';
-import { useDesignStore } from '../stores/design';
-import { makeSession, resetAuthStore, setDesign } from '../test/fixtures';
+import { makeSession, resetAuthStore } from '../test/fixtures';
 
 const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
@@ -63,13 +60,9 @@ function renderAt(path: string) {
   );
 }
 
-/** Every call this screen could make; the switch must make none. */
-const apiCalls = () => Object.values(api).reduce((sum, fn) => sum + fn.mock.calls.length, 0);
-
 beforeEach(() => {
   vi.resetAllMocks();
   resetAuthStore();
-  window.localStorage.clear();
   api.fetchPublicSettings.mockResolvedValue({
     announcement: '',
     accentColor: 'purple',
@@ -79,78 +72,18 @@ beforeEach(() => {
   api.listAdminCommunities.mockResolvedValue([]);
   api.fetchAdminSettings.mockResolvedValue(settings());
   useAuthStore.getState().setSession(makeSession({ isAdmin: true }));
-  setDesign('mixtape');
 });
 
-afterEach(() => {
-  setDesign('current');
-  window.localStorage.clear();
-});
-
-describe('Admin under Mixtape (ui-redesign.md §5.17)', () => {
-  it('shows the logo, the heading, the design switch and the section tabs on tape', async () => {
+describe('Admin (ui-redesign.md §5.17)', () => {
+  it('shows the logo, the heading and the section tabs on tape', async () => {
     // Act
     renderAt('/admin/users');
 
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: 'Admin' })).toBeInTheDocument();
-    const track = screen.getByRole('group', { name: 'Design on this device' });
-    expect(within(track).getByRole('button', { name: 'Mixtape' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(screen.getByText('Only this device. Everyone else sees Mixtape.')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Admin sections' });
     expect(within(tabs).getByRole('link', { name: 'Users' })).toHaveClass('bg-tape');
     expect(within(tabs).getByRole('link', { name: 'Settings' })).not.toHaveClass('bg-tape');
-  });
-
-  it('switching to Current applies at once and is stored on this device only', async () => {
-    // Arrange
-    renderAt('/admin/users');
-    await screen.findByText('Noa');
-    expect(document.documentElement.dataset.design).toBe('mixtape');
-    const callsBefore = apiCalls();
-
-    // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Current' }));
-
-    // Assert
-    expect(document.documentElement.dataset.design).toBeUndefined();
-    expect(window.localStorage.getItem(DESIGN_STORAGE_KEY)).toBe('current');
-    expect(useDesignStore.getState().design).toBe('current');
-    expect(screen.getByRole('button', { name: 'Current' })).toHaveAttribute('aria-pressed', 'true');
-    expect(apiCalls()).toBe(callsBefore);
-  });
-
-  it('shows the switch under Current too, and choosing Mixtape turns it on', async () => {
-    // Arrange
-    setDesign('current');
-    renderAt('/admin/users');
-    await screen.findByText('Noa');
-    const callsBefore = apiCalls();
-
-    // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Mixtape' }));
-
-    // Assert
-    expect(document.documentElement.dataset.design).toBe('mixtape');
-    expect(window.localStorage.getItem(DESIGN_STORAGE_KEY)).toBe('mixtape');
-    expect(apiCalls()).toBe(callsBefore);
-  });
-
-  it('does not render the switch for a non-admin, who sees the not-found page', async () => {
-    // Arrange
-    useAuthStore.getState().setSession(makeSession({ isAdmin: false }));
-
-    // Act
-    renderAt('/admin/users');
-
-    // Assert
-    expect(
-      await screen.findByRole('heading', { name: "This page doesn't exist" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Design on this device' })).not.toBeInTheDocument();
   });
 
   it('lists users as one card of divider rows', async () => {

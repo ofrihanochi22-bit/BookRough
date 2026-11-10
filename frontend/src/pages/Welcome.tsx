@@ -2,7 +2,6 @@ import { GoogleSignIn } from '../components/GoogleSignIn';
 import { InstallHint } from '../components/InstallHint';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Wordmark } from '../components/ui/Wordmark';
-import { useMixtape } from '../stores/design';
 import { useSettingsStore } from '../stores/settings';
 
 /**
@@ -13,45 +12,20 @@ import { useSettingsStore } from '../stores/settings';
 export function Welcome() {
   // Set by the admin (docs/features/admin-panel.md §5.4); the default until then.
   const tagline = useSettingsStore((state) => state.welcomeTagline);
-  const mixtape = useMixtape();
 
-  if (mixtape) {
-    // ui-redesign.md §5.12: the hero logo fills the top, the tagline under it,
-    // and the way in sits at the bottom, within thumb reach. No demo line.
-    return (
-      <ScreenLayout>
-        <InstallHint />
-        <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
-          <Wordmark variant="hero" />
-          <p className="max-w-xs break-words font-display text-xl font-semibold tracking-[-0.01em] text-ink">
-            {tagline}
-          </p>
-        </div>
-
-        <div className="flex flex-col items-center gap-3 pt-8 pb-4">
-          <GoogleSignIn />
-          <p className="text-xs text-muted">No passwords. We never store your email.</p>
-        </div>
-      </ScreenLayout>
-    );
-  }
-
+  // ui-redesign.md §5.12: the hero logo fills the top, the tagline under it,
+  // and the way in sits at the bottom, within thumb reach. No demo line.
   return (
     <ScreenLayout>
       <InstallHint />
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <Wordmark />
-        <p className="max-w-xs text-base text-muted">{tagline}</p>
-        <div aria-hidden="true" className="mt-4 flex items-center gap-2 text-xs font-medium">
-          <span className="rounded-full bg-accent-soft px-3 py-1 text-accent-ink">
-            Spotify link
-          </span>
-          <span className="text-accent">→</span>
-          <span className="rounded-full bg-accent-soft px-3 py-1 text-accent-ink">Apple Music</span>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+        <Wordmark variant="hero" />
+        <p className="max-w-xs break-words font-display text-xl font-semibold tracking-[-0.01em] text-ink">
+          {tagline}
+        </p>
       </div>
 
-      <div className="flex flex-col items-center gap-3 pb-4">
+      <div className="flex flex-col items-center gap-3 pt-8 pb-4">
         <GoogleSignIn />
         <p className="text-xs text-muted">No passwords. We never store your email.</p>
       </div>

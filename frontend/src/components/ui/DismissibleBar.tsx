@@ -9,7 +9,7 @@ interface DismissibleBarProps {
   onDismiss: () => void;
   role: 'status' | 'note';
   className?: string;
-  /** Mixtape's note bar on `tape` paper (ui-redesign.md §5.12) instead of the accent. */
+  /** A note bar on `tape` paper (ui-redesign.md §5.12) instead of the accent. */
   paper?: boolean;
 }
 

@@ -13,13 +13,11 @@ import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
-import { Wordmark } from '../components/ui/Wordmark';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
 import { clearPendingInvite, rememberPendingInvite } from '../lib/pendingInvite';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 
 /** UC-15's fail-path wording; the server sends the same text with its 404. */
 const INVALID_LINK =
@@ -62,7 +60,6 @@ function InviteContent({ token }: { token: string }) {
   const load = useCallback(() => previewInvite(token), [token]);
   const preview = useRequest(load);
   const invalid = preview.status === 'error' && isNotFound(preview.error);
-  const mixtape = useMixtape();
 
   useEffect(() => {
     if (invalid) {
@@ -70,76 +67,21 @@ function InviteContent({ token }: { token: string }) {
     }
   }, [invalid]);
 
-  if (mixtape) {
-    return (
-      <ScreenLayout>
-        <TopBar />
-        {preview.status !== 'ready' && (
-          // The cassette label is the h1 once the invite loads; until then (and
-          // on an error) the screen still needs one.
-          <h1 className="sr-only">Join community</h1>
-        )}
-        <InstallHint />
-        <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
-          {preview.status === 'loading' && (
-            <div
-              role="status"
-              aria-label="Loading the invite"
-              className="flex w-full flex-col gap-3"
-            >
-              <Skeleton className="mx-auto h-5 w-1/3" />
-              <Skeleton className="h-36 rounded-xl" />
-              <Skeleton className="mx-auto h-5 w-1/4" />
-            </div>
-          )}
-
-          {invalid && <InvalidLink mixtape />}
-
-          {preview.status === 'error' && !invalid && (
-            <LoadError message="Couldn't load this invite." onRetry={preview.reload} />
-          )}
-
-          {preview.status === 'ready' && (
-            <>
-              <div className="flex w-full flex-col gap-4">
-                <p className="text-sm text-muted">You&apos;re invited to</p>
-                {/* ui-redesign.md §5.14: a large cassette tilted about +2°, the name on its label as the h1. */}
-                <div className="rotate-2 px-2">
-                  <CommunityCover
-                    id={preview.data.communityId}
-                    name={preview.data.name}
-                    variant="banner"
-                    label="h1"
-                  />
-                </div>
-                <p className="text-sm text-muted">{memberCountLabel(preview.data.memberCount)}</p>
-              </div>
-
-              {status === 'signedIn' ? (
-                <JoinAction token={token} preview={preview.data} mixtape />
-              ) : (
-                <div className="flex w-full flex-col items-center gap-3">
-                  <p className="text-sm">Sign in or create an account to join</p>
-                  <GoogleSignIn defaultIntent="signup" />
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </ScreenLayout>
-    );
-  }
-
   return (
     <ScreenLayout>
+      <TopBar />
+      {preview.status !== 'ready' && (
+        // The cassette label is the h1 once the invite loads; until then (and
+        // on an error) the screen still needs one.
+        <h1 className="sr-only">Join community</h1>
+      )}
       <InstallHint />
       <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
-        <Wordmark />
-
         {preview.status === 'loading' && (
           <div role="status" aria-label="Loading the invite" className="flex w-full flex-col gap-3">
-            <Skeleton className="h-32" />
-            <Skeleton className="mx-auto h-6 w-1/2" />
+            <Skeleton className="mx-auto h-5 w-1/3" />
+            <Skeleton className="h-36 rounded-xl" />
+            <Skeleton className="mx-auto h-5 w-1/4" />
           </div>
         )}
 
@@ -151,14 +93,17 @@ function InviteContent({ token }: { token: string }) {
 
         {preview.status === 'ready' && (
           <>
-            <div className="flex w-full flex-col gap-3">
+            <div className="flex w-full flex-col gap-4">
               <p className="text-sm text-muted">You&apos;re invited to</p>
-              <CommunityCover
-                id={preview.data.communityId}
-                name={preview.data.name}
-                variant="banner"
-              />
-              <h2 className="break-words font-display text-2xl font-medium">{preview.data.name}</h2>
+              {/* ui-redesign.md §5.14: a large cassette tilted about +2°, the name on its label as the h1. */}
+              <div className="rotate-2 px-2">
+                <CommunityCover
+                  id={preview.data.communityId}
+                  name={preview.data.name}
+                  variant="banner"
+                  label="h1"
+                />
+              </div>
               <p className="text-sm text-muted">{memberCountLabel(preview.data.memberCount)}</p>
             </div>
 
@@ -178,45 +123,24 @@ function InviteContent({ token }: { token: string }) {
   );
 }
 
-function InvalidLink({ mixtape = false }: { mixtape?: boolean }) {
-  if (mixtape) {
-    // The kit's empty treatment with the existing copy and link (§5.14).
-    return (
-      <div role="alert" className="w-full">
-        <EmptyState
-          action={
-            <Link to="/" className={CHIP}>
-              Go to BookRough
-            </Link>
-          }
-        >
-          {INVALID_LINK}
-        </EmptyState>
-      </div>
-    );
-  }
+function InvalidLink() {
+  // The kit's empty treatment with the existing copy and link (§5.14).
   return (
-    <div role="alert" className="flex flex-col items-center gap-4">
-      <p className="max-w-xs text-sm">{INVALID_LINK}</p>
-      <Link
-        to="/"
-        className="flex min-h-11 items-center rounded-full border border-line bg-surface px-6 text-sm font-medium"
+    <div role="alert" className="w-full">
+      <EmptyState
+        action={
+          <Link to="/" className={CHIP}>
+            Go to BookRough
+          </Link>
+        }
       >
-        Go to BookRough
-      </Link>
+        {INVALID_LINK}
+      </EmptyState>
     </div>
   );
 }
 
-function JoinAction({
-  token,
-  preview,
-  mixtape = false,
-}: {
-  token: string;
-  preview: Preview;
-  mixtape?: boolean;
-}) {
+function JoinAction({ token, preview }: { token: string; preview: Preview }) {
   const navigate = useNavigate();
   const online = useOnlineStatus();
   const [joining, setJoining] = useState(false);
@@ -224,7 +148,7 @@ function JoinAction({
   const [linkGone, setLinkGone] = useState(false);
 
   if (linkGone) {
-    return <InvalidLink mixtape={mixtape} />;
+    return <InvalidLink />;
   }
 
   if (preview.alreadyMember) {
@@ -274,13 +198,7 @@ function JoinAction({
           {error}
         </p>
       )}
-      <Button
-        onClick={join}
-        busy={joining}
-        disabled={!online}
-        offline={mixtape && !online}
-        className="w-full"
-      >
+      <Button onClick={join} busy={joining} disabled={!online} offline={!online} className="w-full">
         {joining ? 'Joining…' : 'Join community'}
       </Button>
     </div>

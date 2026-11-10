@@ -1,7 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
-import { useMixtape } from '../../stores/design';
-
 interface SheetProps {
   title: string;
   onClose: () => void;
@@ -22,7 +20,6 @@ const FOCUSABLE =
  */
 export function Sheet({ title, onClose, dismissible = true, onBack, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
-  const mixtape = useMixtape();
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -75,10 +72,8 @@ export function Sheet({ title, onClose, dismissible = true, onBack, children }: 
 
   return (
     <div
-      className={`fixed inset-0 z-20 flex items-end justify-center sm:items-center ${
-        // Mixtape: a dark wash in both schemes (ink is cream in dark mode).
-        mixtape ? 'bg-black/50' : 'bg-ink/40'
-      }`}
+      // A dark wash in both schemes (ink is cream in dark mode).
+      className="fixed inset-0 z-20 flex items-end justify-center bg-black/50 sm:items-center"
       onClick={close}
     >
       <div
@@ -88,15 +83,9 @@ export function Sheet({ title, onClose, dismissible = true, onBack, children }: 
         aria-label={title}
         onKeyDown={handleKeyDown}
         onClick={(event) => event.stopPropagation()}
-        className={`w-full max-w-md bg-surface px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 ${
-          mixtape
-            ? 'mixtape-sheet-in max-h-[92vh] overflow-y-auto rounded-t-[22px] pt-2 sm:rounded-[22px]'
-            : 'rounded-t-2xl pt-4 sm:rounded-2xl'
-        }`}
+        className="mixtape-sheet-in max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-[22px] bg-surface px-6 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:rounded-[22px] sm:pb-6"
       >
-        {mixtape && (
-          <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
-        )}
+        <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
         <div className="mb-4 flex items-center justify-between gap-4">
           {onBack && (
             <button
@@ -120,11 +109,7 @@ export function Sheet({ title, onClose, dismissible = true, onBack, children }: 
               </svg>
             </button>
           )}
-          <h2
-            className={`font-display text-xl ${mixtape ? 'min-w-0 flex-1 font-bold' : 'font-medium'}`}
-          >
-            {title}
-          </h2>
+          <h2 className="min-w-0 flex-1 font-display text-xl font-bold">{title}</h2>
           <button
             type="button"
             onClick={close}

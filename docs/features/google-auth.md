@@ -160,7 +160,7 @@ The token carries only the user id. `requireAuth` loads the user row on every re
 
 ### 5.1 Visual foundation (placeholder identity, approved 2026-10-01)
 
-- **Accent:** purple (`#534AB7` light / a lighter purple in dark mode). Wordmark **BookRough** in Space Grotesk; body text Inter; warm off-white background.
+- **Accent:** purple (`#534AB7` light / a lighter purple in dark mode). Wordmark **BookRough** in Space Grotesk; body text Inter; warm off-white background. _Superseded on 2026-11-10 by the Mixtape design (docs/features/ui-redesign.md), which removed Space Grotesk._
 - **Light and dark mode** follow the device setting (`prefers-color-scheme`).
 - **Semantic tokens only.** `index.css` defines CSS variables — `bg`, `surface`, `text`, `text-muted`, `border`, `accent`, `accent-contrast`, `danger` — exposed through Tailwind's `@theme`. Screens use these (`bg-surface`, `text-accent`) and **never raw palette classes** (`bg-purple-600`). A later redesign then changes one file. This rule is checked in every feature's Stage 3 review.
 - **Shared primitives** in `components/ui/`: `Button`, `Wordmark`, `ScreenLayout` (+ the existing `Spinner` moves here). Anything used twice becomes a primitive.

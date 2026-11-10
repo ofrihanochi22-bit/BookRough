@@ -10,7 +10,6 @@ import {
 } from '../lib/postText';
 import { INVALID_LINK, parseSharedLink } from '../lib/supportedLinks';
 import { graphemeCount } from '../lib/textRules';
-import { useMixtape } from '../stores/design';
 import { Button } from './ui/Button';
 import { ReelCassette } from './ui/Cassette';
 import { fieldClass } from './ui/field';
@@ -49,7 +48,6 @@ export function LinkCommentForm({
   onBusyChange,
   className = '',
 }: LinkCommentFormProps) {
-  const mixtape = useMixtape();
   // Unique per form: the feed's composer and the Share sheet's can be mounted together.
   const id = useId();
   const urlId = `${id}-url`;
@@ -122,7 +120,7 @@ export function LinkCommentForm({
           }}
           aria-invalid={linkError !== null}
           aria-describedby={`${urlId}-error`}
-          className={`min-h-11 ${fieldClass(mixtape, linkError !== null)}`}
+          className={`min-h-11 ${fieldClass(linkError !== null)}`}
         />
         <p id={`${urlId}-error`} aria-live="polite" className="text-xs text-danger empty:hidden">
           {linkError}
@@ -147,7 +145,7 @@ export function LinkCommentForm({
           onChange={(event) => setComment(event.target.value)}
           aria-invalid={commentError !== null}
           aria-describedby={`${commentId}-error`}
-          className={`py-3 ${fieldClass(mixtape, commentError !== null)}`}
+          className={`py-3 ${fieldClass(commentError !== null)}`}
         />
         <p
           id={`${commentId}-error`}
@@ -165,12 +163,12 @@ export function LinkCommentForm({
       )}
 
       {/* The signature wait (ui-redesign.md §3.7): the reels spin above the progress copy. */}
-      {mixtape && busy && <ReelCassette spinning className="mx-auto w-20" />}
+      {busy && <ReelCassette spinning className="mx-auto w-20" />}
 
       <Button
         type="submit"
         busy={busy}
-        offline={mixtape && !online}
+        offline={!online}
         disabled={!online || url.trim() === '' || commentError !== null}
       >
         {busy ? busyCopy : submitLabel}

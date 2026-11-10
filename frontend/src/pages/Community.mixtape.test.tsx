@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SharedPostState } from '../lib/communityCopy';
-import { httpError, makeCommunity, makePost, setDesign } from '../test/fixtures';
+import { httpError, makeCommunity, makePost } from '../test/fixtures';
 import { Community } from './Community';
 
 const { getCommunity, listPosts, createPost } = vi.hoisted(() => ({
@@ -66,7 +66,6 @@ const linkField = () => screen.getByLabelText('Share a song or album');
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   getCommunity.mockImplementation((id: string) =>
     Promise.resolve(
       makeCommunity({ id, name: id === A ? 'Friday Jazz' : 'Family', myRole: 'ADMIN' }),
@@ -75,9 +74,7 @@ beforeEach(() => {
   listPosts.mockResolvedValue({ posts: [], nextCursor: null });
 });
 
-afterEach(() => setDesign('current'));
-
-describe('Community Feed under Mixtape (ui-redesign.md §5.2)', () => {
+describe('Community Feed (ui-redesign.md §5.2)', () => {
   it('shows the back link and the logo, and the name on the cassette label as the h1', async () => {
     // Act
     renderCommunity();

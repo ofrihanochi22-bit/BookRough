@@ -171,7 +171,7 @@ describe('Recommendations', () => {
     const card = (await screen.findByText('Sent 1')).closest('article')!;
     expect(within(card).getByText('To')).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'Dana' })).toBeInTheDocument();
-    expect(within(card).getByText(/★ 8/)).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: /★ 8/ })).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Rate/ })).not.toBeInTheDocument();
     expect(api.markRecommendationsSeen).not.toHaveBeenCalled();
   });
@@ -269,11 +269,11 @@ describe('Recommendations', () => {
     // Act
     await user.click(await screen.findByRole('button', { name: /Rate & Review/ }));
     const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
-    await user.click(within(sheet).getByRole('radio', { name: '8' }));
+    await user.click(within(sheet).getByRole('radio', { name: '8 out of 10' }));
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
-    expect(await screen.findByText('You rated 8/10')).toBeInTheDocument();
+    expect(await screen.findByText('You: 8')).toBeInTheDocument();
     expect(ratePost).toHaveBeenCalledWith('in-1', { score: 8, comment: null });
     expect(screen.queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
   });
@@ -289,7 +289,7 @@ describe('Recommendations', () => {
     // Act
     await user.click(await screen.findByRole('button', { name: /Rate & Review/ }));
     const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
-    await user.click(within(sheet).getByRole('radio', { name: '8' }));
+    await user.click(within(sheet).getByRole('radio', { name: '8 out of 10' }));
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
@@ -308,7 +308,7 @@ describe('Recommendations', () => {
     // Act
     await user.click(await screen.findByRole('button', { name: /Rate & Review/ }));
     const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
-    await user.click(within(sheet).getByRole('radio', { name: '8' }));
+    await user.click(within(sheet).getByRole('radio', { name: '8 out of 10' }));
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
@@ -468,7 +468,7 @@ describe('Recommendations', () => {
     renderScreen();
 
     // Act
-    await user.click(screen.getByRole('link', { name: '← Friends' }));
+    await user.click(screen.getByRole('link', { name: 'Friends' }));
 
     // Assert
     expect(screen.getByText('Friends screen')).toBeInTheDocument();
