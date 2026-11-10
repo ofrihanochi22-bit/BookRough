@@ -269,7 +269,7 @@ describe('MyList', () => {
     // Act
     await userEvent.click(await screen.findByRole('button', { name: 'Rate & Review Song 1' }));
     const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
-    await userEvent.click(within(sheet).getByRole('radio', { name: '8' }));
+    await userEvent.click(within(sheet).getByRole('radio', { name: '8 out of 10' }));
     await userEvent.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
@@ -287,7 +287,7 @@ describe('MyList', () => {
 
     // Act
     await userEvent.click(await screen.findByRole('button', { name: 'Rate & Review Song 1' }));
-    await userEvent.click(screen.getByRole('radio', { name: '4' }));
+    await userEvent.click(screen.getByRole('radio', { name: '4 out of 10' }));
     await userEvent.click(screen.getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
@@ -383,7 +383,7 @@ describe('MyList', () => {
     // Act
     await user.click(await screen.findByRole('button', { name: /Rate & Review/ }));
     const sheet = screen.getByRole('dialog', { name: 'Rate & Review' });
-    await user.click(within(sheet).getByRole('radio', { name: '8' }));
+    await user.click(within(sheet).getByRole('radio', { name: '8 out of 10' }));
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert

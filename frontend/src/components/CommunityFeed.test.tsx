@@ -62,6 +62,11 @@ afterEach(() => {
   resetAuthStore();
 });
 
+/** The composer starts collapsed to a pill (ui-redesign.md §5.2). */
+async function openComposer() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Share a song or album' }));
+}
+
 describe('CommunityFeed', () => {
   it('shows post skeletons while loading', () => {
     // Arrange
@@ -84,7 +89,7 @@ describe('CommunityFeed', () => {
 
     // Assert
     expect(await screen.findByText('Share the first song')).toBeInTheDocument();
-    expect(screen.getByRole('form', { name: 'Share a song' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share a song or album' })).toBeVisible();
   });
 
   it("renders posts with the viewer's own service", async () => {
@@ -165,7 +170,8 @@ describe('CommunityFeed', () => {
     let finishPost: (value: unknown) => void = () => undefined;
     createPost.mockReturnValue(new Promise((resolve) => (finishPost = resolve)));
     renderFeed();
-    await userEvent.type(await screen.findByLabelText('Share a song or album'), TRACK);
+    await openComposer();
+    await userEvent.type(screen.getByLabelText('Share a song or album'), TRACK);
     await userEvent.click(screen.getByRole('button', { name: 'Post' }));
 
     // Act
@@ -220,6 +226,7 @@ describe('CommunityFeed', () => {
 
     // Assert
     expect(await screen.findByText('Song 1')).toBeInTheDocument();
+    await openComposer();
     expect(screen.getByText("You're offline. Connect to post.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled();
   });
@@ -237,6 +244,7 @@ describe('CommunityFeed', () => {
     deletePost.mockResolvedValue(undefined);
     renderFeed();
     await userEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+    await openComposer();
     await userEvent.type(screen.getByLabelText('Share a song or album'), TRACK);
     await userEvent.click(screen.getByRole('button', { name: 'Post' }));
     await vi.waitFor(() => expect(titles()).toEqual(['New song', 'Song 1', 'Song 2']));

@@ -6,11 +6,7 @@ import {
   NAME_MAX_GRAPHEMES,
 } from '../lib/communityText';
 import { graphemeCount } from '../lib/textRules';
-import { useMixtape } from '../stores/design';
 import { fieldClass } from './ui/field';
-
-const inputClass =
-  'rounded-xl border bg-surface px-4 text-base text-ink outline-none focus:border-accent';
 
 interface CommunityDetailsFieldsProps {
   form: CommunityDetailsForm;
@@ -20,12 +16,8 @@ interface CommunityDetailsFieldsProps {
 
 /** The Name and Description fields with their counters and error lines. */
 export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsProps) {
-  const mixtape = useMixtape();
-  /** Current keeps today's classes; Mixtape uses the kit's field (ui-redesign.md §5.0c). */
-  const look = (error: string | null) =>
-    mixtape
-      ? fieldClass(true, error !== null)
-      : `${inputClass} ${error ? 'border-danger' : 'border-line'}`;
+  /** The kit's field (ui-redesign.md §5.0c). */
+  const look = (error: string | null) => fieldClass(error !== null);
   return (
     <>
       <div className="flex flex-col gap-2">

@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CommunityRole } from '../api/communities';
 import { useAuthStore } from '../stores/auth';
-import { makeCommunity, makeSession, makeUser, setDesign, setOnline } from '../test/fixtures';
+import { makeCommunity, makeSession, makeUser, setOnline } from '../test/fixtures';
 import { CommunitySettings } from './CommunitySettings';
 
 const api = vi.hoisted(() => ({
@@ -72,15 +72,12 @@ function renderSettings() {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession());
   asOwner();
 });
 
-afterEach(() => setDesign('current'));
-
-describe('Community Settings under Mixtape (ui-redesign.md §5.16)', () => {
+describe('Community Settings (ui-redesign.md §5.16)', () => {
   it('shows the back link beside the logo and the Settings heading', async () => {
     // Act
     renderSettings();

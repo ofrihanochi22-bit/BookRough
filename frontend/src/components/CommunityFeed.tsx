@@ -5,7 +5,6 @@ import { listPosts, type PostsPage, type PublicPost } from '../api/posts';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 import { PostCard } from './PostCard';
 import { PostComposer } from './PostComposer';
 import { Button } from './ui/Button';
@@ -47,7 +46,6 @@ interface LocalChanges {
  * there is no live update of other people's posts.
  */
 export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeedProps) {
-  const mixtape = useMixtape();
   const load = useCallback(() => listPosts(communityId), [communityId]);
   const first = useRequest(load);
   const { reload } = first;
@@ -149,27 +147,17 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
         </p>
       )}
 
-      {mixtape ? (
-        <CollapsibleComposer
-          communityId={communityId}
-          online={online}
-          onGone={onGone}
-          onPosted={onPosted}
-        />
-      ) : (
-        <PostComposer
-          communityId={communityId}
-          online={online}
-          onGone={onGone}
-          onPosted={onPosted}
-        />
-      )}
+      <CollapsibleComposer
+        communityId={communityId}
+        online={online}
+        onGone={onGone}
+        onPosted={onPosted}
+      />
 
       {first.status === 'loading' && (
         <div role="status" aria-label="Loading posts" className="flex flex-col gap-4">
-          <Skeleton className={mixtape ? 'h-56' : 'h-40'} />
-          <Skeleton className={mixtape ? 'h-56' : 'h-40'} />
-          {!mixtape && <Skeleton className="h-40" />}
+          <Skeleton className="h-56" />
+          <Skeleton className="h-56" />
         </div>
       )}
 
@@ -177,16 +165,9 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
         <LoadError message="Couldn't load posts." onRetry={first.reload} />
       )}
 
-      {changes &&
-        posts.length === 0 &&
-        (mixtape ? (
-          <EmptyState title={FIRST_POST_TITLE}>{FIRST_POST_BODY}</EmptyState>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">{FIRST_POST_TITLE}</p>
-            <p className="mt-1 text-sm text-muted">{FIRST_POST_BODY}</p>
-          </div>
-        ))}
+      {changes && posts.length === 0 && (
+        <EmptyState title={FIRST_POST_TITLE}>{FIRST_POST_BODY}</EmptyState>
+      )}
 
       {posts.map((post) => (
         <PostCard

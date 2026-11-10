@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
 import { CONVERTING_COPY } from '../lib/postText';
-import { makeLinkOnlyPost, makePendingPost, makePost, makeUser, setDesign } from '../test/fixtures';
+import { makeLinkOnlyPost, makePendingPost, makePost, makeUser } from '../test/fixtures';
 import { PostCard, type PostCardProps } from './PostCard';
 
 const { retryConversion } = vi.hoisted(() => ({ retryConversion: vi.fn() }));
@@ -40,12 +40,9 @@ const receivedDirect = (isFriend = true) => makePost({ direct: { recipient, isFr
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
 });
 
-afterEach(() => setDesign('current'));
-
-describe('PostCard under Mixtape — rating sticker (ui-redesign.md §3.6, §5.0)', () => {
+describe('PostCard — rating sticker (ui-redesign.md §3.6, §5.0)', () => {
   it('shows the average and the count on a sticker that leads to Post Detail', () => {
     // Act
     renderCard(makePost({ ratingSummary: { average: 7.5, count: 4 } }));
@@ -95,7 +92,7 @@ describe('PostCard under Mixtape — rating sticker (ui-redesign.md §3.6, §5.0
   });
 });
 
-describe('PostCard under Mixtape — layout and actions (ui-redesign.md §5.0)', () => {
+describe('PostCard — layout and actions (ui-redesign.md §5.0)', () => {
   it('opens the viewer service as the one primary, with the song in a 116px cover', () => {
     // Act
     renderCard(makePost({ comment: 'Play it loud' }));
@@ -199,7 +196,7 @@ describe('PostCard under Mixtape — layout and actions (ui-redesign.md §5.0)',
   });
 });
 
-describe('PostCard under Mixtape — pending (ui-redesign.md §5.0)', () => {
+describe('PostCard — pending (ui-redesign.md §5.0)', () => {
   it('replaces the cover with still reels and keeps the unavailable line', () => {
     // Act
     renderCard(makePendingPost());
@@ -236,7 +233,7 @@ describe('PostCard under Mixtape — pending (ui-redesign.md §5.0)', () => {
   });
 });
 
-describe('PostCard under Mixtape — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
+describe('PostCard — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
   it('shows only the actions the viewer may take', async () => {
     // Arrange: an admin on someone else's post may delete, not edit.
     renderCard(makePost({ canDelete: true }));

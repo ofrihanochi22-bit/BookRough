@@ -1,11 +1,8 @@
-import { act } from '@testing-library/react';
 import { AxiosError, AxiosHeaders } from 'axios';
 
 import type { PublicCommunity } from '../api/communities';
 import type { PublicPost } from '../api/posts';
-import type { Design } from '../lib/design';
 import { useAuthStore, type PublicUser, type Session } from '../stores/auth';
-import { useDesignStore } from '../stores/design';
 
 export function makeUser(overrides: Partial<PublicUser> = {}): PublicUser {
   return {
@@ -121,14 +118,4 @@ export function networkError(): AxiosError {
 
 export function setOnline(online: boolean): void {
   Object.defineProperty(window.navigator, 'onLine', { value: online, configurable: true });
-}
-
-/**
- * Puts the device on a design (ui-redesign.md §4) for the tests that run under
- * Mixtape. Call it in `beforeEach` and `afterEach(() => setDesign('current'))`,
- * so the rest of the suite keeps the default.
- */
-export function setDesign(design: Design): void {
-  // In act(): a screen still mounted re-renders with the new design.
-  act(() => useDesignStore.setState({ design }));
 }

@@ -15,7 +15,6 @@ import {
 } from '../lib/ratingCopy';
 import { displayTitle, pendingTitle } from '../lib/postLinks';
 import { graphemeCount } from '../lib/textRules';
-import { useMixtape } from '../stores/design';
 import { Button } from './ui/Button';
 import { fieldClass } from './ui/field';
 import { Sheet } from './ui/Sheet';
@@ -183,7 +182,6 @@ export function RatingSheet({
   onGone,
   onStale,
 }: RatingSheetProps) {
-  const mixtape = useMixtape();
   const [score, setScore] = useState<number | null>(editing?.score ?? null);
   const [comment, setComment] = useState(editing?.comment ?? '');
   const title = editing ? 'Edit your rating' : 'Rate & Review';
@@ -241,53 +239,22 @@ export function RatingSheet({
           {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
         </div>
 
-        {mixtape ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between">
-              <p id="rating-score-label" className="text-sm font-medium">
-                Your score
-              </p>
-              <p
-                aria-hidden="true"
-                data-testid="score-readout"
-                className="font-display text-3xl font-extrabold"
-              >
-                {score ?? '–'}
-                <span className="text-lg text-muted">/10</span>
-              </p>
-            </div>
-            <StarRow score={score} disabled={busy} onChange={setScore} />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
             <p id="rating-score-label" className="text-sm font-medium">
               Your score
             </p>
-            <div
-              role="radiogroup"
-              aria-labelledby="rating-score-label"
-              className="grid grid-cols-5 gap-2"
+            <p
+              aria-hidden="true"
+              data-testid="score-readout"
+              className="font-display text-3xl font-extrabold"
             >
-              {SCORES.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={score === value}
-                  disabled={busy}
-                  onClick={() => setScore(value)}
-                  className={`min-h-11 rounded-xl border text-sm font-medium ${
-                    score === value
-                      ? 'border-accent bg-accent text-on-accent'
-                      : 'border-line bg-surface'
-                  }`}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
+              {score ?? '–'}
+              <span className="text-lg text-muted">/10</span>
+            </p>
           </div>
-        )}
+          <StarRow score={score} disabled={busy} onChange={setScore} />
+        </div>
 
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between">
@@ -307,7 +274,7 @@ export function RatingSheet({
             onChange={(event) => setComment(event.target.value)}
             aria-invalid={commentError !== null}
             aria-describedby="rating-comment-error"
-            className={`py-3 ${fieldClass(mixtape, commentError !== null)}`}
+            className={`py-3 ${fieldClass(commentError !== null)}`}
           />
           <p
             id="rating-comment-error"
@@ -328,7 +295,7 @@ export function RatingSheet({
           type="submit"
           variant="rating"
           busy={busy}
-          offline={mixtape && !online}
+          offline={!online}
           disabled={!online || score === null || commentError !== null}
         >
           {busy ? 'Submitting…' : editing ? 'Save changes' : 'Submit Rating'}

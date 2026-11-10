@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
@@ -29,12 +29,12 @@ import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Sheet } from '../components/ui/Sheet';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
-import { isAdmin, memberActions, roleLabel, type MemberAction } from '../lib/communityRoles';
+import { isAdmin, memberActions, type MemberAction } from '../lib/communityRoles';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 import { NotFound } from './NotFound';
 
 interface SettingsData {
@@ -75,7 +75,6 @@ type Confirmation =
 export function CommunitySettings() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const mixtape = useMixtape();
   const online = useOnlineStatus();
   const me = useAuthStore((state) => state.user);
 
@@ -198,21 +197,8 @@ export function CommunitySettings() {
 
   return (
     <ScreenLayout>
-      {mixtape ? (
-        <TopBar back={{ to: `/communities/${id}`, label: 'Back' }} />
-      ) : (
-        <Link
-          to={`/communities/${id}`}
-          className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
-        >
-          ← Back
-        </Link>
-      )}
-      <h1
-        className={`mb-6 font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
-      >
-        Settings
-      </h1>
+      <TopBar back={{ to: `/communities/${id}`, label: 'Back' }} />
+      <h1 className={`mb-6 ${MIXTAPE_H1}`}>Settings</h1>
 
       {!online && (
         <p role="alert" className="mb-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -262,108 +248,47 @@ export function CommunitySettings() {
                 {notice}
               </p>
             )}
-            {mixtape ? (
-              <MemberGroups
-                members={data.members}
-                renderRow={(member) => {
-                  const isSelf = member.user.id === me?.id;
-                  const actions = memberActions(data.community.myRole, member.role, isSelf);
-                  return (
-                    <li key={member.user.id} className="flex items-center gap-3 py-2">
-                      <PersonLink
-                        user={member.user}
-                        avatarSize={36}
-                        className="text-sm"
-                        label={
-                          <>
-                            {member.user.displayName}
-                            {isSelf && <span className="text-muted"> · You</span>}
-                          </>
-                        }
-                      />
-                      {actions.length > 0 && (
-                        <button
-                          type="button"
-                          aria-label={`Actions for ${member.user.displayName}`}
-                          aria-haspopup="dialog"
-                          onClick={() => setOpenMenu(member.user.id)}
-                          disabled={!online || busy !== null}
-                          className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted disabled:opacity-50"
-                        >
-                          <span aria-hidden="true" className="text-lg leading-none">
-                            ⋯
-                          </span>
-                        </button>
-                      )}
-                    </li>
-                  );
-                }}
-              />
-            ) : (
-              <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
-                {data.members.map((member) => {
-                  const isSelf = member.user.id === me?.id;
-                  const actions = memberActions(data.community.myRole, member.role, isSelf);
-                  const label = roleLabel(member.role);
-                  const menuOpen = openMenu === member.user.id;
-                  return (
-                    <li key={member.user.id} className="flex flex-col gap-2 px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <PersonLink
-                          user={member.user}
-                          avatarSize={36}
-                          className="text-sm"
-                          label={
-                            <>
-                              {member.user.displayName}
-                              {isSelf && <span className="text-muted"> · You</span>}
-                            </>
-                          }
-                        />
-                        {label && <span className="text-xs text-accent">{label}</span>}
-                        {actions.length > 0 && (
-                          <button
-                            type="button"
-                            aria-label={`Actions for ${member.user.displayName}`}
-                            aria-expanded={menuOpen}
-                            onClick={() => setOpenMenu(menuOpen ? null : member.user.id)}
-                            disabled={!online || busy !== null}
-                            className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
-                          >
-                            <span aria-hidden="true" className="text-lg leading-none">
-                              ⋯
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                      {menuOpen && (
-                        <div className="flex flex-wrap gap-2 pl-12">
-                          {actions.map((action) => (
-                            <Button
-                              key={action}
-                              variant="secondary"
-                              onClick={() => void act(member, action)}
-                              className={action === 'remove' ? 'text-danger' : ''}
-                            >
-                              {ACTION_LABELS[action]}
-                            </Button>
-                          ))}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <MemberGroups
+              members={data.members}
+              renderRow={(member) => {
+                const isSelf = member.user.id === me?.id;
+                const actions = memberActions(data.community.myRole, member.role, isSelf);
+                return (
+                  <li key={member.user.id} className="flex items-center gap-3 py-2">
+                    <PersonLink
+                      user={member.user}
+                      avatarSize={36}
+                      className="text-sm"
+                      label={
+                        <>
+                          {member.user.displayName}
+                          {isSelf && <span className="text-muted"> · You</span>}
+                        </>
+                      }
+                    />
+                    {actions.length > 0 && (
+                      <button
+                        type="button"
+                        aria-label={`Actions for ${member.user.displayName}`}
+                        aria-haspopup="dialog"
+                        onClick={() => setOpenMenu(member.user.id)}
+                        disabled={!online || busy !== null}
+                        className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted disabled:opacity-50"
+                      >
+                        <span aria-hidden="true" className="text-lg leading-none">
+                          ⋯
+                        </span>
+                      </button>
+                    )}
+                  </li>
+                );
+              }}
+            />
           </Section>
 
           {isAdmin(data.community.myRole) && data.blocked.length > 0 && (
             <Section title="Blocked">
-              <ul
-                className={`flex flex-col divide-y divide-line bg-surface ${
-                  mixtape ? 'rounded-[22px]' : 'rounded-2xl border border-line'
-                }`}
-              >
+              <ul className="flex flex-col divide-y divide-line bg-surface rounded-[22px]">
                 {data.blocked.map((entry) => (
                   <li key={entry.user.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar
@@ -382,7 +307,7 @@ export function CommunitySettings() {
                     <Button
                       variant="secondary"
                       busy={busy === `unblock-${entry.user.id}`}
-                      offline={mixtape && !online}
+                      offline={!online}
                       disabled={!online || busy !== null}
                       onClick={() =>
                         void run(
@@ -406,7 +331,7 @@ export function CommunitySettings() {
           <Section title="Your membership">
             <Button
               variant="secondary"
-              offline={mixtape && !online}
+              offline={!online}
               disabled={!online || busy !== null}
               onClick={() =>
                 setConfirming({
@@ -422,11 +347,11 @@ export function CommunitySettings() {
           {data.community.myRole === 'OWNER' && (
             <Section title="Danger zone">
               <Button
-                variant={mixtape ? 'destructive' : 'secondary'}
-                offline={mixtape && !online}
+                variant="destructive"
+                offline={!online}
                 disabled={!online || busy !== null}
                 onClick={() => setConfirming({ kind: 'delete' })}
-                className={mixtape ? 'self-start' : 'self-start border-danger text-danger'}
+                className="self-start"
               >
                 Delete community
               </Button>
@@ -435,7 +360,7 @@ export function CommunitySettings() {
         </div>
       )}
 
-      {mixtape && menuMember && data && (
+      {menuMember && data && (
         <ActionSheet
           title={menuMember.user.displayName}
           onClose={() => setOpenMenu(null)}
@@ -541,7 +466,6 @@ interface DetailsSectionProps {
 
 /** Name and description, editable by admins. Remounted (by key) after each save. */
 function DetailsSection({ community, disabled, onSaved }: DetailsSectionProps) {
-  const mixtape = useMixtape();
   const form = useCommunityDetailsForm({
     name: community.name,
     description: community.description ?? '',
@@ -588,7 +512,7 @@ function DetailsSection({ community, disabled, onSaved }: DetailsSectionProps) {
         <Button
           type="submit"
           busy={saving}
-          offline={mixtape && disabled}
+          offline={disabled}
           disabled={!changed || disabled}
           className="self-start"
         >

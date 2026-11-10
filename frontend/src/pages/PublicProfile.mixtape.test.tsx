@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProfileData, ProfileRating } from '../api/profiles';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
-import { makeSession, networkError, resetAuthStore, setDesign, setOnline } from '../test/fixtures';
+import { makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
 import { PublicProfile } from './PublicProfile';
 
 const { getProfile, listProfileRatings } = vi.hoisted(() => ({
@@ -73,7 +73,6 @@ const actionButtons = () =>
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(makeSession());
   getProfile.mockResolvedValue(profile('FRIENDS'));
@@ -83,10 +82,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetAuthStore();
-  setDesign('current');
 });
 
-describe('Public Profile under Mixtape (ui-redesign.md §5.6)', () => {
+describe('Public Profile (ui-redesign.md §5.6)', () => {
   it('puts the person on a tape card with the stripe band, name as h1 and service', async () => {
     // Act
     renderProfile();

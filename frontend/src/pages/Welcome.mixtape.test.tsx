@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SIGN_IN_COPY } from '../components/GoogleSignIn';
 import { useSettingsStore } from '../stores/settings';
-import { httpError, resetAuthStore, setDesign, setOnline } from '../test/fixtures';
+import { httpError, resetAuthStore, setOnline } from '../test/fixtures';
 import { emulateDevice, resetDevice, USER_AGENTS } from '../test/userAgents';
 import { Welcome } from './Welcome';
 
@@ -29,17 +29,15 @@ vi.mock('@react-oauth/google', () => ({
 beforeEach(() => {
   vi.resetAllMocks();
   resetAuthStore();
-  setDesign('mixtape');
   setOnline(true);
 });
 
 afterEach(() => {
   resetDevice();
   window.localStorage.clear();
-  setDesign('current');
 });
 
-describe('Welcome under Mixtape (ui-redesign.md §5.12)', () => {
+describe('Welcome (ui-redesign.md §5.12)', () => {
   it('shows the hero logo as the h1, the admin tagline and the privacy line, with no demo line', () => {
     // Arrange
     useSettingsStore.setState({ welcomeTagline: 'Songs between friends.' });

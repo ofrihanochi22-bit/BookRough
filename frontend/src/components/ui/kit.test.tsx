@@ -1,8 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { setDesign } from '../../test/fixtures';
 import { Button } from './Button';
 import { CommunityCover } from './CommunityCover';
 import { EmptyState } from './EmptyState';
@@ -14,14 +13,11 @@ import { Spinner } from './Spinner';
 import { Wordmark } from './Wordmark';
 
 /**
- * The UI kit under Mixtape — docs/features/ui-redesign.md §5.0c. One file for
- * the small kit pieces whose Current behaviour is already covered next to them;
- * these assert only what changes with the design.
+ * The UI kit — docs/features/ui-redesign.md §5.0c. One file for the look of
+ * the small kit pieces; their behaviour is covered by the screens that use them.
  */
-beforeEach(() => setDesign('mixtape'));
-afterEach(() => setDesign('current'));
 
-describe('Button under Mixtape', () => {
+describe('Button', () => {
   it('styles each meaning: primary accent, secondary outline, rating sticker, destructive danger', () => {
     // Act
     render(
@@ -62,38 +58,19 @@ describe('Button under Mixtape', () => {
     expect(button.className).not.toContain('bg-accent');
     expect(onClick).not.toHaveBeenCalled();
   });
-
-  it('under Current, offline only disables, and the new meanings fall back to primary', () => {
-    // Arrange
-    setDesign('current');
-
-    // Act
-    render(
-      <>
-        <Button offline>Post</Button>
-        <Button variant="rating">Rate</Button>
-      </>,
-    );
-
-    // Assert
-    expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Post' }).className).not.toContain('border-dashed');
-    expect(screen.getByRole('button', { name: 'Rate' }).className).toContain('bg-accent');
-  });
 });
 
 describe('Text field look', () => {
-  it('Mixtape: 1.5px line border, danger on error; Current unchanged', () => {
+  it('has a 1.5px line border, and a danger border on error', () => {
     // Act & Assert
-    expect(fieldClass(true, false)).toContain('border-[1.5px]');
-    expect(fieldClass(true, false)).toContain('border-line');
-    expect(fieldClass(true, true)).toContain('border-danger');
-    expect(fieldClass(false, false)).not.toContain('border-[1.5px]');
-    expect(fieldClass(false, true)).toContain('border-danger');
+    expect(fieldClass(false)).toContain('border-[1.5px]');
+    expect(fieldClass(false)).toContain('border-line');
+    expect(fieldClass(true)).toContain('border-danger');
+    expect(fieldClass(true)).not.toContain('border-line');
   });
 });
 
-describe('Loading, error and empty states under Mixtape', () => {
+describe('Loading, error and empty states', () => {
   it('the spinner is the cassette with spinning reels, still announcing its label', () => {
     // Act
     render(<Spinner label="Opening BookRough…" />);
@@ -143,7 +120,7 @@ describe('Loading, error and empty states under Mixtape', () => {
   });
 });
 
-describe('Sheet under Mixtape', () => {
+describe('Sheet', () => {
   it('has a grab handle and, in steps, a Back arrow that returns one step', async () => {
     // Arrange
     const onBack = vi.fn();
@@ -178,7 +155,7 @@ describe('Sheet under Mixtape', () => {
   });
 });
 
-describe('CommunityCover under Mixtape (ui-redesign.md §3.5)', () => {
+describe('CommunityCover (ui-redesign.md §3.5)', () => {
   const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
   /** hsl(240 6% 70%) as jsdom serialises it. */
   const NEUTRAL = 'rgb(174, 174, 183)';
@@ -228,18 +205,6 @@ describe('CommunityCover under Mixtape (ui-redesign.md §3.5)', () => {
     // Assert
     expect(screen.getByTestId('community-cover')).not.toHaveTextContent('Friday Jazz');
   });
-
-  it('under Current, stays the initials block', () => {
-    // Arrange
-    setDesign('current');
-
-    // Act
-    render(<CommunityCover id={ID} name="Friday Jazz" variant="card" />);
-
-    // Assert
-    expect(screen.getByTestId('community-cover')).toHaveTextContent('FJ');
-    expect(screen.queryByTestId('cover-stripe')).not.toBeInTheDocument();
-  });
 });
 
 describe('Wordmark (ui-redesign.md §3.8)', () => {
@@ -274,14 +239,5 @@ describe('Wordmark (ui-redesign.md §3.8)', () => {
     expect(mark.innerHTML).toContain('#FFC93C');
     expect(mark.innerHTML).toContain('#C23A17');
     expect(mark.innerHTML).not.toContain('accent');
-  });
-
-  it('without a variant, stays the Current placeholder', () => {
-    // Act
-    render(<Wordmark />);
-
-    // Assert
-    expect(screen.getByRole('heading', { level: 1, name: 'BookRough' })).toBeInTheDocument();
-    expect(screen.queryByTestId('cassette-mark')).not.toBeInTheDocument();
   });
 });

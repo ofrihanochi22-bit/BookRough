@@ -132,7 +132,9 @@ describe('CommunitySettings — what each role sees', () => {
 
     // Assert
     expect(await screen.findByText('Members · 4 members')).toBeInTheDocument();
-    expect(within(rowOf('Olga')).getByText('Owner')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Owner' })).getByText('Olga'),
+    ).toBeInTheDocument();
     expect(within(rowOf('Ofri')).getByText(/You/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Leave community' })).toBeInTheDocument();
     for (const absent of ['Save changes', 'Invite friends', 'Delete community']) {
@@ -223,7 +225,11 @@ describe('CommunitySettings — member actions', () => {
     // Assert
     expect(api.changeRole).toHaveBeenCalledWith(ID, 'mia', 'ADMIN');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(within(rowOf('Mia')).getByText('Admin')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('list', { name: 'Admins' })).getByText('Mia'),
+      ).toBeInTheDocument(),
+    );
   });
 
   it('Remove asks with the UC-14 wording, then the person moves to Blocked', async () => {
@@ -325,7 +331,11 @@ describe('CommunitySettings — member actions', () => {
 
     // Assert
     expect(api.transferOwnership).toHaveBeenCalledWith(ID, 'ada');
-    await waitFor(() => expect(within(rowOf('Ada')).getByText('Owner')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('list', { name: 'Owner' })).getByText('Ada'),
+      ).toBeInTheDocument(),
+    );
     expect(screen.queryByRole('button', { name: 'Delete community' })).not.toBeInTheDocument();
   });
 

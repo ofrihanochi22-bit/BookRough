@@ -1,4 +1,3 @@
-import { useMixtape } from '../../stores/design';
 import { ReelCassette } from './Cassette';
 
 interface SpinnerProps {
@@ -7,25 +6,17 @@ interface SpinnerProps {
 }
 
 /**
- * The project's one loading indicator.
+ * The project's one loading indicator: the cassette with spinning reels
+ * (ui-redesign.md §3.7).
  *
  * Every screen that waits on the network uses this rather than rendering an
  * empty area (CLAUDE.md §8: loading is a designed state). It matters most on
  * post submission, where the scrape takes several seconds (CLAUDE.md §7).
- * Under Mixtape it is the cassette with spinning reels (ui-redesign.md §3.7).
  */
 export function Spinner({ label = 'Loading…' }: SpinnerProps) {
-  const mixtape = useMixtape();
   return (
     <div role="status" aria-live="polite" className="flex flex-col items-center gap-3">
-      {mixtape ? (
-        <ReelCassette spinning className="w-20" />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="size-8 animate-spin rounded-full border-2 border-line border-t-accent"
-        />
-      )}
+      <ReelCassette spinning className="w-20" />
       <span className="text-sm text-muted">{label}</span>
     </div>
   );

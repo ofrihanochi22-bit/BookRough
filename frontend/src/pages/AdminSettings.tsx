@@ -29,7 +29,6 @@ import {
 import { describeChange } from '../lib/settingsHistory';
 import { cleanLine, graphemeCount } from '../lib/textRules';
 import { useAuthStore } from '../stores/auth';
-import { useMixtape } from '../stores/design';
 import { useSettingsStore } from '../stores/settings';
 
 import { NotFound } from './NotFound';
@@ -107,7 +106,6 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
   const [tagline, setTagline] = useState(initial.welcomeTagline);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mixtape = useMixtape();
 
   const bannerError = bannerProblem(enabled, text);
   const taglineError = taglineProblem(tagline);
@@ -184,11 +182,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
           maxLength={1000}
           aria-invalid={bannerError !== null}
           aria-describedby="banner-text-error"
-          className={
-            mixtape
-              ? `${fieldClass(true, bannerError !== null)} py-3`
-              : 'rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none focus:border-accent'
-          }
+          className={`${fieldClass(bannerError !== null)} py-3`}
         />
         <p id="banner-text-error" className="min-h-5 text-xs text-danger">
           {bannerError}
@@ -201,15 +195,9 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
           {ACCENT_COLORS.map((color) => (
             <label
               key={color.value}
-              className={
-                mixtape
-                  ? `flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-3 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-                      accent === color.value ? 'border-ink font-semibold' : 'border-line'
-                    }`
-                  : `flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm ${
-                      accent === color.value ? 'border-ink' : 'border-line'
-                    }`
-              }
+              className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-[1.5px] px-3 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+                accent === color.value ? 'border-ink font-semibold' : 'border-line'
+              }`}
             >
               <input
                 type="radio"
@@ -224,10 +212,8 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
                 data-accent={color.value}
                 aria-hidden="true"
                 className={`size-5 rounded-full bg-accent ${
-                  // Under Mixtape the selected swatch is ringed in `ink` (ui-redesign.md §5.17).
-                  mixtape && accent === color.value
-                    ? 'ring-2 ring-ink ring-offset-2 ring-offset-canvas'
-                    : ''
+                  // The selected swatch is ringed in `ink` (ui-redesign.md §5.17).
+                  accent === color.value ? 'ring-2 ring-ink ring-offset-2 ring-offset-canvas' : ''
                 }`}
               />
               {color.label}
@@ -252,11 +238,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
           maxLength={1000}
           aria-invalid={taglineError !== null}
           aria-describedby="welcome-tagline-error"
-          className={
-            mixtape
-              ? `${fieldClass(true, taglineError !== null)} min-h-11`
-              : 'min-h-11 rounded-xl border border-line bg-surface px-4 text-base text-ink outline-none focus:border-accent'
-          }
+          className={`${fieldClass(taglineError !== null)} min-h-11`}
         />
         <div className="flex items-start justify-between gap-3">
           <p id="welcome-tagline-error" className="min-h-5 text-xs text-danger">
@@ -279,13 +261,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
         </p>
       )}
 
-      <Button
-        type="submit"
-        busy={saving}
-        disabled={!canSave}
-        offline={mixtape && !online}
-        className="w-full"
-      >
+      <Button type="submit" busy={saving} disabled={!canSave} offline={!online} className="w-full">
         {saving ? 'Saving…' : 'Save changes'}
       </Button>
     </form>
@@ -293,7 +269,6 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
 }
 
 function History({ changes }: { changes: SettingChange[] }) {
-  const mixtape = useMixtape();
   return (
     <section aria-labelledby="history-heading" className="flex flex-col gap-3">
       <h2 id="history-heading" className="text-sm font-medium">
@@ -302,22 +277,9 @@ function History({ changes }: { changes: SettingChange[] }) {
       {changes.length === 0 ? (
         <p className="text-sm text-muted">No changes yet.</p>
       ) : (
-        <ul
-          className={
-            mixtape
-              ? 'flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4'
-              : 'flex flex-col gap-2'
-          }
-        >
+        <ul className="flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4">
           {changes.map((change) => (
-            <li
-              key={change.id}
-              className={
-                mixtape
-                  ? 'flex flex-col py-3'
-                  : 'flex flex-col rounded-xl border border-line px-3 py-2'
-              }
-            >
+            <li key={change.id} className="flex flex-col py-3">
               <span className="truncate text-sm">{describeChange(change)}</span>
               <span className="text-xs text-muted">
                 {timeFormat.format(new Date(change.changedAt))}

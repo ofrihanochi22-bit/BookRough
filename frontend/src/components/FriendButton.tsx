@@ -10,7 +10,6 @@ import {
   sendFriendRequest,
 } from '../api/friends';
 import { ACTION_FAILED, nowFriends, REQUEST_SENT, requestFrom } from '../lib/friendCopy';
-import { useMixtape } from '../stores/design';
 import { useFriendRequests } from '../stores/friendRequests';
 
 import { RemoveFriendSheet } from './RemoveFriendSheet';
@@ -30,7 +29,7 @@ interface FriendButtonProps {
   className?: string;
   /**
    * `row`: a search result's control, where Add Friend and Respond are the
-   * accent pill under Mixtape too (search-friend-button.md §5.2). `profile`
+   * accent pill (search-friend-button.md §5.2). `profile`
    * keeps them secondary beside "Send a song" (ui-redesign.md §5.6).
    */
   emphasis?: 'profile' | 'row';
@@ -53,10 +52,8 @@ export function FriendButton({
   emphasis = 'profile',
 }: FriendButtonProps) {
   const refreshCount = useFriendRequests((state) => state.refresh);
-  // Mixtape profile: a secondary pill in every state, beside "Send a song" (ui-redesign.md §5.6).
-  const mixtape = useMixtape();
-  const mainVariant = mixtape && emphasis === 'profile' ? 'secondary' : 'primary';
-  const offline = mixtape && !online;
+  const mainVariant = emphasis === 'profile' ? 'secondary' : 'primary';
+  const offline = !online;
   const [busy, setBusy] = useState<'send' | 'cancel' | 'accept' | 'ignore' | null>(null);
   const [sheet, setSheet] = useState<'sent' | 'respond' | 'remove' | null>(null);
 

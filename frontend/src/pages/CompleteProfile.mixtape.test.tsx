@@ -1,9 +1,9 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuthStore } from '../stores/auth';
-import { httpError, makeSession, makeUser, setDesign, setOnline } from '../test/fixtures';
+import { httpError, makeSession, makeUser, setOnline } from '../test/fixtures';
 import { CompleteProfile } from './CompleteProfile';
 
 const { checkDisplayName, updateProfile } = vi.hoisted(() => ({
@@ -15,7 +15,6 @@ vi.mock('../api/auth', () => ({ logout: vi.fn() }));
 
 beforeEach(() => {
   vi.resetAllMocks();
-  setDesign('mixtape');
   setOnline(true);
   useAuthStore.getState().setSession(
     makeSession({
@@ -30,10 +29,6 @@ beforeEach(() => {
   checkDisplayName.mockResolvedValue({ available: true, reason: null });
 });
 
-afterEach(() => {
-  setDesign('current');
-});
-
 const cassette = () => screen.getByTestId('community-cover');
 
 async function fillValidForm() {
@@ -42,7 +37,7 @@ async function fillValidForm() {
   await userEvent.click(screen.getByRole('radio', { name: 'Tidal' }));
 }
 
-describe('Complete Your Profile under Mixtape (ui-redesign.md §5.13)', () => {
+describe('Complete Your Profile (ui-redesign.md §5.13)', () => {
   it('shows the compact logo, the heading and an empty cassette', () => {
     // Act
     render(<CompleteProfile />);

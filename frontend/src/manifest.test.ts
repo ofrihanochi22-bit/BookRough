@@ -53,9 +53,22 @@ const indexHtml = text('index.html');
 const indexCss = text('src/index.css');
 const mainSource = text('src/main.tsx');
 
-/** Mixtape's light canvas — the default design since the swap (ui-redesign.md §6). */
+/** The light canvas token (ui-redesign.md §3.1). */
 function lightCanvas(): string | undefined {
-  return /:root\[data-design='mixtape'\]\s*\{[^}]*?--canvas:\s*(#[0-9a-f]{6})/i.exec(indexCss)?.[1];
+  return /:root\s*\{[^}]*?--canvas:\s*(#[0-9a-f]{6})/i.exec(indexCss)?.[1];
+}
+
+/** The dark canvas token: the `:root` block inside the dark-scheme media query. */
+function darkCanvas(): string | undefined {
+  return /prefers-color-scheme:\s*dark\)\s*\{\s*:root\s*\{[^}]*?--canvas:\s*(#[0-9a-f]{6})/i.exec(
+    indexCss,
+  )?.[1];
+}
+
+/** The `theme-color` meta for one scheme. */
+function themeColor(scheme: 'light' | 'dark'): string | undefined {
+  const tag = `<meta name="theme-color" content="(#[0-9a-f]{6})" media="[(]prefers-color-scheme: ${scheme}[)]"`;
+  return new RegExp(tag, 'i').exec(indexHtml)?.[1];
 }
 
 describe('manifest.webmanifest', () => {
@@ -71,7 +84,7 @@ describe('manifest.webmanifest', () => {
     });
   });
 
-  it("takes its colours from the default design's light canvas token", () => {
+  it('takes its colours from the light canvas token', () => {
     // Arrange
     const canvas = lightCanvas()?.toLowerCase();
 
@@ -107,6 +120,18 @@ describe('manifest.webmanifest', () => {
 });
 
 describe('index.html', () => {
+  it('paints the browser bar with the canvas token of each scheme (ui-redesign.md §3.1)', () => {
+    // Arrange
+    const light = lightCanvas()?.toLowerCase();
+    const dark = darkCanvas()?.toLowerCase();
+
+    // Assert
+    expect(light).toBe('#eceaf4');
+    expect(dark).toBe('#1b1a2e');
+    expect(themeColor('light')?.toLowerCase()).toBe(light);
+    expect(themeColor('dark')?.toLowerCase()).toBe(dark);
+  });
+
   it('links the manifest, the SVG favicon and a 180 px apple-touch-icon', () => {
     // Assert
     expect(indexHtml).toContain('<link rel="manifest" href="/manifest.webmanifest" />');

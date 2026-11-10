@@ -9,7 +9,7 @@ import type { StreamingService } from '../stores/auth';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
 
-/** Shared by both designs of the post card (ui-redesign.md §5.0). */
+/** The post card's sheets (ui-redesign.md §5.0). */
 export interface PostCardProps {
   post: PublicPost;
   viewerService: StreamingService | null;
@@ -30,7 +30,7 @@ export interface PostCardProps {
   onHide?: (post: PublicPost) => void;
 }
 
-export const linkButton =
+const linkButton =
   'inline-flex min-h-11 items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium';
 
 const DELETE_FAILED = 'Could not delete post. Check your connection and try again.';
