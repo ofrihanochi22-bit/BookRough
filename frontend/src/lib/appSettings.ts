@@ -16,7 +16,7 @@ export const ACCENT_COLORS = [
 
 export type AccentColor = (typeof ACCENT_COLORS)[number]['value'];
 
-export const DEFAULT_ACCENT: AccentColor = 'purple';
+export const DEFAULT_ACCENT: AccentColor = 'orange';
 export const BANNER_MAX_GRAPHEMES = 140;
 export const TAGLINE_MAX_GRAPHEMES = 80;
 export const DEFAULT_TAGLINE = 'Share music with friends, on whatever app they use.';

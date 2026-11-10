@@ -89,3 +89,31 @@ export async function joinThroughLink(
   await expect(friend.getByRole('link', { name: 'Settings' })).toBeVisible();
   return account.displayName;
 }
+
+/**
+ * Global Search, through the Search icon in Home's header — Search left the tab
+ * bar in the Mixtape redesign (docs/features/ui-redesign.md §3.4).
+ */
+export async function openSearch(page: Page) {
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Home/ }).click();
+  const heading = page.getByRole('heading', { name: 'Your communities' });
+  await expect(heading).toBeVisible();
+  // The icon sits in the screen's header, beside the bell.
+  await page
+    .locator('header')
+    .filter({ has: heading })
+    .getByRole('link', { name: 'Search', exact: true })
+    .click();
+  await expect(page.getByLabel('Search people')).toBeVisible();
+}
+
+/**
+ * The community feed's composer, which starts collapsed to a "Share a song or
+ * album" pill (ui-redesign.md §5.2). Returns the form once it is open.
+ */
+export async function openComposer(page: Page) {
+  await page.getByRole('button', { name: 'Share a song or album' }).click();
+  const composer = page.getByRole('form', { name: 'Share a song' });
+  await expect(composer.getByLabel('Share a song or album')).toBeFocused();
+  return composer;
+}

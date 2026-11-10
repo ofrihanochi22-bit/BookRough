@@ -137,7 +137,7 @@ On the post card's album art, top corner, slightly rotated:
 - Each redesigned screen merges to `main` in its own PR; the **old design stays the default for everyone**, so friends see no change until the swap.
 - **Switch, per device:** `?design=new` / `?design=old` on any URL, and a toggle on the Admin screen (admins only). The choice is stored on the device (local storage), never on the server.
 - The new tokens hang off a root attribute (e.g. `data-design="mixtape"` on `<html>`), so the old values stay untouched underneath. Structural differences (tab bar, cassette cover, post card) switch on the same flag.
-- `theme-color` meta follows the active design and scheme (set at runtime, since `index.html` is static).
+- `theme-color` meta follows the active design and scheme (set at runtime, since `index.html` is static). From the swap, `index.html` ships Mixtape's `data-design` and `theme-color` values, so the default paints right before any script runs; a device on Current has them replaced at runtime.
 - **Swap PR:** the new design becomes the default for everyone (and the `orange` default takes effect). **Cleanup PR:** the old tokens, components, Space Grotesk and the switch are removed.
 
 ## 5. Screens & components
@@ -318,7 +318,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 ### 5.17 Admin — agreed
 
 - **Heading** "Admin".
-- **Design switch (new, temporary, §4):** above the section tabs, in its own dashed `line` frame — "Design on this device", a two-option pill track ("Current" / "Mixtape", selected on `tape`), and the line "Only this device. Everyone else sees Current." Stored in local storage only; never sent to the server. Removed in the cleanup PR. (Under the new default after the swap, the line reads accordingly or the switch is gone.)
+- **Design switch (new, temporary, §4):** above the section tabs, in its own dashed `line` frame — "Design on this device", a two-option pill track ("Current" / "Mixtape", selected on `tape`), and the line "Only this device. Everyone else sees Current." — "… sees Mixtape." from the swap. Stored in local storage only; never sent to the server. Removed in the cleanup PR.
 - **Section tabs** (Users / Communities / Settings): the pill track style, selected on `tape`.
 - **Users / Communities lists:** `surface` cards with divider rows; "Remove photo" and its sheet unchanged.
 - **Settings:** accent swatches show the **new** shades under Mixtape (selected swatch ringed in `ink`); banner and tagline as kit fields; history list unchanged in content.
@@ -431,3 +431,4 @@ None.
 | 2026-11-10 | `line` boundaries (fields, chips, dashed tiles) stay as specced although below 3:1                | Slice 2 accessibility review; developer's choice: labels and text identify the controls, and fields match the Current design |
 | 2026-11-10 | Welcome demo line "Spotify link → Apple Music" removed, not replaced                              | One conversion of many, not the app's essence; the admin tagline already says what the app is                                |
 | 2026-11-10 | Search results under Mixtape keep today's rows (no `FriendButton`); the button is a later feature | Slice 3: the search API returns no friendship state; adding it is a backend change, out of scope for a visual redesign       |
+| 2026-11-10 | Swap: `index.html` carries Mixtape's `data-design` and bar colours; Current is set at runtime     | Without it every load painted the Current canvas for a moment before the default design applied                              |

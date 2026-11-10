@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount } from '../support/flows';
+import { friendPage, onboardedAccount, openSearch } from '../support/flows';
 import { completeProfile, dashboardHeading, signIn } from '../support/flows';
 import { newGoogleAccount } from '../support/googleStandIn';
 
@@ -30,7 +30,7 @@ test('friends send a song directly, each on their own service, and rate it', asy
   await completeProfile(receiver, receiverAccount.displayName, 'Deezer');
   await expect(dashboardHeading(receiver)).toBeVisible();
 
-  await tab(page, 'Search').click();
+  await openSearch(page);
   await page.getByLabel('Search people').fill(receiverAccount.displayName);
   await page
     .getByRole('list', { name: 'Results' })
@@ -38,7 +38,7 @@ test('friends send a song directly, each on their own service, and rate it', asy
     .click();
   await page.getByRole('button', { name: 'Add Friend' }).click();
   await expect(page.getByRole('button', { name: 'Request sent' })).toBeVisible();
-  await tab(receiver, 'Search').click();
+  await openSearch(receiver);
   await tab(receiver, 'Friends, 1 waiting').click();
   await receiver.getByRole('button', { name: `Accept ${sender.displayName}` }).click();
   await expect(receiver.getByText(`You're now friends with ${sender.displayName}.`)).toBeVisible();
@@ -55,7 +55,7 @@ test('friends send a song directly, each on their own service, and rate it', asy
   // Assert — the receiver is notified on the Home tab (notifications.md §5.3: the
   // Friends badge counts only what waits for an answer), and finds the song in
   // their own service from the Recommendations row.
-  await tab(receiver, 'Search').click();
+  await openSearch(receiver);
   await expect(tab(receiver, /^Home, \d+ unread$/)).toBeVisible();
   await tab(receiver, 'Friends').click();
   await receiver.getByRole('link', { name: 'Recommendations, 1 new' }).click();
@@ -74,14 +74,14 @@ test('friends send a song directly, each on their own service, and rate it', asy
   const rating = receiver.getByRole('dialog', { name: 'Rate & Review' });
   await rating.getByRole('radio', { name: '8' }).click();
   await rating.getByRole('button', { name: 'Submit Rating' }).click();
-  await expect(card.getByText('You rated 8/10')).toBeVisible();
+  await expect(card.getByText('You: 8')).toBeVisible();
 
   // Assert — the sender finds the score under Sent, on their own service.
   await tab(page, /^Friends/).click();
   await page.getByRole('link', { name: 'Recommendations' }).click();
   await page.getByRole('button', { name: 'Sent' }).click();
   const sent = page.getByRole('article').filter({ hasText: 'Stand-in Song' });
-  await expect(sent.getByText(/★ 8/)).toBeVisible();
+  await expect(sent.getByLabel(/★ 8/)).toBeVisible();
   await expect(sent.getByRole('link', { name: 'Open in Apple Music' })).toHaveAttribute(
     'href',
     APPLE_LINK,

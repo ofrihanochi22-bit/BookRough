@@ -5,6 +5,8 @@ import {
   friendPage,
   joinThroughLink,
   onboardedAccount,
+  openComposer,
+  openSearch,
 } from '../support/flows';
 
 /**
@@ -18,10 +20,7 @@ const SHARED = 'https://open.spotify.com/track/5555555555555555555551';
 const postsOn = (page: Page) => page.getByRole('region', { name: 'Posts' }).getByRole('article');
 
 async function searchFor(page: Page, text: string) {
-  await page
-    .getByRole('navigation', { name: 'Main' })
-    .getByRole('link', { name: 'Search' })
-    .click();
+  await openSearch(page);
   await page.getByLabel('Search people').fill(text);
   return page.getByRole('list', { name: 'Results' });
 }
@@ -32,7 +31,7 @@ test('a member finds a friend by part of their name and sees their rating; a str
 }) => {
   // Arrange — A shares; B joins, saves and rates it 8 from My List.
   const link = await createCommunityAndReadLink(page, 'Discovery Club');
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   await expect(postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) })).toBeVisible();
@@ -61,11 +60,11 @@ test('a member finds a friend by part of their name and sees their rating; a str
   await expect(page.getByText('Listens on Apple Music')).toBeVisible();
   const ratings = page.getByRole('region', { name: 'Ratings' });
   const row = ratings.getByRole('link').filter({ hasText: 'Found you' });
-  await expect(row).toContainText('8/10');
+  await expect(row.getByRole('img', { name: '8/10' })).toBeVisible();
   await expect(row).toContainText('in Discovery Club');
   await row.click();
   await expect(page).toHaveURL(/\/posts\//);
-  await expect(page.getByRole('link', { name: '← Discovery Club' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Discovery Club', exact: true })).toBeVisible();
 
   // Act — a stranger, in no shared community, finds B by full name.
   const stranger = await friendPage(browser);

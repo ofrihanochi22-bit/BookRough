@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * Phase 4 golden loop, the "save for later" step — docs/features/bookmarks-my-list.md
@@ -15,7 +20,7 @@ const postsOn = (page: Page) => page.getByRole('region', { name: 'Posts' }).getB
 test('a friend saves a post, finds it in My List, and removes it', async ({ page, browser }) => {
   // Arrange — A owns the community and shares a link; B joins.
   const link = await createCommunityAndReadLink(page, 'Listen Later Club');
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   const ownCard = postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) });

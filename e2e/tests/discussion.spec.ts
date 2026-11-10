@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * The discussion's golden loop — docs/features/discussion-threads.md §7
@@ -22,7 +27,7 @@ test('a comment reaches the author through the bell, and their reply joins the t
   const link = await createCommunityAndReadLink(page, 'Talk Club');
   const friend = await friendPage(browser);
   await joinThroughLink(friend, link);
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   await expect(postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) })).toBeVisible();
@@ -30,7 +35,7 @@ test('a comment reaches the author through the bell, and their reply joins the t
   // Act — B opens the post and comments.
   await friend.reload();
   const card = postsOn(friend).filter({ has: friend.locator(`a[href="${SHARED}"]`) });
-  await card.getByRole('link', { name: 'View ratings' }).click();
+  await card.getByRole('link', { name: 'Comments' }).click();
   await discussion(friend).getByLabel('Add a comment').fill('Where did you find this?');
   await discussion(friend).getByRole('button', { name: 'Send' }).click();
   await expect(discussion(friend).getByText('Where did you find this?')).toBeVisible();
@@ -44,7 +49,11 @@ test('a comment reaches the author through the bell, and their reply joins the t
   // Act — A replies in the thread.
   await discussion(page).getByRole('button', { name: 'Reply' }).click();
   await discussion(page).getByLabel('Your reply').fill('A friend sent it to me');
-  await discussion(page).getByRole('button', { name: 'Send' }).nth(1).click();
+  await discussion(page)
+    .locator('form')
+    .filter({ has: page.getByLabel('Your reply') })
+    .getByRole('button', { name: 'Send' })
+    .click();
 
   // Assert — the reply is in the thread, and on B's screen after a reload.
   await expect(discussion(page).getByText('A friend sent it to me')).toBeVisible();

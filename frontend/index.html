@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-design="mixtape">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#151413" media="(prefers-color-scheme: dark)" />
+    <!-- Mixtape is the default design (docs/features/ui-redesign.md §6, slice 5):
+         its attribute and bar colours are here so the first paint matches;
+         DesignSync swaps both on a device switched to Current. -->
+    <meta name="theme-color" content="#ECEAF4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1B1A2E" media="(prefers-color-scheme: dark)" />
     <!-- Installable PWA (docs/features/pwa-installable.md §3.3). Safari reads the
          apple-* tags; no service worker until Step 6.2. -->
     <link rel="manifest" href="/manifest.webmanifest" />

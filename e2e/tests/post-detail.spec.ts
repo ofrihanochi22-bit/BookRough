@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * Phase 4 golden loop, the "see the feedback" step — docs/features/post-detail.md
@@ -18,7 +23,7 @@ test('the author sees a friend’s rating in Post Detail, and the friend edits i
 }) => {
   // Arrange — A shares; B joins, saves and rates it 8 from My List.
   const link = await createCommunityAndReadLink(page, 'Feedback Club');
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   const ownCard = postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) });
@@ -41,20 +46,22 @@ test('the author sees a friend’s rating in Post Detail, and the friend edits i
 
   // Act — A reloads the feed and opens the ratings.
   await page.reload();
-  await expect(ownCard.getByText('★ 8 · 1 rating')).toBeVisible();
-  await ownCard.getByRole('link', { name: 'View ratings' }).click();
+  // Under Mixtape the rating sticker on the cover carries the summary and leads to Post Detail.
+  const sticker = ownCard.getByRole('link', { name: '★ 8 · 1 rating' });
+  await expect(sticker).toBeVisible();
+  await sticker.click();
 
   // Assert — B's name, score and comment.
   const ratings = page.getByRole('region', { name: 'Ratings' });
   const row = ratings.getByRole('listitem').filter({ hasText: friendName });
-  await expect(row.getByText('8/10')).toBeVisible();
+  await expect(row.getByRole('img', { name: '8/10' })).toBeVisible();
   await expect(row.getByText('Still sounds fresh')).toBeVisible();
   await expect(row.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 
   // Act — B opens the same post and edits the rating to 9.
   await friend.goBack();
   await friend.reload();
-  await card.getByRole('link', { name: 'View ratings' }).click();
+  await card.getByRole('link', { name: /^★ 8/ }).click();
   await friend.getByRole('button', { name: 'Edit' }).click();
   const editSheet = friend.getByRole('dialog', { name: 'Edit your rating' });
   await editSheet.getByRole('radio', { name: '9' }).click();
@@ -62,9 +69,11 @@ test('the author sees a friend’s rating in Post Detail, and the friend edits i
 
   // Assert — updated for B, and for A after a reload.
   await expect(friend.getByText('Rating updated')).toBeVisible();
-  await expect(friend.getByRole('region', { name: 'Ratings' }).getByText('9/10')).toBeVisible();
+  await expect(
+    friend.getByRole('region', { name: 'Ratings' }).getByRole('img', { name: '9/10' }),
+  ).toBeVisible();
   await page.reload();
-  await expect(row.getByText('9/10')).toBeVisible();
+  await expect(row.getByRole('img', { name: '9/10' })).toBeVisible();
 
   await friend.context().close();
 });
