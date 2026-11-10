@@ -11,7 +11,7 @@ import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useRequest } from '../hooks/useRequest';
-import { membershipLine } from '../lib/communityCopy';
+import { membershipLine, sharedAt } from '../lib/communityCopy';
 import { isAdmin } from '../lib/communityRoles';
 import { NotFound } from './NotFound';
 
@@ -98,7 +98,12 @@ export function Community() {
               Settings
             </Link>
           </div>
-          <CommunityFeed communityId={community.data.id} onGone={markGone} />
+          {/* A post from the Share sheet remounts the feed (ui-redesign.md §5.0b). */}
+          <CommunityFeed
+            key={sharedAt(location.state)}
+            communityId={community.data.id}
+            onGone={markGone}
+          />
         </article>
       )}
 

@@ -1,10 +1,14 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
+import { useMixtape } from '../../stores/design';
+
 interface SheetProps {
   title: string;
   onClose: () => void;
   /** While false (an action is in flight), the backdrop and Escape do not close it. */
   dismissible?: boolean;
+  /** A sheet in steps: a back arrow before the title returns one step (ui-redesign.md §5.0b). */
+  onBack?: () => void;
   children: ReactNode;
 }
 
@@ -16,8 +20,9 @@ const FOCUSABLE =
  * Escape and the close button dismiss it; Tab stays inside while it is open;
  * focus returns to whatever opened it.
  */
-export function Sheet({ title, onClose, dismissible = true, children }: SheetProps) {
+export function Sheet({ title, onClose, dismissible = true, onBack, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
+  const mixtape = useMixtape();
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -70,7 +75,10 @@ export function Sheet({ title, onClose, dismissible = true, children }: SheetPro
 
   return (
     <div
-      className="fixed inset-0 z-20 flex items-end justify-center bg-ink/40 sm:items-center"
+      className={`fixed inset-0 z-20 flex items-end justify-center sm:items-center ${
+        // Mixtape: a dark wash in both schemes (ink is cream in dark mode).
+        mixtape ? 'bg-black/50' : 'bg-ink/40'
+      }`}
       onClick={close}
     >
       <div
@@ -80,10 +88,43 @@ export function Sheet({ title, onClose, dismissible = true, children }: SheetPro
         aria-label={title}
         onKeyDown={handleKeyDown}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-md rounded-t-2xl bg-surface px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:rounded-2xl sm:pb-6"
+        className={`w-full max-w-md bg-surface px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 ${
+          mixtape
+            ? 'mixtape-sheet-in max-h-[92vh] overflow-y-auto rounded-t-[22px] pt-2 sm:rounded-[22px]'
+            : 'rounded-t-2xl pt-4 sm:rounded-2xl'
+        }`}
       >
+        {mixtape && (
+          <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
+        )}
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="font-display text-xl font-medium">{title}</h2>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={!dismissible}
+              aria-label="Back"
+              className="-ml-3 flex size-11 shrink-0 items-center justify-center rounded-full text-muted"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M15 5l-7 7 7 7" />
+              </svg>
+            </button>
+          )}
+          <h2
+            className={`font-display text-xl ${mixtape ? 'min-w-0 flex-1 font-bold' : 'font-medium'}`}
+          >
+            {title}
+          </h2>
           <button
             type="button"
             onClick={close}

@@ -9,12 +9,23 @@ interface PostComposerProps {
   onPosted: (post: PublicPost) => void;
   /** The community vanished or the caller was removed (404). */
   onGone: () => void;
+  /** While true a post is converting: a sheet around the composer must not close. */
+  onBusyChange?: (busy: boolean) => void;
+  /** Inside a sheet (the Share sheet), which is already the frame: no card of its own. */
+  bare?: boolean;
 }
 
 const NETWORK_ERROR = "Couldn't post. Check your connection and try again.";
 
 /** Paste a link, optionally comment, Post — docs/features/posts-feed.md §5.2. */
-export function PostComposer({ communityId, online, onPosted, onGone }: PostComposerProps) {
+export function PostComposer({
+  communityId,
+  online,
+  onPosted,
+  onGone,
+  onBusyChange,
+  bare = false,
+}: PostComposerProps) {
   async function share(input: NewPost): Promise<LinkFormOutcome> {
     try {
       onPosted(await createPost(communityId, input));
@@ -47,7 +58,8 @@ export function PostComposer({ communityId, online, onPosted, onGone }: PostComp
       submitLabel="Post"
       online={online}
       submit={share}
-      className="rounded-2xl border border-line bg-surface p-4"
+      onBusyChange={onBusyChange}
+      className={bare ? '' : 'rounded-2xl border border-line bg-surface p-4'}
     />
   );
 }

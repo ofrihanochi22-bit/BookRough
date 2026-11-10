@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
-import { httpError, makePendingPost, makePost, networkError } from '../test/fixtures';
+import { httpError, makePendingPost, makePost, networkError, setDesign } from '../test/fixtures';
 import { RatingSheet } from './RatingSheet';
 
 const { ratePost, editRating, toastSuccess, toastError } = vi.hoisted(() => ({
@@ -278,5 +278,223 @@ describe('RatingSheet editing (post-detail.md §5.2)', () => {
     // Assert
     await vi.waitFor(() => expect(onStale).toHaveBeenCalled());
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('RatingSheet under Mixtape — one row of ten stars (ui-redesign.md §5.10)', () => {
+  beforeEach(() => setDesign('mixtape'));
+  afterEach(() => setDesign('current'));
+
+  const star = (score: number) => screen.getByRole('radio', { name: `${score} out of 10` });
+  const readout = () => screen.getByTestId('score-readout');
+
+  /** jsdom has no PointerEvent: a MouseEvent of the pointer type carries clientX to React. */
+  function pointer(target: HTMLElement, type: string, clientX: number) {
+    fireEvent(target, new MouseEvent(type, { bubbles: true, clientX }));
+  }
+
+  /** A 300px-wide row starting at x=0: each star is 30px. */
+  function measureRow() {
+    const row = screen.getByRole('radiogroup', { name: 'Your score' });
+    row.getBoundingClientRect = () =>
+      ({ left: 0, width: 300, top: 0, height: 44, right: 300, bottom: 44 }) as DOMRect;
+    return row;
+  }
+
+  it('shows ten star radios in a radiogroup, nothing chosen, Submit disabled', () => {
+    // Act
+    renderSheet();
+
+    // Assert
+    expect(screen.getByRole('radiogroup', { name: 'Your score' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(10);
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).toHaveAttribute('aria-checked', 'false');
+    }
+    expect(readout()).toHaveTextContent('–/10');
+    expect(submit()).toBeDisabled();
+  });
+
+  it('tapping star N checks N, fills stars 1..N and shows "N/10"', async () => {
+    // Arrange
+    renderSheet();
+
+    // Act
+    await userEvent.click(star(7));
+
+    // Assert
+    expect(star(7)).toHaveAttribute('aria-checked', 'true');
+    expect(star(6)).toHaveAttribute('aria-checked', 'false');
+    expect(readout()).toHaveTextContent('7/10');
+    expect(star(7).querySelector('svg')!.getAttribute('class')).toContain('fill-sticker');
+    expect(star(8).querySelector('svg')!.getAttribute('class')).toContain('fill-none');
+    // Unfilled outlines in muted, not line: they must read at 3:1 (accessibility review).
+    expect(star(8).querySelector('svg')!.getAttribute('class')).toContain('stroke-muted');
+    expect(submit()).toBeEnabled();
+    expect(submit().className).toContain('bg-sticker');
+  });
+
+  it('arrow keys move the choice, within 1 and 10', async () => {
+    // Arrange
+    renderSheet();
+    await userEvent.click(star(9));
+
+    // Act
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
+
+    // Assert
+    expect(star(10)).toHaveAttribute('aria-checked', 'true');
+    expect(star(10)).toHaveFocus();
+
+    // Act
+    await userEvent.keyboard('{ArrowLeft}{ArrowDown}');
+
+    // Assert
+    expect(star(8)).toHaveAttribute('aria-checked', 'true');
+    expect(readout()).toHaveTextContent('8/10');
+
+    // Act
+    await userEvent.keyboard('{Home}');
+
+    // Assert
+    expect(star(1)).toHaveAttribute('aria-checked', 'true');
+
+    // Act
+    await userEvent.keyboard('{ArrowLeft}{End}');
+
+    // Assert
+    expect(star(10)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('is one tab stop: the chosen star, or the first before a choice', async () => {
+    // Arrange
+    renderSheet();
+
+    // Assert
+    expect(star(1)).toHaveAttribute('tabindex', '0');
+    expect(star(5)).toHaveAttribute('tabindex', '-1');
+
+    // Act
+    await userEvent.click(star(5));
+
+    // Assert
+    expect(star(5)).toHaveAttribute('tabindex', '0');
+    expect(star(1)).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('a drag across the row sets the score continuously; release keeps it', () => {
+    // Arrange
+    renderSheet();
+    const row = measureRow();
+
+    // Act: down on star 2.
+    pointer(row, 'pointerdown', 45);
+
+    // Assert
+    expect(readout()).toHaveTextContent('2/10');
+
+    // Act: drag to star 6.
+    pointer(row, 'pointermove', 175);
+
+    // Assert
+    expect(star(6)).toHaveAttribute('aria-checked', 'true');
+
+    // Act: past the end clamps to 10; after release, moving changes nothing.
+    pointer(row, 'pointermove', 999);
+    pointer(row, 'pointerup', 999);
+    pointer(row, 'pointermove', 15);
+
+    // Assert
+    expect(star(10)).toHaveAttribute('aria-checked', 'true');
+    expect(readout()).toHaveTextContent('10/10');
+  });
+
+  it('edit mode starts at the existing score', () => {
+    // Act
+    render(
+      <RatingSheet
+        post={makePost()}
+        online
+        onClose={vi.fn()}
+        onDone={vi.fn()}
+        editing={{ score: 4, comment: 'Fine' }}
+      />,
+    );
+
+    // Assert
+    expect(star(4)).toHaveAttribute('aria-checked', 'true');
+    expect(readout()).toHaveTextContent('4/10');
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+  });
+
+  it('submits the chosen score through the same API', async () => {
+    // Arrange
+    ratePost.mockResolvedValue(undefined);
+    const { onDone } = renderSheet();
+    await userEvent.click(star(3));
+
+    // Act
+    await userEvent.click(submit());
+
+    // Assert
+    expect(ratePost).toHaveBeenCalledWith(makePost().id, { score: 3, comment: null });
+    expect(onDone).toHaveBeenCalledWith(makePost().id);
+  });
+
+  it('Submit is dashed and disabled offline', async () => {
+    // Arrange
+    renderSheet(makePost(), false);
+
+    // Act
+    await userEvent.click(star(6));
+
+    // Assert
+    expect(submit()).toBeDisabled();
+    expect(submit().className).toContain('border-dashed');
+  });
+
+  it('Submit stays disabled with a comment error, which shows below the field', async () => {
+    // Arrange
+    renderSheet();
+    await userEvent.click(star(6));
+
+    // Act
+    fireEvent.change(comment(), { target: { value: 'x'.repeat(281) } });
+
+    // Assert
+    expect(submit()).toBeDisabled();
+    expect(comment()).toHaveAttribute('aria-invalid', 'true');
+    expect(comment().className).toContain('border-danger');
+  });
+
+  it('shows the existing error message inline on a network failure', async () => {
+    // Arrange
+    ratePost.mockRejectedValue(networkError());
+    renderSheet();
+    await userEvent.click(star(6));
+
+    // Act
+    await userEvent.click(submit());
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't submit your rating. Check your connection and try again.",
+    );
+    expect(star(6)).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('ignores the pointer while busy', async () => {
+    // Arrange
+    ratePost.mockReturnValue(new Promise(() => {}));
+    renderSheet();
+    await userEvent.click(star(6));
+    await userEvent.click(submit());
+    const row = measureRow();
+
+    // Act
+    pointer(row, 'pointerdown', 15);
+
+    // Assert
+    expect(readout()).toHaveTextContent('6/10');
   });
 });

@@ -1,3 +1,4 @@
+import { useMixtape } from '../../stores/design';
 import { avatarHue, initials } from './avatarParts';
 
 interface CommunityCoverProps {
@@ -14,12 +15,97 @@ const SIZES = {
   banner: 'h-32 text-4xl',
 } as const;
 
+/** The stripe band's two tones: the community's own hue, or neutral greys before it exists. */
+function stripeColors(hue: number | null): [string, string] {
+  return hue === null
+    ? ['hsl(240 6% 70%)', 'hsl(240 6% 55%)']
+    : [`hsl(${hue} 72% 58%)`, `hsl(${hue} 60% 40%)`];
+}
+
+function StripeBand({ hue, className }: { hue: number | null; className: string }) {
+  const [light, dark] = stripeColors(hue);
+  return (
+    <div data-testid="cover-stripe" className={`flex flex-col ${className}`}>
+      <span className="flex-1" style={{ backgroundColor: light }} />
+      <span className="flex-1" style={{ backgroundColor: dark }} />
+    </div>
+  );
+}
+
+/** The dark window with two reels — still: covers are pictures, not loaders. */
+function ReelWindow({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 64 24" className={className}>
+      <rect width="64" height="24" rx="12" className="fill-tape-ink" />
+      {[18, 46].map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy="12" r="7.5" className="fill-tape" />
+          <circle cx={cx} cy="12" r="2.75" className="fill-sticker" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * The Mixtape cover is a cassette (ui-redesign.md §3.5): a `tape` label with a
+ * stripe band in the community's deterministic hue, the name in the heading
+ * face (two lines, then an ellipsis) and two reels. In light mode the label
+ * gets a 2px `tape-ink` outline.
+ */
+function CassetteCover({ id, name, variant }: CommunityCoverProps) {
+  const hue = id ? avatarHue(id) : null;
+  const frame =
+    'overflow-hidden rounded-xl bg-tape text-tape-ink ring-2 ring-tape-ink ring-inset dark:ring-0';
+
+  if (variant === 'thumb') {
+    return (
+      <div
+        aria-hidden="true"
+        data-testid="community-cover"
+        className={`flex h-11 w-full flex-col ${frame} rounded-lg`}
+      >
+        <StripeBand hue={hue} className="h-3" />
+        <div className="flex flex-1 items-center justify-center">
+          <ReelWindow className="w-9" />
+        </div>
+      </div>
+    );
+  }
+
+  const banner = variant === 'banner';
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="community-cover"
+      className={`flex w-full flex-col ${frame}`}
+    >
+      <StripeBand hue={hue} className={banner ? 'h-5' : 'h-3'} />
+      <div className={`flex items-center gap-4 ${banner ? 'px-5 py-4' : 'px-4 py-3'}`}>
+        <p
+          className={`line-clamp-2 min-w-0 flex-1 break-words font-display font-bold tracking-[-0.01em] ${
+            banner ? 'text-2xl' : 'text-lg'
+          }`}
+        >
+          {name.trim() || '♪'}
+        </p>
+        <ReelWindow className={banner ? 'w-24 shrink-0' : 'w-16 shrink-0'} />
+      </div>
+    </div>
+  );
+}
+
 /**
  * The generated community cover (CLAUDE.md §8): initials over a colour derived
- * from the id, from the same generator as user avatars. Always decorative —
- * the name is printed next to it wherever it appears.
+ * from the id, from the same generator as user avatars — a cassette under
+ * Mixtape. Always decorative — the name is printed next to it wherever it appears.
  */
 export function CommunityCover({ id, name, variant }: CommunityCoverProps) {
+  const mixtape = useMixtape();
+  if (mixtape) {
+    return <CassetteCover id={id} name={name} variant={variant} />;
+  }
+
   const letters = name.trim().length > 0 ? initials(name) : '♪';
   const hue = id ? avatarHue(id) : null;
 
