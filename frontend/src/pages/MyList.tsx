@@ -10,13 +10,16 @@ import {
 import { RatingSheet } from '../components/RatingSheet';
 import { SavedPostCard } from '../components/SavedPostCard';
 import { Button } from '../components/ui/Button';
+import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { REMOVE_FAILED, REMOVED } from '../lib/bookmarkCopy';
 import { useAuthStore } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 
 /** Changes made on this screen since the first page loaded. */
 interface LocalChanges {
@@ -26,6 +29,9 @@ interface LocalChanges {
   more: SavedPost[];
   nextCursor: string | null;
 }
+
+const EMPTY_TITLE = 'Nothing saved yet';
+const EMPTY_BODY = "Tap the bookmark on a friend's song to save it here.";
 
 function fresh(page: SavedPostsPage): LocalChanges {
   return { page, removed: [], more: [], nextCursor: page.nextCursor };
@@ -44,6 +50,7 @@ export function MyList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [rating, setRating] = useState<SavedPost | null>(null);
+  const mixtape = useMixtape();
 
   // Local changes belong to the page they were made on; a reload starts over.
   const changes =
@@ -107,7 +114,12 @@ export function MyList() {
 
   return (
     <ScreenLayout>
-      <h1 className="font-display text-2xl font-medium">My List</h1>
+      {mixtape && <TopBar />}
+      <h1
+        className={`font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
+      >
+        My List
+      </h1>
       <p className="mb-6 mt-1 text-sm text-muted">Songs you saved to listen later.</p>
 
       <div className="flex flex-col gap-4">
@@ -129,14 +141,16 @@ export function MyList() {
           <LoadError message="Couldn't load your list." onRetry={first.reload} />
         )}
 
-        {changes && items.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">Nothing saved yet</p>
-            <p className="mt-1 text-sm text-muted">
-              Tap the bookmark on a friend&apos;s song to save it here.
-            </p>
-          </div>
-        )}
+        {changes &&
+          items.length === 0 &&
+          (mixtape ? (
+            <KitEmptyState title={EMPTY_TITLE}>{EMPTY_BODY}</KitEmptyState>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+              <p className="font-medium">{EMPTY_TITLE}</p>
+              <p className="mt-1 text-sm text-muted">{EMPTY_BODY}</p>
+            </div>
+          ))}
 
         {items.map((item) => (
           <SavedPostCard

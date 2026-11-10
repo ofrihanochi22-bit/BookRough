@@ -6,6 +6,8 @@ import {
   MAX_GRAPHEMES,
   MIN_GRAPHEMES,
 } from '../lib/displayName';
+import { useMixtape } from '../stores/design';
+import { fieldClass } from './ui/field';
 
 interface DisplayNameFieldProps {
   value: string;
@@ -21,6 +23,7 @@ interface DisplayNameFieldProps {
  * §6 the same way.
  */
 export function DisplayNameField({ value, onChange, status, submitVerb }: DisplayNameFieldProps) {
+  const mixtape = useMixtape();
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
@@ -39,7 +42,11 @@ export function DisplayNameField({ value, onChange, status, submitVerb }: Displa
         autoComplete="nickname"
         aria-describedby="display-name-status"
         aria-invalid={isBad(status)}
-        className="min-h-11 rounded-xl border border-line bg-surface px-4 text-base text-ink outline-none focus:border-accent"
+        className={
+          mixtape
+            ? `min-h-11 ${fieldClass(true, isBad(status))}`
+            : 'min-h-11 rounded-xl border border-line bg-surface px-4 text-base text-ink outline-none focus:border-accent'
+        }
       />
       <NameStatusLine status={status} submitVerb={submitVerb} />
     </div>
