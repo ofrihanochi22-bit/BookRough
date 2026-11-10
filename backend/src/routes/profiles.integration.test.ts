@@ -21,7 +21,7 @@ const app = createApp();
 
 const TRACK = 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv';
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000';
-const MEMBER_USER_KEYS = ['displayName', 'id', 'profilePictureUrl'];
+const SEARCH_USER_KEYS = ['displayName', 'friendship', 'id', 'profilePictureUrl'];
 
 interface Person {
   id: string;
@@ -96,6 +96,92 @@ afterAll(async () => {
 });
 
 describe('GET /api/users/search', () => {
+  const friendshipsIn = (body: {
+    data: { users: Array<{ displayName: string; friendship: string }> };
+  }) => Object.fromEntries(body.data.users.map((user) => [user.displayName, user.friendship]));
+
+  it("200: each result carries the viewer's friendship, from either side (search-friend-button.md §4)", async () => {
+    // Arrange
+    const viewer = await person('sub-viewer', 'Fp Viewer');
+    await person('sub-1', 'Fp Stranger');
+    const asked = await person('sub-2', 'Fp Asked');
+    const asker = await person('sub-3', 'Fp Asker');
+    const friendA = await person('sub-4', 'Fp Friend A');
+    const friendB = await person('sub-5', 'Fp Friend B');
+    await prisma.friend.createMany({
+      data: [
+        { requesterId: viewer.id, addresseeId: asked.id },
+        { requesterId: asker.id, addresseeId: viewer.id },
+        { requesterId: viewer.id, addresseeId: friendA.id, status: 'ACCEPTED' },
+        { requesterId: friendB.id, addresseeId: viewer.id, status: 'ACCEPTED' },
+      ],
+    });
+
+    // Act
+    const response = await search(viewer, 'fp');
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(friendshipsIn(response.body)).toEqual({
+      'Fp Viewer': 'NONE',
+      'Fp Stranger': 'NONE',
+      'Fp Asked': 'REQUEST_SENT',
+      'Fp Asker': 'REQUEST_RECEIVED',
+      'Fp Friend A': 'FRIENDS',
+      'Fp Friend B': 'FRIENDS',
+    });
+  });
+
+  it('200: never shows a relation between two other people', async () => {
+    // Arrange: Dana and Noam are friends; Yael asked Noam.
+    const viewer = await person('sub-viewer', 'Viewer');
+    const dana = await person('sub-1', 'Fp Dana');
+    const noam = await person('sub-2', 'Fp Noam');
+    const yael = await person('sub-3', 'Fp Yael');
+    await prisma.friend.createMany({
+      data: [
+        { requesterId: dana.id, addresseeId: noam.id, status: 'ACCEPTED' },
+        { requesterId: yael.id, addresseeId: noam.id },
+      ],
+    });
+
+    // Act
+    const response = await search(viewer, 'fp');
+
+    // Assert
+    expect(friendshipsIn(response.body)).toEqual({
+      'Fp Dana': 'NONE',
+      'Fp Noam': 'NONE',
+      'Fp Yael': 'NONE',
+    });
+  });
+
+  it('200: an ignored request and a removed friend read as NONE', async () => {
+    // Arrange
+    const viewer = await person('sub-viewer', 'Viewer');
+    const asker = await person('sub-1', 'Fp Asker');
+    const friend = await person('sub-2', 'Fp Friend');
+    await prisma.friend.createMany({
+      data: [
+        { requesterId: asker.id, addresseeId: viewer.id },
+        { requesterId: viewer.id, addresseeId: friend.id, status: 'ACCEPTED' },
+      ],
+    });
+    const ignored = await request(app)
+      .post(`/api/friends/requests/${asker.id}/ignore`)
+      .set('Cookie', viewer.cookie);
+    const removed = await request(app)
+      .delete(`/api/friends/${friend.id}`)
+      .set('Cookie', viewer.cookie);
+
+    // Act
+    const response = await search(viewer, 'fp');
+
+    // Assert
+    expect([ignored.status, removed.status]).toEqual([200, 200]);
+    expect(friendshipsIn(response.body)).toEqual({ 'Fp Asker': 'NONE', 'Fp Friend': 'NONE' });
+  });
+
   it('200: part of a name, ignoring case and accents, starts-with first, each a MemberUser', async () => {
     // Arrange
     const viewer = await person('sub-viewer', 'Ofri');
@@ -113,7 +199,7 @@ describe('GET /api/users/search', () => {
     const users = response.body.data.users as Array<Record<string, unknown>>;
     expect(users.map((user) => user.displayName)).toEqual(['Dana Levi', 'Daní Cohen', 'Jordan']);
     for (const user of users) {
-      expect(Object.keys(user).sort()).toEqual(MEMBER_USER_KEYS);
+      expect(Object.keys(user).sort()).toEqual(SEARCH_USER_KEYS);
     }
   });
 
@@ -127,7 +213,7 @@ describe('GET /api/users/search', () => {
 
     // Assert
     expect(response.body.data.users).toEqual([
-      { id: viewer.id, displayName: 'Dana', profilePictureUrl: null },
+      { id: viewer.id, displayName: 'Dana', profilePictureUrl: null, friendship: 'NONE' },
     ]);
   });
 

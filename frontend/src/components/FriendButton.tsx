@@ -28,10 +28,17 @@ interface FriendButtonProps {
   onStale: () => void;
   /** Classes for the visible button, e.g. its share of the Mixtape action row. */
   className?: string;
+  /**
+   * `row`: a search result's control, where Add Friend and Respond are the
+   * accent pill under Mixtape too (search-friend-button.md §5.2). `profile`
+   * keeps them secondary beside "Send a song" (ui-redesign.md §5.6).
+   */
+  emphasis?: 'profile' | 'row';
 }
 
 /**
- * The Public Profile's friend control — docs/features/friend-requests.md §5.3:
+ * The friend control on the Public Profile and on each Global Search result
+ * (search-friend-button.md §5) — docs/features/friend-requests.md §5.3:
  * Add Friend, Request sent (cancel in a sheet), Respond (Accept / Ignore in a
  * sheet), or Friends (remove in a sheet, docs/features/unfriend.md §5.3).
  */
@@ -43,11 +50,12 @@ export function FriendButton({
   onChanged,
   onStale,
   className = '',
+  emphasis = 'profile',
 }: FriendButtonProps) {
   const refreshCount = useFriendRequests((state) => state.refresh);
-  // Mixtape: a secondary pill in every state, beside "Send a song" (ui-redesign.md §5.6).
+  // Mixtape profile: a secondary pill in every state, beside "Send a song" (ui-redesign.md §5.6).
   const mixtape = useMixtape();
-  const mainVariant = mixtape ? 'secondary' : 'primary';
+  const mainVariant = mixtape && emphasis === 'profile' ? 'secondary' : 'primary';
   const offline = mixtape && !online;
   const [busy, setBusy] = useState<'send' | 'cancel' | 'accept' | 'ignore' | null>(null);
   const [sheet, setSheet] = useState<'sent' | 'respond' | 'remove' | null>(null);

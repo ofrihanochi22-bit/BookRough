@@ -84,14 +84,14 @@
 ### UC-6: User Sends Friendship Request
 
 - **Description:** A user initiates a connection with another individual on the platform by sending them a friend request.
-- **Pre-conditions:** The user is logged in, has navigated to the profile of a user they are not currently friends with, and no pending request already exists between them.
+- **Pre-conditions:** The user is logged in, has found a user they are not currently friends with — on that user's profile or in Global Search results — and no pending request already exists between them.
 - **Post-conditions:** A pending relationship status is created in the database, and a notification is dispatched to the receiving user.
-- **Trigger:** The user clicks or taps the "Add Friend" button on another user's profile.
+- **Trigger:** The user clicks or taps the "Add Friend" button on another user's profile, or beside their name in Global Search results (`docs/features/search-friend-button.md`).
 - **Step-by-step scenario (Success):**
-  - The user views the profile of a non-friend user.
+  - The user views the profile of a non-friend user, or finds them in Global Search.
   - The user taps the "Add Friend" button.
   - The system creates a pending request record in the database linking the two user IDs.
-  - The UI updates the button from "Add Friend" to "Request sent". If the target had already sent the user a request, it is accepted instead and both become friends. The sender may cancel a pending request from the same profile.
+  - The UI updates the button from "Add Friend" to "Request sent". If the target had already sent the user a request, it is accepted instead and both become friends. The sender may cancel a pending request from the same profile or search result.
   - The target user sees a badge counting pending requests on the Friends tab — the in-app notification; a log-only stub marks where a push channel would plug in (`docs/features/friend-requests.md`).
 - **Fail description (Alternative Scenario):** The target account no longer exists or has not finished onboarding: the request is refused with "User not found." Any signed-in user may send a request to anyone else — there are no privacy settings and no blocking (withdrawn by decision, `docs/features/friend-requests.md` §10); an unwanted request is ignored (UC-7).
 
@@ -100,7 +100,7 @@
 - **Description:** A user responds to an incoming friend request by either accepting the connection or dismissing (ignoring) it.
 - **Pre-conditions:** The user is logged in and has at least one unresolved, pending friend request in their notifications or dedicated "Friends" tab.
 - **Post-conditions:** If accepted, the database updates the relationship status to "Friends" for both users. If ignored, the pending request is deleted from the database; the sender is not told, sees "Add Friend" again, and may send a new request. The Friends tab badge drops in both cases.
-- **Trigger:** The user taps either the "Accept" or "Ignore" button associated with a specific friend request.
+- **Trigger:** The user taps either the "Accept" or "Ignore" button associated with a specific friend request — on the Friends tab, or in the sheet that "Respond" opens on the requester's profile or Global Search result.
 - **Step-by-step scenario (Success - Accept):**
   - The user opens the Friends tab, whose badge counts pending requests; requests are listed first, newest first.
   - The user taps the "Accept" button next to a requester's name.

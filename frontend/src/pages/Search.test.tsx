@@ -3,25 +3,55 @@ import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SearchResults } from '../api/profiles';
+import type { SearchResults, SearchUser } from '../api/profiles';
+import { ACTION_FAILED, REQUEST_SENT } from '../lib/friendCopy';
 import { SEARCH_EMPTY, SEARCH_FAILED, SEARCH_HINT, SEARCH_MORE } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
-import { makeSession, makeUser, networkError, resetAuthStore, setOnline } from '../test/fixtures';
+import {
+  httpError,
+  makeSession,
+  makeUser,
+  networkError,
+  resetAuthStore,
+  setDesign,
+  setOnline,
+} from '../test/fixtures';
 import { Search } from './Search';
 
-const { searchUsers } = vi.hoisted(() => ({ searchUsers: vi.fn() }));
+const { searchUsers, friends, toast } = vi.hoisted(() => ({
+  searchUsers: vi.fn(),
+  friends: {
+    sendFriendRequest: vi.fn(),
+    cancelFriendRequest: vi.fn(),
+    acceptFriendRequest: vi.fn(),
+    ignoreFriendRequest: vi.fn(),
+    countFriendRequests: vi.fn(),
+    removeFriend: vi.fn(),
+  },
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 vi.mock('../api/profiles', () => ({ searchUsers }));
+vi.mock('../api/friends', () => friends);
+vi.mock('react-hot-toast', () => ({ default: toast }));
 
 const VIEWER = makeUser();
-const DANA = {
+const DANA: SearchUser = {
   id: 'b1d7c2e4-1a2b-4c3d-8e9f-0a1b2c3d4e5f',
   displayName: 'Dana Levi',
   profilePictureUrl: null,
+  friendship: 'NONE',
 };
-const DANIEL = {
+const DANIEL: SearchUser = {
   id: 'c2e8d3f5-2b3c-4d4e-9f0a-1b2c3d4e5f60',
   displayName: 'Daniel Cohen',
   profilePictureUrl: null,
+  friendship: 'NONE',
+};
+const ME: SearchUser = {
+  id: VIEWER.id,
+  displayName: 'Ofri',
+  profilePictureUrl: null,
+  friendship: 'NONE',
 };
 
 function found(users: SearchResults['users'], hasMore = false): SearchResults {
@@ -67,6 +97,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  friends.countFriendRequests.mockResolvedValue(0);
   setOnline(true);
   useAuthStore.getState().setSession(makeSession({ user: VIEWER }));
 });
@@ -127,9 +158,7 @@ describe('Search', () => {
 
   it('marks your own row "You" and links it to My Profile', async () => {
     // Arrange
-    searchUsers.mockResolvedValue(
-      found([{ id: VIEWER.id, displayName: 'Ofri', profilePictureUrl: null }]),
-    );
+    searchUsers.mockResolvedValue(found([ME]));
 
     // Act
     renderSearch('/search?q=ofri');
@@ -237,5 +266,207 @@ describe('Search', () => {
     expect(await screen.findByText('Dana Levi')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent("You're offline. Connect to search.");
     expect(field()).toBeDisabled();
+  });
+});
+
+/** The result row of the person with this name. */
+const row = (name: string) => within(screen.getByText(name).closest('li')!);
+
+describe('Search — the friend control on each row (search-friend-button.md §5.1)', () => {
+  afterEach(() => setDesign('current'));
+
+  it('shows the control for each state, a quiet label for friends, and none on your own row', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(
+      found([
+        ME,
+        { ...DANA, displayName: 'A Stranger', id: 'a0000000-0000-4000-8000-000000000001' },
+        {
+          ...DANA,
+          displayName: 'B Asked',
+          id: 'a0000000-0000-4000-8000-000000000002',
+          friendship: 'REQUEST_SENT',
+        },
+        {
+          ...DANA,
+          displayName: 'C Asker',
+          id: 'a0000000-0000-4000-8000-000000000003',
+          friendship: 'REQUEST_RECEIVED',
+        },
+        {
+          ...DANA,
+          displayName: 'D Friend',
+          id: 'a0000000-0000-4000-8000-000000000004',
+          friendship: 'FRIENDS',
+        },
+      ]),
+    );
+
+    // Act
+    renderSearch('/search?q=a');
+    await screen.findByRole('list', { name: 'Results' });
+
+    // Assert
+    expect(row('A Stranger').getByRole('button', { name: 'Add Friend' })).toBeEnabled();
+    expect(row('B Asked').getByRole('button', { name: 'Request sent' })).toBeEnabled();
+    expect(row('C Asker').getByRole('button', { name: 'Respond' })).toBeEnabled();
+    expect(row('D Friend').queryByRole('button')).not.toBeInTheDocument();
+    expect(row('D Friend').getByText('Friends')).toBeInTheDocument();
+    expect(within(screen.getByText('· You').closest('li')!).queryByRole('button')).toBeNull();
+  });
+
+  it('Add Friend sends the request and the row becomes Request sent, without searching again', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(found([DANA, DANIEL]));
+    friends.sendFriendRequest.mockResolvedValue('REQUEST_SENT');
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Act
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Add Friend' }));
+
+    // Assert
+    expect(friends.sendFriendRequest).toHaveBeenCalledWith(DANA.id);
+    expect(toast.success).toHaveBeenCalledWith(REQUEST_SENT);
+    expect(row('Dana Levi').getByRole('button', { name: 'Request sent' })).toBeInTheDocument();
+    expect(row('Daniel Cohen').getByRole('button', { name: 'Add Friend' })).toBeInTheDocument();
+    expect(searchUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('Respond then Accept makes the row Friends; Respond then Ignore makes it Add Friend', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(
+      found([
+        { ...DANA, friendship: 'REQUEST_RECEIVED' },
+        { ...DANIEL, friendship: 'REQUEST_RECEIVED' },
+      ]),
+    );
+    friends.acceptFriendRequest.mockResolvedValue(undefined);
+    friends.ignoreFriendRequest.mockResolvedValue(undefined);
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Act
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Respond' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }));
+    await userEvent.click(row('Daniel Cohen').getByRole('button', { name: 'Respond' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ignore' }));
+
+    // Assert
+    expect(friends.acceptFriendRequest).toHaveBeenCalledWith(DANA.id);
+    expect(row('Dana Levi').queryByRole('button')).not.toBeInTheDocument();
+    expect(row('Dana Levi').getByText('Friends')).toBeInTheDocument();
+    expect(friends.ignoreFriendRequest).toHaveBeenCalledWith(DANIEL.id);
+    expect(row('Daniel Cohen').getByRole('button', { name: 'Add Friend' })).toBeInTheDocument();
+  });
+
+  it('Request sent then Cancel request makes the row Add Friend', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(found([{ ...DANA, friendship: 'REQUEST_SENT' }]));
+    friends.cancelFriendRequest.mockResolvedValue('NONE');
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Act
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Request sent' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel request' }));
+
+    // Assert
+    expect(friends.cancelFriendRequest).toHaveBeenCalledWith(DANA.id);
+    expect(row('Dana Levi').getByRole('button', { name: 'Add Friend' })).toBeInTheDocument();
+  });
+
+  it('a failed send shows the failure toast and the row keeps Add Friend', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(found([DANA]));
+    friends.sendFriendRequest.mockRejectedValue(networkError());
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Act
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Add Friend' }));
+
+    // Assert
+    expect(toast.error).toHaveBeenCalledWith(ACTION_FAILED);
+    expect(row('Dana Levi').getByRole('button', { name: 'Add Friend' })).toBeEnabled();
+  });
+
+  it('an Accept answered 404 shows the message and searches again for the true state', async () => {
+    // Arrange
+    searchUsers
+      .mockResolvedValueOnce(found([{ ...DANA, friendship: 'REQUEST_RECEIVED' }]))
+      .mockResolvedValueOnce(found([DANA]));
+    friends.acceptFriendRequest.mockRejectedValue(
+      httpError(404, 'This request is no longer available.'),
+    );
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Act
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Respond' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Accept' }));
+
+    // Assert
+    expect(toast.error).toHaveBeenCalledWith('This request is no longer available.');
+    await waitFor(() => expect(searchUsers).toHaveBeenCalledTimes(2));
+    expect(await row('Dana Levi').findByRole('button', { name: 'Add Friend' })).toBeInTheDocument();
+  });
+
+  it('a new search starts from its own answer, not an earlier row change', async () => {
+    // Arrange
+    searchUsers
+      .mockResolvedValueOnce(found([DANA]))
+      .mockResolvedValueOnce(found([{ ...DANA, friendship: 'FRIENDS' }]));
+    friends.sendFriendRequest.mockResolvedValue('REQUEST_SENT');
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+    await userEvent.click(row('Dana Levi').getByRole('button', { name: 'Add Friend' }));
+
+    // Act
+    await userEvent.type(field(), 'a');
+
+    // Assert
+    await waitFor(() => expect(searchUsers).toHaveBeenCalledWith('dana'));
+    expect(await row('Dana Levi').findByText('Friends')).toBeInTheDocument();
+  });
+
+  it('disables every control offline', async () => {
+    // Arrange
+    searchUsers.mockResolvedValue(found([DANA, { ...DANIEL, friendship: 'REQUEST_RECEIVED' }]));
+    setOnline(false);
+
+    // Act
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Assert
+    expect(row('Dana Levi').getByRole('button', { name: 'Add Friend' })).toBeDisabled();
+    expect(row('Daniel Cohen').getByRole('button', { name: 'Respond' })).toBeDisabled();
+  });
+
+  it('under Mixtape, Add Friend and Respond are the accent pill; Request sent is outlined', async () => {
+    // Arrange
+    setDesign('mixtape');
+    searchUsers.mockResolvedValue(
+      found([
+        DANA,
+        { ...DANIEL, friendship: 'REQUEST_RECEIVED' },
+        {
+          ...DANA,
+          id: 'a0000000-0000-4000-8000-000000000009',
+          displayName: 'Noa',
+          friendship: 'REQUEST_SENT',
+        },
+      ]),
+    );
+
+    // Act
+    renderSearch('/search?q=dan');
+    await screen.findByText('Dana Levi');
+
+    // Assert
+    expect(row('Dana Levi').getByRole('button', { name: 'Add Friend' })).toHaveClass('bg-accent');
+    expect(row('Daniel Cohen').getByRole('button', { name: 'Respond' })).toHaveClass('bg-accent');
+    expect(row('Noa').getByRole('button', { name: 'Request sent' })).not.toHaveClass('bg-accent');
   });
 });

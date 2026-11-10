@@ -2528,7 +2528,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1l — UI redesign "Mixtape", slice 3: the social screens (Phase 6 — presentation of UC-4, UC-5, UC-6, UC-7, UC-8, UC-12, UC-20, UC-21)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #56)
 Branch: feat/redesign-social
 Spec: docs/features/ui-redesign.md (slice 3 of six, §6)
 
@@ -2603,6 +2603,76 @@ cd frontend && npx vitest run src/pages/Friends.mixtape.test.tsx src/pages/Recom
 
 ```bash
 cd frontend && npm run test:unit
+```
+
+### Step 6.1m — A friend button on each search result (Phase 6 — UC-5, UC-6 and UC-7 amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/search-friend-button
+Spec: docs/features/search-friend-button.md
+
+Goal: find someone in Global Search and add them there, without opening their profile first. This was deferred out of the redesign (ui-redesign.md §5.7) because it needs a backend change.
+
+Tasks:
+
+- [x] Stage 1 with the developer (2026-11-10), recorded in the spec's §9:
+  - A friend's row shows a quiet "✓ Friends" label, not a button. Removing a friend stays on the profile and the Friends tab (option B).
+  - A request you sent is a "Request sent" button with Cancel request in a sheet, as on the profile (option A).
+- [x] Backend: `GET /api/users/search` gives each result the viewer's `friendship` (`NONE` / `REQUEST_SENT` / `REQUEST_RECEIVED` / `FRIENDS`). One more query over the ≤20 ids shown: `friendshipsWith` in `services/friendship.ts`. The `relation` rule and the `Friendship` type moved there from `friend.service.ts`, so both share one copy. No schema change.
+- [x] Frontend: each row except your own gets `FriendButton` (or the Friends label) beside `PersonLink`. After an action the row takes the server's answer in place, with no new search. An Accept answered 404 searches again. `FriendButton` gains `emphasis="row"`, which makes Add Friend and Respond the accent pill under Mixtape; the profile is unchanged.
+- [x] Docs: `use cases.md` and `.docx` (UC-6 pre-condition, trigger and steps; UC-7 trigger), `frontend screens.md` and `.docx` (2.2), and notes in `find-people.md`, `friend-requests.md` and `ui-redesign.md` §5.7.
+- [x] Review: `/code-review` and `/security-review`.
+- [x] Tests: unit, integration and component, good and bad paths (spec §7).
+
+What I did:
+
+- **Code review** (4 findings):
+  - Fixed: the old Search test fixtures had no `friendship` and broke the typecheck. Fixed in the tests.
+  - Fixed: a duplicate `Pair` type. It is now exported once from `friendship.ts`.
+  - Left as is: when a row's control changes state, keyboard focus drops to the page. The profile's `FriendButton` behaves the same way today; listed in the PR.
+  - Left as is, per the spec: an Accept answered 404 reloads the whole search rather than one row.
+- **Security review:** no findings. The value is only the viewer's own relation, which their profile already shows. The viewer comes from the session, never from the request, and no relation between two other people is returned.
+- **Spec amended in implementation:** no `compact` size for the row button. The kit button is already `text-sm` and 44px tall, and a padding override would fight its own class order in Tailwind 4.
+- **Not checked in a browser:** the live flow needs a Google sign-in with two accounts. The component tests cover every row state and action; the manual steps are below.
+- **Tests:** backend 77 files, 1415 tests, 98.96% lines (unit and integration together); frontend 85 files, 1032 tests, 97.96% lines. New:
+  - `friendship.test.ts`: `relation` and `friendshipsWith`, including no query for an empty list or the viewer alone.
+  - `profile.service.test.ts`: the friendship on each result, one query for the 20 shown only, and none for an empty or blank query.
+  - `profiles.integration.test.ts`: every relation from either side; no relation between two other people; an ignored request and a removed friend read as NONE.
+  - `Search.test.tsx`: each row state; Add Friend, Accept, Ignore and Cancel updating the row in place; a failed send; an Accept answered 404; a new search starting fresh; offline; the Mixtape accent pill. `FriendButton.test.tsx`: `emphasis="row"`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+You need two Google accounts, or a second user from the dev seed.
+
+1. Sign in at `http://localhost:5173/` and open **Search** (the icon on Home or Friends). Type part of another user's name. A stranger's row shows **Add Friend**; your own row ("· You") shows nothing.
+2. Tap **Add Friend**. A "Request sent" toast shows and the row turns into **Request sent** without the list reloading. Tap it: a sheet offers **Cancel request**. Cancel it and the row is **Add Friend** again.
+3. Send the request again. In a second browser profile, sign in as that user and search for your name. Your row shows **Respond**. Tap it, then **Accept**: the row becomes the quiet **✓ Friends** label, and the Friends-tab badge drops.
+4. Back as the first user, search again: the friend's row shows **✓ Friends** with no button. Removing them is still on their profile.
+5. Open `http://localhost:5173/search?design=new` (Mixtape): Add Friend and Respond are the accent pill, Request sent is outlined. `?design=old` brings back the Current look.
+6. Go offline (DevTools → Network → Offline): the field and every row's button are disabled.
+
+```bash
+cd backend && npx vitest run src/services/friendship.test.ts src/services/profile.service.test.ts
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/profiles.integration.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Search.test.tsx src/components/FriendButton.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

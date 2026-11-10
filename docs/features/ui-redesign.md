@@ -239,7 +239,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 - **Heading:** "Search" in the display face. (Reached from the Home and Friends header icons now that it has no tab.)
 - **Field:** a pill-shaped `surface` field with a leading search icon; accent border on focus; placeholder "Display name" and the screen-reader label unchanged.
-- **Results:** one `surface` card with divider rows — avatar and name (`PersonLink`) leading to the profile, as today. No `FriendButton` in the rows (amended 2026-11-10): the search response carries no friendship state, so a button would need a backend change; it is deferred to a separate feature after the redesign.
+- **Results:** one `surface` card with divider rows — avatar and name (`PersonLink`) leading to the profile, as today. No `FriendButton` in the rows (amended 2026-11-10): the search response carries no friendship state, so a button would need a backend change; it was deferred to a separate feature after the redesign — now `search-friend-button.md`, which puts Add Friend and Respond in rows as the accent pill.
 - **States:** row skeletons while searching; existing empty / no-results / error copy in the kit's treatments (the one-sentence no-results line in the kit's dashed frame, without a heading — there is no heading copy).
 
 ### 5.8 Notifications — agreed

@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Friendship } from '../api/friends';
 import { ACTION_FAILED, REQUEST_SENT } from '../lib/friendCopy';
-import { httpError, networkError } from '../test/fixtures';
+import { httpError, networkError, setDesign } from '../test/fixtures';
 import { FriendButton } from './FriendButton';
 
 const api = vi.hoisted(() => ({
@@ -280,5 +280,31 @@ describe('FriendButton', () => {
 
     // Assert
     expect(button('Add Friend')).toBeDisabled();
+  });
+});
+
+describe('FriendButton — emphasis (search-friend-button.md §5.2)', () => {
+  afterEach(() => setDesign('current'));
+
+  it('under Mixtape, keeps Add Friend secondary on the profile and makes it the accent pill in a row', () => {
+    // Arrange
+    setDesign('mixtape');
+    const props = {
+      userId: DANA,
+      name: 'Dana',
+      friendship: 'NONE' as const,
+      online: true,
+      onChanged: vi.fn(),
+      onStale,
+    };
+
+    // Act
+    const { rerender } = render(<FriendButton {...props} />);
+    const profile = button('Add Friend').className;
+    rerender(<FriendButton {...props} emphasis="row" />);
+
+    // Assert
+    expect(profile).not.toContain('bg-accent');
+    expect(button('Add Friend')).toHaveClass('bg-accent');
   });
 });
