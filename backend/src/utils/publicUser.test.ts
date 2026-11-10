@@ -1,7 +1,13 @@
 import type { User } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
-import { isAppAdmin, needsOnboarding, sessionPayload, toPublicUser } from './publicUser.js';
+import {
+  isAppAdmin,
+  needsOnboarding,
+  sessionPayload,
+  toPublicUser,
+  tutorialPayload,
+} from './publicUser.js';
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -12,6 +18,9 @@ function makeUser(overrides: Partial<User> = {}): User {
     profilePictureUrl: 'https://lh3.googleusercontent.com/a/photo',
     useGooglePicture: false,
     recommendationsSeenAt: null,
+    walkthroughSeenAt: null,
+    saveTipSeenAt: null,
+    listTipSeenAt: null,
     preferredService: 'SPOTIFY',
     role: 'ADMIN',
     createdAt: new Date('2026-10-01T10:00:00.000Z'),
@@ -73,7 +82,12 @@ describe('sessionPayload', () => {
     const payload = sessionPayload(user);
 
     // Assert
-    expect(payload).toEqual({ user: toPublicUser(user), needsOnboarding: true, isAdmin: false });
+    expect(payload).toEqual({
+      user: toPublicUser(user),
+      needsOnboarding: true,
+      isAdmin: false,
+      tutorial: { walkthrough: false, saveTip: false, listTip: false },
+    });
   });
 
   it('flags an onboarded admin', () => {
@@ -82,6 +96,36 @@ describe('sessionPayload', () => {
 
     // Assert
     expect(payload.isAdmin).toBe(true);
+  });
+});
+
+describe('tutorial state in the payloads', () => {
+  it('shows everything to an onboarded user who has seen nothing', () => {
+    // Act
+    const payload = sessionPayload(makeUser());
+
+    // Assert
+    expect(payload.tutorial).toEqual({ walkthrough: true, saveTip: true, listTip: true });
+  });
+
+  it('hides only what was seen', () => {
+    // Arrange
+    const user = makeUser({ walkthroughSeenAt: new Date(), listTipSeenAt: new Date() });
+
+    // Act
+    const payload = tutorialPayload(user);
+
+    // Assert
+    expect(payload).toEqual({ tutorial: { walkthrough: false, saveTip: true, listTip: false } });
+  });
+
+  it('never leaks into the public user', () => {
+    // Act
+    const publicUser = toPublicUser(makeUser({ walkthroughSeenAt: new Date() }));
+
+    // Assert
+    expect(publicUser).not.toHaveProperty('tutorial');
+    expect(publicUser).not.toHaveProperty('walkthroughSeenAt');
   });
 });
 

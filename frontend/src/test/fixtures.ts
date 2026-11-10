@@ -2,7 +2,7 @@ import { AxiosError, AxiosHeaders } from 'axios';
 
 import type { PublicCommunity } from '../api/communities';
 import type { PublicPost } from '../api/posts';
-import { useAuthStore, type PublicUser, type Session } from '../stores/auth';
+import { NO_TUTORIAL, useAuthStore, type PublicUser, type Session } from '../stores/auth';
 
 export function makeUser(overrides: Partial<PublicUser> = {}): PublicUser {
   return {
@@ -21,7 +21,14 @@ export function makeSession(overrides: Partial<Session> = {}): Session {
 
 /** Back to the app-load state: session not yet resolved. */
 export function resetAuthStore(): void {
-  useAuthStore.setState({ status: 'unknown', user: null, needsOnboarding: false, isAdmin: false });
+  useAuthStore.setState({
+    status: 'unknown',
+    user: null,
+    needsOnboarding: false,
+    isAdmin: false,
+    tutorial: NO_TUTORIAL,
+    tutorialClosed: [],
+  });
 }
 
 export function makeCommunity(overrides: Partial<PublicCommunity> = {}): PublicCommunity {

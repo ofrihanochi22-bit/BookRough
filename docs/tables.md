@@ -14,6 +14,9 @@ Stores the core authentication and profile data.
 - **preferred_service** (ENUM, Nullable until onboarding): 'SPOTIFY', 'APPLE_MUSIC', 'YOUTUBE', 'TIDAL', 'DEEZER'. Deliberately no default, so "has not chosen" stays distinguishable from "chose Spotify".
 - **role** (ENUM, Not Null, Default 'USER'): 'USER' or 'ADMIN'. Gates the administrative area (UC-19). Not editable through any API — it is set directly in the database.
 - **recommendations_seen_at** (TIMESTAMP, Nullable): When the user last opened Received; recommendations newer than this count on the Friends tab badge (UC-20). Never sent to a client.
+- **walkthrough_seen_at** (TIMESTAMP, Nullable): When the onboarding walkthrough was finished or skipped; null means it is still to show. Reaches only the user themself, as a "still to show" flag in the session (`docs/features/onboarding-tutorial.md`).
+- **save_tip_seen_at** (TIMESTAMP, Nullable): When the save tip in a community feed was dismissed or acted on. Same rules.
+- **list_tip_seen_at** (TIMESTAMP, Nullable): When the My List tip was dismissed or acted on. Same rules.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Not Null): Set on every write. Added in Phase 1; the admin area will use it.
 

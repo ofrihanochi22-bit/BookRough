@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   updateProfile: vi.fn(),
   chooseGooglePhoto: vi.fn(),
   uploadAvatar: vi.fn(),
+  markTutorialSeen: vi.fn(),
   prepareAvatar: vi.fn(),
   logout: vi.fn(),
   toastSuccess: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('../api/users', () => ({
   updateProfile: api.updateProfile,
   chooseGooglePhoto: api.chooseGooglePhoto,
   uploadAvatar: api.uploadAvatar,
+  markTutorialSeen: api.markTutorialSeen,
 }));
 // The canvas work is the browser's; its own tests are in lib/avatarImage.test.ts.
 vi.mock('../lib/avatarImage', async (importOriginal) => ({
@@ -458,5 +460,25 @@ describe('Profile — upload a photo', () => {
     // Assert
     expect(api.updateProfile).toHaveBeenCalledWith({ useGooglePicture: false });
     expect(useAuthStore.getState().user?.profilePictureUrl).toBeNull();
+  });
+});
+
+/** The walkthrough replay — docs/features/onboarding-tutorial.md §5.3. */
+describe('Profile — How BookRough works', () => {
+  it('replays the walkthrough without recording anything', async () => {
+    // Arrange
+    render(<Profile />);
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'How BookRough works' }));
+
+    // Assert
+    const dialog = screen.getByRole('dialog', { name: 'How BookRough works' });
+    expect(
+      within(dialog).getByRole('heading', { name: 'Welcome to BookRough' }),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Skip' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.markTutorialSeen).not.toHaveBeenCalled();
   });
 });

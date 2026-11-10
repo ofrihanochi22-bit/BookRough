@@ -81,6 +81,9 @@ export default defineConfig({
             E2E_SCRAPER_FIXTURES: scraperFixtures,
             // Dozens of sign-ins from one address (production-hardening.md §3.1).
             RATE_LIMITS_DISABLED: 'true',
+            // The golden loops never meet the onboarding walkthrough or its tips
+            // (docs/features/onboarding-tutorial.md §4).
+            TUTORIAL_ENABLED: 'false',
           },
         },
         {

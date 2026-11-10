@@ -91,7 +91,15 @@ model User {
   /// When Received was last opened; null until then. Never sent to a client
   /// (docs/features/direct-recommendations.md §3.1).
   recommendationsSeenAt   DateTime?             @map("recommendations_seen_at") @db.Timestamptz(3)
-  memberships             CommunityMember[]
+  /// When the onboarding walkthrough was finished or skipped; null = still to
+  /// show. Reaches the client only as the caller's own `tutorial` flags
+  /// (docs/features/onboarding-tutorial.md §3).
+  walkthroughSeenAt       DateTime?             @map("walkthrough_seen_at") @db.Timestamptz(3)
+  /// When the save tip (community feed) was dismissed or acted on.
+  saveTipSeenAt           DateTime?             @map("save_tip_seen_at") @db.Timestamptz(3)
+  /// When the list tip (My List) was dismissed or acted on.
+  listTipSeenAt           DateTime?             @map("list_tip_seen_at") @db.Timestamptz(3)
+  memberships            CommunityMember[]
   bans                    CommunityBan[]        @relation("BannedUser")
   bansIssued              CommunityBan[]        @relation("BannedBy")
   settingChanges          SettingChange[]

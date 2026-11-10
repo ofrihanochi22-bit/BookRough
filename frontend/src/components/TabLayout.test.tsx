@@ -1,9 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
+import { makeSession, resetAuthStore } from '../test/fixtures';
 import { useNotifications } from '../stores/notifications';
 import { TabLayout } from './TabLayout';
 
@@ -19,6 +21,8 @@ const { countUnreadNotifications } = vi.hoisted(() => ({ countUnreadNotification
 vi.mock('../api/notifications', () => ({ countUnreadNotifications }));
 const { listMyCommunities } = vi.hoisted(() => ({ listMyCommunities: vi.fn() }));
 vi.mock('../api/communities', () => ({ listMyCommunities }));
+const { markTutorialSeen } = vi.hoisted(() => ({ markTutorialSeen: vi.fn() }));
+vi.mock('../api/users', () => ({ markTutorialSeen }));
 
 function renderAt(path: string) {
   return render(
@@ -222,6 +226,42 @@ describe('BottomNav (ui-redesign.md §3.4)', () => {
 
     // Act
     await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('TabLayout — the walkthrough (onboarding-tutorial.md §5.1)', () => {
+  afterEach(() => {
+    resetAuthStore();
+  });
+
+  it('covers the tab screen while the session says so; Skip removes it', async () => {
+    // Arrange
+    markTutorialSeen.mockResolvedValue({});
+    useAuthStore
+      .getState()
+      .setSession(makeSession({ tutorial: { walkthrough: true, saveTip: true, listTip: true } }));
+
+    // Act
+    renderAt('/home');
+
+    // Assert
+    expect(screen.getByRole('dialog', { name: 'How BookRough works' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(markTutorialSeen).toHaveBeenCalledWith('walkthrough');
+  });
+
+  it('stays away once seen', () => {
+    // Arrange
+    useAuthStore
+      .getState()
+      .setSession(makeSession({ tutorial: { walkthrough: false, saveTip: true, listTip: true } }));
+
+    // Act
+    renderAt('/home');
 
     // Assert
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
