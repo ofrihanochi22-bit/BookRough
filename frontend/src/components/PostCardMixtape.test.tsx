@@ -110,7 +110,9 @@ describe('PostCard under Mixtape — layout and actions (ui-redesign.md §5.0)',
       `/posts/${makePost().id}`,
     );
     expect(document.querySelector('img')).toHaveAttribute('width', '116');
-    expect(screen.getByText('Play it loud')).toBeInTheDocument();
+    // Tape paper, ringed in light mode so it shows on a white card.
+    expect(screen.getByText('Play it loud').className).toContain('bg-tape');
+    expect(screen.getByText('Play it loud').className).toContain('ring-line');
     expect(screen.queryByText('View ratings')).not.toBeInTheDocument();
   });
 

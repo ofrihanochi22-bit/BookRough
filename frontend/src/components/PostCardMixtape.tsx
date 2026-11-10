@@ -16,6 +16,7 @@ import { Button } from './ui/Button';
 import { ReelCassette } from './ui/Cassette';
 import { CoverArt } from './ui/CoverArt';
 import { Sheet } from './ui/Sheet';
+import { TAPE_PAPER } from './ui/tape';
 
 const chip =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-line px-4 text-sm font-medium text-ink disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -89,7 +90,7 @@ function Cover({
       {post.conversionPending ? (
         <div
           data-testid="pending-cover"
-          className="flex size-[116px] items-center justify-center rounded-xl bg-tape"
+          className={`flex size-[116px] items-center justify-center rounded-xl ${TAPE_PAPER}`}
         >
           <ReelCassette spinning={retrying} className="w-20" />
         </div>
@@ -287,7 +288,9 @@ export function MixtapePostCard({
       </div>
 
       {post.comment && (
-        <p className="rounded-[10px] bg-tape px-3.5 py-2.5 text-sm whitespace-pre-line break-words text-tape-ink">
+        <p
+          className={`rounded-[10px] px-3.5 py-2.5 text-sm whitespace-pre-line break-words ${TAPE_PAPER}`}
+        >
           {post.comment}
         </p>
       )}

@@ -328,6 +328,8 @@ describe('RatingSheet under Mixtape — one row of ten stars (ui-redesign.md §5
     expect(readout()).toHaveTextContent('7/10');
     expect(star(7).querySelector('svg')!.getAttribute('class')).toContain('fill-sticker');
     expect(star(8).querySelector('svg')!.getAttribute('class')).toContain('fill-none');
+    // Unfilled outlines in muted, not line: they must read at 3:1 (accessibility review).
+    expect(star(8).querySelector('svg')!.getAttribute('class')).toContain('stroke-muted');
     expect(submit()).toBeEnabled();
     expect(submit().className).toContain('bg-sticker');
   });

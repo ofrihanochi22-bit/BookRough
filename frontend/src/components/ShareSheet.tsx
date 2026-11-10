@@ -17,6 +17,7 @@ import { EmptyState } from './ui/EmptyState';
 import { LoadError } from './ui/LoadError';
 import { Sheet } from './ui/Sheet';
 import { Skeleton } from './ui/Skeleton';
+import { TAPE_PAPER } from './ui/tape';
 
 interface ShareSheetProps {
   online: boolean;
@@ -156,7 +157,7 @@ export function ShareSheet({ online, onClose }: ShareSheetProps) {
         <button
           type="button"
           onClick={() => setStep({ name: 'communities' })}
-          className={`${tile} bg-tape text-tape-ink`}
+          className={`${tile} ${TAPE_PAPER}`}
         >
           <span className="font-display text-lg font-bold">To a community</span>
           <span className="text-sm">Post it to a group&apos;s feed</span>

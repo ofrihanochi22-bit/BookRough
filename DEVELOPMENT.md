@@ -2385,7 +2385,7 @@ What I did:
   - The star row is the declared 34×44px exception.
   - Focus moves to Close rather than Back between Share steps.
 
-  The first two would change the spec's look, so they wait for the developer.
+  The developer approved fixing the first two (2026-11-10): unfilled stars now use `muted` outlines, and tape paper gets a 1px `line` ring in light mode (`ui/tape.ts`). The spec is amended in §3.1, §5.10 and §10.
 
 - **Browser check** at 375px, dark and light: Home with cassette covers, the tab bar, all Share sheet steps, and a real post through the sheet (the reels spin, then it lands on top of the feed). Also the post cards with a sticker on Recommendations › Sent, and the ⋯ action sheet. `?design=old` brings back the Current look and its theme colours. The rating sheet was covered by tests only: the dev data has nothing this account can rate.
 - **Docs:** `docs/tech stack` .md + .docx — the font in the Fontsource entry (§1, beside the other self-hosted fonts), and the `frontend-design` and `Design` plugins in §5.2.

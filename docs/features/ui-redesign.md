@@ -60,6 +60,8 @@ Semantic token names stay as they are today (`canvas`, `surface`, `ink`, `muted`
 
 `danger` values are re-checked against the new canvases in implementation; contrast ≥ 4.5:1 for text everywhere.
 
+**Tape paper in light mode** (amended 2026-11-10): `tape` on a white `surface` is about 1.03:1, so every tape-paper surface (the comment note, the pending cover, the Share sheet's "To a community" tile, the selected side of a pill track) gets a 1px `line` ring in light mode, none in dark. Cassette labels keep their 2px `tape-ink` outline (§3.5).
+
 ### 3.2 Accent (admin setting, UC-19)
 
 The accent is the app's **signal colour**: main button, active tab, Share button, badges, selected states. The five names stay (`purple`, `blue`, `green`, `orange`, `pink`) and are still applied as `data-accent` on `<html>`; only the values change.
@@ -259,7 +261,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 - **Sheet:** kit sheet; title ("Rate & Review" / edit title) in the display face; song title and artist as today.
 - **Score: one row of ten stars** (developer's choice, 2026-11-09), replacing the 5×2 grid of number buttons. Still a `role="radiogroup"` with ten `role="radio"` items, star N = score N, `aria-label` "N out of 10"; integer 1–10, same API.
-  - Stars up to the chosen score fill in `sticker` yellow; the rest are `line` outlines. The chosen star gets the small "stick" motion (rotate + scale; none under reduced motion).
+  - Stars up to the chosen score fill in `sticker` yellow; the rest are `muted` outlines (amended 2026-11-10: `line` outlines were 1.7:1 against the sheet). The chosen star gets the small "stick" motion (rotate + scale; none under reduced motion).
   - A large readout "N/10" in the display face sits on the "Your score" row, so the choice is legible without counting.
   - **Declared exception to the 44×44px touch-target rule (CLAUDE.md §8):** at 375px each star is about 34×44px. Mitigations: the ten targets run edge to edge with no gaps (the sheet's side padding is reduced for this row only); dragging a finger across the row sets the score continuously (pointer events, released = chosen); arrow keys move the choice; the readout makes a mis-tap visible before submitting.
 - **Comment, error, offline:** kit field with the existing counter and messages.
@@ -423,4 +425,5 @@ None.
 | 2026-11-09 | Rating sheet: one row of ten stars, a declared exception to the 44px rule                     | Developer's choice; mitigated by gapless targets, drag-to-set, arrow keys and an N/10 readout                  |
 | 2026-11-09 | All 17 screens designed and approved one by one (§5.1–§5.17)                                  | Stage 1 screen pass complete                                                                                   |
 | 2026-11-10 | Logo: cassette mark + "BookRough"; large on Welcome, small top-left elsewhere                 | Developer chose option A and the capitalised spelling; one cassette on Welcome, so it replaces the tilted hero |
+| 2026-11-10 | Contrast: `muted` outlines for unfilled stars; 1px `line` ring on tape paper in light mode    | Slice 1 accessibility review: `line` stars 1.7:1, tape on white about 1.03:1; developer approved both          |
 | 2026-11-10 | Welcome demo line "Spotify link → Apple Music" removed, not replaced                          | One conversion of many, not the app's essence; the admin tagline already says what the app is                  |

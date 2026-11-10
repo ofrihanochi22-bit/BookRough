@@ -152,7 +152,7 @@ function StarRow({
               aria-hidden="true"
               viewBox="0 0 24 24"
               className={`size-7 ${score === value ? 'mixtape-stick' : ''} ${
-                filled ? 'fill-sticker stroke-sticker-ink' : 'fill-none stroke-line'
+                filled ? 'fill-sticker stroke-sticker-ink' : 'fill-none stroke-muted'
               }`}
               strokeWidth="1.5"
               strokeLinejoin="round"
