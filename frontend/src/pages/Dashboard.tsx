@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
+import { CreateCommunityLink } from '../components/CreateCommunityLink';
 import { SignOutButton } from '../components/SignOutSheet';
 import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
+import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { HEADER_ICON, SearchIconLink, TopBar } from '../components/ui/TopBar';
 import { useRequest } from '../hooks/useRequest';
 import {
   COMMUNITIES_LOAD_FAILED,
@@ -17,6 +20,7 @@ import {
 import { roleLabel } from '../lib/communityRoles';
 import { badgeText } from '../lib/friendCopy';
 import { bellLabel } from '../lib/notificationCopy';
+import { useMixtape } from '../stores/design';
 import { useNotifications } from '../stores/notifications';
 
 /**
@@ -24,6 +28,14 @@ import { useNotifications } from '../stores/notifications';
  * §6.4. Lists the communities the user belongs to, newest joined first.
  */
 export function Dashboard() {
+  const mixtape = useMixtape();
+  if (mixtape) {
+    return <MixtapeDashboard />;
+  }
+  return <CurrentDashboard />;
+}
+
+function CurrentDashboard() {
   const communities = useRequest(listMyCommunities);
 
   return (
@@ -62,11 +74,16 @@ export function Dashboard() {
 /** The way into the notification center — notifications.md §5.1. */
 function NotificationsBell() {
   const unread = useNotifications((state) => state.unread);
+  const mixtape = useMixtape();
   return (
     <Link
       to="/notifications"
       aria-label={bellLabel(unread)}
-      className="relative flex size-11 items-center justify-center rounded-full border border-line bg-surface"
+      className={
+        mixtape
+          ? HEADER_ICON
+          : 'relative flex size-11 items-center justify-center rounded-full border border-line bg-surface'
+      }
     >
       <svg
         aria-hidden="true"
@@ -98,12 +115,7 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-3 py-10 text-center">
       <h2 className="font-display text-xl font-medium">{NO_COMMUNITIES_TITLE}</h2>
       <p className="max-w-xs text-sm text-muted">{NO_COMMUNITIES_BODY}</p>
-      <Link
-        to={CREATE_COMMUNITY_PATH}
-        className="mt-2 flex min-h-11 items-center rounded-full bg-accent px-6 text-sm font-medium text-on-accent"
-      >
-        Create community
-      </Link>
+      <CreateCommunityLink className="mt-2" />
     </div>
   );
 }
@@ -145,5 +157,91 @@ function CommunityList({ items }: { items: PublicCommunity[] }) {
         </Link>
       </div>
     </>
+  );
+}
+
+/**
+ * Home under Mixtape — docs/features/ui-redesign.md §5.1. A two-row header
+ * (the logo, Search and the bell; then the heading and Sign out), cassette
+ * cards, and a dashed Create tile ending the list instead of a floating button.
+ * The header sits outside the request states, so it shows in every state.
+ */
+function MixtapeDashboard() {
+  const communities = useRequest(listMyCommunities);
+
+  return (
+    <ScreenLayout>
+      <header className="mb-6">
+        <TopBar>
+          <SearchIconLink />
+          <NotificationsBell />
+        </TopBar>
+        {/* Never truncated (§5.1): it fits at 375px, and wraps rather than clips if a font runs wide. */}
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="min-w-0 font-display text-2xl font-bold tracking-[-0.02em] break-words">
+            Your communities
+          </h1>
+          {/* Sign-out where the app opens — visible-sign-out.md §5.1. */}
+          <SignOutButton className="shrink-0 px-4" />
+        </div>
+      </header>
+
+      {communities.status === 'loading' && (
+        <div role="status" aria-label="Loading your communities" className="flex flex-col gap-4">
+          <Skeleton className="h-[104px]" />
+          <Skeleton className="h-[104px]" />
+          <Skeleton className="h-[104px]" />
+        </div>
+      )}
+
+      {communities.status === 'error' && (
+        <LoadError message={COMMUNITIES_LOAD_FAILED} onRetry={communities.reload} />
+      )}
+
+      {communities.status === 'ready' &&
+        (communities.data.length === 0 ? (
+          <KitEmptyState
+            title={NO_COMMUNITIES_TITLE}
+            action={<CreateCommunityLink className="mt-1" />}
+          >
+            {NO_COMMUNITIES_BODY}
+          </KitEmptyState>
+        ) : (
+          <ul className="flex flex-col gap-4">
+            {communities.data.map((community) => (
+              <li key={community.id}>
+                <Link
+                  to={`/communities/${community.id}`}
+                  className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                >
+                  <CommunityCover
+                    id={community.id}
+                    name={community.name}
+                    variant="card"
+                    label="text"
+                    detail={
+                      <>
+                        {memberCountLabel(community.memberCount)}
+                        {roleLabel(community.myRole) && ` · ${roleLabel(community.myRole)}`}
+                      </>
+                    }
+                  />
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link
+                to={CREATE_COMMUNITY_PATH}
+                className="flex min-h-14 items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-line text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <span aria-hidden="true" className="text-lg leading-none">
+                  +
+                </span>
+                Create community
+              </Link>
+            </li>
+          </ul>
+        ))}
+    </ScreenLayout>
   );
 }

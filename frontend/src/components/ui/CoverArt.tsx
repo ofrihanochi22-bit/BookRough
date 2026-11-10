@@ -2,11 +2,18 @@ import { useState } from 'react';
 
 interface CoverArtProps {
   url: string | null;
-  /** 80px by default; 116px on the Mixtape post card (ui-redesign.md §5.0). */
-  size?: 80 | 116;
+  /**
+   * 80px by default; 116px on the Mixtape post card (ui-redesign.md §5.0);
+   * `full` — the card's whole width, square, radius 16px — on Mixtape Post Detail (§5.3).
+   */
+  size?: 80 | 116 | 'full';
 }
 
-const SIZE_CLASSES = { 80: 'size-20', 116: 'size-[116px]' } as const;
+const SIZE_CLASSES = {
+  80: 'size-20 rounded-xl',
+  116: 'size-[116px] rounded-xl',
+  full: 'aspect-square w-full rounded-2xl',
+} as const;
 
 /** A neutral square while there is no cover, or the cover fails to load. */
 export function CoverArt({ url, size = 80 }: CoverArtProps) {
@@ -16,7 +23,9 @@ export function CoverArt({ url, size = 80 }: CoverArtProps) {
     return (
       <div
         aria-hidden="true"
-        className={`flex ${sizeClass} shrink-0 items-center justify-center rounded-xl bg-line text-2xl text-muted`}
+        className={`flex ${sizeClass} shrink-0 items-center justify-center bg-line text-muted ${
+          size === 'full' ? 'text-6xl' : 'text-2xl'
+        }`}
       >
         ♪
       </div>
@@ -26,12 +35,12 @@ export function CoverArt({ url, size = 80 }: CoverArtProps) {
     <img
       src={url}
       alt=""
-      width={size}
-      height={size}
+      width={size === 'full' ? undefined : size}
+      height={size === 'full' ? undefined : size}
       loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={`${sizeClass} shrink-0 rounded-xl object-cover`}
+      className={`${sizeClass} shrink-0 object-cover`}
     />
   );
 }

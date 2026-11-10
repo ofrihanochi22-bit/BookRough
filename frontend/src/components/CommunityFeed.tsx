@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 
 import { listPosts, type PostsPage, type PublicPost } from '../api/posts';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { useAuthStore } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 import { PostCard } from './PostCard';
 import { PostComposer } from './PostComposer';
 import { Button } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { LineIcon } from './ui/LineIcon';
 import { LoadError } from './ui/LoadError';
 import { Skeleton } from './ui/Skeleton';
 
@@ -15,7 +18,17 @@ interface CommunityFeedProps {
   communityId: string;
   /** The caller lost access (removed, or the community deleted): show not-found. Stable. */
   onGone: () => void;
+  /**
+   * A post was just made to this community from the Share sheet
+   * (ui-redesign.md §5.0b): a new value reloads the feed so it is on top. A
+   * reload rather than a remount, so a draft in this screen's composer survives.
+   */
+  refreshKey?: number;
 }
+
+const FIRST_POST_TITLE = 'Share the first song';
+const FIRST_POST_BODY =
+  'Paste a link from Spotify, Apple Music, YouTube, Tidal, Deezer, Bandcamp or SoundCloud.';
 
 /** Posts added or replaced on this screen since the first page loaded. */
 interface LocalChanges {
@@ -33,9 +46,18 @@ interface LocalChanges {
  * §5.1. The first page loads with the screen; your own new post is prepended;
  * there is no live update of other people's posts.
  */
-export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
+export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeedProps) {
+  const mixtape = useMixtape();
   const load = useCallback(() => listPosts(communityId), [communityId]);
   const first = useRequest(load);
+  const { reload } = first;
+  const seenRefreshKey = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey !== seenRefreshKey.current) {
+      seenRefreshKey.current = refreshKey;
+      reload();
+    }
+  }, [refreshKey, reload]);
   const online = useOnlineStatus();
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
   const [local, setLocal] = useState<LocalChanges | null>(null);
@@ -87,6 +109,15 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
     });
   }
 
+  function onPosted(post: PublicPost) {
+    if (changes) {
+      update(changes.page, (current) => ({ added: [post, ...current.added] }));
+    } else {
+      // Posted while the feed was still loading or failed: reload it.
+      first.reload();
+    }
+  }
+
   async function loadMore() {
     if (!changes?.nextCursor) {
       return;
@@ -118,25 +149,27 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
         </p>
       )}
 
-      <PostComposer
-        communityId={communityId}
-        online={online}
-        onGone={onGone}
-        onPosted={(post) => {
-          if (changes) {
-            update(changes.page, (current) => ({ added: [post, ...current.added] }));
-          } else {
-            // Posted while the feed was still loading or failed: reload it.
-            first.reload();
-          }
-        }}
-      />
+      {mixtape ? (
+        <CollapsibleComposer
+          communityId={communityId}
+          online={online}
+          onGone={onGone}
+          onPosted={onPosted}
+        />
+      ) : (
+        <PostComposer
+          communityId={communityId}
+          online={online}
+          onGone={onGone}
+          onPosted={onPosted}
+        />
+      )}
 
       {first.status === 'loading' && (
         <div role="status" aria-label="Loading posts" className="flex flex-col gap-4">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
+          <Skeleton className={mixtape ? 'h-56' : 'h-40'} />
+          <Skeleton className={mixtape ? 'h-56' : 'h-40'} />
+          {!mixtape && <Skeleton className="h-40" />}
         </div>
       )}
 
@@ -144,14 +177,16 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
         <LoadError message="Couldn't load posts." onRetry={first.reload} />
       )}
 
-      {changes && posts.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-          <p className="font-medium">Share the first song</p>
-          <p className="mt-1 text-sm text-muted">
-            Paste a link from Spotify, Apple Music, YouTube, Tidal, Deezer, Bandcamp or SoundCloud.
-          </p>
-        </div>
-      )}
+      {changes &&
+        posts.length === 0 &&
+        (mixtape ? (
+          <EmptyState title={FIRST_POST_TITLE}>{FIRST_POST_BODY}</EmptyState>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+            <p className="font-medium">{FIRST_POST_TITLE}</p>
+            <p className="mt-1 text-sm text-muted">{FIRST_POST_BODY}</p>
+          </div>
+        ))}
 
       {posts.map((post) => (
         <PostCard
@@ -202,5 +237,87 @@ export function CommunityFeed({ communityId, onGone }: CommunityFeedProps) {
         </div>
       )}
     </section>
+  );
+}
+
+interface CollapsibleComposerProps {
+  communityId: string;
+  online: boolean;
+  onGone: () => void;
+  onPosted: (post: PublicPost) => void;
+}
+
+/**
+ * The Mixtape feed's composer (ui-redesign.md §5.2): a "Share a song or album"
+ * pill that expands in place into the existing `PostComposer`, focus in the
+ * link field. ✕ collapses it again; the composer stays mounted while hidden,
+ * so the draft is kept while the screen is open. A post collapses it.
+ */
+function CollapsibleComposer({ communityId, online, onGone, onPosted }: CollapsibleComposerProps) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const panel = useRef<HTMLDivElement>(null);
+  const pill = useRef<HTMLButtonElement>(null);
+  // Focus moves only after a tap or a post, never on the first render.
+  const moveFocus = useRef(false);
+
+  useEffect(() => {
+    if (!moveFocus.current) {
+      return;
+    }
+    moveFocus.current = false;
+    if (open) {
+      panel.current?.querySelector<HTMLInputElement>('input[type="url"]')?.focus();
+    } else {
+      pill.current?.focus();
+    }
+  }, [open]);
+
+  function toggle(next: boolean) {
+    moveFocus.current = true;
+    setOpen(next);
+  }
+
+  return (
+    <>
+      {!open && (
+        <button
+          ref={pill}
+          type="button"
+          onClick={() => toggle(true)}
+          className="flex min-h-12 w-full items-center gap-3 rounded-full bg-surface px-5 text-left text-sm font-medium text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <LineIcon>
+            <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+            <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+          </LineIcon>
+          Share a song or album
+        </button>
+      )}
+      <div ref={panel} hidden={!open} className="relative rounded-[22px] bg-surface p-4">
+        <button
+          type="button"
+          aria-label="Close the composer"
+          disabled={busy}
+          onClick={() => toggle(false)}
+          className="absolute top-1 right-1 flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
+        >
+          <span aria-hidden="true" className="text-2xl leading-none">
+            ×
+          </span>
+        </button>
+        <PostComposer
+          communityId={communityId}
+          online={online}
+          onGone={onGone}
+          onBusyChange={setBusy}
+          bare
+          onPosted={(post) => {
+            onPosted(post);
+            toggle(false);
+          }}
+        />
+      </div>
+    </>
   );
 }

@@ -169,7 +169,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 1. **"Share a song"** — two options: **To a community** (`tape` paper tile, "Post it to a group's feed") and **To a friend** (outlined tile, "Send it to one person").
 2. **To a friend** → the existing `SendRecommendationSheet` with its friend picker, unchanged (including its empty and error states).
 3. **To a community** → **"Choose a community"**: your communities as rows, each with a mini cassette (stripe in the community's hue) and the name. Loading: skeleton rows. Error: the existing load-error pattern with Retry. Empty: a "Create community" action leading to the existing Create Community screen.
-4. **Community chosen** → the community's name as the sheet title and the **existing `PostComposer`** inside the sheet, with its own validation, reel waiting state, errors and offline state. After a successful Post the sheet closes and the app navigates to that community's feed, where the new post is at the top. A 404 from the composer (`onGone`) closes the sheet and reloads the community list.
+4. **Community chosen** → the community's name as the sheet title and the **existing `PostComposer`** inside the sheet, with its own validation, reel waiting state, errors and offline state. After a successful Post the sheet closes and the app navigates to that community's feed, where the new post is at the top. A 404 from the composer (`onGone`) keeps the sheet open and returns to "Choose a community", freshly reloaded, so the community that is gone has left the list (amended 2026-11-10).
 
 ### 5.0c Shared: UI kit — agreed
 
@@ -341,7 +341,7 @@ Agreed 2026-11-09: **four slices, then the swap, then the cleanup** — six PRs 
 - **No communities** → Share → "To a community" shows the empty state with Create community.
 - **No friends** → Share → "To a friend" shows the friend picker's existing empty state.
 - **Offline:** the Share button stays visible; the composer and send sheet show their existing offline states; offline-disabled buttons use the dashed treatment (§5.0c).
-- **Composer 404 inside the Share sheet** (community deleted, or you were removed) → the sheet closes and the community list reloads.
+- **Composer 404 inside the Share sheet** (community deleted, or you were removed) → the sheet stays open on "Choose a community", reloaded without that community; the error shows as the usual toast.
 - **Local storage unavailable** (private mode) or an unknown stored value → the default design; `?design=` values other than `new` / `old` are ignored.
 - **Switch flipped mid-session** → applies at once (attribute on `<html>`); no reload, nothing on the server changes.
 - **Long names:** community names on cassette labels wrap to two lines, then truncate with an ellipsis (the full name stays in the `h1` / accessible name); display names truncate in rows.
@@ -377,7 +377,7 @@ No backend behaviour changes before the swap. The old design is the default unti
 
 - ✅ Tab bar: Home, Friends, Share, My List, Profile; no Search tab; the Home and Friends badges and their accessible names as today.
 - ✅ Share sheet: both options; To a friend opens `SendRecommendationSheet` with the picker; To a community lists your communities; choosing one shows `PostComposer`; a successful post closes the sheet and navigates to the feed; back returns one step.
-- ❌ Share sheet: community list loading, error with Retry, empty with Create community; the composer's `onGone` closes the sheet and reloads the list.
+- ❌ Share sheet: community list loading, error with Retry, empty with Create community; the composer's `onGone` returns to the community list, reloaded.
 - ✅ Post card: sticker with average and count when rated; "You: N" tag when the viewer rated; no "You rated" header line; comments chip "N comments" / "Comments" linking to Post Detail; Rate & Review on a received direct item; the pending variant with reels and "Find on other services"; no "Other services" on link-only posts.
 - ❌ Post card: no sticker without ratings; the ⋯ sheet shows only the permitted actions (Hide / Edit comment / Delete post).
 - ✅ Rating sheet: ten stars as radios; tapping star N checks N and shows "N/10"; arrow keys move the choice; a drag across the row sets the value; edit mode starts at the existing score.
@@ -426,4 +426,6 @@ None.
 | 2026-11-09 | All 17 screens designed and approved one by one (§5.1–§5.17)                                  | Stage 1 screen pass complete                                                                                   |
 | 2026-11-10 | Logo: cassette mark + "BookRough"; large on Welcome, small top-left elsewhere                 | Developer chose option A and the capitalised spelling; one cassette on Welcome, so it replaces the tilted hero |
 | 2026-11-10 | Contrast: `muted` outlines for unfilled stars; 1px `line` ring on tape paper in light mode    | Slice 1 accessibility review: `line` stars 1.7:1, tape on white about 1.03:1; developer approved both          |
+| 2026-11-10 | Share sheet: a composer 404 returns to the reloaded community list, the sheet stays open      | Developer kept the slice-1 behaviour: the user stays in the flow and can pick another community at once        |
+| 2026-11-10 | Search under Mixtape: Home header icon in slice 2, Friends icon waits for slice 3             | Developer accepted the gap; the old design stays the default until the swap                                    |
 | 2026-11-10 | Welcome demo line "Spotify link → Apple Music" removed, not replaced                          | One conversion of many, not the app's essence; the admin tagline already says what the app is                  |
