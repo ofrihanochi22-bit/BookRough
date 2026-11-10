@@ -8,3 +8,5 @@
 13ad6fcf3be9e777131b11e90abb134b3ff2cb58:frontend/src/pages/InvitePreview.test.tsx:generic-api-key:37
 5cfa61c9565b5ea140bd4c0a200c1b1fcee1a1fc:e2e/fixtures/google-stand-in.key:private-key:1
 5cfa61c9565b5ea140bd4c0a200c1b1fcee1a1fc:e2e/support/googleStandIn.ts:generic-api-key:31
+# 2026-11-10: the same fake invite token, in the slice-4 Mixtape test (PR #58).
+d57fe8aa89ada14a99069cc3fcb28c99d825bb22:frontend/src/pages/InvitePreview.mixtape.test.tsx:generic-api-key:30

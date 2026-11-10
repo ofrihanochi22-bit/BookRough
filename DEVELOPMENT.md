@@ -2607,7 +2607,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1m — A friend button on each search result (Phase 6 — UC-5, UC-6 and UC-7 amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #57)
 Branch: feat/search-friend-button
 Spec: docs/features/search-friend-button.md
 
@@ -2673,6 +2673,71 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/pr
 
 ```bash
 cd frontend && npx vitest run src/pages/Search.test.tsx src/components/FriendButton.test.tsx
+```
+
+### Step 6.1n — UI redesign "Mixtape", slice 4: entry and admin screens (Phase 6 — presentation of UC-1, UC-2, UC-15, UC-19)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/redesign-entry-admin
+Spec: docs/features/ui-redesign.md (slice 4 of six, §6)
+
+Goal: Welcome, Complete Your Profile, Join Community and Admin get the Mixtape look behind the per-device switch, and Admin gets the switch itself. The Current design stays the default and is unchanged, and nothing changes in what any screen can do.
+
+Tasks:
+
+- [x] Four readings of the spec settled with the developer (2026-11-10):
+  - Complete Your Profile: the name cassette sits under the heading, with ♪ while the field is empty (as Create Community's preview).
+  - Join Community: the community name moves onto the cassette label as the h1; the separate name line is gone.
+  - Admin: the design switch shows under both designs, with one look.
+  - The install hint is a tape-paper bar (Welcome and Join Community); the announcement banner keeps the accent.
+- [x] Welcome (§5.12): the `hero` logo as the h1, the admin tagline in the display face, no "Spotify link → Apple Music" line. Sign in / Create account is the kit `PillTrack` (selected side on tape paper), above Google's own button.
+- [x] Complete Your Profile (§5.13): the compact logo; the cassette with the name as typed, striped in the user's own hue; avatar tiles with the selected one on tape paper.
+- [x] Join Community (§5.14): the compact logo; a banner cassette tilted +2°; skeletons; the invalid link in the kit empty state with its existing copy; the dashed offline Join.
+- [x] Admin (§5.17): the compact logo; the design switch (`components/DesignSwitch.tsx`) in a dashed frame — "Current" / "Mixtape", local storage only, never the server; section tabs in the pill-track look; Users / Communities as one `surface` card of divider rows; Settings with kit fields, the selected swatch ringed in `ink`, and the history as one card.
+- [x] Review: `/code-review`, `design:accessibility-review` at 375px in light and dark, and a browser check.
+- [x] Tests: the existing suite unchanged on the default design, plus Mixtape tests for the four screens.
+
+What I did:
+
+- **No functionality changes.** Under Current every screen renders as before; the one addition visible under Current is the design switch on Admin (spec §4).
+- **Kit changes:** `PillTrack` takes `disabled` (the sign-in switch offline) and exports `PILL_TRACK` / `pillTrackOptionClass` (the Admin tabs are links, so they reuse the classes). `DismissibleBar` takes `paper` for the tape-paper install hint.
+- **Code review** (5 findings; 3 fixed, 2 left):
+  - Fixed: Join Community had no h1 while loading or on an error under Mixtape — an sr-only "Join community" until the preview is ready.
+  - Fixed: the switch announced its name twice (a heading and the group label with the same words).
+  - Fixed: the Admin tabs copied the pill track's classes by hand.
+  - Left: the Mixtape branch of Join Community repeats the state ladder, so the Current branch stays byte-identical; the cleanup PR deletes the Current one.
+  - Left: the user's cassette is drawn with `CommunityCover` (it takes any id for the hue).
+- **Accessibility review** (`slice4-accessibility-review.md` in the session notes folder): a scripted pass over Admin (Users, Communities, Settings) and Join Community (ready, invalid) in light and dark found no text below 4.5:1, no control under 44×44 and no unnamed control. Welcome and Complete Your Profile were not exercised live (they need a signed-out or onboarding session); their colour pairs were measured in earlier slices, and the component tests cover them.
+- **Browser check** at 375px, dark and light, on local dev data: Admin with the switch flipped both ways (the `<html>` attribute and local storage change at once), Settings, and Join Community with a real invite link and an invalid one.
+- **Tests:** frontend 89 files, 1058 tests (1032 existing, unchanged), 98.01% lines. New: `pages/Welcome.mixtape.test.tsx`, `pages/CompleteProfile.mixtape.test.tsx`, `pages/InvitePreview.mixtape.test.tsx`, `pages/Admin.mixtape.test.tsx`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. As an admin, open `http://localhost:5173/admin`. Under the heading is a dashed box, "Design on this device", with Current / Mixtape. Tap **Mixtape**: the whole app changes at once, with no reload. Tap **Current** to go back; nothing is sent to the server (DevTools → Network stays quiet).
+2. Under Mixtape: the logo is top left, the section tabs have the chosen one in cream, the user list is one card of rows, and Settings shows the selected accent swatch ringed.
+3. Open one of your communities, tap **Invite**, copy the invite link and open it: a cream cassette tilted slightly, with the community name on its label. Change the token in the URL to see the invalid-link box with **Go to BookRough**.
+4. Sign out (or use a private window with `?design=new`) to see **Welcome**: the big cassette logo, the tagline, then the cream Sign in / Create account switch and Google's button at the bottom. On an iPhone in Safari the install hint is a cream bar.
+5. Sign in with a new Google account to reach **Complete Your Profile**: type a name and watch it appear on the cassette; the chosen avatar tile turns cream.
+6. Repeat in light mode. `?design=old` brings back the Current look.
+
+```bash
+cd frontend && npx vitest run src/pages/Welcome.mixtape.test.tsx src/pages/CompleteProfile.mixtape.test.tsx src/pages/InvitePreview.mixtape.test.tsx src/pages/Admin.mixtape.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

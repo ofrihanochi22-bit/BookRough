@@ -10,16 +10,22 @@ import {
   type AdminCommunity,
   type AdminUser,
 } from '../api/admin';
+import { DesignSwitch } from '../components/DesignSwitch';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MIXTAPE_H1 } from '../components/ui/heading';
+import { PILL_TRACK, pillTrackOptionClass } from '../components/ui/PillTrack';
 import { Sheet } from '../components/ui/Sheet';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TopBar } from '../components/ui/TopBar';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
+import { useMixtape } from '../stores/design';
 import { NotFound } from './NotFound';
 
 const TABS = [
@@ -38,6 +44,19 @@ function formatDate(iso: string): string {
   return dateFormat.format(new Date(iso));
 }
 
+/** A list of rows: separate cards under Current, one `surface` card of divider rows under Mixtape (§5.17). */
+function listClass(mixtape: boolean): string {
+  return mixtape
+    ? 'flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4'
+    : 'flex flex-col gap-3';
+}
+
+function rowClass(mixtape: boolean): string {
+  return mixtape
+    ? 'flex items-center gap-3 py-3'
+    : 'flex items-center gap-3 rounded-2xl border border-line bg-surface p-3';
+}
+
 function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -47,18 +66,30 @@ function countLabel(count: number, singular: string, plural: string): string {
  * AdminOnly; its tabs are routes, so each list has its own URL.
  */
 export function AdminLayout() {
+  const mixtape = useMixtape();
   return (
     <ScreenLayout>
-      <h1 className="mb-4 font-display text-2xl font-medium">Admin</h1>
-      <nav aria-label="Admin sections" className="mb-6 flex gap-1 rounded-full bg-line p-1">
+      {mixtape && <TopBar />}
+      <h1 className={`mb-4 ${mixtape ? MIXTAPE_H1 : 'font-display text-2xl font-medium'}`}>
+        Admin
+      </h1>
+      {/* Both designs: it is how this device moves between them (ui-redesign.md §4). */}
+      <DesignSwitch />
+      <nav
+        aria-label="Admin sections"
+        className={`mb-6 ${mixtape ? PILL_TRACK : 'flex gap-1 rounded-full bg-line p-1'}`}
+      >
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
             className={({ isActive }) =>
-              `flex min-h-11 flex-1 items-center justify-center rounded-full text-sm font-medium ${
-                isActive ? 'bg-surface text-ink' : 'text-muted'
-              }`
+              mixtape
+                ? // The pill track's look (§5.17): the current section on tape paper.
+                  `flex items-center justify-center ${pillTrackOptionClass(isActive)}`
+                : `flex min-h-11 flex-1 items-center justify-center rounded-full text-sm font-medium ${
+                    isActive ? 'bg-surface text-ink' : 'text-muted'
+                  }`
             }
           >
             {tab.label}
@@ -85,6 +116,7 @@ export function AdminUsers() {
   const forbidden = useForbiddenEndsAdmin(users);
   /** Rows changed here (a photo removed), by id, over the loaded list. */
   const [changed, setChanged] = useState<Record<string, AdminUser>>({});
+  const mixtape = useMixtape();
 
   if (forbidden) {
     return <NotFound />;
@@ -99,10 +131,11 @@ export function AdminUsers() {
   return (
     <section aria-label="Users">
       <p className="mb-3 text-sm text-muted">{countLabel(users.data.length, 'user', 'users')}</p>
-      <ul className="flex flex-col gap-3">
+      <ul className={listClass(mixtape)}>
         {users.data.map((user) => (
           <UserRow
             key={user.id}
+            mixtape={mixtape}
             user={changed[user.id] ?? user}
             onChange={(updated) => setChanged((rows) => ({ ...rows, [updated.id]: updated }))}
           />
@@ -112,7 +145,15 @@ export function AdminUsers() {
   );
 }
 
-function UserRow({ user, onChange }: { user: AdminUser; onChange: (user: AdminUser) => void }) {
+function UserRow({
+  user,
+  mixtape,
+  onChange,
+}: {
+  user: AdminUser;
+  mixtape: boolean;
+  onChange: (user: AdminUser) => void;
+}) {
   const [removing, setRemoving] = useState(false);
   const details = [
     user.preferredService ? streamingServiceLabel(user.preferredService) : null,
@@ -121,7 +162,7 @@ function UserRow({ user, onChange }: { user: AdminUser; onChange: (user: AdminUs
   ].filter(Boolean);
 
   return (
-    <li className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
+    <li className={rowClass(mixtape)}>
       <Avatar
         id={user.id}
         name={user.displayName}
@@ -204,6 +245,7 @@ function RemovePhotoSheet({
 export function AdminCommunities() {
   const communities = useRequest(listAdminCommunities);
   const forbidden = useForbiddenEndsAdmin(communities);
+  const mixtape = useMixtape();
 
   if (forbidden) {
     return <NotFound />;
@@ -215,6 +257,9 @@ export function AdminCommunities() {
     return <LoadError message="Couldn't load the communities." onRetry={communities.reload} />;
   }
   if (communities.data.length === 0) {
+    if (mixtape) {
+      return <EmptyState>No communities yet.</EmptyState>;
+    }
     return <p className="py-10 text-center text-sm text-muted">No communities yet.</p>;
   }
 
@@ -223,22 +268,22 @@ export function AdminCommunities() {
       <p className="mb-3 text-sm text-muted">
         {countLabel(communities.data.length, 'community', 'communities')}
       </p>
-      <ul className="flex flex-col gap-3">
+      <ul className={listClass(mixtape)}>
         {communities.data.map((community) => (
-          <CommunityRow key={community.id} community={community} />
+          <CommunityRow key={community.id} community={community} mixtape={mixtape} />
         ))}
       </ul>
     </section>
   );
 }
 
-function CommunityRow({ community }: { community: AdminCommunity }) {
+function CommunityRow({ community, mixtape }: { community: AdminCommunity; mixtape: boolean }) {
   const owner = community.owner
     ? `Owner: ${community.owner.displayName ?? 'Not finished signing up'}`
     : 'No owner';
 
   return (
-    <li className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3">
+    <li className={rowClass(mixtape)}>
       <Avatar id={community.id} name={community.name} size={40} decorative />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{community.name}</p>

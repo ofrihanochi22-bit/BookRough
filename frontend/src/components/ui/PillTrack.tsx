@@ -6,6 +6,18 @@ interface PillTrackProps<T extends string> {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  /** Both sides disabled, e.g. offline on the sign-in switch. */
+  disabled?: boolean;
+}
+
+/** The track itself: one `surface` pill holding the options. */
+export const PILL_TRACK = 'flex gap-1 rounded-full bg-surface p-1';
+
+/** One side of the track; also used by the Admin section tabs, which are links (§5.17). */
+export function pillTrackOptionClass(selected: boolean): string {
+  return `min-h-11 flex-1 rounded-full text-sm font-semibold disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+    selected ? TAPE_PAPER : 'text-muted'
+  }`;
 }
 
 /**
@@ -18,9 +30,10 @@ export function PillTrack<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
 }: PillTrackProps<T>) {
   return (
-    <div role="group" aria-label={label} className="flex gap-1 rounded-full bg-surface p-1">
+    <div role="group" aria-label={label} className={PILL_TRACK}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -28,10 +41,9 @@ export function PillTrack<T extends string>({
             key={option.value}
             type="button"
             aria-pressed={selected}
+            disabled={disabled}
             onClick={() => onChange(option.value)}
-            className={`min-h-11 flex-1 rounded-full text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-              selected ? TAPE_PAPER : 'text-muted'
-            }`}
+            className={pillTrackOptionClass(selected)}
           >
             {option.label}
           </button>
