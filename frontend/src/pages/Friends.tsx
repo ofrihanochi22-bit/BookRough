@@ -20,9 +20,14 @@ import { PersonLink } from '../components/PersonLink';
 import { RemoveFriendSheet } from '../components/RemoveFriendSheet';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
+import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
+import { LineIcon } from '../components/ui/LineIcon';
+import { MIXTAPE_H1 } from '../components/ui/heading';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TAPE_PAPER } from '../components/ui/tape';
+import { SearchIconLink, TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import {
@@ -34,6 +39,7 @@ import {
 } from '../lib/friendCopy';
 import { INVITATION_GONE, invitedBy, joinedCommunity } from '../lib/invitationCopy';
 import { relativeTime } from '../lib/postLinks';
+import { useMixtape } from '../stores/design';
 import { useFriendRequests } from '../stores/friendRequests';
 
 interface FriendsData {
@@ -82,6 +88,7 @@ export function Friends() {
   const [busy, setBusy] = useState<string | null>(null);
   const [removing, setRemoving] = useState<FriendView | null>(null);
   const navigate = useNavigate();
+  const mixtape = useMixtape();
 
   const data = loaded.status === 'ready' ? loaded.data : null;
   const changes = data && local?.base === data ? local : null;
@@ -187,26 +194,69 @@ export function Friends() {
     }
   }
 
+  // Mixtape (ui-redesign.md §5.4): sections are `surface` cards without an
+  // outline, labelled in `muted`; offline buttons get the kit's dashed look.
+  const listClass = mixtape
+    ? 'flex flex-col divide-y divide-line rounded-[22px] bg-surface'
+    : 'flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface';
+  const sectionTitle = mixtape ? 'text-sm font-medium text-muted' : 'font-medium';
+  const offline = mixtape && !online;
+  const recommendationsLabel = unseen > 0 ? `Recommendations, ${unseen} new` : 'Recommendations';
+  const badge = unseen > 0 && (
+    <span
+      aria-hidden="true"
+      className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-on-accent"
+    >
+      {badgeText(unseen)}
+    </span>
+  );
+  const noFriendsBody = (
+    <>
+      Find people on the{' '}
+      <Link to="/search" className="text-accent underline">
+        Search
+      </Link>{' '}
+      tab and add them as friends.
+    </>
+  );
+
   return (
     <ScreenLayout>
-      <h1 className="mb-6 font-display text-2xl font-medium">Friends</h1>
+      {mixtape ? (
+        <>
+          <TopBar>
+            <SearchIconLink />
+          </TopBar>
+          <h1 className={`mb-6 ${MIXTAPE_H1}`}>Friends</h1>
+        </>
+      ) : (
+        <h1 className="mb-6 font-display text-2xl font-medium">Friends</h1>
+      )}
 
       <div className="flex flex-col gap-6">
-        <Link
-          to="/recommendations"
-          aria-label={unseen > 0 ? `Recommendations, ${unseen} new` : 'Recommendations'}
-          className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 font-medium"
-        >
-          Recommendations
-          {unseen > 0 && (
-            <span
-              aria-hidden="true"
-              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-on-accent"
-            >
-              {badgeText(unseen)}
-            </span>
-          )}
-        </Link>
+        {mixtape ? (
+          <Link
+            to="/recommendations"
+            aria-label={recommendationsLabel}
+            className={`flex min-h-16 items-center gap-3 rounded-[22px] px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${TAPE_PAPER}`}
+          >
+            <LineIcon className="size-6">
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="M3 7l9 6 9-6" />
+            </LineIcon>
+            <span className="flex-1 font-display text-lg font-bold">Recommendations</span>
+            {badge}
+          </Link>
+        ) : (
+          <Link
+            to="/recommendations"
+            aria-label={recommendationsLabel}
+            className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 font-medium"
+          >
+            Recommendations
+            {badge}
+          </Link>
+        )}
 
         {!online && (
           <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -216,9 +266,9 @@ export function Friends() {
 
         {loaded.status === 'loading' && (
           <div role="status" aria-label="Loading your friends" className="flex flex-col gap-3">
-            <Skeleton className="h-11" />
-            <Skeleton className="h-11" />
-            <Skeleton className="h-11" />
+            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
+            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
+            <Skeleton className={mixtape ? 'h-14' : 'h-11'} />
           </div>
         )}
 
@@ -226,25 +276,25 @@ export function Friends() {
           <LoadError message={FRIENDS_LOAD_FAILED} onRetry={loaded.reload} />
         )}
 
-        {data && invitations.length === 0 && requests.length === 0 && friends.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
-            <p className="font-medium">No friends yet</p>
-            <p className="mt-1 text-sm text-muted">
-              Find people on the{' '}
-              <Link to="/search" className="text-accent underline">
-                Search
-              </Link>{' '}
-              tab and add them as friends.
-            </p>
-          </div>
-        )}
+        {data &&
+          invitations.length === 0 &&
+          requests.length === 0 &&
+          friends.length === 0 &&
+          (mixtape ? (
+            <KitEmptyState title="No friends yet">{noFriendsBody}</KitEmptyState>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+              <p className="font-medium">No friends yet</p>
+              <p className="mt-1 text-sm text-muted">{noFriendsBody}</p>
+            </div>
+          ))}
 
         {invitations.length > 0 && (
           <section aria-labelledby="community-invitations" className="flex flex-col gap-2">
-            <h2 id="community-invitations" className="font-medium">
+            <h2 id="community-invitations" className={sectionTitle}>
               Invitations
             </h2>
-            <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+            <ul className={listClass}>
               {invitations.map((invitation) => (
                 <li key={invitation.community.id} className="flex flex-col gap-2 px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -268,6 +318,7 @@ export function Friends() {
                   <div className="flex gap-2">
                     <Button
                       busy={busy === invitation.community.id}
+                      offline={offline}
                       disabled={!online || busy !== null}
                       onClick={() => void respond(invitation, 'join')}
                       aria-label={`Join ${invitation.community.name}`}
@@ -276,6 +327,7 @@ export function Friends() {
                     </Button>
                     <Button
                       variant="secondary"
+                      offline={offline}
                       disabled={!online || busy !== null}
                       onClick={() => void respond(invitation, 'decline')}
                       aria-label={`Decline ${invitation.community.name}`}
@@ -291,10 +343,10 @@ export function Friends() {
 
         {requests.length > 0 && (
           <section aria-labelledby="friend-requests" className="flex flex-col gap-2">
-            <h2 id="friend-requests" className="font-medium">
+            <h2 id="friend-requests" className={sectionTitle}>
               Requests
             </h2>
-            <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+            <ul className={listClass}>
               {requests.map((request) => (
                 <li key={request.user.id} className="flex flex-col gap-2 px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -306,6 +358,7 @@ export function Friends() {
                   <div className="flex gap-2">
                     <Button
                       busy={busy === request.user.id}
+                      offline={offline}
                       disabled={!online || busy !== null}
                       onClick={() => void answer(request, 'accept')}
                       aria-label={`Accept ${request.user.displayName}`}
@@ -314,6 +367,7 @@ export function Friends() {
                     </Button>
                     <Button
                       variant="secondary"
+                      offline={offline}
                       disabled={!online || busy !== null}
                       onClick={() => void answer(request, 'ignore')}
                       aria-label={`Ignore ${request.user.displayName}`}
@@ -329,22 +383,32 @@ export function Friends() {
 
         {data && (requests.length > 0 || friends.length > 0) && (
           <section aria-labelledby="your-friends" className="flex flex-col gap-2">
-            <h2 id="your-friends" className="font-medium">
+            <h2 id="your-friends" className={sectionTitle}>
               Your friends
             </h2>
             {friends.length === 0 ? (
               <p className="text-sm text-muted">Friends you accept appear here.</p>
             ) : (
-              <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+              <ul className={listClass}>
                 {friends.map((friend) => (
-                  <li key={friend.user.id} className="flex items-center gap-2 px-4 py-1">
-                    <PersonLink user={friend.user} className="text-sm" />
+                  <li
+                    key={friend.user.id}
+                    className={`flex items-center gap-2 px-4 ${mixtape ? 'py-1.5' : 'py-1'}`}
+                  >
+                    <PersonLink
+                      user={friend.user}
+                      avatarSize={mixtape ? 36 : undefined}
+                      className="text-sm"
+                    />
                     <button
                       type="button"
                       aria-label={`Actions for ${friend.user.displayName}`}
+                      aria-haspopup={mixtape ? 'dialog' : undefined}
                       disabled={!online}
                       onClick={() => setRemoving(friend)}
-                      className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
+                      className={`flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50 ${
+                        mixtape ? '-mr-2 shrink-0' : ''
+                      }`}
                     >
                       <span aria-hidden="true" className="text-lg leading-none">
                         ⋯

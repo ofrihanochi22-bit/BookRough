@@ -10,12 +10,17 @@ import { SignOutButton } from '../components/SignOutSheet';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
+import { MIXTAPE_H1 } from '../components/ui/heading';
+import { LineIcon } from '../components/ui/LineIcon';
+import { ProfileTape, TAPE_AVATAR_RING } from '../components/ui/ProfileTape';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { TopBar } from '../components/ui/TopBar';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { AVATAR_COPY, AvatarImageError, isUploadedAvatar, prepareAvatar } from '../lib/avatarImage';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
 import { useAuthStore, type PublicUser, type StreamingService } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 
 const NAME_MESSAGES: ReadonlySet<string> = new Set(Object.values(DISPLAY_NAME_MESSAGES));
 
@@ -37,9 +42,37 @@ function messageOf(error: unknown, fallback: string): string {
 export function Profile() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
+  const mixtape = useMixtape();
 
   if (!user) {
     return null;
+  }
+
+  if (mixtape) {
+    return (
+      <ScreenLayout>
+        <TopBar />
+        <h1 className={`mb-6 ${MIXTAPE_H1}`}>Your profile</h1>
+        <ProfileForm key={`${user.displayName}|${user.preferredService}`} user={user} />
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="mt-8 flex min-h-14 items-center gap-3 rounded-[22px] bg-surface px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <LineIcon>
+              <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+            </LineIcon>
+            <span className="flex-1">Admin area</span>
+            <LineIcon className="size-4 text-muted">
+              <path d="M9 5l7 7-7 7" />
+            </LineIcon>
+          </Link>
+        )}
+        <div className="mt-8 flex justify-center pb-4">
+          <SignOutButton className="px-5" />
+        </div>
+      </ScreenLayout>
+    );
   }
 
   return (
@@ -74,6 +107,7 @@ function ProfileForm({ user }: { user: PublicUser }) {
   /** A name the server rejected on save (taken in a race, reserved, …). */
   const [rejected, setRejected] = useState<{ name: string; message: string } | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const mixtape = useMixtape();
 
   const cleaned = cleanDisplayName(name);
   const nameChanged = cleaned !== user.displayName;
@@ -155,7 +189,13 @@ function ProfileForm({ user }: { user: PublicUser }) {
         </p>
       )}
 
-      <Button type="submit" busy={saving} disabled={!canSave} className="w-full">
+      <Button
+        type="submit"
+        busy={saving}
+        offline={mixtape && !online}
+        disabled={!canSave}
+        className="w-full"
+      >
         {saving ? 'Saving…' : 'Save changes'}
       </Button>
     </form>
@@ -182,6 +222,8 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
   const [uploading, setUploading] = useState(false);
   const usingPhoto = user.profilePictureUrl !== null;
   const uploaded = isUploadedAvatar(user.profilePictureUrl);
+  const mixtape = useMixtape();
+  const locked = offline || saving || busy;
 
   async function upload(file: File) {
     onBusyChange(true);
@@ -215,14 +257,37 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
     }
   }
 
-  return (
-    <section className="flex flex-col items-center gap-3 text-center">
-      <Avatar id={user.id} name={user.displayName} pictureUrl={user.profilePictureUrl} size={80} />
+  const content = (
+    <>
+      {mixtape ? (
+        <span className={TAPE_AVATAR_RING}>
+          <Avatar
+            id={user.id}
+            name={user.displayName}
+            pictureUrl={user.profilePictureUrl}
+            size={76}
+          />
+        </span>
+      ) : (
+        <Avatar
+          id={user.id}
+          name={user.displayName}
+          pictureUrl={user.profilePictureUrl}
+          size={80}
+        />
+      )}
 
       <label
-        className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line bg-surface px-6 text-sm font-medium ${
-          offline || saving || busy ? 'pointer-events-none opacity-60' : ''
-        }`}
+        className={
+          mixtape
+            ? // Outlined in `tape-ink`: ProfileTape points `line` and `ink` at it.
+              `inline-flex min-h-11 cursor-pointer items-center rounded-full border-[1.5px] border-line px-6 text-sm font-semibold text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+                locked ? 'pointer-events-none border-dashed opacity-60' : ''
+              }`
+            : `inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line bg-surface px-6 text-sm font-medium ${
+                locked ? 'pointer-events-none opacity-60' : ''
+              }`
+        }
       >
         {uploading ? 'Uploading…' : 'Upload a photo'}
         <input
@@ -246,7 +311,8 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
           <Button
             variant="secondary"
             busy={busy && !uploading}
-            disabled={offline || saving || busy}
+            offline={mixtape && offline}
+            disabled={locked}
             onClick={() => void switchToGenerated()}
           >
             {busy && !uploading ? 'Switching…' : 'Use generated avatar'}
@@ -259,7 +325,7 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
         </>
       ) : (
         <>
-          <p className="text-sm">Use my Google photo</p>
+          <p className={mixtape ? 'text-sm font-semibold' : 'text-sm'}>Use my Google photo</p>
           {offline ? (
             <p className="text-xs text-muted">Connect to change your avatar.</p>
           ) : (
@@ -288,6 +354,17 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
           {error}
         </p>
       )}
-    </section>
+    </>
   );
+
+  if (mixtape) {
+    return (
+      <section>
+        <ProfileTape userId={user.id}>
+          <div className="flex flex-col items-center gap-3 text-center">{content}</div>
+        </ProfileTape>
+      </section>
+    );
+  }
+  return <section className="flex flex-col items-center gap-3 text-center">{content}</section>;
 }

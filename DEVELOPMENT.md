@@ -2425,7 +2425,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1k — UI redesign "Mixtape", slice 2: the core loop (Phase 6 — presentation of UC-9, UC-10, UC-11, UC-14, UC-16)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #55)
 Branch: feat/redesign-core-loop
 Spec: docs/features/ui-redesign.md (slice 2 of six, §6)
 
@@ -2520,6 +2520,85 @@ cd frontend && npm run dev
 
 ```bash
 cd frontend && npx vitest run src/pages/Dashboard.mixtape.test.tsx src/pages/Community.mixtape.test.tsx src/pages/PostDetail.mixtape.test.tsx src/pages/CreateCommunity.mixtape.test.tsx src/pages/CommunitySettings.mixtape.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
+```
+
+### Step 6.1l — UI redesign "Mixtape", slice 3: the social screens (Phase 6 — presentation of UC-4, UC-5, UC-6, UC-7, UC-8, UC-12, UC-20, UC-21)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/redesign-social
+Spec: docs/features/ui-redesign.md (slice 3 of six, §6)
+
+Goal: Friends, Recommendations, Public Profile, Search, Notifications, My List and My Profile get the Mixtape look behind the per-device switch. The Current design stays the default and is unchanged, and nothing changes in what any screen can do.
+
+Tasks:
+
+- [x] One decision settled with the developer (2026-11-10), recorded in the spec's §5.7 and §10:
+  - Search rows keep today's content: avatar and name leading to the profile, with no `FriendButton`. The search API returns no friendship state, so a button would be a backend change. It is deferred to its own feature after the redesign.
+- [x] Friends (§5.4, `pages/Friends.tsx`):
+  - The compact logo, and the header Search icon deferred from slice 2.
+  - Recommendations as a tape-paper tile with an envelope and the accent badge.
+  - Invitations, Requests and Your friends as `surface` cards labelled in `muted`.
+  - Kit empty state with the existing copy and its Search link.
+- [x] Recommendations (§5.5): "‹ Friends" beside the logo, and Send a song on its own full-width row. Received / Sent is a pill track (`ui/PillTrack.tsx`) with the selected side on tape paper. Kit empty states.
+- [x] Public Profile (§5.6):
+  - A tape card with a stripe band in the user's own hue (`ui/ProfileTape.tsx`), the ringed avatar and the name as the h1.
+  - `FriendButton` (a secondary pill in every state under Mixtape) and Send a song, half width each.
+  - Rating rows with a 64px cover and a score sticker (`ui/ScoreSticker.tsx`, now shared with Post Detail).
+- [x] Search (§5.7): a pill field with a leading search icon; results as one `surface` card of divider rows; no results in the kit's dashed frame.
+- [x] Notifications (§5.8): "‹ Home" beside the logo and Mark all as read beside the heading. Unread rows are a raised `surface` card with the accent dot and the sr-only "Unread"; read rows lie flat in `muted`, with a muted avatar.
+- [x] My List (§5.9, `components/SavedPostCard.tsx`): the post card's shape with a 116px thumbnail and kind tag. Rate & Review is the sticker pill, Open in … the accent pill, and Remove an outlined pill.
+- [x] My Profile (§5.11):
+  - The avatar section on the profile tape card, with Google's own button.
+  - Kit name field (`DisplayNameField`) and service rows with the selected one on tape paper (`StreamingServicePicker`). Both are shared with Complete Your Profile, which gets them under Mixtape now.
+  - The Admin area row, and Sign out centred.
+- [x] Review: `/code-review`, `design:accessibility-review` at 375px in light and dark, and a browser check at 375px.
+- [x] Tests: the existing suite unchanged on the default design, plus Mixtape tests for the seven screens.
+
+What I did:
+
+- **No functionality changes.** Under Current every screen renders as before.
+- **Code review** (8 findings; 7 fixed, 1 left for the developer):
+  - Text inside the profile tape card used the scheme tokens, so the Google button's "Fetching your photo…" was about 2:1 on tape in dark mode. `ProfileTape` now points `--ink`, `--muted` and `--line` at `tape-ink` for its contents. This works because `@theme inline` utilities read those variables directly. The hand-made tape-ink pill it needed is gone, and Use generated avatar is the kit `Button` again.
+  - The selected service row lost its border, so the list jumped by 3px on each choice. Every row now keeps a 1.5px border box.
+  - The offline Remove chip relied on CSS order for its opacity. It is now the kit's secondary `Button` with `offline`.
+  - Duplication removed: `ScoreSticker` (Post Detail and profile ratings), `OPEN_IN_PILL` and `KIND_TAG` in `ui/chip.ts` (post card and My List), and `MIXTAPE_H1` in `ui/heading.ts`.
+  - Left as is: under Mixtape the Friends empty state still says "the Search tab", because the spec allows existing copy only. Listed in the PR for the developer.
+- **Kit changes:** `EmptyState` takes an optional heading `level` (an h3 inside the profile's Ratings section) and an optional title (Search's no-results sentence has none). `CoverArt` gains a 64px size, and `StripeBand` is exported from `CommunityCover`.
+- **Accessibility review** (`slice3-accessibility-review.md` in the session notes folder): a scripted pass over all seven screens in light and dark found no text below 4.5:1, no control under 44×44, and no unnamed control. Each screen has one h1 and an ordered outline. The one contrast issue had already been found and fixed by the code review. Not exercised live, because the local data had none: requests, invitations, notification rows, saved songs and profile ratings. The component tests cover them.
+- **Browser check** at 375px, dark and light, on local dev data: all seven screens with `?design=new`, including the profile tape cards in both schemes.
+- **Tests:** frontend 85 files, 1022 tests (971 existing, unchanged), 97.98% lines. New:
+  - `pages/Friends.mixtape.test.tsx`, `pages/Recommendations.mixtape.test.tsx`, `pages/PublicProfile.mixtape.test.tsx`.
+  - `pages/Search.mixtape.test.tsx`, `pages/Notifications.mixtape.test.tsx`, `pages/MyList.mixtape.test.tsx`, `pages/Profile.mixtape.test.tsx`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/`, then open `http://localhost:5173/friends?design=new`. The logo is top left, the Search icon top right, and Recommendations is a cream tile with an envelope. If you have unseen recommendations, the badge shows on it. Tap the Search icon: it opens Search.
+2. On **Search**, type part of a friend's name: one card of rows, each opening the profile.
+3. Open a friend's profile: a cream card with a coloured stripe (the same colour as their generated avatar), then **✓ Friends** and **Send a song** side by side.
+4. **Friends › Recommendations**: Send a song is a full-width row, and Received / Sent is a track whose selected side is cream.
+5. Home's bell → **Notifications**: unread rows are raised cards with a dot, and read rows lie flat and greyed.
+6. **My List**: save a song from a feed first. The card shows a 116px cover, a yellow Rate & Review, a coloured Open in …, and Remove.
+7. **Profile**: the avatar sits on a cream card. Choose another service: the chosen row turns cream and the list doesn't move.
+8. Repeat in light mode. Then open `http://localhost:5173/friends?design=old` to bring back the Current look.
+
+```bash
+cd frontend && npx vitest run src/pages/Friends.mixtape.test.tsx src/pages/Recommendations.mixtape.test.tsx src/pages/PublicProfile.mixtape.test.tsx src/pages/Search.mixtape.test.tsx src/pages/Notifications.mixtape.test.tsx src/pages/MyList.mixtape.test.tsx src/pages/Profile.mixtape.test.tsx
 ```
 
 ```bash

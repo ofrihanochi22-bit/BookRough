@@ -10,7 +10,9 @@ import {
   sendFriendRequest,
 } from '../api/friends';
 import { ACTION_FAILED, nowFriends, REQUEST_SENT, requestFrom } from '../lib/friendCopy';
+import { useMixtape } from '../stores/design';
 import { useFriendRequests } from '../stores/friendRequests';
+
 import { RemoveFriendSheet } from './RemoveFriendSheet';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
@@ -24,6 +26,8 @@ interface FriendButtonProps {
   onChanged: (friendship: Friendship) => void;
   /** The request vanished under an Accept: reload the profile to the true state. */
   onStale: () => void;
+  /** Classes for the visible button, e.g. its share of the Mixtape action row. */
+  className?: string;
 }
 
 /**
@@ -38,8 +42,13 @@ export function FriendButton({
   online,
   onChanged,
   onStale,
+  className = '',
 }: FriendButtonProps) {
   const refreshCount = useFriendRequests((state) => state.refresh);
+  // Mixtape: a secondary pill in every state, beside "Send a song" (ui-redesign.md §5.6).
+  const mixtape = useMixtape();
+  const mainVariant = mixtape ? 'secondary' : 'primary';
+  const offline = mixtape && !online;
   const [busy, setBusy] = useState<'send' | 'cancel' | 'accept' | 'ignore' | null>(null);
   const [sheet, setSheet] = useState<'sent' | 'respond' | 'remove' | null>(null);
 
@@ -72,7 +81,13 @@ export function FriendButton({
   return (
     <>
       {friendship === 'FRIENDS' && (
-        <Button variant="secondary" disabled={!online} onClick={() => setSheet('remove')}>
+        <Button
+          variant="secondary"
+          offline={offline}
+          disabled={!online}
+          onClick={() => setSheet('remove')}
+          className={className}
+        >
           ✓ Friends
         </Button>
       )}
@@ -90,8 +105,11 @@ export function FriendButton({
 
       {friendship === 'NONE' && (
         <Button
+          variant={mainVariant}
           busy={busy === 'send'}
+          offline={offline}
           disabled={!online}
+          className={className}
           onClick={() =>
             void run(
               'send',
@@ -111,13 +129,25 @@ export function FriendButton({
       )}
 
       {friendship === 'REQUEST_SENT' && (
-        <Button variant="secondary" disabled={!online} onClick={() => setSheet('sent')}>
+        <Button
+          variant="secondary"
+          offline={offline}
+          disabled={!online}
+          onClick={() => setSheet('sent')}
+          className={className}
+        >
           Request sent
         </Button>
       )}
 
       {friendship === 'REQUEST_RECEIVED' && (
-        <Button disabled={!online} onClick={() => setSheet('respond')}>
+        <Button
+          variant={mainVariant}
+          offline={offline}
+          disabled={!online}
+          onClick={() => setSheet('respond')}
+          className={className}
+        >
           Respond
         </Button>
       )}

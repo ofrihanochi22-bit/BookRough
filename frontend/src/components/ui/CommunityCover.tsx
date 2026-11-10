@@ -32,7 +32,8 @@ function stripeColors(hue: number | null): [string, string] {
     : [`hsl(${hue} 72% 58%)`, `hsl(${hue} 60% 40%)`];
 }
 
-function StripeBand({ hue, className }: { hue: number | null; className: string }) {
+/** The two-tone stripe band across the top of a cassette label or a profile's tape card. */
+export function StripeBand({ hue, className }: { hue: number | null; className: string }) {
   const [light, dark] = stripeColors(hue);
   return (
     <div aria-hidden="true" data-testid="cover-stripe" className={`flex flex-col ${className}`}>
