@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import {
@@ -8,7 +8,8 @@ import {
   type SavedPostsPage,
 } from '../api/bookmarks';
 import { RatingSheet } from '../components/RatingSheet';
-import { SavedPostCard } from '../components/SavedPostCard';
+import { SavedPostCard, canRateSaved } from '../components/SavedPostCard';
+import { Tip } from '../components/Tip';
 import { Button } from '../components/ui/Button';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { LoadError } from '../components/ui/LoadError';
@@ -19,6 +20,8 @@ import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { REMOVE_FAILED, REMOVED } from '../lib/bookmarkCopy';
+import { dismissTutorialItem } from '../lib/tutorial';
+import { LIST_TIP } from '../lib/tutorialCopy';
 import { useAuthStore } from '../stores/auth';
 
 /** Changes made on this screen since the first page loaded. */
@@ -50,6 +53,10 @@ export function MyList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [rating, setRating] = useState<SavedPost | null>(null);
+  // The list tip (onboarding-tutorial.md §5.2): never while the walkthrough is open.
+  const showListTip = useAuthStore(
+    (state) => state.tutorial.listTip && !state.tutorial.walkthrough,
+  );
 
   // Local changes belong to the page they were made on; a reload starts over.
   const changes =
@@ -59,6 +66,8 @@ export function MyList() {
         (item) => !changes.removed.includes(item.post.id),
       )
     : [];
+  // Above the first saved card that has Rate & Review.
+  const listTipPostId = showListTip ? items.find(canRateSaved)?.post.id : undefined;
 
   /** Applied against the latest state, so a Load more landing meanwhile is kept. */
   function update(page: SavedPostsPage, change: (current: LocalChanges) => Partial<LocalChanges>) {
@@ -87,6 +96,10 @@ export function MyList() {
   /** Rated, already rated, or deleted: the song leaves the list (rate-post.md §5.2). */
   function rated(postId: string) {
     setRating(null);
+    // Rating is what the tip explains, so it counts as seen.
+    if (showListTip) {
+      dismissTutorialItem('listTip');
+    }
     if (changes) {
       update(changes.page, (current) => ({ removed: [...current.removed, postId] }));
     }
@@ -141,14 +154,18 @@ export function MyList() {
         )}
 
         {items.map((item) => (
-          <SavedPostCard
-            key={item.post.id}
-            saved={item}
-            viewerService={viewerService}
-            online={online}
-            onRemove={remove}
-            onRate={setRating}
-          />
+          <Fragment key={item.post.id}>
+            {item.post.id === listTipPostId && (
+              <Tip onDismiss={() => dismissTutorialItem('listTip')}>{LIST_TIP}</Tip>
+            )}
+            <SavedPostCard
+              saved={item}
+              viewerService={viewerService}
+              online={online}
+              onRemove={remove}
+              onRate={setRating}
+            />
+          </Fragment>
         ))}
 
         {changes?.nextCursor && (

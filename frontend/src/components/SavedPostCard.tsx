@@ -17,7 +17,7 @@ interface SavedPostCardProps {
   onRate: (saved: SavedPost) => void;
 }
 
-function canRateSaved(saved: SavedPost): boolean {
+export function canRateSaved(saved: SavedPost): boolean {
   return saved.isMember || saved.post.direct?.isFriend === true;
 }
 

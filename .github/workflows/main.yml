@@ -56,6 +56,9 @@ jobs:
       # The suite signs in dozens of times from one address; the API refuses
       # this outside NODE_ENV=test (docs/features/production-hardening.md §3.1).
       RATE_LIMITS_DISABLED: 'true'
+      # The golden loops never meet the onboarding tutorial
+      # (docs/features/onboarding-tutorial.md §4).
+      TUTORIAL_ENABLED: 'false'
 
     steps:
       - uses: actions/checkout@v4

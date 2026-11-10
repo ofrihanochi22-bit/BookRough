@@ -13,9 +13,22 @@ export interface PublicUser {
   createdAt: string;
 }
 
+/** What of the onboarding tutorial is still to show (docs/features/onboarding-tutorial.md §4). */
+export interface TutorialState {
+  walkthrough: boolean;
+  saveTip: boolean;
+  listTip: boolean;
+}
+export type TutorialItem = keyof TutorialState;
+
+/** Nothing to show — signed out, or a session without the field. */
+export const NO_TUTORIAL: TutorialState = { walkthrough: false, saveTip: false, listTip: false };
+
 export interface Session {
   user: PublicUser;
   needsOnboarding: boolean;
+  /** The caller's own tutorial state; always sent by the server, optional for older fixtures. */
+  tutorial?: TutorialState;
   /** The caller's own admin flag (docs/features/admin-panel.md §4.1). Navigation only — the server authorises. */
   isAdmin: boolean;
 }
@@ -31,7 +44,10 @@ interface AuthState {
   user: PublicUser | null;
   needsOnboarding: boolean;
   isAdmin: boolean;
+  tutorial: TutorialState;
   setSession: (session: Session) => void;
+  /** Hides one tutorial item at once; the server is told separately (lib/tutorial.ts). */
+  markTutorialSeen: (item: TutorialItem) => void;
   clear: () => void;
 }
 
@@ -40,9 +56,18 @@ export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   needsOnboarding: false,
   isAdmin: false,
-  setSession: ({ user, needsOnboarding, isAdmin }) =>
-    set({ status: 'signedIn', user, needsOnboarding, isAdmin }),
-  clear: () => set({ status: 'signedOut', user: null, needsOnboarding: false, isAdmin: false }),
+  tutorial: NO_TUTORIAL,
+  setSession: ({ user, needsOnboarding, isAdmin, tutorial }) =>
+    set({ status: 'signedIn', user, needsOnboarding, isAdmin, tutorial: tutorial ?? NO_TUTORIAL }),
+  markTutorialSeen: (item) => set((state) => ({ tutorial: { ...state.tutorial, [item]: false } })),
+  clear: () =>
+    set({
+      status: 'signedOut',
+      user: null,
+      needsOnboarding: false,
+      isAdmin: false,
+      tutorial: NO_TUTORIAL,
+    }),
 }));
 
 /**

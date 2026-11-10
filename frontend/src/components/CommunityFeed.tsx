@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 
 import { listPosts, type PostsPage, type PublicPost } from '../api/posts';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { dismissTutorialItem } from '../lib/tutorial';
+import { SAVE_TIP } from '../lib/tutorialCopy';
 import { useAuthStore } from '../stores/auth';
 import { PostCard } from './PostCard';
 import { PostComposer } from './PostComposer';
+import { Tip } from './Tip';
 import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
 import { LineIcon } from './ui/LineIcon';
@@ -58,6 +61,10 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
   }, [refreshKey, reload]);
   const online = useOnlineStatus();
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
+  // The save tip (onboarding-tutorial.md §5.2): never while the walkthrough is open.
+  const showSaveTip = useAuthStore(
+    (state) => state.tutorial.saveTip && !state.tutorial.walkthrough,
+  );
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
@@ -90,6 +97,10 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
         .filter((post) => !changes.deleted.includes(post.id))
         .map((post) => changes.replaced[post.id] ?? post)
     : [];
+  // Above the first card that shows a bookmark: not your own, not one you rated.
+  const saveTipPostId = showSaveTip
+    ? posts.find((post) => post.myScore === null && !post.isMine)?.id
+    : undefined;
 
   /**
    * Applies a change against the latest state, not the render that started the
@@ -170,39 +181,47 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
       )}
 
       {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          viewerService={viewerService}
-          online={online}
-          onStale={first.reload}
-          onDeleted={(postId) => {
-            if (changes) {
-              update(changes.page, (current) => ({ deleted: [...current.deleted, postId] }));
-            }
-          }}
-          onBookmarkChanged={(postId, isBookmarked) => {
-            if (changes) {
-              update(changes.page, (current) => {
-                const base =
-                  current.replaced[postId] ??
-                  [...current.added, ...current.page.posts, ...current.more].find(
-                    (candidate) => candidate.id === postId,
-                  );
-                return base
-                  ? { replaced: { ...current.replaced, [postId]: { ...base, isBookmarked } } }
-                  : {};
-              });
-            }
-          }}
-          onUpdated={(updated) => {
-            if (changes) {
-              update(changes.page, (current) => ({
-                replaced: { ...current.replaced, [updated.id]: updated },
-              }));
-            }
-          }}
-        />
+        <Fragment key={post.id}>
+          {post.id === saveTipPostId && (
+            <Tip onDismiss={() => dismissTutorialItem('saveTip')}>{SAVE_TIP}</Tip>
+          )}
+          <PostCard
+            post={post}
+            viewerService={viewerService}
+            online={online}
+            onStale={first.reload}
+            onDeleted={(postId) => {
+              if (changes) {
+                update(changes.page, (current) => ({ deleted: [...current.deleted, postId] }));
+              }
+            }}
+            onBookmarkChanged={(postId, isBookmarked) => {
+              // Saving is what the tip explains, so it counts as seen.
+              if (isBookmarked && showSaveTip) {
+                dismissTutorialItem('saveTip');
+              }
+              if (changes) {
+                update(changes.page, (current) => {
+                  const base =
+                    current.replaced[postId] ??
+                    [...current.added, ...current.page.posts, ...current.more].find(
+                      (candidate) => candidate.id === postId,
+                    );
+                  return base
+                    ? { replaced: { ...current.replaced, [postId]: { ...base, isBookmarked } } }
+                    : {};
+                });
+              }
+            }}
+            onUpdated={(updated) => {
+              if (changes) {
+                update(changes.page, (current) => ({
+                  replaced: { ...current.replaced, [updated.id]: updated },
+                }));
+              }
+            }}
+          />
+        </Fragment>
       ))}
 
       {changes?.nextCursor && (

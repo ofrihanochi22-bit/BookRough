@@ -1,5 +1,7 @@
 import type { StreamingService, User } from '@prisma/client';
 
+import { tutorialState } from '../services/tutorial.service.js';
+
 /** The only user shape that ever leaves the server (CLAUDE.md §5). */
 export interface PublicUser {
   id: string;
@@ -43,5 +45,8 @@ export function sessionPayload(user: User) {
     user: toPublicUser(user),
     needsOnboarding: needsOnboarding(user),
     isAdmin: isAppAdmin(user),
+    // The caller's own tutorial state — never part of PublicUser
+    // (docs/features/onboarding-tutorial.md §4).
+    tutorial: tutorialState(user),
   };
 }
