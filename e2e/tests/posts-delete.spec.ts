@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * Phase 3 golden loop — docs/features/posts-delete.md §7. A member deletes
@@ -15,7 +20,7 @@ const SECOND = 'https://open.spotify.com/track/4444444444444444444444';
 const postsOn = (page: Page) => page.getByRole('region', { name: 'Posts' }).getByRole('article');
 
 async function share(page: Page, url: string) {
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(url);
   await composer.getByRole('button', { name: 'Post' }).click();
   await expect(postsOn(page).filter({ has: page.locator(`a[href="${url}"]`) })).toBeVisible();

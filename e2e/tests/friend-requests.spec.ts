@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount } from '../support/flows';
+import { friendPage, onboardedAccount, openSearch } from '../support/flows';
 
 /**
  * Phase 5 golden loop, "two users, one sends a request, the other accepts" —
@@ -21,7 +21,7 @@ test('a user sends a request; the other accepts it from the Friends tab, then re
   const receiverAccount = await onboardedAccount(receiver);
 
   // Act — the sender finds the receiver by name and taps Add Friend.
-  await tab(page, 'Search').click();
+  await openSearch(page);
   await page.getByLabel('Search people').fill(receiverAccount.displayName);
   await page
     .getByRole('list', { name: 'Results' })
@@ -33,7 +33,7 @@ test('a user sends a request; the other accepts it from the Friends tab, then re
   await expect(page.getByRole('button', { name: 'Request sent' })).toBeVisible();
 
   // Act — the receiver navigates, sees the badge, and opens Friends.
-  await tab(receiver, 'Search').click();
+  await openSearch(receiver);
   await tab(receiver, 'Friends, 1 waiting').click();
   const requests = receiver.getByRole('region', { name: 'Requests' });
   await expect(requests.getByRole('link', { name: sender.displayName })).toBeVisible();

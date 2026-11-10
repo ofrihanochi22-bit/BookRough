@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { TAPE_PAPER } from './tape';
+
 interface DismissibleBarProps {
   children: ReactNode;
   /** Accessible name of the × button, e.g. "Dismiss announcement". */
@@ -7,20 +9,23 @@ interface DismissibleBarProps {
   onDismiss: () => void;
   role: 'status' | 'note';
   className?: string;
+  /** Mixtape's note bar on `tape` paper (ui-redesign.md §5.12) instead of the accent. */
+  paper?: boolean;
 }
 
-/** A slim accent bar of plain text with a 44 px × button — the announcement and the install hint. */
+/** A slim accent (or tape-paper) bar of plain text with a 44 px × button — the announcement and the install hint. */
 export function DismissibleBar({
   children,
   dismissLabel,
   onDismiss,
   role,
   className = '',
+  paper = false,
 }: DismissibleBarProps) {
   return (
     <div
       role={role}
-      className={`flex items-start gap-2 bg-accent-soft py-2 pr-1 pl-4 text-sm text-accent-ink ${className}`}
+      className={`flex items-start gap-2 py-2 pr-1 pl-4 text-sm ${paper ? TAPE_PAPER : 'bg-accent-soft text-accent-ink'} ${className}`}
     >
       <p className="min-w-0 flex-1 self-center break-words">{children}</p>
       <button

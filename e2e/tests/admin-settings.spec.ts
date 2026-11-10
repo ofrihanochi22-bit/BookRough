@@ -56,7 +56,7 @@ test('an admin changes the settings; a friend sees the banner and a visitor the 
     await page.goto('/admin/settings');
     await expect(page.getByText('Recent changes')).toBeVisible();
     await page.getByRole('switch').uncheck();
-    await page.getByText('Purple', { exact: true }).click();
+    await page.getByText('Orange', { exact: true }).click();
     const reset = page.getByRole('button', { name: 'Reset to default' });
     if (await reset.isEnabled()) {
       await reset.click();
@@ -66,6 +66,6 @@ test('an admin changes the settings; a friend sees the banner and a visitor the 
       await save.click();
       await expect(page.getByText('Settings saved')).toBeVisible();
     }
-    await expect(page.locator('html')).toHaveAttribute('data-accent', 'purple');
+    await expect(page.locator('html')).toHaveAttribute('data-accent', 'orange');
   }
 });

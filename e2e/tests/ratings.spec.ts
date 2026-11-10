@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink, friendPage, joinThroughLink } from '../support/flows';
+import {
+  createCommunityAndReadLink,
+  friendPage,
+  joinThroughLink,
+  openComposer,
+} from '../support/flows';
 
 /**
  * Phase 4 golden loop, the "rate" step — docs/features/rate-post.md §7. The
@@ -18,7 +23,7 @@ test('a friend rates a saved song from My List, and the feed shows their score',
 }) => {
   // Arrange — A shares a link; B joins and saves it.
   const link = await createCommunityAndReadLink(page, 'Rating Club');
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   await expect(postsOn(page).filter({ has: page.locator(`a[href="${SHARED}"]`) })).toBeVisible();
@@ -46,7 +51,7 @@ test('a friend rates a saved song from My List, and the feed shows their score',
   // Assert — the feed shows B's score instead of the bookmark.
   await friend.goBack();
   await friend.reload();
-  await expect(card.getByText('You rated 8/10')).toBeVisible();
+  await expect(card.getByText('You: 8')).toBeVisible();
   await expect(card.getByRole('button', { name: /Listen Later/ })).toHaveCount(0);
 
   await friend.context().close();

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount } from '../support/flows';
+import { friendPage, onboardedAccount, openSearch } from '../support/flows';
 
 /**
  * Phase 5 golden loop, "friends bring each other into communities" —
@@ -19,7 +19,7 @@ test('a friend is invited on the create form and joins from the Friends tab', as
   const owner = await onboardedAccount(page);
   const guest = await friendPage(browser);
   const guestAccount = await onboardedAccount(guest);
-  await tab(page, 'Search').click();
+  await openSearch(page);
   await page.getByLabel('Search people').fill(guestAccount.displayName);
   await page
     .getByRole('list', { name: 'Results' })
@@ -27,7 +27,7 @@ test('a friend is invited on the create form and joins from the Friends tab', as
     .click();
   await page.getByRole('button', { name: 'Add Friend' }).click();
   await expect(page.getByRole('button', { name: 'Request sent' })).toBeVisible();
-  await tab(guest, 'Search').click();
+  await openSearch(guest);
   await tab(guest, 'Friends, 1 waiting').click();
   await guest.getByRole('button', { name: `Accept ${owner.displayName}` }).click();
   await expect(guest.getByText(`You're now friends with ${owner.displayName}.`)).toBeVisible();

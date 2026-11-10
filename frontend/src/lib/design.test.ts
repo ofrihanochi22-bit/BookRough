@@ -49,9 +49,17 @@ describe('design preference (ui-redesign.md §4)', () => {
     expect(initialDesign('?tab=users')).toBe('mixtape');
   });
 
-  it('defaults to Current with nothing stored', () => {
+  it('defaults to Mixtape with nothing stored, since the swap (§6 slice 5)', () => {
     // Act & Assert
-    expect(DEFAULT_DESIGN).toBe('current');
+    expect(DEFAULT_DESIGN).toBe('mixtape');
+    expect(initialDesign('')).toBe('mixtape');
+  });
+
+  it('keeps a device that chose Current on Current after the swap', () => {
+    // Arrange
+    storeDesign('current');
+
+    // Act & Assert
     expect(initialDesign('')).toBe('current');
   });
 
@@ -72,7 +80,7 @@ describe('design preference (ui-redesign.md §4)', () => {
     window.localStorage.setItem(DESIGN_STORAGE_KEY, 'gig-poster');
 
     // Act & Assert
-    expect(readStoredDesign()).toBe('current');
+    expect(readStoredDesign()).toBe('mixtape');
   });
 
   it('falls back to the default when storage throws, and a URL choice still applies', () => {
@@ -85,7 +93,7 @@ describe('design preference (ui-redesign.md §4)', () => {
     });
 
     // Act & Assert
-    expect(initialDesign('')).toBe('current');
-    expect(initialDesign('?design=new')).toBe('mixtape');
+    expect(initialDesign('')).toBe('mixtape');
+    expect(initialDesign('?design=old')).toBe('current');
   });
 });

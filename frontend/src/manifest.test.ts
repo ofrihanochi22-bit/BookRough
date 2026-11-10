@@ -53,8 +53,9 @@ const indexHtml = text('index.html');
 const indexCss = text('src/index.css');
 const mainSource = text('src/main.tsx');
 
+/** Mixtape's light canvas — the default design since the swap (ui-redesign.md §6). */
 function lightCanvas(): string | undefined {
-  return /--canvas:\s*(#[0-9a-f]{6})/i.exec(indexCss)?.[1];
+  return /:root\[data-design='mixtape'\]\s*\{[^}]*?--canvas:\s*(#[0-9a-f]{6})/i.exec(indexCss)?.[1];
 }
 
 describe('manifest.webmanifest', () => {
@@ -70,12 +71,12 @@ describe('manifest.webmanifest', () => {
     });
   });
 
-  it('takes its colours from the light canvas token', () => {
+  it("takes its colours from the default design's light canvas token", () => {
     // Arrange
-    const canvas = lightCanvas();
+    const canvas = lightCanvas()?.toLowerCase();
 
     // Assert
-    expect(canvas).toBe('#fbfaf7');
+    expect(canvas).toBe('#eceaf4');
     expect(manifest.theme_color).toBe(canvas);
     expect(manifest.background_color).toBe(canvas);
   });

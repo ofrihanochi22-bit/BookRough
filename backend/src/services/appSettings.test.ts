@@ -29,7 +29,7 @@ vi.mock('../db/prisma.js', () => ({ prisma: db }));
 
 const DEFAULTS = {
   announcement: { enabled: false, text: '' },
-  accentColor: 'purple',
+  accentColor: 'orange',
   welcomeTagline: DEFAULT_TAGLINE,
 };
 
@@ -125,6 +125,25 @@ describe('reading', () => {
     expect(settings).toEqual(DEFAULTS);
   });
 
+  it('defaults the accent to orange when no row exists (ui-redesign.md §3.2)', async () => {
+    // Act
+    const { accentColor } = await getPublicSettings(false);
+
+    // Assert
+    expect(accentColor).toBe('orange');
+  });
+
+  it('keeps a stored accent over the orange default, including the old purple default', async () => {
+    // Arrange — a database that saved purple before the swap.
+    db.appSetting.findMany.mockResolvedValue([{ key: 'ACCENT_COLOR', value: 'purple' }]);
+
+    // Act
+    const { accentColor } = await getPublicSettings(false);
+
+    // Assert
+    expect(accentColor).toBe('purple');
+  });
+
   it('gives the banner only to signed-in callers, and null when it is off', async () => {
     // Arrange
     db.appSetting.findMany.mockResolvedValue([
@@ -136,7 +155,7 @@ describe('reading', () => {
     const signedIn = await getPublicSettings(true);
 
     // Assert
-    expect(signedOut).toEqual({ accentColor: 'purple', welcomeTagline: DEFAULT_TAGLINE });
+    expect(signedOut).toEqual({ accentColor: 'orange', welcomeTagline: DEFAULT_TAGLINE });
     expect(signedIn).toMatchObject({ announcement: { text: 'Hello' } });
 
     db.appSetting.findMany.mockResolvedValue([
@@ -192,7 +211,7 @@ describe('updateSettings', () => {
     expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.appSetting.upsert).toHaveBeenCalledTimes(2);
     expect(tx.settingChange.create).toHaveBeenCalledWith({
-      data: { key: 'ACCENT_COLOR', oldValue: 'purple', newValue: 'green', changedById: 'admin-1' },
+      data: { key: 'ACCENT_COLOR', oldValue: 'orange', newValue: 'green', changedById: 'admin-1' },
     });
     expect(tx.settingChange.create).toHaveBeenCalledWith({
       data: {
@@ -206,7 +225,7 @@ describe('updateSettings', () => {
 
   it('writes nothing when every value is already current', async () => {
     // Act
-    await updateSettings('admin-1', { accentColor: 'purple', welcomeTagline: DEFAULT_TAGLINE });
+    await updateSettings('admin-1', { accentColor: 'orange', welcomeTagline: DEFAULT_TAGLINE });
 
     // Assert
     expect(tx.appSetting.upsert).not.toHaveBeenCalled();

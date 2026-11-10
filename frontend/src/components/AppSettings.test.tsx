@@ -55,7 +55,7 @@ describe('AppSettings', () => {
     expect(useSettingsStore.getState().welcomeTagline).toBe(DEFAULT_TAGLINE);
   });
 
-  it('falls back to purple for a colour name it does not know', async () => {
+  it('falls back to orange, the default, for a colour name it does not know', async () => {
     // Arrange
     fetchPublicSettings.mockResolvedValue({ accentColor: 'teal', welcomeTagline: 'x' });
 
@@ -64,7 +64,7 @@ describe('AppSettings', () => {
 
     // Assert
     await waitFor(() => expect(useSettingsStore.getState().welcomeTagline).toBe('x'));
-    expect(document.documentElement.dataset.accent).toBe('purple');
+    expect(document.documentElement.dataset.accent).toBe('orange');
   });
 
   it('fetches again when the session changes, for the announcement', async () => {
