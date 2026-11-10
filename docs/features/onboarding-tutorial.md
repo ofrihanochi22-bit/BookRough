@@ -8,7 +8,7 @@
 | **Use cases** | No new UC. UC-1 (a walkthrough after Complete Your Profile); UC-12 and UC-13 (two tips along the rating loop)  |
 | **Phase**     | 6 — Step 6.1q of `DEVELOPMENT.md`, manual-test note N4 (`docs/manual-tests/2026-11-04.md`), after the redesign |
 | **Branch**    | `feat/onboarding-tutorial`                                                                                     |
-| **Status**    | ☑ Spec approved (2026-11-10) · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                                |
+| **Status**    | ☑ Spec approved (2026-11-10) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                                |
 
 ---
 
@@ -141,7 +141,7 @@ A `surface` row (as the Admin row) above Sign out: icon, "How BookRough works", 
 
 - ✅ `env`: unset → enabled; `false` / `FALSE` → disabled; `true`, `no`, `` → enabled.
 - ✅ `sessionPayload`: new user after onboarding → all three true; ❌ still onboarding → all false; ❌ disabled → all false; partly seen → only the unseen true.
-- ✅ `markTutorialSeen`: sets a null column; ✅ second call keeps the first timestamp; ❌ unknown item rejected (`AppError 422` from the service guard, if reached).
+- ✅ `markTutorialSeen`: sets a null column; ✅ second call keeps the first timestamp; ❌ a database failure is passed on. (An unknown item is refused by the controller's Zod enum, tested in integration.)
 - ✅ `toPublicUser` still has exactly its five fields (no tutorial leak).
 
 **Integration (Supertest)**
@@ -171,14 +171,16 @@ None.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                      | Reason                                                                                                     |
-| ---------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 2026-11-10 | Form: a five-card walkthrough **and** in-place tips                           | Developer chose "both": one overview, plus help at the exact step where people got stuck                   |
-| 2026-11-10 | Tips: only the save tip (feed) and the list tip (My List)                     | The two steps of the rating loop the manual test missed; Share is already prominent and in the walkthrough |
-| 2026-11-10 | Seen state on the account (three timestamp columns), not `localStorage`       | iOS gives the installed PWA storage apart from Safari; per-device state would repeat it on install         |
-| 2026-11-10 | Existing users see it once too; no backfill                                   | Small group; the N4 evidence came from an existing user                                                    |
-| 2026-11-10 | `TUTORIAL_ENABLED` env (environment-wide off switch), not a per-account flag  | Developer: for testing; a fresh test account would see the walkthrough before a column could be set        |
-| 2026-11-10 | Five cards as listed in §5.1                                                  | Developer approved the list                                                                                |
-| 2026-11-10 | Replay from My Profile shows the cards only; tips never return                | Card 4 explains the same thing as the tips                                                                 |
-| 2026-11-10 | Own endpoint `PATCH /users/me/tutorial` instead of a key on `PATCH /users/me` | `PATCH /users/me` carries the profile's onboarding rules and avatar side effects; seen state is unrelated  |
-| 2026-11-10 | Marking seen is fire-and-forget; failure silent                               | A toast about help text is noise; the cost of failure is seeing it once more                               |
+| Date       | Decision                                                                         | Reason                                                                                                     |
+| ---------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | Form: a five-card walkthrough **and** in-place tips                              | Developer chose "both": one overview, plus help at the exact step where people got stuck                   |
+| 2026-11-10 | Tips: only the save tip (feed) and the list tip (My List)                        | The two steps of the rating loop the manual test missed; Share is already prominent and in the walkthrough |
+| 2026-11-10 | Seen state on the account (three timestamp columns), not `localStorage`          | iOS gives the installed PWA storage apart from Safari; per-device state would repeat it on install         |
+| 2026-11-10 | Existing users see it once too; no backfill                                      | Small group; the N4 evidence came from an existing user                                                    |
+| 2026-11-10 | `TUTORIAL_ENABLED` env (environment-wide off switch), not a per-account flag     | Developer: for testing; a fresh test account would see the walkthrough before a column could be set        |
+| 2026-11-10 | Five cards as listed in §5.1                                                     | Developer approved the list                                                                                |
+| 2026-11-10 | Replay from My Profile shows the cards only; tips never return                   | Card 4 explains the same thing as the tips                                                                 |
+| 2026-11-10 | Own endpoint `PATCH /users/me/tutorial` instead of a key on `PATCH /users/me`    | `PATCH /users/me` carries the profile's onboarding rules and avatar side effects; seen state is unrelated  |
+| 2026-11-10 | Marking seen is fire-and-forget; failure silent                                  | A toast about help text is noise; the cost of failure is seeing it once more                               |
+| 2026-11-10 | The store keeps items closed since sign-in hidden, whatever a later session says | `/code-review`: a profile save after a failed background PATCH brought the walkthrough back mid-session    |
+| 2026-11-10 | Swipe on touch and pen only; no animation between cards                          | `/code-review`: a mouse drag (text selection) turned the card; motion stays reserved for the reels         |

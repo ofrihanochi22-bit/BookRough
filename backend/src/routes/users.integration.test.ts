@@ -341,6 +341,7 @@ describe('POST /api/users/me/google-picture', () => {
       user: expect.objectContaining({ id: user.id, profilePictureUrl: 'https://pic/fresh' }),
       needsOnboarding: false,
       isAdmin: false,
+      tutorial: { walkthrough: true, saveTip: true, listTip: true },
     });
     const row = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     expect(row.profilePictureUrl).toBe('https://pic/fresh');

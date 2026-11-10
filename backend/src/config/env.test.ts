@@ -247,4 +247,31 @@ describe('parseEnv', () => {
       expect(parsed.RATE_LIMITS_DISABLED).toBe(false);
     },
   );
+
+  it('turns the onboarding tutorial on when TUTORIAL_ENABLED is unset', () => {
+    // Act
+    const parsed = parseEnv(validEnv);
+
+    // Assert
+    expect(parsed.TUTORIAL_ENABLED).toBe(true);
+  });
+
+  it.each(['false', ' FALSE ', 'False'])(
+    'turns the tutorial off for TUTORIAL_ENABLED=%j, in any mode',
+    (value) => {
+      // Act
+      const parsed = parseEnv({ ...validEnv, NODE_ENV: 'production', TUTORIAL_ENABLED: value });
+
+      // Assert
+      expect(parsed.TUTORIAL_ENABLED).toBe(false);
+    },
+  );
+
+  it.each(['true', 'no', '0', ''])('keeps the tutorial on for TUTORIAL_ENABLED=%j', (value) => {
+    // Act
+    const parsed = parseEnv({ ...validEnv, TUTORIAL_ENABLED: value });
+
+    // Assert
+    expect(parsed.TUTORIAL_ENABLED).toBe(true);
+  });
 });

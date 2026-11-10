@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { SavedPost } from '../api/bookmarks';
+import { canRateSaved } from '../lib/savedPosts';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
@@ -15,10 +16,6 @@ interface SavedPostCardProps {
   onRemove: (postId: string) => void;
   /** Opens the rating sheet; members only (rate-post.md §5.1). */
   onRate: (saved: SavedPost) => void;
-}
-
-export function canRateSaved(saved: SavedPost): boolean {
-  return saved.isMember || saved.post.direct?.isFriend === true;
 }
 
 /** "Shared by … in … · Saved …" or "Sent by … · Saved …". */

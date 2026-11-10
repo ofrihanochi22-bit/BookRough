@@ -8,7 +8,7 @@ import {
   type SavedPostsPage,
 } from '../api/bookmarks';
 import { RatingSheet } from '../components/RatingSheet';
-import { SavedPostCard, canRateSaved } from '../components/SavedPostCard';
+import { SavedPostCard } from '../components/SavedPostCard';
 import { Tip } from '../components/Tip';
 import { Button } from '../components/ui/Button';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
@@ -20,6 +20,7 @@ import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { REMOVE_FAILED, REMOVED } from '../lib/bookmarkCopy';
+import { canRateSaved } from '../lib/savedPosts';
 import { dismissTutorialItem } from '../lib/tutorial';
 import { LIST_TIP } from '../lib/tutorialCopy';
 import { useAuthStore } from '../stores/auth';
