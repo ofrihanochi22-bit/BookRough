@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-|               |                                                                                                    |
-| ------------- | -------------------------------------------------------------------------------------------------- |
-| **Use cases** | None new. Presentation of the existing UCs; UC-19 touched (accent palette, design switch on Admin) |
-| **Phase**     | 6 — after the manual-test N-notes, before the N4 tutorial                                          |
-| **Branch**    | Six PRs — see §6                                                                                   |
-| **Status**    | ☑ Spec approved (2026-11-09) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                    |
+|               |                                                                                                            |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Use cases** | None new. Presentation of the existing UCs; UC-19 touched (accent palette, design switch on Admin)         |
+| **Phase**     | 6 — after the manual-test N-notes, before the N4 tutorial                                                  |
+| **Branch**    | Six PRs — see §6                                                                                           |
+| **Status**    | ☑ Spec approved (2026-11-09; logo amendment 2026-11-10) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
 
 ---
 
@@ -26,6 +26,7 @@ The current look is clean but generic: every block is the same outlined dark car
 - Generated community covers redrawn as cassette labels (same deterministic hue per id).
 - Rating sticker on the post card.
 - Cassette-reel loading state.
+- A logo — a cassette mark beside the word "BookRough" (§3.8) — large on Welcome, small in the top corner of every other screen. Added 2026-11-10.
 - Every screen in `docs/frontend screens.md`, designed one by one in §5.
 - A per-device design switch so the old and new looks live side by side until the swap (§4).
 
@@ -33,7 +34,8 @@ The current look is clean but generic: every block is the same outlined dark car
 
 - Any change to what a screen can do, any endpoint, any schema change.
 - New copy beyond what the new navigation strictly needs (Share sheet labels). Existing strings stay.
-- A real logo. The Wordmark stays a placeholder component, redrawn in the new style.
+- Any text in the logo besides "BookRough" — no tagline, no slogan inside the mark.
+- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec.
 - Uploaded or derived community covers — covers stay generated (CLAUDE.md §8).
 - i18n / RTL (CLAUDE.md §8).
 - Colour extraction from album art (cross-origin images cannot be read reliably).
@@ -116,6 +118,17 @@ On the post card's album art, top corner, slightly rotated:
 - **One signature moment:** a cassette with spinning reels during link conversion (CLAUDE.md §7), above the existing progress copy; the same reels replace the generic spinner in other loading states.
 - Otherwise motion only answers an action (a sheet opening, the sticker landing after a rating). No entrance animations on cards.
 - `prefers-reduced-motion: reduce` → a still cassette, no rotation.
+
+### 3.8 Logo — agreed 2026-11-10
+
+- **Mark:** a front-on cassette — an orange body (`#FF5A36`), a `tape` label window holding two dark reels with sticker-yellow hubs, and a darker orange (`#C23A17`) tape guide along the bottom. Drawn as inline SVG, no image file.
+- **Word:** "BookRough" — capital B and R — in Bricolage Grotesque, extra bold, slightly tight tracking, in `ink`. No other text in the logo.
+- **Fixed colours:** the mark never follows the admin accent; it is the same orange and yellow in light and dark mode. In light mode the body is unchanged and the word is in `ink` (dark).
+- **Two variants of the `Wordmark` component:**
+  - `hero` — the mark (about 104px wide) stacked above the word (about 38px), centred. Welcome only (§5.12).
+  - `compact` — the mark (about 30px wide) beside the word (about 18px), in one row.
+- **Where the compact logo goes:** the top-left corner of every screen except Welcome. On a screen with a back button it sits to the right of the button. It is not a link and adds no behaviour; the screen's own `h1` is unchanged.
+- **Accessibility:** the mark is `aria-hidden`; the word is real text, so the logo reads as "BookRough" once.
 
 ## 4. Two versions side by side
 
@@ -265,7 +278,8 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 ### 5.12 Welcome — agreed
 
 - **Install hint** (`InstallHint`): unchanged behaviour, kit styling (a `tape` note bar).
-- **Hero:** a large `tape` cassette tilted about −3°, its stripe band in the **fixed** brand orange and sticker yellow (not the admin accent). "BookRough" on the label in the display face (the Wordmark, hero variant). In the reel window, the existing demo moves onto the reels: "Spotify link" under the left reel, an arrow, "Apple Music" under the right reel. Static — no animation. Decorative; the visible text stays readable to screen readers as today.
+- **Hero:** the logo, `hero` variant (§3.8), centred. Amended 2026-11-10: it replaces the tilted cassette agreed on 2026-11-09, so the screen shows one cassette, not two. Static — no animation.
+- **Demo line removed:** the decorative "Spotify link → Apple Music" pills (`aria-hidden` today) are deleted, not moved and not replaced. Spotify to Apple Music is only one of many conversions and does not sum up the app; the admin's tagline below the logo does that job.
 - **Tagline:** the admin's `welcomeTagline`, centred, in the display face at a medium size (it must fit up to 80 characters at 375px).
 - **Sign in / Create account:** the pill track from §5.5 (selected side on `tape`), then the Google button in **Google's own styling**, then "No passwords. We never store your email." in `muted`. Errors and the "Create account" offer after a 404 unchanged, kit styling.
 - Content sits at the bottom of the screen (thumb reach); the hero fills the top.
@@ -311,14 +325,14 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 Agreed 2026-11-09: **four slices, then the swap, then the cleanup** — six PRs in all, each a full Stage 2–4 cycle with `/code-review`, its own tests (CLAUDE.md §10), its DEVELOPMENT.md entry (§13), and the Vercel storage check before merging (CLAUDE.md §16). Until the swap, every slice is visible only behind the design switch.
 
-| #   | Branch (proposed)           | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `feat/redesign-foundation`  | Design switch (§4) and `data-design`; Mixtape tokens for light and dark, accent shades (§3.1–§3.2); Bricolage Grotesque; the kit (§5.0c); tab bar with Share (§3.4); Share sheet (§5.0b); `PostCard` (§5.0); `RatingSheet` (§5.10); cassette `CommunityCover` and reel loader (§3.5, §3.7); runtime `theme-color`. Docs: `docs/tech stack.md` §5 (font) and §5.2 (the `frontend-design` and `Design` plugins), `.md` + `.docx` (CLAUDE.md §18). |
-| 2   | `feat/redesign-core-loop`   | Home (§5.1), Community Feed (§5.2), Post Detail (§5.3), Create Community (§5.15), Community Settings (§5.16).                                                                                                                                                                                                                                                                                                                                   |
-| 3   | `feat/redesign-social`      | Friends (§5.4), Recommendations (§5.5), Public Profile (§5.6), Search (§5.7), Notifications (§5.8), My List (§5.9), My Profile (§5.11).                                                                                                                                                                                                                                                                                                         |
-| 4   | `feat/redesign-entry-admin` | Welcome (§5.12), Complete Your Profile (§5.13), Join Community (§5.14), Admin (§5.17).                                                                                                                                                                                                                                                                                                                                                          |
-| 5   | `feat/redesign-swap`        | Mixtape becomes the default for everyone; `DEFAULT_ACCENT` / `accentColor.defaultValue` → `orange` (frontend + backend); the E2E suite updated for the new navigation (Search through the header icon). Docs: `frontend screens` (.md + .docx) for the tab bar, Share sheet and Search entry; CLAUDE.md §8 records the star-row touch-target exception.                                                                                         |
-| 6   | `chore/redesign-cleanup`    | Old tokens, old component branches, Space Grotesk (`@fontsource/space-grotesk`) and the design switch removed; this spec marked done.                                                                                                                                                                                                                                                                                                           |
+| #   | Branch (proposed)           | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `feat/redesign-foundation`  | Design switch (§4) and `data-design`; Mixtape tokens for light and dark, accent shades (§3.1–§3.2); Bricolage Grotesque; the kit (§5.0c); tab bar with Share (§3.4); Share sheet (§5.0b); `PostCard` (§5.0); `RatingSheet` (§5.10); cassette `CommunityCover` and reel loader (§3.5, §3.7); the logo, both `Wordmark` variants (§3.8), placed on each screen in that screen's slice; runtime `theme-color`. Docs: `docs/tech stack.md` §5 (font) and §5.2 (the `frontend-design` and `Design` plugins), `.md` + `.docx` (CLAUDE.md §18). |
+| 2   | `feat/redesign-core-loop`   | Home (§5.1), Community Feed (§5.2), Post Detail (§5.3), Create Community (§5.15), Community Settings (§5.16).                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 3   | `feat/redesign-social`      | Friends (§5.4), Recommendations (§5.5), Public Profile (§5.6), Search (§5.7), Notifications (§5.8), My List (§5.9), My Profile (§5.11).                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 4   | `feat/redesign-entry-admin` | Welcome (§5.12), Complete Your Profile (§5.13), Join Community (§5.14), Admin (§5.17).                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 5   | `feat/redesign-swap`        | Mixtape becomes the default for everyone; `DEFAULT_ACCENT` / `accentColor.defaultValue` → `orange` (frontend + backend); the E2E suite updated for the new navigation (Search through the header icon). Docs: `frontend screens` (.md + .docx) for the tab bar, Share sheet and Search entry; CLAUDE.md §8 records the star-row touch-target exception.                                                                                                                                                                                  |
+| 6   | `chore/redesign-cleanup`    | Old tokens, old component branches, Space Grotesk (`@fontsource/space-grotesk`) and the design switch removed; this spec marked done.                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## 7. Edge cases & failure modes
 
@@ -335,7 +349,8 @@ Agreed 2026-11-09: **four slices, then the swap, then the cleanup** — six PRs 
 - **Light-mode contrast:** every text/background pair in §3.1–§3.2 meets 4.5:1 (3:1 for large display text); checked in Stage 3 with `design:accessibility-review`.
 - **iPhone safe area:** the raised Share button and the tab bar stay clear of the home indicator in the standalone PWA.
 - **Star row:** a mis-tap is corrected by tapping again or dragging; the readout shows the value before Submit.
-- **Admin accent other than orange:** the Welcome cassette stays fixed orange and yellow; the switch frame and stickers never follow the accent.
+- **Admin accent other than orange:** the logo stays fixed orange and yellow; the switch frame and stickers never follow the accent.
+- **Crowded headers:** if a screen's top row cannot fit the compact logo beside its existing controls at 375px, that is raised with the developer in the slice that redesigns the screen — never solved by silently dropping a control.
 
 ## 8. Test scenarios
 
@@ -389,21 +404,23 @@ None.
 
 ## 10. Decisions log
 
-| Date       | Decision                                                                                      | Reason                                                                                                 |
-| ---------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 2026-11-09 | Direction "Mixtape" chosen over "Gig poster" and "Equaliser"                                  | Most personality; addresses "generic" directly                                                         |
-| 2026-11-09 | Accent = signal colour; default `orange`; paper, sticker, stripes fixed                       | Identity survives any admin choice                                                                     |
-| 2026-11-09 | Keep both light and dark modes                                                                | Respect each friend's phone setting                                                                    |
-| 2026-11-09 | Central Share button; Search to header                                                        | Puts the core action first; reuses existing flows only                                                 |
-| 2026-11-09 | Rating sticker shows average + count, plus "You: N"                                           | Data already on the post                                                                               |
-| 2026-11-09 | Bricolage Grotesque approved as a new dependency                                              | Heading face for the direction                                                                         |
-| 2026-11-09 | Per-device admin switch; screens merge to `main` behind it                                    | Compare on real data on the iPhone without affecting friends; no long-lived branch, no preview storage |
-| 2026-11-09 | Single motion moment: spinning reels                                                          | The 3–8 s conversion wait is the one place motion helps                                                |
-| 2026-11-09 | Post card: 116px side thumbnail, not full-width cover                                         | Two posts per screen keeps the feed scannable; Post Detail shows the full cover                        |
-| 2026-11-09 | Post card variants (direct, pending, link-only) and ⋯ as bottom sheet                         | Yellow = rating; reels for pending; familiar iPhone pattern, card doesn't jump                         |
-| 2026-11-09 | Share → community: the composer opens inside the sheet, then navigates to the feed            | No screen jump mid-action; `PostComposer` already takes a community id                                 |
-| 2026-11-09 | Home: two-row header keeps Sign out visible; floating Create button replaced by a dashed tile | Avoids two floating accent buttons next to the Share button; few communities per user                  |
-| 2026-11-09 | Feed composer collapsed to a pill, expands in place                                           | Posts visible on the first screen; same component                                                      |
-| 2026-11-09 | Post Detail: big sticker replaces the average block; ratings and comments stay stacked        | Nothing hidden; reply notifications always land on visible content                                     |
-| 2026-11-09 | Rating sheet: one row of ten stars, a declared exception to the 44px rule                     | Developer's choice; mitigated by gapless targets, drag-to-set, arrow keys and an N/10 readout          |
-| 2026-11-09 | All 17 screens designed and approved one by one (§5.1–§5.17)                                  | Stage 1 screen pass complete                                                                           |
+| Date       | Decision                                                                                      | Reason                                                                                                         |
+| ---------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 2026-11-09 | Direction "Mixtape" chosen over "Gig poster" and "Equaliser"                                  | Most personality; addresses "generic" directly                                                                 |
+| 2026-11-09 | Accent = signal colour; default `orange`; paper, sticker, stripes fixed                       | Identity survives any admin choice                                                                             |
+| 2026-11-09 | Keep both light and dark modes                                                                | Respect each friend's phone setting                                                                            |
+| 2026-11-09 | Central Share button; Search to header                                                        | Puts the core action first; reuses existing flows only                                                         |
+| 2026-11-09 | Rating sticker shows average + count, plus "You: N"                                           | Data already on the post                                                                                       |
+| 2026-11-09 | Bricolage Grotesque approved as a new dependency                                              | Heading face for the direction                                                                                 |
+| 2026-11-09 | Per-device admin switch; screens merge to `main` behind it                                    | Compare on real data on the iPhone without affecting friends; no long-lived branch, no preview storage         |
+| 2026-11-09 | Single motion moment: spinning reels                                                          | The 3–8 s conversion wait is the one place motion helps                                                        |
+| 2026-11-09 | Post card: 116px side thumbnail, not full-width cover                                         | Two posts per screen keeps the feed scannable; Post Detail shows the full cover                                |
+| 2026-11-09 | Post card variants (direct, pending, link-only) and ⋯ as bottom sheet                         | Yellow = rating; reels for pending; familiar iPhone pattern, card doesn't jump                                 |
+| 2026-11-09 | Share → community: the composer opens inside the sheet, then navigates to the feed            | No screen jump mid-action; `PostComposer` already takes a community id                                         |
+| 2026-11-09 | Home: two-row header keeps Sign out visible; floating Create button replaced by a dashed tile | Avoids two floating accent buttons next to the Share button; few communities per user                          |
+| 2026-11-09 | Feed composer collapsed to a pill, expands in place                                           | Posts visible on the first screen; same component                                                              |
+| 2026-11-09 | Post Detail: big sticker replaces the average block; ratings and comments stay stacked        | Nothing hidden; reply notifications always land on visible content                                             |
+| 2026-11-09 | Rating sheet: one row of ten stars, a declared exception to the 44px rule                     | Developer's choice; mitigated by gapless targets, drag-to-set, arrow keys and an N/10 readout                  |
+| 2026-11-09 | All 17 screens designed and approved one by one (§5.1–§5.17)                                  | Stage 1 screen pass complete                                                                                   |
+| 2026-11-10 | Logo: cassette mark + "BookRough"; large on Welcome, small top-left elsewhere                 | Developer chose option A and the capitalised spelling; one cassette on Welcome, so it replaces the tilted hero |
+| 2026-11-10 | Welcome demo line "Spotify link → Apple Music" removed, not replaced                          | One conversion of many, not the app's essence; the admin tagline already says what the app is                  |
