@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
 import { useRequest } from '../hooks/useRequest';
 import {
   COMMUNITIES_LOAD_FAILED,
-  CREATE_COMMUNITY_PATH,
   NO_COMMUNITIES_BODY,
   NO_COMMUNITIES_TITLE,
   type SharedPostState,
 } from '../lib/communityCopy';
+import { CreateCommunityLink } from './CreateCommunityLink';
 import { PostComposer } from './PostComposer';
 import { SendRecommendationSheet } from './SendRecommendationSheet';
 import { CommunityCover } from './ui/CommunityCover';
@@ -59,15 +59,7 @@ function ChooseCommunity({
     return (
       <EmptyState
         title={NO_COMMUNITIES_TITLE}
-        action={
-          <Link
-            to={CREATE_COMMUNITY_PATH}
-            onClick={onCreate}
-            className="mt-1 flex min-h-11 items-center rounded-full bg-accent px-6 text-sm font-semibold text-on-accent"
-          >
-            Create community
-          </Link>
-        }
+        action={<CreateCommunityLink onClick={onCreate} className="mt-1" />}
       >
         {NO_COMMUNITIES_BODY}
       </EmptyState>

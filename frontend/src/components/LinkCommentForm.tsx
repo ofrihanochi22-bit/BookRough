@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
 
 import type { NewPost } from '../api/posts';
 import {
@@ -50,6 +50,10 @@ export function LinkCommentForm({
   className = '',
 }: LinkCommentFormProps) {
   const mixtape = useMixtape();
+  // Unique per form: the feed's composer and the Share sheet's can be mounted together.
+  const id = useId();
+  const urlId = `${id}-url`;
+  const commentId = `${id}-comment`;
   const [url, setUrl] = useState('');
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -100,11 +104,11 @@ export function LinkCommentForm({
       className={`flex flex-col gap-3 ${className}`}
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor="post-url" className="text-sm font-medium">
+        <label htmlFor={urlId} className="text-sm font-medium">
           {linkLabel}
         </label>
         <input
-          id="post-url"
+          id={urlId}
           type="url"
           inputMode="url"
           autoComplete="off"
@@ -117,17 +121,17 @@ export function LinkCommentForm({
             setLinkError(null);
           }}
           aria-invalid={linkError !== null}
-          aria-describedby="post-url-error"
+          aria-describedby={`${urlId}-error`}
           className={`min-h-11 ${fieldClass(mixtape, linkError !== null)}`}
         />
-        <p id="post-url-error" aria-live="polite" className="text-xs text-danger empty:hidden">
+        <p id={`${urlId}-error`} aria-live="polite" className="text-xs text-danger empty:hidden">
           {linkError}
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline justify-between">
-          <label htmlFor="post-comment" className="text-sm font-medium">
+          <label htmlFor={commentId} className="text-sm font-medium">
             Comment <span className="font-normal text-muted">(optional)</span>
           </label>
           <span className="text-xs text-muted" aria-hidden="true">
@@ -135,17 +139,21 @@ export function LinkCommentForm({
           </span>
         </div>
         <textarea
-          id="post-comment"
+          id={commentId}
           rows={2}
           value={comment}
           readOnly={busy}
           maxLength={4000}
           onChange={(event) => setComment(event.target.value)}
           aria-invalid={commentError !== null}
-          aria-describedby="post-comment-error"
+          aria-describedby={`${commentId}-error`}
           className={`py-3 ${fieldClass(mixtape, commentError !== null)}`}
         />
-        <p id="post-comment-error" aria-live="polite" className="text-xs text-danger empty:hidden">
+        <p
+          id={`${commentId}-error`}
+          aria-live="polite"
+          className="text-xs text-danger empty:hidden"
+        >
           {commentError}
         </p>
       </div>

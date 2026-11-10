@@ -20,7 +20,7 @@ export function EmptyState({ title, children, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-[22px] border-[1.5px] border-dashed border-line px-6 py-8 text-center">
       <ReelCassette className="w-16" />
-      <p className="font-display text-lg font-bold">{title}</p>
+      <h2 className="font-display text-lg font-bold">{title}</h2>
       {children && <p className="text-sm text-muted">{children}</p>}
       {action}
     </div>

@@ -12,6 +12,8 @@ import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Skeleton } from '../components/ui/Skeleton';
+import { CHIP } from '../components/ui/chip';
+import { TopBar } from '../components/ui/TopBar';
 import { useDiscussion } from '../hooks/useDiscussion';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
@@ -19,6 +21,7 @@ import { relativeTime } from '../lib/postLinks';
 import { RATINGS_FAILED } from '../lib/ratingCopy';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import { useAuthStore } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 import { NotFound } from './NotFound';
 
 /** A change made to the card on this screen, kept against the load it was made on. */
@@ -37,6 +40,7 @@ const isNotFound = (error: unknown) => isAxiosError(error) && error.response?.st
 export function PostDetail() {
   const { postId = '' } = useParams();
   const navigate = useNavigate();
+  const mixtape = useMixtape();
   const online = useOnlineStatus();
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
   const loadPost = useCallback(() => getPost(postId), [postId]);
@@ -85,7 +89,13 @@ export function PostDetail() {
 
   return (
     <ScreenLayout>
-      {data ? (
+      {mixtape ? (
+        <TopBar
+          back={
+            data ? { to: backPath, label: data.community?.name ?? 'Recommendations' } : undefined
+          }
+        />
+      ) : data ? (
         <Link
           to={backPath}
           className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
@@ -98,7 +108,7 @@ export function PostDetail() {
 
       {loaded.status === 'loading' && (
         <div role="status" aria-label="Loading the post" className="flex flex-col gap-4">
-          <Skeleton className="h-48" />
+          <Skeleton className={mixtape ? 'aspect-square w-full' : 'h-48'} />
         </div>
       )}
 
@@ -120,7 +130,10 @@ export function PostDetail() {
       )}
 
       <section aria-label="Ratings" className="mt-6 flex flex-col gap-4">
-        {summary && (
+        {/* Under Mixtape the large sticker carries the average (ui-redesign.md §5.3). */}
+        {mixtape && <h2 className="font-display text-xl font-bold tracking-[-0.01em]">Ratings</h2>}
+        {mixtape && summary?.average === null && <p className="text-muted">No ratings yet</p>}
+        {!mixtape && summary && (
           <div className="flex items-baseline gap-2">
             {summary.average === null ? (
               <p className="text-muted">No ratings yet</p>
@@ -153,23 +166,46 @@ export function PostDetail() {
             {ratings.data.ratings.map((rating) => (
               <li
                 key={rating.id}
-                className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4"
+                className={`flex flex-col gap-2 p-4 ${
+                  mixtape
+                    ? 'rounded-[22px] bg-surface'
+                    : 'rounded-2xl border border-line bg-surface'
+                }`}
               >
                 <div className="flex items-center gap-3">
+                  {mixtape && (
+                    <span
+                      role="img"
+                      aria-label={`${rating.score}/10`}
+                      className="flex size-10 shrink-0 -rotate-6 items-center justify-center rounded-full bg-sticker font-display text-base font-extrabold text-sticker-ink"
+                    >
+                      {rating.score}
+                    </span>
+                  )}
                   <PersonLink
                     user={rating.rater}
                     label={rating.isMine ? 'You' : rating.rater.displayName}
                     className="text-sm font-medium"
                   />
-                  <p className="text-sm font-medium">{rating.score}/10</p>
-                  <time dateTime={rating.createdAt} className="text-xs text-muted">
+                  {!mixtape && <p className="text-sm font-medium">{rating.score}/10</p>}
+                  <time dateTime={rating.createdAt} className="shrink-0 text-xs text-muted">
                     {relativeTime(rating.createdAt)}
                   </time>
                 </div>
                 {rating.comment && (
                   <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
                 )}
-                {rating.isMine && post?.direct?.isFriend !== false && (
+                {rating.isMine && post?.direct?.isFriend !== false && mixtape && (
+                  <button
+                    type="button"
+                    disabled={!online || !post}
+                    onClick={() => setEditing(rating)}
+                    className={`${CHIP} self-start ${online ? '' : 'border-dashed text-muted'}`}
+                  >
+                    Edit
+                  </button>
+                )}
+                {rating.isMine && post?.direct?.isFriend !== false && !mixtape && (
                   <Button
                     variant="secondary"
                     disabled={!online || !post}

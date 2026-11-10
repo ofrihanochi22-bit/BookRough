@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
-import { getCommunity, type PublicCommunity } from '../api/communities';
+import { getCommunity, type CommunityRole, type PublicCommunity } from '../api/communities';
 import {
   changeRole,
   deleteCommunity,
@@ -21,17 +21,20 @@ import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { InvitePanel } from '../components/InvitePanel';
 import { PersonLink } from '../components/PersonLink';
+import { ActionSheet } from '../components/ui/ActionSheet';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Sheet } from '../components/ui/Sheet';
 import { Skeleton } from '../components/ui/Skeleton';
+import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
 import { isAdmin, memberActions, roleLabel, type MemberAction } from '../lib/communityRoles';
 import { useAuthStore } from '../stores/auth';
+import { useMixtape } from '../stores/design';
 import { NotFound } from './NotFound';
 
 interface SettingsData {
@@ -72,6 +75,7 @@ type Confirmation =
 export function CommunitySettings() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const mixtape = useMixtape();
   const online = useOnlineStatus();
   const me = useAuthStore((state) => state.user);
 
@@ -190,15 +194,25 @@ export function CommunitySettings() {
     );
   }
 
+  const menuMember = data?.members.find((member) => member.user.id === openMenu) ?? null;
+
   return (
     <ScreenLayout>
-      <Link
-        to={`/communities/${id}`}
-        className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
+      {mixtape ? (
+        <TopBar back={{ to: `/communities/${id}`, label: 'Back' }} />
+      ) : (
+        <Link
+          to={`/communities/${id}`}
+          className="-ml-2 mb-4 flex min-h-11 w-fit items-center px-2 text-sm text-muted"
+        >
+          ← Back
+        </Link>
+      )}
+      <h1
+        className={`mb-6 font-display text-2xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
       >
-        ← Back
-      </Link>
-      <h1 className="mb-6 font-display text-2xl font-medium">Settings</h1>
+        Settings
+      </h1>
 
       {!online && (
         <p role="alert" className="mb-4 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
@@ -248,15 +262,14 @@ export function CommunitySettings() {
                 {notice}
               </p>
             )}
-            <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
-              {data.members.map((member) => {
-                const isSelf = member.user.id === me?.id;
-                const actions = memberActions(data.community.myRole, member.role, isSelf);
-                const label = roleLabel(member.role);
-                const menuOpen = openMenu === member.user.id;
-                return (
-                  <li key={member.user.id} className="flex flex-col gap-2 px-4 py-3">
-                    <div className="flex items-center gap-3">
+            {mixtape ? (
+              <MemberGroups
+                members={data.members}
+                renderRow={(member) => {
+                  const isSelf = member.user.id === me?.id;
+                  const actions = memberActions(data.community.myRole, member.role, isSelf);
+                  return (
+                    <li key={member.user.id} className="flex items-center gap-3 py-2">
                       <PersonLink
                         user={member.user}
                         avatarSize={36}
@@ -268,45 +281,89 @@ export function CommunitySettings() {
                           </>
                         }
                       />
-                      {label && <span className="text-xs text-accent">{label}</span>}
                       {actions.length > 0 && (
                         <button
                           type="button"
                           aria-label={`Actions for ${member.user.displayName}`}
-                          aria-expanded={menuOpen}
-                          onClick={() => setOpenMenu(menuOpen ? null : member.user.id)}
+                          aria-haspopup="dialog"
+                          onClick={() => setOpenMenu(member.user.id)}
                           disabled={!online || busy !== null}
-                          className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
+                          className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted disabled:opacity-50"
                         >
                           <span aria-hidden="true" className="text-lg leading-none">
                             ⋯
                           </span>
                         </button>
                       )}
-                    </div>
-                    {menuOpen && (
-                      <div className="flex flex-wrap gap-2 pl-12">
-                        {actions.map((action) => (
-                          <Button
-                            key={action}
-                            variant="secondary"
-                            onClick={() => void act(member, action)}
-                            className={action === 'remove' ? 'text-danger' : ''}
+                    </li>
+                  );
+                }}
+              />
+            ) : (
+              <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+                {data.members.map((member) => {
+                  const isSelf = member.user.id === me?.id;
+                  const actions = memberActions(data.community.myRole, member.role, isSelf);
+                  const label = roleLabel(member.role);
+                  const menuOpen = openMenu === member.user.id;
+                  return (
+                    <li key={member.user.id} className="flex flex-col gap-2 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <PersonLink
+                          user={member.user}
+                          avatarSize={36}
+                          className="text-sm"
+                          label={
+                            <>
+                              {member.user.displayName}
+                              {isSelf && <span className="text-muted"> · You</span>}
+                            </>
+                          }
+                        />
+                        {label && <span className="text-xs text-accent">{label}</span>}
+                        {actions.length > 0 && (
+                          <button
+                            type="button"
+                            aria-label={`Actions for ${member.user.displayName}`}
+                            aria-expanded={menuOpen}
+                            onClick={() => setOpenMenu(menuOpen ? null : member.user.id)}
+                            disabled={!online || busy !== null}
+                            className="flex size-11 items-center justify-center rounded-full text-muted disabled:opacity-50"
                           >
-                            {ACTION_LABELS[action]}
-                          </Button>
-                        ))}
+                            <span aria-hidden="true" className="text-lg leading-none">
+                              ⋯
+                            </span>
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+                      {menuOpen && (
+                        <div className="flex flex-wrap gap-2 pl-12">
+                          {actions.map((action) => (
+                            <Button
+                              key={action}
+                              variant="secondary"
+                              onClick={() => void act(member, action)}
+                              className={action === 'remove' ? 'text-danger' : ''}
+                            >
+                              {ACTION_LABELS[action]}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Section>
 
           {isAdmin(data.community.myRole) && data.blocked.length > 0 && (
             <Section title="Blocked">
-              <ul className="flex flex-col divide-y divide-line rounded-2xl border border-line bg-surface">
+              <ul
+                className={`flex flex-col divide-y divide-line bg-surface ${
+                  mixtape ? 'rounded-[22px]' : 'rounded-2xl border border-line'
+                }`}
+              >
                 {data.blocked.map((entry) => (
                   <li key={entry.user.id} className="flex items-center gap-3 px-4 py-3">
                     <Avatar
@@ -325,6 +382,7 @@ export function CommunitySettings() {
                     <Button
                       variant="secondary"
                       busy={busy === `unblock-${entry.user.id}`}
+                      offline={mixtape && !online}
                       disabled={!online || busy !== null}
                       onClick={() =>
                         void run(
@@ -348,6 +406,7 @@ export function CommunitySettings() {
           <Section title="Your membership">
             <Button
               variant="secondary"
+              offline={mixtape && !online}
               disabled={!online || busy !== null}
               onClick={() =>
                 setConfirming({
@@ -363,16 +422,34 @@ export function CommunitySettings() {
           {data.community.myRole === 'OWNER' && (
             <Section title="Danger zone">
               <Button
-                variant="secondary"
+                variant={mixtape ? 'destructive' : 'secondary'}
+                offline={mixtape && !online}
                 disabled={!online || busy !== null}
                 onClick={() => setConfirming({ kind: 'delete' })}
-                className="self-start border-danger text-danger"
+                className={mixtape ? 'self-start' : 'self-start border-danger text-danger'}
               >
                 Delete community
               </Button>
             </Section>
           )}
         </div>
+      )}
+
+      {mixtape && menuMember && data && (
+        <ActionSheet
+          title={menuMember.user.displayName}
+          onClose={() => setOpenMenu(null)}
+          actions={memberActions(
+            data.community.myRole,
+            menuMember.role,
+            menuMember.user.id === me?.id,
+          ).map((action) => ({
+            label: ACTION_LABELS[action],
+            danger: action === 'remove',
+            disabled: !online || busy !== null,
+            onSelect: () => void act(menuMember, action),
+          }))}
+        />
       )}
 
       {inviting && data && (
@@ -404,6 +481,49 @@ const ACTION_LABELS: Record<MemberAction, string> = {
   makeOwner: 'Make owner',
 };
 
+const ROLE_GROUPS: readonly { role: CommunityRole; title: string }[] = [
+  { role: 'OWNER', title: 'Owner' },
+  { role: 'ADMIN', title: 'Admins' },
+  { role: 'MEMBER', title: 'Members' },
+];
+
+/**
+ * Mixtape members (ui-redesign.md §5.16): grouped Owner / Admins / Members,
+ * each group a `surface` card of divider rows. An empty group is not shown.
+ */
+function MemberGroups({
+  members,
+  renderRow,
+}: {
+  members: CommunityMember[];
+  renderRow: (member: CommunityMember) => ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {ROLE_GROUPS.map(({ role, title }) => {
+        const group = members.filter((member) => member.role === role);
+        if (group.length === 0) {
+          return null;
+        }
+        const headingId = `members-${role.toLowerCase()}`;
+        return (
+          <div key={role} className="flex flex-col gap-2">
+            <h3 id={headingId} className="text-xs font-medium text-muted">
+              {title}
+            </h3>
+            <ul
+              aria-labelledby={headingId}
+              className="flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4"
+            >
+              {group.map(renderRow)}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
@@ -421,6 +541,7 @@ interface DetailsSectionProps {
 
 /** Name and description, editable by admins. Remounted (by key) after each save. */
 function DetailsSection({ community, disabled, onSaved }: DetailsSectionProps) {
+  const mixtape = useMixtape();
   const form = useCommunityDetailsForm({
     name: community.name,
     description: community.description ?? '',
@@ -464,7 +585,13 @@ function DetailsSection({ community, disabled, onSaved }: DetailsSectionProps) {
             {error}
           </p>
         )}
-        <Button type="submit" busy={saving} disabled={!changed || disabled} className="self-start">
+        <Button
+          type="submit"
+          busy={saving}
+          offline={mixtape && disabled}
+          disabled={!changed || disabled}
+          className="self-start"
+        >
           {saving ? 'Saving…' : 'Save changes'}
         </Button>
       </form>

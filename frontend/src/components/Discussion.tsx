@@ -12,6 +12,8 @@ import { Button } from './ui/Button';
 import { LoadError } from './ui/LoadError';
 import { Sheet } from './ui/Sheet';
 import { Skeleton } from './ui/Skeleton';
+import { fieldClass } from './ui/field';
+import { useMixtape } from '../stores/design';
 
 interface ComposerProps {
   online: boolean;
@@ -41,6 +43,7 @@ export function CommentComposer({
   const problem = discussionBodyProblem(cleaned);
   const tooLong = problem !== null;
   const fieldId = useId();
+  const mixtape = useMixtape();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -89,7 +92,11 @@ export function CommentComposer({
           setBody(event.target.value);
           setError(null);
         }}
-        className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none focus:border-accent"
+        className={
+          mixtape
+            ? `py-3 ${fieldClass(true, tooLong)}`
+            : 'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none focus:border-accent'
+        }
       />
       {problem && (
         <p role="alert" className="text-xs text-danger">
@@ -115,6 +122,7 @@ export function CommentComposer({
         <Button
           type="submit"
           busy={busy}
+          offline={mixtape && !online}
           disabled={!online || cleaned.length === 0 || tooLong}
           className="px-5"
         >
@@ -145,6 +153,7 @@ function CommentItem({
 }: CommentItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const mixtape = useMixtape();
   const [deleting, setDeleting] = useState(false);
 
   if (comment.deleted) {
@@ -231,7 +240,7 @@ function CommentItem({
           type="button"
           disabled={!online}
           onClick={() => onReply(comment.author)}
-          className="min-h-11 self-start text-sm font-medium text-accent disabled:opacity-60"
+          className={`min-h-11 self-start text-sm font-medium text-accent disabled:opacity-60 ${mixtape ? 'min-w-11' : ''}`}
         >
           Reply
         </button>
@@ -292,6 +301,7 @@ interface ThreadProps {
 /** One flat thread under a review or a post comment (D2), with its Reply composer. */
 export function Thread({ opener, openerAuthor, online, canWrite, discussion }: ThreadProps) {
   const [replyTo, setReplyTo] = useState<Person | null>(null);
+  const mixtape = useMixtape();
   const replies = discussion.repliesTo(opener);
 
   return (
@@ -301,7 +311,7 @@ export function Thread({ opener, openerAuthor, online, canWrite, discussion }: T
           type="button"
           disabled={!online}
           onClick={() => setReplyTo(openerAuthor)}
-          className="min-h-11 self-start text-sm font-medium text-accent disabled:opacity-60"
+          className={`min-h-11 self-start text-sm font-medium text-accent disabled:opacity-60 ${mixtape ? 'min-w-11' : ''}`}
         >
           Reply
         </button>
@@ -362,19 +372,26 @@ export function DiscussionSection({
   noLongerFriendsNote,
 }: DiscussionSectionProps) {
   const { state, postComments } = discussion;
+  const mixtape = useMixtape();
+  const composer = canWrite ? (
+    <CommentComposer
+      online={online}
+      label="Add a comment"
+      onSubmit={(body) => discussion.send({ body })}
+    />
+  ) : (
+    noLongerFriendsNote && <p className="text-sm text-muted">{noLongerFriendsNote}</p>
+  );
 
   return (
     <section aria-label="Discussion" className="mt-8 flex flex-col gap-4">
-      <h2 className="font-display text-xl font-medium">Discussion</h2>
-      {canWrite ? (
-        <CommentComposer
-          online={online}
-          label="Add a comment"
-          onSubmit={(body) => discussion.send({ body })}
-        />
-      ) : (
-        noLongerFriendsNote && <p className="text-sm text-muted">{noLongerFriendsNote}</p>
-      )}
+      {/* Mixtape: "Comments", the composer as the last element (ui-redesign.md §5.3). */}
+      <h2
+        className={`font-display text-xl ${mixtape ? 'font-bold tracking-[-0.01em]' : 'font-medium'}`}
+      >
+        {mixtape ? 'Comments' : 'Discussion'}
+      </h2>
+      {!mixtape && composer}
 
       {state.status === 'loading' && (
         <div role="status" aria-label="Loading the discussion" className="flex flex-col gap-3">
@@ -393,7 +410,9 @@ export function DiscussionSection({
           {postComments.map((comment) => (
             <li
               key={comment.id}
-              className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4"
+              className={`flex flex-col gap-2 p-4 ${
+                mixtape ? 'rounded-[22px] bg-surface' : 'rounded-2xl border border-line bg-surface'
+              }`}
             >
               <CommentItem
                 comment={comment}
@@ -413,6 +432,7 @@ export function DiscussionSection({
           ))}
         </ul>
       )}
+      {mixtape && composer}
     </section>
   );
 }

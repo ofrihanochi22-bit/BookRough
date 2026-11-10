@@ -2345,7 +2345,7 @@ cd frontend && npx vitest run src/pages/PostDetail.test.tsx src/components/PostC
 
 ### Step 6.1j — UI redesign "Mixtape", slice 1: the foundation (Phase 6 — presentation of existing UCs, UC-19 touched)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #54)
 Branch: feat/redesign-foundation
 Spec: docs/features/ui-redesign.md (slice 1 of six, §6)
 
@@ -2417,6 +2417,109 @@ cd frontend && npm run dev
 
 ```bash
 cd frontend && npx vitest run src/lib/design.test.ts src/components/DesignSync.test.tsx src/components/ShareSheet.test.tsx src/components/PostCardMixtape.test.tsx src/components/RatingSheet.test.tsx src/components/TabLayout.test.tsx src/components/ui/kit.mixtape.test.tsx
+```
+
+```bash
+cd frontend && npm run test:unit
+```
+
+### Step 6.1k — UI redesign "Mixtape", slice 2: the core loop (Phase 6 — presentation of UC-9, UC-10, UC-11, UC-14, UC-16)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/redesign-core-loop
+Spec: docs/features/ui-redesign.md (slice 2 of six, §6)
+
+Goal: Home, Community Feed, Post Detail, Create Community and Community Settings get the Mixtape look behind the per-device switch. The Current design stays the default and is unchanged, and nothing changes in what any screen can do.
+
+Tasks:
+
+- [x] Two decisions left open by slice 1, settled with the developer (2026-11-10) and recorded in the spec's §5.0b, §7, §8 and §10:
+  - Search waits for slice 3 on Friends. Home gets its header icon now.
+  - A composer 404 inside the Share sheet keeps the sheet open and returns to the freshly loaded community list. The code already did this; the spec wording was corrected.
+- [x] Home (§5.1, `pages/Dashboard.tsx`):
+  - Two-row header: the compact logo, Search and the bell; then "Your communities" and Sign out.
+  - Cassette cards with "N members · Role" on the label.
+  - A dashed "+ Create community" tile ends the list; the floating button is gone.
+  - Kit loading, error and empty states.
+- [x] Community Feed (§5.2, `pages/Community.tsx`, `components/CommunityFeed.tsx`):
+  - "‹ Communities" beside the logo.
+  - The banner cassette carries the name as the page's h1.
+  - Invite friends and Settings as chips with icons.
+  - The composer collapses to a "Share a song or album" pill. It expands in place with focus in the link field. ✕ collapses it and keeps the draft, and a post collapses it.
+  - Kit empty state; banner-and-two-posts skeleton.
+- [x] Post Detail (§5.3, `pages/PostDetail.tsx`, `components/PostCardMixtape.tsx`, `components/Discussion.tsx`):
+  - The card in detail mode: a full-width square cover, a large sticker, and the song title as the h1.
+  - "Ratings" heading, with no average block. Rating cards carry a small sticker with the score, and Edit is a chip.
+  - "Comments" heading, with the comment composer last.
+- [x] Create Community (§5.15): logo, kit fields (`CommunityDetailsFields`), the blank-cassette preview, friends as a `surface` card with accent checkboxes.
+- [x] Community Settings (§5.16):
+  - "‹ Back" beside the logo.
+  - Members grouped into Owner / Admins / Members cards.
+  - ⋯ opens a bottom action sheet; the confirmation sheets are unchanged.
+  - Delete community is the soft destructive pill.
+- [x] Shared pieces:
+  - `ui/TopBar.tsx` (logo, back link, `SearchIconLink`).
+  - `ui/ActionSheet.tsx`, now also used by the post card's ⋯ menu.
+  - `ui/chip.ts` and `ui/LineIcon.tsx`.
+  - `CreateCommunityLink.tsx` — the "Create community" pill that existed twice, now one, used by Home and the Share sheet.
+  - `CoverArt` gains a `full` size. `CommunityCover` gains `label` and `detail`, so a cassette label can carry real text.
+- [x] Review: `/code-review`, `design:accessibility-review` at 375px in light and dark, and a browser check at 375px.
+- [x] Tests: the existing suite unchanged on the default design, plus the Mixtape tests from spec §8 for these screens.
+
+What I did:
+
+- **No functionality changes.** Under Current every screen renders as before.
+- **Slice 1 leftovers:**
+  - Sharing to the feed that is already open used to remount it and lose a draft typed in its own composer. The feed now reloads instead: `CommunityFeed` takes a `refreshKey`.
+  - The feed is keyed by community id, so a draft never carries over to another community. This was also true of Back/Forward under Current.
+  - `LinkCommentForm` field ids are now unique per form, because the feed's composer and the Share sheet's can be mounted together.
+- **Code review** (8 findings, all fixed):
+  - A draft carried over to another community after sharing there, and that community's feed was fetched twice (both fixed by the key above).
+  - The kit's dashed offline look was missing from comment Send, Save, Leave, Unblock and Create.
+  - Home's empty-state title wasn't a heading. The kit `EmptyState` title is now an h2.
+  - The cassette link on Home was announced as "Com22 members". An sr-only comma now separates the name.
+  - The Mixtape Community page duplicated the whole screen; it now branches only where the look differs.
+  - The composer pill had a stale `aria-expanded`.
+  - A doc comment on `CommunityCover` was stale.
+- **Accessibility review** (note in the session notes folder, `slice2-accessibility-review.md`):
+  - Text contrast passes on all five screens in both schemes. Every new control is at least 44×44.
+  - Fixed: Post Detail had no h1, and Reply was 37px wide.
+  - Left open (minor), and listed in the PR:
+    - `line` boundaries on fields, chips and the dashed tile are below 3:1. These are spec token values, and the field is the same as under Current. The developer chose to keep them as specced (2026-11-10).
+    - Post-title links are 22px tall, as in slice 1.
+    - Action sheets open with focus on Close, as in slice 1.
+- **Browser check** at 375px, dark and light, signed in on local dev data:
+  - Home: the heading fit was fixed. "Your communities" was clipped by half a pixel; it now has tighter tracking and may wrap rather than clip.
+  - The feed: expand, type, ✕, reopen — the draft and focus behave as specified.
+  - Post Detail on a rated item; Settings with the member sheet; Create.
+- **Tests:** frontend 78 files, 971 tests (927 existing, unchanged), 97.9% lines. New:
+  - `pages/Dashboard.mixtape.test.tsx`, `pages/Community.mixtape.test.tsx`, `pages/PostDetail.mixtape.test.tsx`.
+  - `pages/CreateCommunity.mixtape.test.tsx`, `pages/CommunitySettings.mixtape.test.tsx`.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/`, then open `http://localhost:5173/home?design=new`. Row 1 shows the logo, Search and the bell; row 2 shows "Your communities" and Sign out. Communities are cassette cards, and a dashed **+ Create community** tile ends the list.
+2. Open a community. The name sits on the cassette label. Tap **Share a song or album**: the composer opens with the cursor in the link field. Type something, tap ✕, and tap the pill again — the draft is still there.
+3. With that draft still open, use the tab bar's **Share** → **To a community** → the same community, and post `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv`. The feed reloads with the new post on top, and your draft is still in the composer.
+4. Open a rated post (e.g. **Recommendations** › Sent): a full-width cover with a large sticker, "Ratings" cards with a score sticker, and "Comments" with the box at the end.
+5. Open **Settings** on a community you own: members in Owner / Admins / Members cards. ⋯ on a member opens a bottom sheet with that member's actions.
+6. **+ Create community**: a grey blank cassette that shows the name as you type.
+7. `http://localhost:5173/home?design=old` brings back the Current look.
+
+```bash
+cd frontend && npx vitest run src/pages/Dashboard.mixtape.test.tsx src/pages/Community.mixtape.test.tsx src/pages/PostDetail.mixtape.test.tsx src/pages/CreateCommunity.mixtape.test.tsx src/pages/CommunitySettings.mixtape.test.tsx
 ```
 
 ```bash
