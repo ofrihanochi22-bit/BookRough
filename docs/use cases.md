@@ -14,6 +14,7 @@
   - No user exists for that `sub`, so the backend creates one and issues an app session JWT.
   - The system routes the user to the "Complete Your Profile" screen to choose a display name (any language, unique) and a Preferred Streaming Service (Spotify, Apple Music, YouTube, Tidal, Deezer).
   - The user submits; the system saves the profile and routes them to the Communities Dashboard.
+  - On first reaching the app, the user sees a short walkthrough of how BookRough works (five cards, skippable), shown once per account and replayable from My Profile; two one-time tips later explain saving a song and rating it from My List (`docs/features/onboarding-tutorial.md`).
 - **Fail description (Alternative Scenario):** The user chooses a display name that is already taken. The system halts the profile step and displays "That display name is already taken." The account row already exists at this point, so the user stays on the onboarding screen until an available display name is supplied rather than being sent back to the start.
 
 > **Note.** Registration and login are two choices, "Create account" and "Sign in", above one Google button (amended 2026-11-08, `docs/features/sign-in-sign-up.md`). "Create account" for a `sub` that already has an account simply signs in, with "You already have an account. Signing you in." There is still no email/password option — see `docs/auth.md`.

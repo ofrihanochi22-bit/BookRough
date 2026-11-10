@@ -28,6 +28,8 @@ const { saveBookmark, toastSuccess } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }));
 vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark: vi.fn() }));
+const { markTutorialSeen } = vi.hoisted(() => ({ markTutorialSeen: vi.fn() }));
+vi.mock('../api/users', () => ({ markTutorialSeen }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: vi.fn() } }));
 
 const ID = '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40';
@@ -289,5 +291,93 @@ describe('CommunityFeed', () => {
     expect(first).toHaveAttribute('aria-pressed', 'true');
     expect(second).toHaveAttribute('aria-pressed', 'false');
     expect(titles()).toEqual(['Song 1', 'Song 2']);
+  });
+});
+
+/** The save tip — docs/features/onboarding-tutorial.md §5.2. */
+describe('CommunityFeed — the save tip', () => {
+  const TIP = /Save a song to listen later/;
+
+  function withTutorial(tutorial = { walkthrough: false, saveTip: true, listTip: true }) {
+    markTutorialSeen.mockResolvedValue({});
+    useAuthStore.getState().setSession(makeSession({ tutorial }));
+  }
+
+  it('sits above the first post with a bookmark, skipping your own and rated ones', async () => {
+    // Arrange
+    withTutorial();
+    listPosts.mockResolvedValue({
+      posts: [
+        makePost({ id: 'mine', title: 'Song 1', isMine: true }),
+        makePost({ id: 'rated', title: 'Song 2', myScore: 7 }),
+        makePost({ id: 'open', title: 'Song 3' }),
+      ],
+      nextCursor: null,
+    });
+
+    // Act
+    renderFeed();
+
+    // Assert
+    const tip = await screen.findByRole('note');
+    expect(tip).toHaveTextContent(TIP);
+    const second = screen.getByText('Song 2').closest('article')!;
+    const third = screen.getByText('Song 3').closest('article')!;
+    expect(tip.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(tip.compareDocumentPosition(third) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('Got it dismisses it and tells the server', async () => {
+    // Arrange
+    withTutorial();
+    listPosts.mockResolvedValue({ posts: [post(1)], nextCursor: null });
+    renderFeed();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Got it' }));
+
+    // Assert
+    expect(screen.queryByText(TIP)).not.toBeInTheDocument();
+    expect(markTutorialSeen).toHaveBeenCalledWith('saveTip');
+  });
+
+  it('saving a post counts as seen', async () => {
+    // Arrange
+    withTutorial();
+    saveBookmark.mockResolvedValue(undefined);
+    listPosts.mockResolvedValue({ posts: [post(1)], nextCursor: null });
+    renderFeed();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to Listen Later' }));
+
+    // Assert
+    await vi.waitFor(() => expect(markTutorialSeen).toHaveBeenCalledWith('saveTip'));
+    expect(screen.queryByText(TIP)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['already seen', { walkthrough: false, saveTip: false, listTip: true }, [post(1)]],
+    [
+      'the walkthrough is still open',
+      { walkthrough: true, saveTip: true, listTip: true },
+      [post(1)],
+    ],
+    [
+      'every post is your own',
+      { walkthrough: false, saveTip: true, listTip: true },
+      [makePost({ title: 'Song 1', isMine: true })],
+    ],
+  ])('is not shown when %s', async (_label, tutorial, posts) => {
+    // Arrange
+    withTutorial(tutorial);
+    listPosts.mockResolvedValue({ posts, nextCursor: null });
+
+    // Act
+    renderFeed();
+
+    // Assert
+    await screen.findByText('Song 1');
+    expect(screen.queryByText(TIP)).not.toBeInTheDocument();
   });
 });

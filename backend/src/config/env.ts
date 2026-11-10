@@ -55,6 +55,14 @@ const envSchema = z
       .string()
       .optional()
       .transform((value) => value?.trim().toLowerCase() === 'true'),
+    // The onboarding tutorial (docs/features/onboarding-tutorial.md §4): only
+    // "false" switches it off for every user of this environment — local E2E
+    // and CI set it. Unset, or anything else, means on. Allowed in every mode:
+    // it hides help, it opens nothing.
+    TUTORIAL_ENABLED: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim().toLowerCase() !== 'false'),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
     // one line. Empty means "not set".

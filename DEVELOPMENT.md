@@ -2809,7 +2809,7 @@ cd e2e && npx playwright test
 
 ### Step 6.1p — UI redesign "Mixtape", slice 6: cleanup (Phase 6 — presentation of every UC; UC-19 touched)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #60)
 Branch: chore/redesign-cleanup
 Spec: docs/features/ui-redesign.md (slice 6 of six, §6 — the spec is now marked done)
 
@@ -2864,6 +2864,64 @@ cd frontend && npx vitest run src/manifest.test.ts src/components/ui/kit.test.ts
 
 ```bash
 cd e2e && npx playwright test
+```
+
+### Step 6.1q — Onboarding tutorial, manual-test note N4 (Phase 6 — UC-1; UC-12 and UC-13 explained)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/onboarding-tutorial
+Spec: docs/features/onboarding-tutorial.md
+
+Goal: every user, new and existing, is shown once how BookRough works: a five-card walkthrough, and two tips in place along the rating loop that the manual test could not find (a community post is rated only from My List, after saving it).
+
+Tasks:
+
+- [x] Spec (Stage 1, approved 2026-11-10): walkthrough + tips; seen state on the account; existing users included; an environment off-switch for testing; replay of the cards from My Profile.
+- [x] Schema: migration `add_tutorial_seen` — `walkthrough_seen_at`, `save_tip_seen_at`, `list_tip_seen_at` on `users`, nullable, no backfill.
+- [x] API: `tutorial` flags in every session payload; `PATCH /api/users/me/tutorial`; `TUTORIAL_ENABLED`.
+- [x] UI: `Walkthrough`, `Tip`, the save tip in the feed, the list tip on My List, "How BookRough works" on My Profile.
+- [x] Review: `/code-review` and `/security-review`.
+- [x] Tests: unit, integration, component; E2E runs with the tutorial off.
+
+What I did:
+
+- **Backend.** `services/tutorial.service.ts`: `tutorialState(user, onboarding)` says what is still to show — nothing while onboarding is unfinished or when `TUTORIAL_ENABLED=false` — and `markTutorialSeen` writes a column only while it is null, so a second device keeps the first time. `sessionPayload` carries `tutorial: { walkthrough, saveTip, listTip }` (true = still to show) for the caller only; `toPublicUser` is unchanged. `PATCH /api/users/me/tutorial` takes `{ seen }` (Zod `.strict()` enum) and answers `{ tutorial }`. `TUTORIAL_ENABLED` (`config/env.ts`): only `false` turns it off, allowed in any mode; E2E (local and `main.yml`) sets it.
+- **Frontend.** `components/Walkthrough.tsx`: five full-screen cards over the tab screens (`TabLayout`), with Skip, Back/Next, arrow keys, touch swipe, Escape and "Get started"; focus on each card's heading, Tab kept inside, and "Step N of 5" for screen readers. `components/Tip.tsx` on tape paper with "Got it": the **save tip** above the first post in a community feed that has a bookmark, the **list tip** above the first rateable song on My List; saving or rating also dismisses them. Closing anything hides it at once and tells the server in the background (`lib/tutorial.ts`), silently on failure. The auth store remembers what was closed since sign-in, so a later session from the server cannot bring it back mid-session. My Profile has a "How BookRough works" row that replays the cards and records nothing. Copy lives in `lib/tutorialCopy.ts`; `canRateSaved` moved to `lib/savedPosts.ts` for the card and the tip.
+- **Docs.** `tables`, `use cases` (UC-1 step), `frontend screens`, `deployment`, `tests` (.md + .docx); CLAUDE.md §6; `backend/.env.example`.
+- **Code review** (6 findings, all fixed): a later session revived a locally closed item; a mouse drag turned the card; an import cycle between `publicUser` and the service; a needless re-fetch; a redundant item check; step dots that screen readers did not announce. **Security review:** nothing found.
+- **Tests:** backend 79 files, 1453 tests, 98.97% lines (new: `tutorial.service.test.ts`, `tutorial.integration.test.ts`, env and payload cases); frontend 89 files, 1068 tests, 97.8% lines (new: `Walkthrough.test.tsx`, `stores/auth.test.ts`, `lib/tutorial.test.ts`, tip cases in the feed and My List suites, the TabLayout and Profile cases). E2E: 49 passed, 3 skipped (live squigly.link) on Chromium and iPhone 13, 1 worker, with the tutorial off.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/` and sign in. The migration leaves every account unseen, so Home opens under the walkthrough. Swipe or tap Next through the five cards, then "Get started". Reload: it does not come back.
+2. Open a community with a friend's post: a tape-paper note "Save a song to listen later…" sits above the first post you can save. Tap the bookmark — the note goes, for good.
+3. My List: above the first song you can rate, "Listened? Rate it here…". Rate it (or tap "Got it"); the note goes.
+4. My Profile → "How BookRough works" replays the cards; closing records nothing.
+5. To see it all again on the dev database: `docker exec bookrough-postgres psql -U bookrough -d music_app_dev -c "update users set walkthrough_seen_at = null, save_tip_seen_at = null, list_tip_seen_at = null;"`.
+6. To switch it off, put `TUTORIAL_ENABLED=false` in `backend/.env` and restart the backend: nothing appears; the Profile replay still works.
+
+```bash
+cd backend && npx vitest run src/services/tutorial.service.test.ts src/utils/publicUser.test.ts src/config/env.test.ts
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tutorial.integration.test.ts
+```
+
+```bash
+cd frontend && npx vitest run src/components/Walkthrough.test.tsx src/stores/auth.test.ts src/components/CommunityFeed.test.tsx src/pages/MyList.test.tsx
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

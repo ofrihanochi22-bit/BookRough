@@ -2,7 +2,7 @@ import { AxiosError, AxiosHeaders } from 'axios';
 
 import type { PublicCommunity } from '../api/communities';
 import type { PublicPost } from '../api/posts';
-import { useAuthStore, type PublicUser, type Session } from '../stores/auth';
+import { NO_TUTORIAL, useAuthStore, type PublicUser, type Session } from '../stores/auth';
 
 export function makeUser(overrides: Partial<PublicUser> = {}): PublicUser {
   return {
@@ -27,6 +27,8 @@ export function resetAuthStore(): void {
     needsOnboarding: false,
     isAdmin: false,
     offline: false,
+    tutorial: NO_TUTORIAL,
+    tutorialClosed: [],
   });
 }
 

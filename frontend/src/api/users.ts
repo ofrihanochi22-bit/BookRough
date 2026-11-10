@@ -1,4 +1,4 @@
-import type { Session, StreamingService } from '../stores/auth';
+import type { Session, StreamingService, TutorialItem, TutorialState } from '../stores/auth';
 import { api, type SuccessBody } from './client';
 
 export type Availability =
@@ -45,4 +45,17 @@ export async function chooseGooglePhoto(credential: string): Promise<Session> {
     { skipErrorToast: true },
   );
   return response.data.data;
+}
+
+/**
+ * Records that a tutorial item was seen (onboarding-tutorial.md §4). Quiet: the
+ * caller ignores a failure, and the item simply shows again next session.
+ */
+export async function markTutorialSeen(item: TutorialItem): Promise<TutorialState> {
+  const response = await api.patch<SuccessBody<{ tutorial: TutorialState }>>(
+    '/users/me/tutorial',
+    { seen: item },
+    { skipErrorToast: true },
+  );
+  return response.data.data.tutorial;
 }

@@ -7,8 +7,9 @@ import {
   rechooseGooglePicture,
   updateProfile,
 } from '../services/user.service.js';
+import { TUTORIAL_ITEMS, markTutorialSeen } from '../services/tutorial.service.js';
 import { sessionUser } from '../middleware/requireAuth.js';
-import { sessionPayload } from '../utils/publicUser.js';
+import { sessionPayload, tutorialPayload } from '../utils/publicUser.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
 
@@ -52,6 +53,19 @@ export const useGooglePicture: RequestHandler = async (req, res, next) => {
     const { credential } = parseBody(googlePictureSchema, req.body);
     const user = await rechooseGooglePicture(sessionUser(req), credential);
     res.status(200).json(success(sessionPayload(user)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const tutorialSeenSchema = z.object({ seen: z.enum(TUTORIAL_ITEMS) }).strict();
+
+/** PATCH /api/users/me/tutorial — mounted behind requireAuth (onboarding-tutorial.md §4). */
+export const tutorialSeen: RequestHandler = async (req, res, next) => {
+  try {
+    const { seen } = parseBody(tutorialSeenSchema, req.body);
+    const user = await markTutorialSeen(sessionUser(req), seen);
+    res.status(200).json(success(tutorialPayload(user)));
   } catch (error) {
     next(error);
   }

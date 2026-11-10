@@ -124,7 +124,7 @@ Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.
 
 The nightly run exists because the scraper depends on a live external site. A layout change at squigly.link can break the core feature without a single line of our code changing, and the nightly E2E run is what discovers it: on the schedule it sets `RUN_LIVE_E2E=1`, enabling the one test that posts a known track through the real squigly.link (Chromium project only).
 
-The E2E job sets `RATE_LIMITS_DISABLED=true`, because the suite signs in dozens of times from one address; the API accepts it only under `NODE_ENV=test`. Backend suites run with the limits off too, and `rateLimits.integration.test.ts` switches them back on (`docs/features/production-hardening.md` §3.1).
+The E2E job sets `RATE_LIMITS_DISABLED=true`, because the suite signs in dozens of times from one address; the API accepts it only under `NODE_ENV=test`. Backend suites run with the limits off too, and `rateLimits.integration.test.ts` switches them back on (`docs/features/production-hardening.md` §3.1). It also sets `TUTORIAL_ENABLED=false`, so the golden loops never meet the onboarding walkthrough or its tips; those are covered by component and integration tests (`docs/features/onboarding-tutorial.md` §7).
 
 **A red `main` or a red nightly run takes priority over starting the next feature.** A broken main branch that is allowed to stay broken defeats the entire purpose of the gate.
 

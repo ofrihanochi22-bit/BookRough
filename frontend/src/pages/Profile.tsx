@@ -7,6 +7,7 @@ import { chooseGooglePhoto, updateProfile, uploadAvatar, type ProfileUpdate } fr
 import { DisplayNameField } from '../components/DisplayNameField';
 import { GoogleCredentialButton } from '../components/GoogleCredentialButton';
 import { SignOutButton } from '../components/SignOutSheet';
+import { Walkthrough } from '../components/Walkthrough';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
@@ -19,7 +20,12 @@ import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDispla
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { AVATAR_COPY, AvatarImageError, isUploadedAvatar, prepareAvatar } from '../lib/avatarImage';
 import { cleanDisplayName, DISPLAY_NAME_MESSAGES } from '../lib/displayName';
+import { REPLAY_LABEL } from '../lib/tutorialCopy';
 import { useAuthStore, type PublicUser, type StreamingService } from '../stores/auth';
+
+/** A full-width row to another place or flow: the Admin area, the walkthrough replay. */
+const SETTINGS_ROW =
+  'flex min-h-14 w-full items-center gap-3 rounded-[22px] bg-surface px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 const NAME_MESSAGES: ReadonlySet<string> = new Set(Object.values(DISPLAY_NAME_MESSAGES));
 
@@ -41,6 +47,7 @@ function messageOf(error: unknown, fallback: string): string {
 export function Profile() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useAuthStore((state) => state.isAdmin);
+  const [replaying, setReplaying] = useState(false);
 
   if (!user) {
     return null;
@@ -51,20 +58,31 @@ export function Profile() {
       <TopBar />
       <h1 className={`mb-6 ${MIXTAPE_H1}`}>Your profile</h1>
       <ProfileForm key={`${user.displayName}|${user.preferredService}`} user={user} />
-      {isAdmin && (
-        <Link
-          to="/admin"
-          className="mt-8 flex min-h-14 items-center gap-3 rounded-[22px] bg-surface px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
+      <div className="mt-8 flex flex-col gap-3">
+        {isAdmin && (
+          <Link to="/admin" className={SETTINGS_ROW}>
+            <LineIcon>
+              <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+            </LineIcon>
+            <span className="flex-1">Admin area</span>
+            <LineIcon className="size-4 text-muted">
+              <path d="M9 5l7 7-7 7" />
+            </LineIcon>
+          </Link>
+        )}
+        {/* Replays the walkthrough; records nothing (onboarding-tutorial.md §5.3). */}
+        <button type="button" onClick={() => setReplaying(true)} className={SETTINGS_ROW}>
           <LineIcon>
-            <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01" />
           </LineIcon>
-          <span className="flex-1">Admin area</span>
+          <span className="flex-1 text-left">{REPLAY_LABEL}</span>
           <LineIcon className="size-4 text-muted">
             <path d="M9 5l7 7-7 7" />
           </LineIcon>
-        </Link>
-      )}
+        </button>
+      </div>
+      {replaying && <Walkthrough mode="replay" onClose={() => setReplaying(false)} />}
       <div className="mt-8 flex justify-center pb-4">
         <SignOutButton className="px-5" />
       </div>
