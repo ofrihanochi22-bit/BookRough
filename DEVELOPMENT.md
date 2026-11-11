@@ -2924,6 +2924,34 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tu
 cd frontend && npx vitest run src/components/Walkthrough.test.tsx src/stores/auth.test.ts src/components/CommunityFeed.test.tsx src/pages/MyList.test.tsx
 ```
 
+### Step 6.1r — Friends empty-state copy after the redesign (Phase 6 — UC-6, UC-20 copy fix)
+
+Status: 🟡 Built and tested; PR open, waiting to merge
+Branch: fix/friends-empty-copy
+Spec: docs/features/friend-requests.md (Friends empty state, amended)
+
+Goal: since the Mixtape redesign, Search is a header icon, not a tab. Two empty states still sent people to "the Search tab".
+
+What I did:
+
+- `frontend/src/pages/Friends.tsx`: no friends → "Find people with Search and add them as friends." (was "…on the Search tab and add them…").
+- `frontend/src/components/SendRecommendationSheet.tsx`: the friend picker with no friends → "Find people with Search." (was "…on the Search tab."). It shows on Recommendations → Send a song and Share → To a friend.
+- "Search" stays a link to `/search` in both. No behaviour change.
+- Tests pin the new sentences (`Friends.test.tsx`, `SendRecommendationSheet.test.tsx`); `docs/features/friend-requests.md` amended to match.
+
+How to view & test:
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in with an account that has no friends (or a fresh one) and open Friends: the empty state reads "Find people with Search and add them as friends.", and "Search" opens the Search screen.
+2. Tap Share → To a friend: "Add a friend first" / "Find people with Search."
+
+```bash
+cd frontend && npx vitest run src/pages/Friends src/components/SendRecommendationSheet src/components/ShareSheet
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

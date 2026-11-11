@@ -47,11 +47,11 @@ function ChooseFriend({ onPick }: { onPick: (friend: MemberUser) => void }) {
       <div className="rounded-2xl border border-dashed border-line px-6 py-8 text-center">
         <p className="font-medium">Add a friend first</p>
         <p className="mt-1 text-sm text-muted">
-          Find people on the{' '}
+          Find people with{' '}
           <Link to="/search" className="text-accent underline">
             Search
-          </Link>{' '}
-          tab.
+          </Link>
+          .
         </p>
       </div>
     );
