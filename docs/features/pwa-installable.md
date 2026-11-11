@@ -80,6 +80,8 @@ Decided 2026-10-11, option A:
 
 The vinyl mark from `components/ui/Wordmark.tsx`, drawn in `--on-accent` white on a full-bleed `--accent` purple (`#534ab7`) square. No look-and-feel decision is asked here; the real logo replaces these files and nothing else.
 
+> **Superseded 2026-11-11** by `pwa-icons-cassette.md`: the same files now show the Mixtape cassette mark on the dark canvas `#1B1A2E`. The file set, the sizes and the render script below are unchanged.
+
 | File (`frontend/public/`) | Size   | Notes                                                                                                                                |
 | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `icons/icon.svg`          | vector | The source. Every PNG is rendered from it. Also the favicon (`<link rel="icon">`).                                                   |
