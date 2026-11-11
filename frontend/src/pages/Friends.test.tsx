@@ -179,6 +179,8 @@ describe('Friends', () => {
     // Assert
     const empty = (await screen.findByText('No friends yet')).closest('div')!;
     expect(within(empty).getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search');
+    // Search is a header icon, not a tab, so the copy must not send people to a tab.
+    expect(empty).toHaveTextContent('Find people with Search and add them as friends.');
     expect(screen.queryByRole('region', { name: 'Requests' })).not.toBeInTheDocument();
   });
 

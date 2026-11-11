@@ -208,11 +208,11 @@ export function Friends() {
   );
   const noFriendsBody = (
     <>
-      Find people on the{' '}
+      Find people with{' '}
       <Link to="/search" className="text-accent underline">
         Search
       </Link>{' '}
-      tab and add them as friends.
+      and add them as friends.
     </>
   );
 
