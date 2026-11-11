@@ -1,4 +1,8 @@
+import { render } from '@testing-library/react';
+import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
+
+import { CassetteMark } from './components/ui/Cassette';
 
 /**
  * The installable-PWA contract (docs/features/pwa-installable.md §3, §7).
@@ -155,5 +159,76 @@ describe('index.html', () => {
     for (const source of [indexHtml, mainSource]) {
       expect(source).not.toMatch(/serviceWorker\.register|registerSW/);
     }
+  });
+});
+
+describe('icons/icon.svg (pwa-icons-cassette.md §5)', () => {
+  const svg = new DOMParser().parseFromString(
+    text('public/icons/icon.svg'),
+    'image/svg+xml',
+  ).documentElement;
+  const mark = svg.querySelector('g');
+
+  /**
+   * Every drawn shape under `parent`, in paint order, as its tag and sorted
+   * attributes — grouping (`<g>`) and attribute order do not matter.
+   */
+  function shape(parent: Element | null): string[] {
+    return Array.from(parent?.querySelectorAll('rect, circle, path') ?? [], (child) => {
+      const attributes = Array.from(child.attributes, (a) => `${a.name}=${a.value.toLowerCase()}`);
+      return `${child.tagName.toLowerCase()} ${attributes.sort().join(' ')}`;
+    });
+  }
+
+  /** The mark's placement: `translate(x y) scale(s)` on the group. */
+  function placement(): { x: number; y: number; s: number } {
+    const match = /translate\(([\d.]+)[ ,]+([\d.]+)\)\s*scale\(([\d.]+)\)/.exec(
+      mark?.getAttribute('transform') ?? '',
+    );
+    expect(match, 'transform').not.toBeNull();
+    const [, x, y, s] = match ?? [];
+    return { x: Number(x), y: Number(y), s: Number(s) };
+  }
+
+  it('draws the CassetteMark exactly as the logo component renders it', () => {
+    // Arrange
+    const { getByTestId } = render(createElement(CassetteMark));
+    const logo = getByTestId('cassette-mark');
+
+    // Act & Assert
+    expect(logo.getAttribute('viewBox')).toBe('0 0 104 66');
+    expect(shape(mark)).toEqual(shape(logo));
+  });
+
+  it('sits on a full-bleed dark canvas square', () => {
+    // Arrange
+    const background = svg.children[0];
+
+    // Assert
+    expect(svg.getAttribute('viewBox')).toBe('0 0 512 512');
+    expect(background?.tagName).toBe('rect');
+    expect(background?.getAttribute('width')).toBe('512');
+    expect(background?.getAttribute('height')).toBe('512');
+    expect(background?.hasAttribute('rx')).toBe(false);
+    expect(background?.getAttribute('fill')?.toLowerCase()).toBe('#1b1a2e');
+  });
+
+  it('centres the mark inside the maskable safe circle', () => {
+    // Arrange
+    const { x, y, s } = placement();
+    const [width, height] = [104 * s, 66 * s];
+
+    // Act
+    const farthestCorner = Math.hypot(width / 2, height / 2);
+
+    // Assert
+    expect(x + width / 2).toBeCloseTo(256, 1);
+    expect(y + height / 2).toBeCloseTo(256, 1);
+    expect(farthestCorner).toBeLessThanOrEqual(512 * 0.4);
+  });
+
+  it('no longer carries the placeholder purple', () => {
+    // Assert
+    expect(text('public/icons/icon.svg').toLowerCase()).not.toContain('#534ab7');
   });
 });

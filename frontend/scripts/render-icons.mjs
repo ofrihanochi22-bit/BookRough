@@ -1,5 +1,6 @@
 /**
- * Renders the PNG icon set from public/icons/icon.svg — docs/features/pwa-installable.md §3.2.
+ * Renders the PNG icon set from public/icons/icon.svg — docs/features/pwa-installable.md §3.2;
+ * the artwork itself is docs/features/pwa-icons-cassette.md.
  * Run by hand when the SVG changes, never in CI or the build; the PNGs are committed.
  *
  *   npm ci --prefix e2e && npx --prefix e2e playwright install chromium   (once)

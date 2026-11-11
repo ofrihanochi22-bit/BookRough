@@ -35,7 +35,7 @@ The current look is clean but generic: every block is the same outlined dark car
 - Any change to what a screen can do, any endpoint, any schema change.
 - New copy beyond what the new navigation strictly needs (Share sheet labels). Existing strings stay.
 - Any text in the logo besides "BookRough" — no tagline, no slogan inside the mark.
-- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec.
+- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec. Done afterwards as its own feature, `pwa-icons-cassette.md` (2026-11-11).
 - Uploaded or derived community covers — covers stay generated (CLAUDE.md §8).
 - i18n / RTL (CLAUDE.md §8).
 - Colour extraction from album art (cross-origin images cannot be read reliably).

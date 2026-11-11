@@ -1726,7 +1726,7 @@ On a real iPhone (spec §3.4, §7):
 
 1. Vercel → `bookrough` → Settings → Deployment Protection → **Require Log In** off → Save. The branch preview's address must be in the OAuth client's **Authorized JavaScript origins**.
 2. Safari → `https://bookrough-git-feat-pwa-installable-bookrough.vercel.app` → the install hint shows on Welcome (I1).
-3. ••• → Share → Add to Home Screen, **Open as Web App** on → the purple vinyl icon named BookRough (I2).
+3. ••• → Share → Add to Home Screen, **Open as Web App** on → the icon named BookRough (I2) — the purple vinyl then, the cassette since Step 6.1r.
 4. Launch it → no address bar; Continue with Google signs in; onboarding follows (I3). The preview has its own database, so production accounts are not there.
 5. Status bar readable in light and dark; bottom navigation above the home indicator (I4). Create a community, post a Spotify link, rate it (I5). Links to music services leave the app (I6). Close and relaunch → still signed in (I7). No hint inside the app; ✕ in Safari hides it for good (I8). An invite link from Messages opens in Safari (I9). Desktop Chrome on the preview: the manifest is `application/manifest+json` (I10).
 6. Switch **Require Log In** back on → Save.
@@ -2922,6 +2922,50 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tu
 
 ```bash
 cd frontend && npx vitest run src/components/Walkthrough.test.tsx src/stores/auth.test.ts src/components/CommunityFeed.test.tsx src/pages/MyList.test.tsx
+```
+
+### Step 6.1r — PWA icons from the cassette logo (Phase 6 — UC-1, presentation only)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/pwa-icons-cassette
+Spec: docs/features/pwa-icons-cassette.md
+
+Goal: the home-screen icon, the Android icon and the favicon show the Mixtape cassette logo instead of the placeholder purple vinyl from Step 6.1.
+
+Tasks:
+
+- [x] Spec (Stage 1, approved 2026-11-11): composition A — the whole `CassetteMark` on the dark canvas `#1B1A2E`; same files and sizes; no new dependency.
+- [x] Artwork: new `frontend/public/icons/icon.svg`; PNGs re-rendered.
+- [x] Review: `/code-review`.
+- [x] Tests: `manifest.test.ts`; production-build check.
+
+What I did:
+
+- **Artwork.** `frontend/public/icons/icon.svg` is now the logo's `CassetteMark`, element for element, at scale 3.25 (338 × 214.5 px) exactly centred on a full-bleed `#1B1A2E` square. Its farthest corner is 200.2 px from the centre, inside the 204.8 px maskable circle, so `icon-512.png` still serves both `any` and `maskable`. `icon-192.png`, `icon-512.png` and `apple-touch-icon.png` (180) were re-rendered with the existing `frontend/scripts/render-icons.mjs`. The favicon is the SVG itself. The manifest and `index.html` are unchanged.
+- **Docs.** New spec `docs/features/pwa-icons-cassette.md`; `pwa-installable.md` §3.2 marked superseded; `ui-redesign.md` out-of-scope line points to the new spec; the script header and Step 6.1's manual check updated.
+- **Code review** (4 findings, all fixed): the promised drift test between `icon.svg` and `CassetteMark` did not exist yet; the mark sat a quarter-pixel off centre (scale 3.269 → 3.25); the script header cited only the superseded section; Step 6.1's manual check still expected the purple icon. No `/security-review`: no auth, input or external service is touched.
+- **Tests:** `manifest.test.ts` gains four cases — `icon.svg` draws the same shapes as the rendered `CassetteMark`; a full-bleed `#1B1A2E` background; the mark centred inside the maskable circle; no placeholder purple left. Frontend: 89 files, 1072 tests, 97.8% lines.
+- **Production-build check:** `npm run build && npm run preview` — the manifest, `icon.svg`, both PNGs and `apple-touch-icon.png` answer `200` with their image types, every manifest icon has its declared size, and the icons render with the iOS and round Android masks and as a 16/32 px favicon.
+
+How to view & test:
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+1. Open `http://localhost:4173/`: the tab shows the cassette favicon (hard reload if the old one is cached).
+2. Open `http://localhost:4173/apple-touch-icon.png` and `http://localhost:4173/icons/icon-512.png`: the orange cassette on dark indigo.
+3. Chrome DevTools → Application → Manifest: no errors, three icons, the maskable preview keeps the whole cassette inside the circle.
+4. After merge, on the iPhone: remove BookRough from the home screen and add it again from Safari — iOS keeps the old icon until then.
+
+```bash
+cd frontend && npx vitest run src/manifest.test.ts
+```
+
+To change the artwork later: edit `icon.svg` (and `CassetteMark` together — the test compares them), then:
+
+```bash
+node frontend/scripts/render-icons.mjs
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
