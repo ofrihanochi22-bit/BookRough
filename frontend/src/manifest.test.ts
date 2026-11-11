@@ -154,8 +154,9 @@ describe('index.html', () => {
     expect(indexHtml).toMatch(/name="viewport"[^>]*viewport-fit=cover/);
   });
 
-  it('registers no service worker yet — that is Step 6.2', () => {
+  it('leaves the service worker to UpdatePrompt, which main.tsx mounts', () => {
     // Assert
+    expect(mainSource).toContain('<UpdatePrompt />');
     for (const source of [indexHtml, mainSource]) {
       expect(source).not.toMatch(/serviceWorker\.register|registerSW/);
     }

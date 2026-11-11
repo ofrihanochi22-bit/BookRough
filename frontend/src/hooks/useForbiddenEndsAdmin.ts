@@ -15,7 +15,7 @@ export function useForbiddenEndsAdmin(state: RequestState<unknown>): boolean {
 
   useEffect(() => {
     if (forbidden) {
-      useAuthStore.setState({ isAdmin: false });
+      useAuthStore.getState().revokeAdmin();
     }
   }, [forbidden]);
 

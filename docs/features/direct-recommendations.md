@@ -8,7 +8,7 @@
 | **Use cases** | UC-20 (new: send a recommendation to a friend); UC-11 retitled; UC-12, UC-13, UC-16, UC-18 amended |
 | **Phase**     | 6 — new Step 6.1a of `DEVELOPMENT.md`, built before Step 6.2 (§0)                                  |
 | **Branch**    | `feat/direct-recommendations`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                                 |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                                 |
 
 ---
 

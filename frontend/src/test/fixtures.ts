@@ -26,6 +26,7 @@ export function resetAuthStore(): void {
     user: null,
     needsOnboarding: false,
     isAdmin: false,
+    offline: false,
     tutorial: NO_TUTORIAL,
     tutorialClosed: [],
   });

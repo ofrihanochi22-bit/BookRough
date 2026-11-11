@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
+import { claimSavedApiAnswers, clearSavedApiAnswers } from '../lib/offlineCache';
 import { pendingInvite } from '../lib/pendingInvite';
+import { clearSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -51,31 +53,47 @@ interface AuthState {
    * or has not landed yet; these stay hidden regardless until sign-out.
    */
   tutorialClosed: TutorialItem[];
-  setSession: (session: Session) => void;
+  /**
+   * Opened from the remembered session because the server was unreachable
+   * (docs/features/pwa-offline.md §3.3). Read-only until /auth/me confirms it.
+   */
+  offline: boolean;
+  setSession: (session: Session, options?: { offline?: boolean }) => void;
   /** Hides one tutorial item at once; the server is told separately (lib/tutorial.ts). */
   markTutorialSeen: (item: TutorialItem) => void;
+  /** The server answered 403 to an admin request: the role was taken away. */
+  revokeAdmin: () => void;
   clear: () => void;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   status: 'unknown',
   user: null,
   needsOnboarding: false,
   isAdmin: false,
   tutorial: NO_TUTORIAL,
   tutorialClosed: [],
-  setSession: ({ user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL }) =>
+  offline: false,
+  setSession: (session, { offline = false } = {}) => {
+    if (!offline) {
+      saveSessionSnapshot(session);
+      claimSavedApiAnswers(session.user.id);
+    }
+    // The remembered session carries no tutorial, so an offline launch shows none.
+    const { user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL } = session;
     set((state) => ({
       status: 'signedIn',
       user,
       needsOnboarding,
       isAdmin,
+      offline,
       tutorial: {
         walkthrough: tutorial.walkthrough && !state.tutorialClosed.includes('walkthrough'),
         saveTip: tutorial.saveTip && !state.tutorialClosed.includes('saveTip'),
         listTip: tutorial.listTip && !state.tutorialClosed.includes('listTip'),
       },
-    })),
+    }));
+  },
   markTutorialSeen: (item) =>
     set((state) => ({
       tutorial: { ...state.tutorial, [item]: false },
@@ -83,15 +101,28 @@ export const useAuthStore = create<AuthState>()((set) => ({
         ? state.tutorialClosed
         : [...state.tutorialClosed, item],
     })),
-  clear: () =>
+  revokeAdmin: () => {
+    const { user, needsOnboarding, offline } = get();
+    set({ isAdmin: false });
+    // Keep the remembered session in step, or an offline launch would restore the role.
+    if (user && !offline) {
+      saveSessionSnapshot({ user, needsOnboarding, isAdmin: false });
+    }
+  },
+  // Sign-out and every 401: nothing of this user is left readable on the device.
+  clear: () => {
+    clearSessionSnapshot();
+    clearSavedApiAnswers();
     set({
       status: 'signedOut',
       user: null,
       needsOnboarding: false,
       isAdmin: false,
+      offline: false,
       tutorial: NO_TUTORIAL,
       tutorialClosed: [],
-    }),
+    });
+  },
 }));
 
 /**

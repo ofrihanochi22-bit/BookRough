@@ -271,6 +271,18 @@ describe('CompleteProfile — offline and sign out', () => {
     expect(continueButton()).toBeDisabled();
   });
 
+  it('disables Sign out offline, because the cookie cannot be cleared without the server', () => {
+    // Arrange
+    setOnline(false);
+
+    // Act
+    render(<CompleteProfile />);
+
+    // Assert
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeDisabled();
+    expect(screen.getByText("You're offline. Connect to sign out.")).toBeInTheDocument();
+  });
+
   it('signs out from the onboarding screen', async () => {
     // Arrange
     logout.mockResolvedValue(undefined);
