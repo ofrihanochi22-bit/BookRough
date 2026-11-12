@@ -74,7 +74,8 @@ export interface Config {
   token: string;
   team: string;
   project: string;
-  repository: string;
+  /** Pinned by the repository variable VCR_REPOSITORY; otherwise found by listing. */
+  repository: string | undefined;
   currentSha: string;
   deleting: boolean;
 }
@@ -87,19 +88,65 @@ function query(config: Config, extra: Record<string, string> = {}): string {
   return new URLSearchParams({ projectId: config.project, slug: config.team, ...extra }).toString();
 }
 
-export async function listImages(config: Config): Promise<RegistryImage[]> {
+/**
+ * Picks the project's registry repository from the names Vercel lists; pure.
+ * A pinned name must exist; without one, the project must have exactly one.
+ */
+export function chooseRepository(names: string[], pinned: string | undefined): string {
+  const listed = names.length > 0 ? names.join(', ') : 'none';
+  if (pinned !== undefined) {
+    if (!names.includes(pinned)) {
+      throw new Error(
+        `Repository "${pinned}" is not in the project (found: ${listed}); deleting nothing.`,
+      );
+    }
+    return pinned;
+  }
+  if (names.length !== 1) {
+    throw new Error(
+      `Expected one repository in the project, found: ${listed}. ` +
+        'Set the repository variable VCR_REPOSITORY to the one to prune; deleting nothing.',
+    );
+  }
+  return names[0] as string;
+}
+
+export async function listRepositories(config: Config): Promise<string[]> {
+  const response = await fetch(`${API}?${query(config, { limit: String(PAGE_LIMIT) })}`, {
+    headers: { Authorization: `Bearer ${config.token}` },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Listing the repositories of project ${config.project} failed with HTTP ${response.status}; deleting nothing.`,
+    );
+  }
+  const body = (await response.json()) as { repositories?: unknown; nextCursor?: unknown };
+  if (!Array.isArray(body.repositories)) {
+    throw new Error('The repository list has an unexpected shape; deleting nothing.');
+  }
+  if (typeof body.nextCursor === 'string' && body.nextCursor !== '') {
+    throw new Error(`More than ${PAGE_LIMIT} repositories; deleting nothing.`);
+  }
+  return (body.repositories as Record<string, unknown>[]).map((raw) => {
+    if (typeof raw.name !== 'string') {
+      throw new Error('A repository in the list has an unexpected shape; deleting nothing.');
+    }
+    return raw.name;
+  });
+}
+
+export async function listImages(config: Config, repository: string): Promise<RegistryImage[]> {
   const images: RegistryImage[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const params = query(config, { limit: String(PAGE_LIMIT), ...(cursor ? { cursor } : {}) });
-    const response = await fetch(
-      `${API}/${encodeURIComponent(config.repository)}/images?${params}`,
-      {
-        headers: { Authorization: `Bearer ${config.token}` },
-      },
-    );
+    const response = await fetch(`${API}/${encodeURIComponent(repository)}/images?${params}`, {
+      headers: { Authorization: `Bearer ${config.token}` },
+    });
     if (!response.ok) {
-      throw new Error(`Listing images failed with HTTP ${response.status}; deleting nothing.`);
+      throw new Error(
+        `Listing the images of repository ${repository} failed with HTTP ${response.status}; deleting nothing.`,
+      );
     }
     const body = (await response.json()) as { images?: unknown; nextCursor?: unknown };
     if (!Array.isArray(body.images)) {
@@ -128,8 +175,12 @@ export async function listImages(config: Config): Promise<RegistryImage[]> {
   throw new Error(`More than ${MAX_PAGES} pages of images; deleting nothing.`);
 }
 
-export async function deleteImage(config: Config, image: RegistryImage): Promise<void> {
-  const url = `${API}/${encodeURIComponent(config.repository)}/images/${encodeURIComponent(image.id)}?${query(config)}`;
+export async function deleteImage(
+  config: Config,
+  repository: string,
+  image: RegistryImage,
+): Promise<void> {
+  const url = `${API}/${encodeURIComponent(repository)}/images/${encodeURIComponent(image.id)}?${query(config)}`;
   const response = await fetch(url, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${config.token}` },
@@ -156,7 +207,7 @@ export function readConfig(source: NodeJS.ProcessEnv): Config {
     token: required('VERCEL_TOKEN'),
     team: required('VERCEL_TEAM'),
     project: source.VERCEL_PROJECT?.trim() || 'bookrough',
-    repository: source.VCR_REPOSITORY?.trim() || 'api',
+    repository: source.VCR_REPOSITORY?.trim() || undefined,
     currentSha: required('CURRENT_SHA'),
     deleting: source.PRUNE_IMAGES === 'delete',
   };
@@ -165,7 +216,9 @@ export function readConfig(source: NodeJS.ProcessEnv): Config {
 /* v8 ignore start -- the network half; planPrune holds every decision and is tested. */
 export async function main(source: NodeJS.ProcessEnv = process.env): Promise<void> {
   const config = readConfig(source);
-  const plan = planPrune(await listImages(config), {
+  const repository = chooseRepository(await listRepositories(config), config.repository);
+  process.stdout.write(`Repository: ${repository}\n`);
+  const plan = planPrune(await listImages(config, repository), {
     keep: 4,
     currentSha: config.currentSha,
     maxDeletes: 10,
@@ -182,7 +235,7 @@ export async function main(source: NodeJS.ProcessEnv = process.env): Promise<voi
     return;
   }
   for (const image of plan.remove) {
-    await deleteImage(config, image);
+    await deleteImage(config, repository, image);
   }
 }
 
