@@ -221,3 +221,4 @@ jobs:
           VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
           CURRENT_SHA: ${{ github.sha }}
           PRUNE_IMAGES: ${{ vars.PRUNE_IMAGES }}
+          VCR_REPOSITORY: ${{ vars.VCR_REPOSITORY }}

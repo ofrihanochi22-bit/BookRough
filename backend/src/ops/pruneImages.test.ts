@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  chooseRepository,
   type Config,
   deleteImage,
   listImages,
+  listRepositories,
   planPrune,
   readConfig,
   type RegistryImage,
@@ -102,13 +104,14 @@ describe('planPrune', () => {
 describe('readConfig', () => {
   const base = { VERCEL_TOKEN: 't', VERCEL_TEAM: 'team', CURRENT_SHA: SHA };
 
-  it('defaults the project and repository, and is a dry run unless PRUNE_IMAGES is "delete"', () => {
+  it('defaults the project, leaves the repository to the lookup, and is a dry run unless PRUNE_IMAGES is "delete"', () => {
     // Act
     const dry = readConfig(base);
     const deleting = readConfig({ ...base, PRUNE_IMAGES: 'delete' });
 
     // Assert
-    expect(dry).toMatchObject({ project: 'bookrough', repository: 'api', deleting: false });
+    expect(dry).toMatchObject({ project: 'bookrough', repository: undefined, deleting: false });
+    expect(readConfig({ ...base, VCR_REPOSITORY: ' web ' }).repository).toBe('web');
     expect(deleting.deleting).toBe(true);
     expect(readConfig({ ...base, PRUNE_IMAGES: 'yes' }).deleting).toBe(false);
   });
@@ -119,12 +122,49 @@ describe('readConfig', () => {
   });
 });
 
+describe('chooseRepository', () => {
+  it('chooses the only repository when none is pinned', () => {
+    // Act
+    const chosen = chooseRepository(['bookrough-api'], undefined);
+
+    // Assert
+    expect(chosen).toBe('bookrough-api');
+  });
+
+  it('chooses the pinned repository among several', () => {
+    // Act
+    const chosen = chooseRepository(['api', 'web'], 'web');
+
+    // Assert
+    expect(chosen).toBe('web');
+  });
+
+  it.each([
+    ['no repository', [], /found: none/],
+    [
+      'several without a pin',
+      ['api', 'web'],
+      /found: api, web\. Set the repository variable VCR_REPOSITORY/,
+    ],
+  ])('throws, deleting nothing, on %s', (_label, names, message) => {
+    // Act & Assert
+    expect(() => chooseRepository(names, undefined)).toThrowError(message);
+  });
+
+  it('throws, naming what it found, when the pin is not listed', () => {
+    // Act & Assert
+    expect(() => chooseRepository(['bookrough-api'], 'api')).toThrowError(
+      'Repository "api" is not in the project (found: bookrough-api); deleting nothing.',
+    );
+  });
+});
+
 describe('the registry calls', () => {
   const config: Config = {
     token: 'secret-token',
     team: 'team',
     project: 'bookrough',
-    repository: 'api',
+    repository: undefined,
     currentSha: SHA,
     deleting: true,
   };
@@ -142,6 +182,49 @@ describe('the registry calls', () => {
   const answer = (status: number, body?: unknown) =>
     Promise.resolve(new Response(body === undefined ? null : JSON.stringify(body), { status }));
 
+  it("lists the project's repositories by name, with the token only as a bearer header", async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(200, { repositories: [{ id: 'repo_1', name: 'api' }] }));
+
+    // Act
+    const names = await listRepositories(config);
+
+    // Assert
+    expect(names).toEqual(['api']);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/v1\/vcr\/repository\?/);
+    expect(url).toContain('projectId=bookrough');
+    expect(url).toContain('slug=team');
+    expect(url).not.toContain('secret-token');
+    expect(init.headers).toEqual({ Authorization: 'Bearer secret-token' });
+  });
+
+  it('fails, deleting nothing, when the repository listing is refused', async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(404, {}));
+
+    // Act & Assert
+    await expect(listRepositories(config)).rejects.toThrowError(
+      /repositories of project bookrough failed with HTTP 404; deleting nothing/,
+    );
+  });
+
+  it.each([
+    ['no repository array', { items: [] }, /repository list has an unexpected shape/],
+    [
+      'a repository without a name',
+      { repositories: [{ id: 'repo_1' }] },
+      /repository in the list has an unexpected shape/,
+    ],
+    ['a second page', { repositories: [], nextCursor: 'more' }, /More than 100 repositories/],
+  ])('fails on %s', async (_label, body, message) => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(200, body));
+
+    // Act & Assert
+    await expect(listRepositories(config)).rejects.toThrowError(message);
+  });
+
   it('follows the cursor across pages and sends the token only as a bearer header', async () => {
     // Arrange
     fetchMock
@@ -149,7 +232,7 @@ describe('the registry calls', () => {
       .mockReturnValueOnce(answer(200, { images: [image(2)] }));
 
     // Act
-    const images = await listImages(config);
+    const images = await listImages(config, 'api');
 
     // Assert
     expect(ids(images)).toEqual(['image_1', 'image_2']);
@@ -166,7 +249,9 @@ describe('the registry calls', () => {
     fetchMock.mockReturnValue(answer(403, {}));
 
     // Act & Assert
-    await expect(listImages(config)).rejects.toThrowError(/HTTP 403; deleting nothing/);
+    await expect(listImages(config, 'api')).rejects.toThrowError(
+      /images of repository api failed with HTTP 403; deleting nothing/,
+    );
   });
 
   it.each([
@@ -177,7 +262,9 @@ describe('the registry calls', () => {
     fetchMock.mockReturnValue(answer(200, body));
 
     // Act & Assert
-    await expect(listImages(config)).rejects.toThrowError(/unexpected shape; deleting nothing/);
+    await expect(listImages(config, 'api')).rejects.toThrowError(
+      /unexpected shape; deleting nothing/,
+    );
   });
 
   it('gives up after too many pages', async () => {
@@ -185,7 +272,7 @@ describe('the registry calls', () => {
     fetchMock.mockImplementation(() => answer(200, { images: [], nextCursor: 'again' }));
 
     // Act & Assert
-    await expect(listImages(config)).rejects.toThrowError(/More than 20 pages/);
+    await expect(listImages(config, 'api')).rejects.toThrowError(/More than 20 pages/);
   });
 
   it.each([202, 404, 410])('treats a DELETE answered %i as done', async (status) => {
@@ -193,7 +280,7 @@ describe('the registry calls', () => {
     fetchMock.mockReturnValue(answer(status));
 
     // Act
-    await deleteImage(config, image(1));
+    await deleteImage(config, 'api', image(1));
 
     // Assert
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -206,7 +293,7 @@ describe('the registry calls', () => {
     fetchMock.mockReturnValue(answer(500));
 
     // Act & Assert
-    await expect(deleteImage(config, image(1))).rejects.toThrowError(
+    await expect(deleteImage(config, 'api', image(1))).rejects.toThrowError(
       /image_1 failed with HTTP 500/,
     );
   });
