@@ -3046,6 +3046,45 @@ cd frontend && npm run dev
 cd frontend && npx vitest run src/components/FriendPicker.test.tsx src/pages/CreateCommunity.test.tsx
 ```
 
+### Step 6.1u — The selected avatar tile is outlined, not filled (Phase 6 — UC-1, presentation only; improvement round point 3)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/avatar-choice-selected-tile
+Spec: `docs/features/ui-redesign.md` §5.13, `docs/features/onboarding.md` §6, `docs/features/profile-settings.md` §5 (amended)
+
+Goal: on Complete Your Profile, the selected "Your avatar" tile was a cream `tape` block. The pale generated avatar was about 1.2:1 against it, and the block clashed with the dark screen.
+
+What I did:
+
+- **Design (agreed with the developer, 2026-11-15):** option A of three mockups. Both tiles stay on the screen's own background. The selected one gets a 2px `ink` border, an `ink` check badge in its top corner and a bold label; the other keeps its 1.5px `line` outline. The padding absorbs the thicker border, so the row never shifts. The accent colour is not used (only the existing focus outline). On the dark background the generated avatar reads at about 12:1, so its colours are unchanged.
+- **Code:** `frontend/src/pages/CompleteProfile.tsx`: `AvatarTile` styling and the check badge (`LineIcon`, decorative). Radio semantics, the sr-only inputs with their names and the focus outline are unchanged.
+- **My Profile left as it is** (developer's choice): it has no tiles to select, only the current avatar on its tape card with a `tape-ink` ring and action buttons. The specs now say so.
+- **Code review** (4 findings): the "Where do you listen?" picker on the same screen still marks its selection with a tape fill. That is out of this point's scope, so it was raised with the developer rather than changed. The missing DEVELOPMENT.md entry has been written (this entry). The tests asserting class names were kept, matching the screen's other style tests, and they also assert that the selected tile has no `bg-tape`. The finding that the tile depends on the `--ink` scope needs no change: the tiles only render on the canvas.
+- **Tests:** `CompleteProfile.mixtape.test.tsx`: both options are radios in the "Your avatar" group with Generated checked; the selected tile has the `ink` border and the check, and no `tape` fill; choosing the other moves the border, the check and the checked state; arrow keys move the selection. Frontend: 90 files, 1081 tests, 97.8% lines.
+- **Browser check at 375 px** (production build of a temporary page rendering only this screen, not committed): tiles 157 × 119 px, no horizontal scroll; correct in dark and light schemes, both selections.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/` with a new Google account (Create account) so you land on Complete Your Profile; set DevTools to 375 px.
+2. Under "Your avatar", Generated has a cream border and a check, with no filled card. Tap Google photo: the border and check move to it.
+3. Tab to the tiles: the focus outline shows; the arrow keys switch the selection.
+
+```bash
+cd frontend && npx vitest run src/pages/CompleteProfile
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

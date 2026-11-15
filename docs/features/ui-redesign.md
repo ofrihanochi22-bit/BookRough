@@ -292,7 +292,8 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 - **Heading** "Complete your profile". Offline alert unchanged.
 - **Your cassette:** a `tape` label with a stripe band in the user's hue, showing the display name **as it is typed** (presentation of the field's current value; placeholder look when empty). No new data.
-- **Your avatar:** the two existing tiles (Generated / Google photo) side by side; the selected tile on `tape` paper, the other outlined. Helper line unchanged.
+- **Your avatar:** the two existing tiles (Generated / Google photo) side by side, both on the screen's own background. The selected tile has a 2px `ink` border, a small `ink` check badge in its top corner and a bold label; the other is outlined in `line`. **Never a `tape` fill** (amended 2026-11-15, improvement round point 3): the pale generated avatar is about 1.2:1 on `tape`, and a cream block clashed with the dark screen. On the dark background the generated avatar reads at about 12:1, so its own colours are unchanged. The accent is not used for the selection (only for the focus outline). Helper line unchanged.
+- **My Profile is deliberately different** (§5.11): it has no tiles to select, only the current avatar with a `tape-ink` ring and action buttons, so it keeps its layout (decided 2026-11-15).
 - **Display name / Where do you listen?:** as on My Profile (§5.11).
 - **Continue:** accent primary, full width. The small "Sign out" link stays as it is (no confirmation), per visible-sign-out.md.
 
