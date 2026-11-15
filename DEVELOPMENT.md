@@ -2968,6 +2968,45 @@ To change the artwork later: edit `icon.svg` (and `CassetteMark` together — th
 node frontend/scripts/render-icons.mjs
 ```
 
+### Step 6.1s — No white box behind the Google button (Phase 6 — UC-1, a bug fix; improvement round point 1)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/google-button-white-box
+Spec: none (a bug fix; no spec describes the button's backdrop)
+
+Goal: in dark mode, the "Sign in with Google" button on Welcome sits straight on the dark canvas, not inside a white rectangle.
+
+What I did:
+
+- **Cause.** Google draws its button in an iframe from `accounts.google.com`, whose page declares no `color-scheme` (it is `normal`, i.e. light). In dark mode our `:root` sets `color-scheme: dark`, and the iframe inherited it. When an iframe's scheme differs from its page's, Chromium and Safari paint an opaque backdrop in the page's default colour (white) behind the whole iframe: a 280 × 44 px white box around the dark pill. Seen in Chrome and Edge.
+- **Fix.** `frontend/src/components/GoogleCredentialButton.tsx` wraps `GoogleLogin` in a `div` with `style={{ colorScheme: 'normal' }}`, so the iframe matches Google's page and stays transparent. Google's button and its `filled_black` / `outline` theme are unchanged. It covers every place that uses the component: Welcome, the invite preview and My Profile's "Use my Google photo".
+- **Code review** (4 findings): the first test checked only a Tailwind class name, not the CSS value, and found the wrapper through `parentElement`. Fixed by switching to an inline style asserted with `toHaveStyle` and using `closest('div')`. The test sat in `GoogleSignIn.test.tsx` rather than next to the component (§10 colocation). Fixed with a new `GoogleCredentialButton.test.tsx`. The last finding: the fix assumes Google's page keeps declaring no scheme. Skipped, because that is how Google serves it today; the comment in the code names the assumption.
+- **Tests:** `GoogleCredentialButton.test.tsx` (new) asserts the wrapper's `color-scheme: normal`. It fails with the fix removed. Frontend: 90 files, 1073 tests, 97.8% lines.
+- **Browser check:** Google's iframe does not load in Claude's browser pane, so the real button could not be seen there. A local page with the same setup (a dark page, a 280 × 44 iframe with no declared scheme, and a dark pill) showed the white box without the wrapper and none with it.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Set the computer to dark mode, then open `http://localhost:5173/` in Chrome or Edge, signed out.
+2. The Google button sits directly on the dark background, with no white rectangle around it. Switch between Sign in and Create account: still no box.
+3. Switch the computer to light mode: the light outlined button, also with no box.
+4. At 375 px (DevTools → device toolbar), the same.
+
+```bash
+cd frontend && npx vitest run src/components/GoogleCredentialButton.test.tsx
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
