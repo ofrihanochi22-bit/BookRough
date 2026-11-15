@@ -106,7 +106,7 @@ The rules live in one backend module (`services/displayName.ts`) and one fronten
 
 Top to bottom: heading "Complete your profile"; avatar choice; display name; streaming service; **Continue**; a quiet **Sign out** link.
 
-- **Avatar choice:** two tiles side by side — _Generated_ (initials of the name being typed, colour from the user id, updates live) and _Google photo_. Generated is selected by default. The Google tile is shown only when a Google photo exists. A line under them: "Your Google photo is only kept if you choose it."
+- **Avatar choice:** two tiles side by side — _Generated_ (initials of the name being typed, colour from the user id, updates live) and _Google photo_. Generated is selected by default. The selected tile is marked by an `ink` border, a check badge and a bold label, never by a light fill (ui-redesign.md §5.13, amended 2026-11-15); both tiles are radios in one fieldset. The Google tile is shown only when a Google photo exists. A line under them: "Your Google photo is only kept if you choose it."
 - **Display name:** text input, `maxLength` generous, character counter `n/20`. Under it, one status line:
   - typing / too short / invalid character → the rule's message, from the client mirror, no request sent;
   - checking (debounced 400 ms) → small spinner "Checking…";
