@@ -274,7 +274,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 - **Heading** "Your profile" in the display face.
 - **Avatar section:** a `tape` paper card with a stripe band in the user's own hue (as on the Public Profile, §5.6): the 72–80px avatar with a `tape-ink` ring, "Upload a photo" as an outlined pill in `tape-ink`, "Use my Google photo" with its existing helper text. The Google button keeps **Google's own styling** (Google branding rules). Remove-photo and error/progress states unchanged, kit styling.
 - **Display name:** kit field with the existing counter and help text.
-- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row on `tape` paper with an accent radio, the others outlined; service names only, no logos.
+- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row outlined in a 2px `ink` border with a bold name and its accent radio, the others outlined in `line`; service names only, no logos. **No `tape` fill** (amended 2026-11-15, improvement round point 3, so it matches the avatar tiles of §5.13 on the same onboarding screen).
 - **Save changes:** accent primary, full width; same enable rules.
 - **Admin area** (admins only): a `surface` row with an icon and a chevron.
 - **Sign out:** an outlined chip, centred, opening `SignOutSheet` as today.
