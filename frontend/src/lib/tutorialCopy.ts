@@ -12,7 +12,7 @@ export const WALKTHROUGH_CARDS: readonly WalkthroughCard[] = [
   },
   {
     title: 'Share a song',
-    body: 'Tap Share in the middle of the bar. Send a song to a community or straight to a friend — paste a link from any service.',
+    body: 'Tap Share in the middle of the bar. Send a song to a community or straight to a friend. Paste a link from any service.',
   },
   {
     title: 'Links that travel',
@@ -24,10 +24,10 @@ export const WALKTHROUGH_CARDS: readonly WalkthroughCard[] = [
   },
   {
     title: 'Friends and notifications',
-    body: 'Add friends on the Friends tab — search finds anyone. The bell on Home shows new posts, ratings, replies and invitations.',
+    body: 'Add friends on the Friends tab, where search finds anyone. The bell on Home shows new posts, ratings, replies and invitations.',
   },
 ];
 
-export const SAVE_TIP = "Save a song to listen later — you'll rate it from My List.";
-export const LIST_TIP = 'Listened? Rate it here — your score shows on the post.';
+export const SAVE_TIP = "Save a song to listen later. You'll rate it from My List.";
+export const LIST_TIP = 'Listened? Rate it here. Your score shows on the post.';
 export const REPLAY_LABEL = 'How BookRough works';

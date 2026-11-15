@@ -11,7 +11,7 @@ const log = createLogger('googleIdentity');
 // NODE_ENV=test, where the logger is silent.
 if (env.E2E_GOOGLE_PUBLIC_KEY) {
   process.stderr.write(
-    'WARNING: E2E Google stand-in is active — ID tokens are verified with the test key, not Google.\n',
+    'WARNING: E2E Google stand-in is active: ID tokens are verified with the test key, not Google.\n',
   );
 }
 

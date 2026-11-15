@@ -26,7 +26,7 @@ const log = createLogger('linkScraper');
 // Straight to stderr, not the logger: the stand-in only runs under
 // NODE_ENV=test, where the logger is silent.
 if (env.E2E_SCRAPER_FIXTURES) {
-  process.stderr.write('WARNING: E2E scraper stand-in is active — links are not converted.\n');
+  process.stderr.write('WARNING: E2E scraper stand-in is active: links are not converted.\n');
 }
 
 export type ServiceLinks = Partial<Record<StreamingService, string>>;
