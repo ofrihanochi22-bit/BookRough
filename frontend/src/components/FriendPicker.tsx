@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { CandidateStatus, InviteCandidate } from '../api/invitations';
-import { PersonLink } from './PersonLink';
+import { PersonName } from './PersonLink';
 import { Button } from './ui/Button';
 import { LoadError } from './ui/LoadError';
 import { Skeleton } from './ui/Skeleton';
@@ -75,23 +75,44 @@ export function FriendPicker({
     >
       {candidates.map((candidate) => {
         const { user, status } = candidate;
-        return (
-          <li key={user.id} className="flex items-center gap-2 py-1">
-            <PersonLink user={user} className="text-sm" />
-            {status === 'MEMBER' || status === 'BLOCKED' ? (
+        if (status === 'MEMBER' || status === 'BLOCKED') {
+          return (
+            <li key={user.id} className="flex items-center gap-2 py-1">
+              <PersonName user={user} className="text-sm" />
               <span className="flex min-h-11 items-center px-2 text-xs text-muted">
                 {LABELS[status]}
               </span>
-            ) : mode === 'select' ? (
-              <input
-                type="checkbox"
-                aria-label={`Invite ${user.displayName}`}
-                checked={selected?.has(user.id) ?? false}
-                disabled={!online}
-                onChange={() => onToggle?.(user.id)}
-                className="size-11 shrink-0 accent-accent"
-              />
-            ) : status === 'INVITED' ? (
+            </li>
+          );
+        }
+        if (mode === 'select') {
+          // The whole row is the checkbox's label: a tap on the avatar or the
+          // name toggles it, and the name is never a profile link here
+          // (invite-friends.md §5.1).
+          return (
+            <li key={user.id} className="py-1">
+              <label
+                className={`-mx-2 flex items-center gap-2 rounded-xl px-2 ${
+                  online ? 'cursor-pointer active:bg-canvas' : 'cursor-not-allowed'
+                }`}
+              >
+                <PersonName user={user} className="text-sm" />
+                <input
+                  type="checkbox"
+                  aria-label={`Invite ${user.displayName}`}
+                  checked={selected?.has(user.id) ?? false}
+                  disabled={!online}
+                  onChange={() => onToggle?.(user.id)}
+                  className="size-11 shrink-0 accent-accent"
+                />
+              </label>
+            </li>
+          );
+        }
+        return (
+          <li key={user.id} className="flex items-center gap-2 py-1">
+            <PersonName user={user} className="text-sm" />
+            {status === 'INVITED' ? (
               <Button
                 variant="secondary"
                 aria-label={`Invited ${user.displayName}, tap to cancel`}

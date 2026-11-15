@@ -174,6 +174,28 @@ describe('CreateCommunity — submitting', () => {
     expect(picker.toastError).not.toHaveBeenCalled();
   });
 
+  it("a tap on a friend's name ticks them and keeps the half-filled form (invite-friends.md §5.1)", async () => {
+    // Arrange
+    picker.listFriends.mockResolvedValue([
+      { user: { id: 'yael', displayName: 'Yael', profilePictureUrl: null }, since: 'x' },
+    ]);
+    createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));
+    picker.inviteFriends.mockResolvedValue([]);
+    renderForm();
+    await userEvent.type(nameInput(), 'Friday Jazz');
+
+    // Act
+    await userEvent.click(await screen.findByText('Yael'));
+
+    // Assert
+    expect(screen.getByRole('checkbox', { name: 'Invite Yael' })).toBeChecked();
+    expect(screen.queryByRole('link', { name: 'Yael' })).not.toBeInTheDocument();
+    expect(nameInput()).toHaveValue('Friday Jazz');
+    await userEvent.click(createButton());
+    expect(await screen.findByText('Landed on /communities/new-id by REPLACE')).toBeInTheDocument();
+    expect(picker.inviteFriends).toHaveBeenCalledWith('new-id', ['yael']);
+  });
+
   it('sends no invitations when nobody is ticked', async () => {
     // Arrange
     createCommunity.mockResolvedValue(makeCommunity({ id: 'new-id' }));

@@ -3007,6 +3007,45 @@ cd frontend && npm run dev
 cd frontend && npx vitest run src/components/GoogleCredentialButton.test.tsx
 ```
 
+### Step 6.1t — A friend's name in the invite list no longer leaves the form (Phase 6 — UC-9, a bug fix; improvement round point 4)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/invite-friend-rows
+Spec: `docs/features/invite-friends.md` §5.1 (amended)
+
+Goal: on Create Community, tapping a friend's name in "Invite friends" ticks them instead of opening their profile and losing the half-filled form.
+
+What I did:
+
+- **Where the row appeared.** `FriendPicker` is the only friend row inside a form or picker that linked to a profile. It is used in two places: the Create Community form (checkboxes) and the Invite friends panel, opened from the community page and from Community Settings (Invite / Invited buttons). The recipient picker for direct recommendations was already a whole-row button. The member list on Community Settings is a list, not a form, and keeps its profile links.
+- **Fix.** `components/PersonLink.tsx` gains `PersonName`, the same avatar and name as plain text, sharing its markup with `PersonLink`. `FriendPicker` uses it in both modes, so no name is a profile link. On the Create form the whole row is the checkbox's `<label>`: a tap on the avatar, the name or the box toggles it (row 44 px tall, pressed state `bg-canvas`); the checkbox keeps its one accessible name, "Invite {name}". In the panel only the buttons act, as agreed with the developer.
+- **Code review** (4 findings, all fixed): no test covered the fix (added below); spec §5.1 did not describe the plain-text rows (amended); the first version copied `PersonLink`'s avatar-and-name markup (now shared through `PersonName`); the tappable row had no pressed feedback (added). No `/security-review`: presentation only, no auth, input or external service.
+- **Tests:** `FriendPicker.test.tsx`: a tap on the name or the avatar toggles; offline, a tap does nothing; in both modes no row is a link and a tap on the name sends nothing. `CreateCommunity.test.tsx`: a tap on the name ticks the friend, keeps the typed name, and Create invites them. Frontend: 90 files, 1078 tests, 97.8% lines.
+- **Browser check at 375 px:** a temporary page rendering only the picker (not committed). Tapping "Yael" ticked her box with no navigation; each row 327 × 44 px; no horizontal scroll.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in with an account that has at least one friend, open `http://localhost:5173/communities/new` at 375 px (DevTools → device toolbar).
+2. Type a name, then tap a friend's name, then their avatar: the checkbox ticks and unticks; the page stays on the form with the name still typed.
+3. Create: the ticked friend is invited, as before.
+4. On the new community, open Invite friends: tapping a friend's name does nothing and the sheet stays open; Invite and Invited still work.
+
+```bash
+cd frontend && npx vitest run src/components/FriendPicker.test.tsx src/pages/CreateCommunity.test.tsx
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
