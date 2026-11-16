@@ -14,11 +14,13 @@ import { Button } from '../components/ui/Button';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { REMOVE_FAILED, REMOVED } from '../lib/bookmarkCopy';
 import { canRateSaved } from '../lib/savedPosts';
 import { dismissTutorialItem } from '../lib/tutorial';
@@ -47,7 +49,7 @@ function fresh(page: SavedPostsPage): LocalChanges {
  * Rate & Review opens the rating sheet (rate-post.md §5).
  */
 export function MyList() {
-  const first = useRequest(listBookmarks);
+  const first = useRequest(listBookmarks, { key: cacheKeys.myList, persist: true });
   const online = useOnlineStatus();
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
   const [local, setLocal] = useState<LocalChanges | null>(null);
@@ -143,6 +145,7 @@ export function MyList() {
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
+            <LoadingHint />
           </div>
         )}
 

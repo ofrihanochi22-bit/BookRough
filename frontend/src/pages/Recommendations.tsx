@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 
 import { getPost, type PostsPage, type PublicPost } from '../api/posts';
@@ -13,10 +13,12 @@ import { MIXTAPE_H1 } from '../components/ui/heading';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { PillTrack } from '../components/ui/PillTrack';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { LOAD_FAILED, OFFLINE } from '../lib/recommendationCopy';
 import { type StreamingService, useAuthStore } from '../stores/auth';
 
@@ -61,7 +63,10 @@ interface RecommendationListProps {
 
 /** One of the two lists, newest first, with Load more and its own loading states. */
 function RecommendationList({ view, online, viewerService }: RecommendationListProps) {
-  const first = useRequest(view === 'received' ? listReceived : listSent);
+  const first = useRequest(view === 'received' ? listReceived : listSent, {
+    key: view === 'received' ? cacheKeys.recsReceived : cacheKeys.recsSent,
+    persist: true,
+  });
   const refreshCount = useFriendRequests((state) => state.refresh);
   const [local, setLocal] = useState<LocalChanges | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -78,8 +83,12 @@ function RecommendationList({ view, online, viewerService }: RecommendationListP
     : [];
 
   // Opening Received clears the count, once it has really been shown (§5.2).
+  // Once per visit: a cached list followed by its fresh answer is one showing
+  // (client-cache.md §5.1).
+  const markedSeen = useRef(false);
   useEffect(() => {
-    if (view === 'received' && loaded) {
+    if (view === 'received' && loaded && !markedSeen.current) {
+      markedSeen.current = true;
       markRecommendationsSeen()
         .then(refreshCount)
         .catch(() => undefined);
@@ -147,6 +156,7 @@ function RecommendationList({ view, online, viewerService }: RecommendationListP
           <Skeleton className="h-48" />
           <Skeleton className="h-48" />
           <Skeleton className="h-48" />
+          <LoadingHint />
         </div>
       )}
 

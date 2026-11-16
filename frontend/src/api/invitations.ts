@@ -1,5 +1,7 @@
 import { api, type SuccessBody } from './client';
 import type { MemberUser } from './membership';
+import { cacheKeys as K } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Mirrors docs/features/invite-friends.md §4. */
 export type CandidateStatus = 'INVITABLE' | 'INVITED' | 'MEMBER' | 'BLOCKED';
@@ -37,6 +39,7 @@ export async function inviteFriends(
     { userIds },
     quiet,
   );
+  invalidate([]);
   return response.data.data.candidates;
 }
 
@@ -48,6 +51,7 @@ export async function cancelInvitation(
     `/communities/${path(communityId)}/invitations/${path(userId)}`,
     quiet,
   );
+  invalidate([]);
   return response.data.data.candidates;
 }
 
@@ -66,8 +70,10 @@ export async function countMyInvitations(): Promise<number> {
 
 export async function acceptInvitation(communityId: string): Promise<void> {
   await api.post(`/invitations/${path(communityId)}/accept`, undefined, quiet);
+  invalidate([K.communities, K.notifications, K.friends]);
 }
 
 export async function declineInvitation(communityId: string): Promise<void> {
   await api.post(`/invitations/${path(communityId)}/decline`, undefined, quiet);
+  invalidate([K.notifications, K.friends]);
 }

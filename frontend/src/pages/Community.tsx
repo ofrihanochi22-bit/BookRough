@@ -10,9 +10,11 @@ import { CommunityCover } from '../components/ui/CommunityCover';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { CHIP } from '../components/ui/chip';
 import { LineIcon } from '../components/ui/LineIcon';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { membershipLine, sharedAt } from '../lib/communityCopy';
 import { isAdmin } from '../lib/communityRoles';
 import { NotFound } from './NotFound';
@@ -25,7 +27,7 @@ import { NotFound } from './NotFound';
 export function Community() {
   const { id = '' } = useParams();
   const load = useCallback(() => getCommunity(id), [id]);
-  const community = useRequest(load);
+  const community = useRequest(load, { key: cacheKeys.community(id), persist: true });
   const location = useLocation();
   const navigate = useNavigate();
   // Access lost while on the page (removed, or the community deleted). Kept
@@ -66,6 +68,7 @@ export function Community() {
           <Skeleton className="h-[120px]" />
           <Skeleton className="h-56" />
           <Skeleton className="h-56" />
+          <LoadingHint />
         </div>
       )}
 

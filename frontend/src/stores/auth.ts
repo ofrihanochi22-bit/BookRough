@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
 import { pendingInvite } from '../lib/pendingInvite';
+import { setCacheOwner, wipeCache } from '../lib/requestCache';
+import {
+  readSessionSnapshot,
+  removeSessionSnapshot,
+  saveSessionSnapshot,
+} from '../lib/sessionSnapshot';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -57,14 +63,28 @@ interface AuthState {
   clear: () => void;
 }
 
+/**
+ * The saved session, read once when the app loads (client-cache.md §3.3). With
+ * one, the app opens signed in at once and `SessionGate` checks the cookie
+ * behind it; without one it waits for GET /auth/me, as before.
+ */
+const snapshot = readSessionSnapshot();
+setCacheOwner(snapshot?.user.id ?? null);
+
+/** Whether this page load opened from the saved session, so /auth/me runs behind it. */
+export const openedFromSnapshot = snapshot !== null;
+
 export const useAuthStore = create<AuthState>()((set) => ({
-  status: 'unknown',
-  user: null,
-  needsOnboarding: false,
-  isAdmin: false,
+  status: snapshot ? 'signedIn' : 'unknown',
+  user: snapshot?.user ?? null,
+  needsOnboarding: snapshot?.needsOnboarding ?? false,
+  isAdmin: snapshot?.isAdmin ?? false,
+  // Not saved: a cold launch shows no tutorial until the server says so.
   tutorial: NO_TUTORIAL,
   tutorialClosed: [],
-  setSession: ({ user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL }) =>
+  setSession: ({ user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL }) => {
+    setCacheOwner(user.id);
+    saveSessionSnapshot({ user, needsOnboarding, isAdmin });
     set((state) => ({
       status: 'signedIn',
       user,
@@ -75,7 +95,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
         saveTip: tutorial.saveTip && !state.tutorialClosed.includes('saveTip'),
         listTip: tutorial.listTip && !state.tutorialClosed.includes('listTip'),
       },
-    })),
+    }));
+  },
   markTutorialSeen: (item) =>
     set((state) => ({
       tutorial: { ...state.tutorial, [item]: false },
@@ -83,7 +104,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
         ? state.tutorialClosed
         : [...state.tutorialClosed, item],
     })),
-  clear: () =>
+  // Sign-out and every 401: nothing of this user stays on the device (§3.5).
+  clear: () => {
+    setCacheOwner(null);
+    wipeCache();
+    removeSessionSnapshot();
     set({
       status: 'signedOut',
       user: null,
@@ -91,7 +116,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
       isAdmin: false,
       tutorial: NO_TUTORIAL,
       tutorialClosed: [],
-    }),
+    });
+  },
 }));
 
 /**

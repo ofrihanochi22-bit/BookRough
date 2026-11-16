@@ -219,7 +219,11 @@ describe('Community Feed (ui-redesign.md §5.2)', () => {
     renderCommunity();
 
     // Assert
-    expect(screen.getByRole('status', { name: 'Loading the community' }).children).toHaveLength(3);
+    expect(
+      screen
+        .getByRole('status', { name: 'Loading the community' })
+        .querySelectorAll('[aria-hidden="true"]'),
+    ).toHaveLength(3);
   });
 
   it('shows the load error with Try again', async () => {

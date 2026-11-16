@@ -3130,6 +3130,58 @@ npm run lint
 cd frontend && npx vitest run src/pages/CompleteProfile src/components/Walkthrough src/pages/MyList src/components/CommunityFeed
 ```
 
+### Step 6.1w — Client-side cache and a clearer cold start (Phase 6 — every read screen: UC-4, 5, 6, 7, 8, 9, 10, 12, 13, 16, 19, 20, 21, 22; improvement round point 5)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/client-cache
+Spec: `docs/features/client-cache.md`
+
+Goal: moving between screens showed an empty skeleton every time, and opening the app after a quiet spell showed skeletons for 4–5 s while the Vercel container and Neon woke up. Now a screen shows its last data at once and refreshes behind it, a cold launch shows the user's communities straight away, a long wait says so calmly, and the cold start is measured.
+
+What I did:
+
+- **Cause, verified in code:** `useRequest` kept answers only in the component's state, so every visit started from "loading"; and `SessionGate` held the whole app behind GET `/auth/me`, which waits on the cold server.
+- **Cache (`frontend/src/lib/requestCache.ts`, `lib/cacheKeys.ts`, `hooks/useRequest.ts`):** `useRequest(load, { key, persist })` shows a cached answer as `ready` on the first render, fetches behind it and replaces it in place. A failed refresh keeps the cached data, except a 403/404, which shows the screen's existing error and drops the key. `reload()` drops the key and loads fresh, as before. Memory is bounded at 100 entries (least recently used goes first). An answer is not cached if a matching invalidation happened while it was in flight.
+- **On the device:** the user's own lists (Home, each community's header and first feed page, My List, notifications, recommendations, friends) are kept in `localStorage` under `bookrough.cache.v1`, labelled with the user's id: at most 40 entries, ignored after 14 days, writes coalesced, and skipped when another tab has signed in as someone else. Admin, search, other people's profiles and single posts stay in memory only.
+- **Saved session (`lib/sessionSnapshot.ts`, `stores/auth.ts`, `components/RouteGuards.tsx`):** `bookrough.session.v1` holds the public user, `needsOnboarding` and `isAdmin` (no email, no token). With one, the app opens signed in at once and checks `/auth/me` behind it: success replaces it, a 401 signs out, anything else leaves the app reading from the cache. Sign-out, every 401 and every sign-in wipe the cache and the snapshot.
+- **Invalidation map:** every write in `frontend/src/api/` calls `invalidate([...])` with the keys it makes stale (spec §3.4), so after the user's own action a screen loads fresh once and never shows the old state. A test fails if a write declares nothing.
+- **Still loading:** `components/ui/LoadingHint.tsx` adds "Still loading. This can take a few seconds." under every screen's skeleton and under the "Opening BookRough…" spinner, after 2 s. Never over cached data.
+- **Cold-start measurement:** the Dockerfile start command records a timestamp before and after `prisma migrate deploy` (approved by the developer); the API logs `Migrations finished` (`migrateMs`), `API listening` (`bootMs`) and `Database connected` (`connectMs`), context `startup` (`backend/src/utils/startupTiming.ts`). Whether migrations should move out of the start command is decided later from these numbers, in `docs/deployment.md`.
+- **Decisions (Stage 1, 2026-11-16):** built on `main` without waiting for Step 6.2; extend `useRequest` rather than adopt TanStack Query (no new dependency); a targeted invalidation map; neutral wording for the hint; measure before changing deployment. Keep-warm pings stay ruled out.
+- **Code review** (`/code-review`, 8 findings, all handled): a failed refresh followed by an invalidation could leave a screen loading with nothing in flight (now settled with the cached data); opening Received invalidated the recommendations cache on every visit (mark-seen now invalidates nothing and runs once per visit); answers could be persisted under a stale user after another tab switched accounts (writes now check the saved session); one global counter dropped unrelated in-flight answers (now per-key, via an invalidation log); every answer rewrote the whole device copy (now coalesced); eviction ignored reads (now least recently used); a quiet-refresh helper relied on synchronous axios interceptors (removed, since every cached loader already skips the toast, and a test pins that); the spec's map had drifted from the code (fixed).
+- **Security review** (`/security-review`): no findings. The snapshot never decides authorisation; the server still authorises every endpoint.
+- **Tests:** `lib/requestCache.test.ts`, `hooks/useRequest.test.tsx`, `api/invalidation.test.ts` (completeness plus every write's exact keys), `api/cachedLoaders.test.ts`, `stores/authSnapshot.test.ts`, `components/SessionGate.test.tsx`, cache cases in `Dashboard.test.tsx` and `CommunityFeed.test.tsx`, and `backend/src/utils/startupTiming.test.ts`. Frontend 1201 tests, 98.5% lines; backend 1461 tests, 99.0% lines.
+- **Step 6.2 note:** when `feat/pwa-offline` next updates from `main`, it should use `bookrough.session.v1` instead of its own snapshot and decide whether its `api` runtime cache is still needed (spec §8).
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+1. Open `http://localhost:4173/`, sign in, and open a community, then go back: Home shows its cards at once, with no skeleton.
+2. Reload the page: Home appears straight away from the device, with no "Opening BookRough…" spinner.
+3. Join or create a community, then go Home: Home shows its skeleton once and then the new community, never the old list.
+4. Stop the backend and open a screen you have not visited: after 2 s the skeleton reads "Still loading. This can take a few seconds."
+5. Sign out, then look in DevTools → Application → Local Storage: `bookrough.cache.v1` and `bookrough.session.v1` are gone.
+6. In production, after more than 5 idle minutes, open the app, then read Vercel → Logs for the three `startup` lines.
+
+```bash
+cd frontend && npx vitest run src/lib src/hooks src/api/invalidation src/api/cachedLoaders src/stores src/components/SessionGate
+```
+
+```bash
+cd backend && npx vitest run src/utils/startupTiming
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
@@ -3181,6 +3233,8 @@ Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
 Goal: With no connection, the app opens and previously loaded content is readable. Write actions are clearly blocked rather than failing silently.
+
+> **Note (2026-11-16, Step 6.1w):** `main` now has a client-side cache and a saved session (`docs/features/client-cache.md`). On updating from `main`, this branch adopts `bookrough.session.v1` instead of its own `bookrough.session`, keeps its sign-out wipe of Cache Storage alongside the new wipe, and decides whether its `api` runtime cache is still needed.
 
 > ⚠️ Register the service worker **only in production builds**. A service worker against the Vite dev server serves stale assets and produces hours of phantom debugging. Verify every change with `npm run build && npm run preview`.
 
