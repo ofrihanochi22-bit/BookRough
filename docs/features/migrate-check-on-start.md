@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only. Feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-|               |                                                                    |
-| ------------- | ------------------------------------------------------------------ |
-| **Use cases** | None new. Every cold open (UC-1 sign-in, UC-4 Home) waits on it    |
-| **Phase**     | 6 (follow-up to Step 6.1w, `docs/features/client-cache.md` §4.1)   |
-| **Branch**    | `chore/migrate-check-on-start`                                     |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+|               |                                                                             |
+| ------------- | --------------------------------------------------------------------------- |
+| **Use cases** | None new. Every cold open (UC-1 sign-in, UC-4 Home) waits on it             |
+| **Phase**     | 6 (follow-up to Step 6.1w, `docs/features/client-cache.md` §4.1)            |
+| **Branch**    | `chore/migrate-check-on-start`                                              |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged (PR #70) |
 
 ---
 
