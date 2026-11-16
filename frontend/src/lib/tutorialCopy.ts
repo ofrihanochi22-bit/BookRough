@@ -12,6 +12,9 @@ export interface GuideSlide {
   body: string;
   /** The picture's accessible name: what it shows and which control is marked. */
   label: string;
+  /** Slide 1's two service names: the user's own, and the friend's. */
+  yours: string;
+  theirs: string;
 }
 
 /** What the slides adapt to (§5.1 "Adapted to the user"). */
@@ -38,8 +41,9 @@ export function guideServices(service: StreamingService | null): {
 export function guideSlides({ touch, service }: GuideContext): GuideSlide[] {
   const Tap = touch ? 'Tap' : 'Click';
   const tap = touch ? 'tap' : 'click';
-  const { yours, theirs } = guideServices(service);
-  return [
+  const services = guideServices(service);
+  const { yours, theirs } = services;
+  const slides: Omit<GuideSlide, 'yours' | 'theirs'>[] = [
     {
       picture: 'songs',
       title: 'Songs that travel',
@@ -77,6 +81,7 @@ export function guideSlides({ touch, service }: GuideContext): GuideSlide[] {
       label: 'The Home screen, with the bell and the Friends tab marked.',
     },
   ];
+  return slides.map((slide) => ({ ...slide, ...services }));
 }
 
 export const SWIPE_HINT = 'Swipe to move between slides.';

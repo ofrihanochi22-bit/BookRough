@@ -1,7 +1,15 @@
 import type { ReactNode } from 'react';
 
 import type { PublicUser } from '../../stores/auth';
-import type { GuidePicture } from '../../lib/tutorialCopy';
+import type { GuideSlide } from '../../lib/tutorialCopy';
+import {
+  BELL_GLYPH,
+  BOOKMARK_GLYPH,
+  FRIENDS_GLYPH,
+  HOME_GLYPH,
+  PROFILE_GLYPH,
+  SHARE_GLYPH,
+} from '../ui/appIcons';
 import { Avatar } from '../ui/Avatar';
 import { CommunityCover } from '../ui/CommunityCover';
 
@@ -47,22 +55,6 @@ function Glyph({ children, className = 'size-3.5' }: { children: ReactNode; clas
   );
 }
 
-const HOME = <path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" />;
-const FRIENDS = (
-  <>
-    <circle cx="9" cy="8" r="3.5" />
-    <path d="M2.5 20c1.2-3.2 3.6-4.8 6.5-4.8s5.3 1.6 6.5 4.8" />
-    <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 15.6c1.6.7 2.8 2.2 3.5 4.4" />
-  </>
-);
-const BOOKMARK = <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z" />;
-const PROFILE = (
-  <>
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />
-  </>
-);
-const BELL = <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />;
 const STAR = <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />;
 
 type Tab = 'home' | 'friends' | 'list';
@@ -72,28 +64,26 @@ function TabBar({ active, ring }: { active: Tab; ring?: 'share' | 'friends' }) {
   const tone = (tab: Tab) => (tab === active ? 'text-accent' : 'text-muted');
   const friends = (
     <span className={`flex ${tone('friends')}`}>
-      <Glyph>{FRIENDS}</Glyph>
+      <Glyph>{FRIENDS_GLYPH}</Glyph>
     </span>
   );
   const share = (
     <span className="flex size-6 items-center justify-center rounded-full bg-accent text-on-accent">
-      <Glyph className="size-3">
-        <path d="M12 5v14M5 12h14" />
-      </Glyph>
+      <Glyph className="size-3">{SHARE_GLYPH}</Glyph>
     </span>
   );
   return (
     <div className="mt-auto flex items-center justify-around rounded-b-[14px] bg-surface px-1 py-1.5 shadow-[0_-1px_0_var(--line)]">
       <span className={`flex ${tone('home')}`}>
-        <Glyph>{HOME}</Glyph>
+        <Glyph>{HOME_GLYPH}</Glyph>
       </span>
       {ring === 'friends' ? <Ring>{friends}</Ring> : friends}
       {ring === 'share' ? <Ring round>{share}</Ring> : share}
       <span className={`flex ${tone('list')}`}>
-        <Glyph>{BOOKMARK}</Glyph>
+        <Glyph>{BOOKMARK_GLYPH}</Glyph>
       </span>
       <span className="flex text-muted">
-        <Glyph>{PROFILE}</Glyph>
+        <Glyph>{PROFILE_GLYPH}</Glyph>
       </span>
     </div>
   );
@@ -116,7 +106,7 @@ function HomeHeader({ bell }: { bell?: ReactNode }) {
   return (
     <div className="flex items-center justify-between">
       <Bar className="h-2 w-20 bg-ink" />
-      <span className="flex text-muted">{bell ?? <Glyph>{BELL}</Glyph>}</span>
+      <span className="flex text-muted">{bell ?? <Glyph>{BELL_GLYPH}</Glyph>}</span>
     </div>
   );
 }
@@ -164,14 +154,13 @@ function Chip({ children }: { children: ReactNode }) {
 }
 
 interface PictureProps {
-  picture: GuidePicture;
+  slide: GuideSlide;
   user: PublicUser | null;
-  yours: string;
-  theirs: string;
 }
 
 /** One slide's picture (§5.1, "Slides"). */
-export function GuidePictureView({ picture, user, yours, theirs }: PictureProps) {
+export function GuidePictureView({ slide, user }: PictureProps) {
+  const { yours, theirs } = slide;
   const me = user ? (
     <Avatar
       id={user.id}
@@ -182,7 +171,7 @@ export function GuidePictureView({ picture, user, yours, theirs }: PictureProps)
     />
   ) : null;
 
-  switch (picture) {
+  switch (slide.picture) {
     case 'songs':
       return (
         <Phone tabBar={<TabBar active="home" />}>
@@ -233,7 +222,7 @@ export function GuidePictureView({ picture, user, yours, theirs }: PictureProps)
               <div className="flex justify-end">
                 <Ring>
                   <span className="flex text-ink">
-                    <Glyph>{BOOKMARK}</Glyph>
+                    <Glyph>{BOOKMARK_GLYPH}</Glyph>
                   </span>
                 </Ring>
               </div>
@@ -243,7 +232,7 @@ export function GuidePictureView({ picture, user, yours, theirs }: PictureProps)
             hue="guide-friend-2"
             footer={
               <div className="flex justify-end text-muted">
-                <Glyph>{BOOKMARK}</Glyph>
+                <Glyph>{BOOKMARK_GLYPH}</Glyph>
               </div>
             }
           />
@@ -281,7 +270,7 @@ export function GuidePictureView({ picture, user, yours, theirs }: PictureProps)
             bell={
               <Ring>
                 <span className="flex text-ink">
-                  <Glyph>{BELL}</Glyph>
+                  <Glyph>{BELL_GLYPH}</Glyph>
                 </span>
               </Ring>
             }

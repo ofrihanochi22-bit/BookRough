@@ -10,13 +10,7 @@ import {
 } from 'react';
 
 import { dismissTutorialItem } from '../lib/tutorial';
-import {
-  guideServices,
-  guideSlides,
-  KEYS_HINT,
-  REOPEN_HINT,
-  SWIPE_HINT,
-} from '../lib/tutorialCopy';
+import { guideSlides, KEYS_HINT, REOPEN_HINT, SWIPE_HINT } from '../lib/tutorialCopy';
 import { useAuthStore } from '../stores/auth';
 
 import { GuidePictureView } from './guide/GuidePictures';
@@ -57,7 +51,6 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
   // Read once on open (§5.1): the wording does not flip mid-guide.
   const [touch] = useState(isTouch);
   const slides = useMemo(() => guideSlides({ touch, service }), [touch, service]);
-  const { yours, theirs } = guideServices(service);
   const last = slides.length - 1;
   const slide = slides[index]!;
 
@@ -75,6 +68,11 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
     [mode, onClose],
   );
   const skip = useCallback(() => close(index < last), [close, index, last]);
+  /** The one way slides turn (buttons, swipes, arrow keys): clamped to the first and last. */
+  const step = useCallback(
+    (by: 1 | -1) => setIndex((current) => Math.min(Math.max(current + by, 0), last)),
+    [last],
+  );
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -91,22 +89,26 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         skip();
-      } else if (event.key === 'ArrowRight') {
-        setIndex((current) => Math.min(current + 1, last));
+        return;
+      }
+      // Alt+Arrow is the browser's back/forward, Ctrl/Meta+Arrow a text move: not ours.
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        step(1);
       } else if (event.key === 'ArrowLeft') {
-        setIndex((current) => Math.max(current - 1, 0));
+        step(-1);
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [skip, last]);
+  }, [skip, step]);
 
   // Each slide's heading takes focus, so a screen reader reads the new slide.
   useEffect(() => {
     heading.current?.focus();
   }, [index]);
-
-  const go = (next: number) => setIndex(Math.min(Math.max(next, 0), last));
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab' && panel.current) {
@@ -130,9 +132,9 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
     const distance = event.clientX - dragStart.current;
     dragStart.current = null;
     if (distance <= -SWIPE_DISTANCE) {
-      go(index + 1);
+      step(1);
     } else if (distance >= SWIPE_DISTANCE) {
-      go(index - 1);
+      step(-1);
     }
   }
 
@@ -169,7 +171,7 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
           className="flex max-h-80 min-h-0 flex-1 basis-80 justify-center [@media(max-height:480px)]:hidden"
         >
           <div aria-hidden="true" className="flex h-full max-w-[16rem] justify-center">
-            <GuidePictureView picture={slide.picture} user={user} yours={yours} theirs={theirs} />
+            <GuidePictureView slide={slide} user={user} />
           </div>
         </div>
         <h2 ref={heading} tabIndex={-1} className={`${MIXTAPE_H1} outline-none`}>
@@ -195,12 +197,12 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
         </div>
         <div className="flex gap-3">
           {index > 0 && (
-            <Button variant="secondary" className="flex-1" onClick={() => go(index - 1)}>
+            <Button variant="secondary" className="flex-1" onClick={() => step(-1)}>
               Back
             </Button>
           )}
           {index < last ? (
-            <Button className="flex-1" onClick={() => go(index + 1)}>
+            <Button className="flex-1" onClick={() => step(1)}>
               Next
             </Button>
           ) : (
