@@ -35,7 +35,7 @@ The current look is clean but generic: every block is the same outlined dark car
 - Any change to what a screen can do, any endpoint, any schema change.
 - New copy beyond what the new navigation strictly needs (Share sheet labels). Existing strings stay.
 - Any text in the logo besides "BookRough" — no tagline, no slogan inside the mark.
-- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec.
+- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec. Done afterwards as its own feature, `pwa-icons-cassette.md` (2026-11-11).
 - Uploaded or derived community covers — covers stay generated (CLAUDE.md §8).
 - i18n / RTL (CLAUDE.md §8).
 - Colour extraction from album art (cross-origin images cannot be read reliably).
@@ -274,7 +274,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 - **Heading** "Your profile" in the display face.
 - **Avatar section:** a `tape` paper card with a stripe band in the user's own hue (as on the Public Profile, §5.6): the 72–80px avatar with a `tape-ink` ring, "Upload a photo" as an outlined pill in `tape-ink`, "Use my Google photo" with its existing helper text. The Google button keeps **Google's own styling** (Google branding rules). Remove-photo and error/progress states unchanged, kit styling.
 - **Display name:** kit field with the existing counter and help text.
-- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row on `tape` paper with an accent radio, the others outlined; service names only, no logos.
+- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row outlined in a 2px `ink` border with a bold name and its accent radio, the others outlined in `line`; service names only, no logos. **No `tape` fill** (amended 2026-11-15, improvement round point 3, so it matches the avatar tiles of §5.13 on the same onboarding screen).
 - **Save changes:** accent primary, full width; same enable rules.
 - **Admin area** (admins only): a `surface` row with an icon and a chevron.
 - **Sign out:** an outlined chip, centred, opening `SignOutSheet` as today.
@@ -292,7 +292,8 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 - **Heading** "Complete your profile". Offline alert unchanged.
 - **Your cassette:** a `tape` label with a stripe band in the user's hue, showing the display name **as it is typed** (presentation of the field's current value; placeholder look when empty). No new data.
-- **Your avatar:** the two existing tiles (Generated / Google photo) side by side; the selected tile on `tape` paper, the other outlined. Helper line unchanged.
+- **Your avatar:** the two existing tiles (Generated / Google photo) side by side, both on the screen's own background. The selected tile has a 2px `ink` border, a small `ink` check badge in its top corner and a bold label; the other is outlined in `line`. **Never a `tape` fill** (amended 2026-11-15, improvement round point 3): the pale generated avatar is about 1.2:1 on `tape`, and a cream block clashed with the dark screen. On the dark background the generated avatar reads at about 12:1, so its own colours are unchanged. The accent is not used for the selection (only for the focus outline). Helper line unchanged.
+- **My Profile is deliberately different** (§5.11): it has no tiles to select, only the current avatar with a `tape-ink` ring and action buttons, so it keeps its layout (decided 2026-11-15).
 - **Display name / Where do you listen?:** as on My Profile (§5.11).
 - **Continue:** accent primary, full width. The small "Sign out" link stays as it is (no confirmation), per visible-sign-out.md.
 

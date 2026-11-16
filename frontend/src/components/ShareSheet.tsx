@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import {
   COMMUNITIES_LOAD_FAILED,
   NO_COMMUNITIES_BODY,
@@ -41,7 +42,7 @@ function ChooseCommunity({
   onPick: (community: PublicCommunity) => void;
   onCreate: () => void;
 }) {
-  const communities = useRequest(listMyCommunities);
+  const communities = useRequest(listMyCommunities, { key: cacheKeys.communities, persist: true });
 
   if (communities.status === 'loading') {
     return (

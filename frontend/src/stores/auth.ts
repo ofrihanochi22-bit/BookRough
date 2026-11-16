@@ -2,7 +2,12 @@ import { create } from 'zustand';
 
 import { claimSavedApiAnswers, clearSavedApiAnswers } from '../lib/offlineCache';
 import { pendingInvite } from '../lib/pendingInvite';
-import { clearSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
+import { setCacheOwner, wipeCache } from '../lib/requestCache';
+import {
+  readSessionSnapshot,
+  removeSessionSnapshot,
+  saveSessionSnapshot,
+} from '../lib/sessionSnapshot';
 
 export type StreamingService = 'SPOTIFY' | 'APPLE_MUSIC' | 'YOUTUBE' | 'TIDAL' | 'DEEZER';
 
@@ -66,21 +71,34 @@ interface AuthState {
   clear: () => void;
 }
 
+/**
+ * The saved session, read once when the app loads (client-cache.md §3.3). With
+ * one, the app opens signed in at once and `SessionGate` checks the cookie
+ * behind it; without one it waits for GET /auth/me, as before.
+ */
+const snapshot = readSessionSnapshot();
+setCacheOwner(snapshot?.user.id ?? null);
+
+/** Whether this page load opened from the saved session, so /auth/me runs behind it. */
+export const openedFromSnapshot = snapshot !== null;
+
 export const useAuthStore = create<AuthState>()((set, get) => ({
-  status: 'unknown',
-  user: null,
-  needsOnboarding: false,
-  isAdmin: false,
+  status: snapshot ? 'signedIn' : 'unknown',
+  user: snapshot?.user ?? null,
+  needsOnboarding: snapshot?.needsOnboarding ?? false,
+  isAdmin: snapshot?.isAdmin ?? false,
+  // Not saved: a cold launch shows no tutorial until the server says so.
   tutorial: NO_TUTORIAL,
   tutorialClosed: [],
   offline: false,
   setSession: (session, { offline = false } = {}) => {
-    if (!offline) {
-      saveSessionSnapshot(session);
-      claimSavedApiAnswers(session.user.id);
-    }
-    // The remembered session carries no tutorial, so an offline launch shows none.
     const { user, needsOnboarding, isAdmin, tutorial = NO_TUTORIAL } = session;
+    // Only a session the server confirmed is saved or claims the saved answers.
+    if (!offline) {
+      setCacheOwner(user.id);
+      saveSessionSnapshot({ user, needsOnboarding, isAdmin });
+      claimSavedApiAnswers(user.id);
+    }
     set((state) => ({
       status: 'signedIn',
       user,
@@ -104,14 +122,17 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   revokeAdmin: () => {
     const { user, needsOnboarding, offline } = get();
     set({ isAdmin: false });
-    // Keep the remembered session in step, or an offline launch would restore the role.
+    // Keep the saved session in step, or the next launch would restore the role.
     if (user && !offline) {
       saveSessionSnapshot({ user, needsOnboarding, isAdmin: false });
     }
   },
-  // Sign-out and every 401: nothing of this user is left readable on the device.
+  // Sign-out and every 401: nothing of this user stays on the device (§3.5),
+  // including the service worker's saved API answers (pwa-offline.md §3.4).
   clear: () => {
-    clearSessionSnapshot();
+    setCacheOwner(null);
+    wipeCache();
+    removeSessionSnapshot();
     clearSavedApiAnswers();
     set({
       status: 'signedOut',

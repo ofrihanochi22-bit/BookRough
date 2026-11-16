@@ -1,62 +1,63 @@
-import type { Session } from '../stores/auth';
-import { readDeviceValue, removeDeviceValue, writeDeviceValue } from './deviceStorage';
+import type { PublicUser } from '../stores/auth';
 
 /**
- * The last session the server confirmed, kept on this device so the installed
- * app can open signed in without a connection — docs/features/pwa-offline.md §3.3.
- * Only the public user fields and two flags: no email, no token (the cookie
- * stays HttpOnly). Deleted on sign-out and on every 401.
+ * The saved session (docs/features/client-cache.md §3.3): what the app needs to
+ * open signed in at once on a cold launch, while GET /auth/me checks the cookie
+ * behind it. The same fields every endpoint already returns through
+ * `toPublicUser`; no email exists and the cookie is never readable here.
  */
-const SNAPSHOT_KEY = 'bookrough.session';
+export const SESSION_STORAGE_KEY = 'bookrough.session.v1';
 
-export function saveSessionSnapshot({ user, needsOnboarding, isAdmin }: Session): void {
-  writeDeviceValue(SNAPSHOT_KEY, JSON.stringify({ user, needsOnboarding, isAdmin }));
+export interface SessionSnapshot {
+  user: PublicUser;
+  needsOnboarding: boolean;
+  isAdmin: boolean;
 }
 
-export function clearSessionSnapshot(): void {
-  removeDeviceValue(SNAPSHOT_KEY);
-}
-
-/** The remembered session, or null — a malformed one is deleted, never trusted. */
-export function readSessionSnapshot(): Session | null {
-  const raw = readDeviceValue(SNAPSHOT_KEY);
-  if (raw === null) {
-    return null;
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (isSession(parsed)) {
-      return parsed;
-    }
-  } catch {
-    // Falls through to the cleanup below.
-  }
-  clearSessionSnapshot();
-  return null;
-}
-
-const isStringOrNull = (value: unknown) => value === null || typeof value === 'string';
-
-/** Every PublicUser field is checked: a snapshot of another shape must not reach the screens. */
-function isSession(value: unknown): value is Session {
+function isSnapshot(value: unknown): value is SessionSnapshot {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  const { user, needsOnboarding, isAdmin } = value as Record<string, unknown>;
-  if (typeof user !== 'object' || user === null) {
-    return false;
-  }
-  const { id, displayName, profilePictureUrl, preferredService, createdAt } = user as Record<
-    string,
-    unknown
-  >;
+  const snapshot = value as Partial<SessionSnapshot>;
+  const user = snapshot.user as Partial<PublicUser> | undefined;
   return (
-    typeof id === 'string' &&
-    isStringOrNull(displayName) &&
-    isStringOrNull(profilePictureUrl) &&
-    isStringOrNull(preferredService) &&
-    typeof createdAt === 'string' &&
-    typeof needsOnboarding === 'boolean' &&
-    typeof isAdmin === 'boolean'
+    typeof snapshot.needsOnboarding === 'boolean' &&
+    typeof snapshot.isAdmin === 'boolean' &&
+    typeof user === 'object' &&
+    user !== null &&
+    typeof user.id === 'string' &&
+    typeof user.createdAt === 'string'
   );
+}
+
+export function readSessionSnapshot(): SessionSnapshot | null {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    return isSnapshot(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSessionSnapshot({ user, needsOnboarding, isAdmin }: SessionSnapshot): void {
+  try {
+    localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ user, needsOnboarding, isAdmin } satisfies SessionSnapshot),
+    );
+  } catch {
+    // Quota or private mode: the next cold launch waits for /auth/me, as before.
+  }
+}
+
+export function removeSessionSnapshot(): void {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // Nothing more to do.
+  }
 }

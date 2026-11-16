@@ -78,19 +78,21 @@ describe('My Profile (ui-redesign.md §5.11)', () => {
     expect(card).toHaveTextContent('Your Google photo will be deleted from BookRough.');
   });
 
-  it('puts the selected service on tape paper and moves it with the choice', async () => {
+  it('outlines the selected service in ink, never on tape paper, and moves it with the choice', async () => {
     // Arrange
     renderProfile();
     const label = (name: string) => screen.getByRole('radio', { name }).closest('label')!;
-    expect(label('Tidal').className).toContain('bg-tape');
+    expect(label('Tidal')).toHaveClass('border-ink', 'font-semibold');
+    expect(label('Tidal')).not.toHaveClass('bg-tape');
 
     // Act
     await userEvent.click(screen.getByRole('radio', { name: 'Deezer' }));
 
     // Assert
     expect(screen.getByRole('radio', { name: 'Deezer' })).toBeChecked();
-    expect(label('Deezer').className).toContain('bg-tape');
-    expect(label('Tidal').className).not.toContain('bg-tape');
+    expect(label('Deezer')).toHaveClass('border-ink', 'font-semibold');
+    expect(label('Tidal')).toHaveClass('border-line');
+    expect(label('Tidal')).not.toHaveClass('border-ink');
     expect(saveButton()).toBeEnabled();
   });
 

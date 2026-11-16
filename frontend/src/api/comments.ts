@@ -1,4 +1,6 @@
 import { api, type SuccessBody } from './client';
+import { cacheKeys as K, cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Mirrors the backend's PublicComment — docs/features/discussion-threads.md §4 (UC-22). */
 export interface PublicComment {
@@ -40,6 +42,7 @@ export async function addComment(postId: string, input: NewComment): Promise<Pub
     input,
     quiet,
   );
+  invalidate([K.comments(postId), K.post(postId), P.feed]);
   return response.data.data.comment;
 }
 
@@ -49,6 +52,7 @@ export async function editComment(commentId: string, body: string): Promise<Publ
     { body },
     quiet,
   );
+  invalidate([P.comments, P.post, P.feed]);
   return response.data.data.comment;
 }
 
@@ -57,5 +61,6 @@ export async function deleteComment(commentId: string): Promise<'removed' | 'hid
     `/comments/${encodeURIComponent(commentId)}`,
     quiet,
   );
+  invalidate([P.comments, P.post, P.feed]);
   return response.data.data.deleted;
 }

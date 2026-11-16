@@ -1,6 +1,8 @@
 import type { StreamingService } from '../stores/auth';
 import { api, type SuccessBody } from './client';
 import type { MemberUser } from './membership';
+import { cacheKeys as K, cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /**
  * Requests that run a conversion wait longer than the client's usual 15 s: the
@@ -76,6 +78,7 @@ export async function createPost(communityId: string, input: NewPost): Promise<P
     input,
     { skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
+  invalidate([K.feed(communityId), P.profile, P.profileRatings]);
   return response.data.data.post;
 }
 
@@ -96,6 +99,7 @@ export async function editPostComment(postId: string, comment: string | null): P
     { comment },
     { skipErrorToast: true },
   );
+  invalidate([K.post(postId), P.feed, P.profile, P.profileRatings, K.myList, P.recs]);
   return response.data.data.post;
 }
 
@@ -105,12 +109,14 @@ export async function retryConversion(postId: string): Promise<PublicPost> {
     undefined,
     { skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
+  invalidate([K.post(postId), P.feed, P.profile, P.profileRatings, K.myList, P.recs]);
   return response.data.data.post;
 }
 
 /** The confirmation sheet shows its own outcome, so no toast. */
 export async function deletePost(postId: string): Promise<void> {
   await api.delete(`/posts/${encodeURIComponent(postId)}`, { skipErrorToast: true });
+  invalidate([K.post(postId), P.feed, P.profile, P.profileRatings, K.myList, P.recs]);
 }
 
 export interface PostWithCommunity {

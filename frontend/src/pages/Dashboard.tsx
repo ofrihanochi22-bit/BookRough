@@ -7,9 +7,11 @@ import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { HEADER_ICON, SearchIconLink, TopBar } from '../components/ui/TopBar';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import {
   COMMUNITIES_LOAD_FAILED,
   CREATE_COMMUNITY_PATH,
@@ -61,7 +63,7 @@ function NotificationsBell() {
  * The header sits outside the request states, so it shows in every state.
  */
 export function Dashboard() {
-  const communities = useRequest(listMyCommunities);
+  const communities = useRequest(listMyCommunities, { key: cacheKeys.communities, persist: true });
 
   return (
     <ScreenLayout>
@@ -85,6 +87,7 @@ export function Dashboard() {
           <Skeleton className="h-[104px]" />
           <Skeleton className="h-[104px]" />
           <Skeleton className="h-[104px]" />
+          <LoadingHint />
         </div>
       )}
 

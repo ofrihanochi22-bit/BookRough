@@ -96,7 +96,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 Top to bottom:
 
 1. **Heading** "Your profile".
-2. **Avatar:** the current avatar (Google photo or generated initials), and one action depending on the current choice:
+2. **Avatar:** the current avatar (Google photo or generated initials), and one action depending on the current choice. These are actions, not selectable tiles, so this block keeps its look when Complete Your Profile's tiles changed to an `ink` border and check (ui-redesign.md §5.13, 2026-11-15):
    - using the Google photo → **Use generated avatar** (no confirmation; it is reversible). Line under it: "Your Google photo will be deleted from BookRough."
    - using the generated avatar → **Use my Google photo**, which shows the Google button ("Continue with Google to fetch your photo"). Line: "We'll fetch your current photo from Google. Nothing else is kept."
 3. **Display name:** the onboarding field and status line (counter `n/20`, local rules, debounced availability check, "taken" / "reserved" / "Couldn't check right now"). The caller's own current name counts as available (already true server-side).

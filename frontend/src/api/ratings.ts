@@ -1,5 +1,7 @@
 import { api, type SuccessBody } from './client';
 import type { RatingSummary } from './posts';
+import { cacheKeys as K, cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Mirrors the backend's PublicRating (docs/features/rate-post.md §4). */
 export interface PublicRating {
@@ -21,6 +23,15 @@ export async function ratePost(postId: string, input: NewRating): Promise<Public
     input,
     { skipErrorToast: true },
   );
+  invalidate([
+    P.feed,
+    K.post(postId),
+    K.postRatings(postId),
+    P.recs,
+    P.profile,
+    P.profileRatings,
+    K.myList,
+  ]);
   return response.data.data.rating;
 }
 
@@ -55,5 +66,14 @@ export async function editRating(postId: string, input: NewRating): Promise<Publ
     input,
     { skipErrorToast: true },
   );
+  invalidate([
+    P.feed,
+    K.post(postId),
+    K.postRatings(postId),
+    P.recs,
+    P.profile,
+    P.profileRatings,
+    K.myList,
+  ]);
   return response.data.data.rating;
 }

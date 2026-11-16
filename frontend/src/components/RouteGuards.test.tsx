@@ -4,9 +4,8 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
-import { useAuthStore } from '../stores/auth';
-import { makeSession, resetAuthStore, setOnline } from '../test/fixtures';
-import { SessionGate } from './RouteGuards';
+import type { useAuthStore as AuthStore } from '../stores/auth';
+import { makeSession, setOnline } from '../test/fixtures';
 
 const { fetchSession } = vi.hoisted(() => ({ fetchSession: vi.fn() }));
 vi.mock('../api/auth', () => ({ fetchSession }));
@@ -27,10 +26,18 @@ function answered(status: number): AxiosError {
   });
 }
 
-const store = () => useAuthStore.getState();
+let auth: typeof AuthStore;
+const store = () => auth.getState();
 
-function renderGate() {
-  return render(
+/**
+ * Loads a fresh store and gate, so a saved session is read as on a real app
+ * load (client-cache.md §3.3), then renders the gate.
+ */
+async function launch() {
+  vi.resetModules();
+  const { SessionGate } = await import('./RouteGuards');
+  ({ useAuthStore: auth } = await import('../stores/auth'));
+  render(
     <SessionGate>
       <p>The app</p>
     </SessionGate>,
@@ -46,33 +53,46 @@ beforeEach(() => {
   window.localStorage.clear();
   setOnline(true);
   setVisibility('visible');
-  resetAuthStore();
 });
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
-  resetAuthStore();
 });
 
 describe('SessionGate — opening with no connection', () => {
-  it('opens read-only from the remembered session', async () => {
+  it('opens from the saved session, read-only once the check gets no response', async () => {
     // Arrange
     saveSessionSnapshot(makeSession());
     fetchSession.mockRejectedValue(noResponse());
 
     // Act
-    renderGate();
+    await launch();
 
     // Assert
-    expect(await screen.findByText('The app')).toBeInTheDocument();
-    expect(store()).toMatchObject({ status: 'signedIn', offline: true });
+    expect(screen.getByText('The app')).toBeInTheDocument();
+    await waitFor(() => expect(store()).toMatchObject({ status: 'signedIn', offline: true }));
   });
 
-  it('with no remembered session shows the offline screen, with Try again', async () => {
+  it('with a saved session, a 503 keeps the app open and writable', async () => {
+    // Arrange
+    saveSessionSnapshot(makeSession());
+    fetchSession.mockRejectedValue(answered(503));
+
+    // Act
+    await launch();
+
+    // Assert
+    await waitFor(() => expect(fetchSession).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('The app')).toBeInTheDocument();
+    expect(store()).toMatchObject({ status: 'signedIn', offline: false });
+    expect(readSessionSnapshot()).not.toBeNull();
+  });
+
+  it('with no saved session shows the offline screen, with Try again', async () => {
     // Arrange
     fetchSession.mockRejectedValueOnce(noResponse()).mockResolvedValueOnce(makeSession());
-    renderGate();
+    await launch();
     expect(await screen.findByRole('alert')).toHaveTextContent(OFFLINE);
 
     // Act
@@ -86,7 +106,7 @@ describe('SessionGate — opening with no connection', () => {
   it('retries by itself when the connection returns', async () => {
     // Arrange
     fetchSession.mockRejectedValueOnce(noResponse()).mockResolvedValueOnce(makeSession());
-    renderGate();
+    await launch();
     await screen.findByRole('alert');
 
     // Act
@@ -99,45 +119,44 @@ describe('SessionGate — opening with no connection', () => {
     expect(store()).toMatchObject({ status: 'signedIn', offline: false });
   });
 
-  it('a 401 signs out, and removes the remembered session', async () => {
+  it('a 401 signs out, and removes the saved session', async () => {
     // Arrange
     saveSessionSnapshot(makeSession());
     fetchSession.mockRejectedValue(answered(401));
 
     // Act
-    renderGate();
+    await launch();
 
     // Assert
     await waitFor(() => expect(store().status).toBe('signedOut'));
     expect(readSessionSnapshot()).toBeNull();
   });
 
-  it('a 503 is an answer: the retry screen, with the snapshot unused and kept', async () => {
+  it('with no saved session, a 503 is an answer: the retry screen', async () => {
     // Arrange
-    saveSessionSnapshot(makeSession());
     fetchSession.mockRejectedValue(answered(503));
 
     // Act
-    renderGate();
+    await launch();
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent(UNREACHABLE);
     expect(store().status).toBe('unknown');
-    expect(readSessionSnapshot()).not.toBeNull();
   });
 });
 
-describe('SessionGate — confirming a remembered session', () => {
-  async function openFromSnapshot() {
+describe('SessionGate — confirming a saved session', () => {
+  async function openUnconfirmed() {
     saveSessionSnapshot(makeSession());
     fetchSession.mockRejectedValueOnce(noResponse());
-    renderGate();
-    await screen.findByText('The app');
+    await launch();
+    // vi.waitFor runs on Vitest's own timers, so it also works under fake ones.
+    await vi.waitFor(() => expect(store().offline).toBe(true));
   }
 
   it('confirms when the connection returns', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockResolvedValueOnce(makeSession());
 
     // Act
@@ -151,7 +170,7 @@ describe('SessionGate — confirming a remembered session', () => {
 
   it('signs out when the reconnect answers 401', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockRejectedValueOnce(answered(401));
 
     // Act
@@ -166,7 +185,7 @@ describe('SessionGate — confirming a remembered session', () => {
 
   it('stays read-only when the check fails again', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockRejectedValueOnce(noResponse());
 
     // Act
@@ -181,7 +200,7 @@ describe('SessionGate — confirming a remembered session', () => {
 
   it('confirms on returning to the foreground', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockResolvedValueOnce(makeSession());
 
     // Act
@@ -195,7 +214,7 @@ describe('SessionGate — confirming a remembered session', () => {
 
   it('asks nothing while the browser is offline, or the app is in the background', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockClear();
 
     // Act
@@ -216,7 +235,7 @@ describe('SessionGate — confirming a remembered session', () => {
   it('asks again every 15 seconds, one request at a time', async () => {
     // Arrange
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockClear();
     fetchSession.mockReturnValue(new Promise(() => {}));
 
@@ -231,7 +250,7 @@ describe('SessionGate — confirming a remembered session', () => {
 
   it('stops asking once confirmed', async () => {
     // Arrange
-    await openFromSnapshot();
+    await openUnconfirmed();
     fetchSession.mockResolvedValueOnce(makeSession());
     act(() => {
       window.dispatchEvent(new Event('online'));

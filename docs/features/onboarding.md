@@ -106,13 +106,13 @@ The rules live in one backend module (`services/displayName.ts`) and one fronten
 
 Top to bottom: heading "Complete your profile"; avatar choice; display name; streaming service; **Continue**; a quiet **Sign out** link.
 
-- **Avatar choice:** two tiles side by side — _Generated_ (initials of the name being typed, colour from the user id, updates live) and _Google photo_. Generated is selected by default. The Google tile is shown only when a Google photo exists. A line under them: "Your Google photo is only kept if you choose it."
+- **Avatar choice:** two tiles side by side — _Generated_ (initials of the name being typed, colour from the user id, updates live) and _Google photo_. Generated is selected by default. The selected tile is marked by an `ink` border, a check badge and a bold label, never by a light fill (ui-redesign.md §5.13, amended 2026-11-15); both tiles are radios in one fieldset. The Google tile is shown only when a Google photo exists. A line under them: "Your Google photo is only kept if you choose it."
 - **Display name:** text input, `maxLength` generous, character counter `n/20`. Under it, one status line:
   - typing / too short / invalid character → the rule's message, from the client mirror, no request sent;
   - checking (debounced 400 ms) → small spinner "Checking…";
   - available → "✓ Available";
   - taken → "That display name is already taken."; reserved → "That name is reserved.";
-  - check failed (network) → "Couldn't check right now — we'll check when you continue." (does not block submit).
+  - check failed (network) → "Couldn't check right now. We'll check when you continue." (does not block submit).
 - **Streaming service:** five large radio buttons (Spotify, Apple Music, YouTube, Tidal, Deezer), each ≥ 44 px tall, **none selected**. Label: "Where do you listen?"
 - **Continue:** disabled until the name is valid and not known-taken/reserved and a service is chosen. While saving: busy "Saving…". On `409`: the name status switches to "taken" and the button returns. On success: the store is updated and the guard moves to `/home`.
 - **Loading state:** the session is already resolved by `SessionGate`; the screen renders immediately.

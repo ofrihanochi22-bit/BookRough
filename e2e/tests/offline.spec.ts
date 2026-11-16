@@ -53,7 +53,7 @@ test('with no connection the app opens signed in and reads what it last loaded',
 
   // Assert — signed in, reading the saved feed, with writes blocked.
   await expect(post).toBeVisible();
-  await expect(page.getByText("You're offline — showing what you last loaded.")).toBeVisible();
+  await expect(page.getByText("You're offline. Showing what you last loaded.")).toBeVisible();
   await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
   await expect(page.getByText("You're offline. Connect to post.")).toBeVisible();
 
@@ -73,5 +73,5 @@ test('with no connection the app opens signed in and reads what it last loaded',
   await context.setOffline(false);
 
   // Assert — the session is confirmed, and writes come back.
-  await expect(page.getByText("You're offline — showing what you last loaded.")).toBeHidden();
+  await expect(page.getByText("You're offline. Showing what you last loaded.")).toBeHidden();
 });

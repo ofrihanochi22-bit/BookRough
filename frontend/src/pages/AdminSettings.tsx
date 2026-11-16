@@ -13,6 +13,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { fieldClass } from '../components/ui/field';
 import { LoadError } from '../components/ui/LoadError';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -69,6 +70,7 @@ export function AdminSettingsTab() {
         <Skeleton className="h-28" />
         <Skeleton className="h-20" />
         <Skeleton className="h-20" />
+        <LoadingHint />
       </div>
     );
   }

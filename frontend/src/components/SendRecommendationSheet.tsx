@@ -8,6 +8,7 @@ import type { MemberUser } from '../api/membership';
 import type { NewPost, PublicPost } from '../api/posts';
 import { sendRecommendation } from '../api/recommendations';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { RECIPIENT_GONE, SEND_FAILED, sentTo } from '../lib/recommendationCopy';
 import { LinkCommentForm, type LinkFormOutcome } from './LinkCommentForm';
 import { Avatar } from './ui/Avatar';
@@ -28,7 +29,7 @@ interface SendRecommendationSheetProps {
 
 /** The friend picker, for when the sheet opens without a friend. */
 function ChooseFriend({ onPick }: { onPick: (friend: MemberUser) => void }) {
-  const friends = useRequest(listFriends);
+  const friends = useRequest(listFriends, { key: cacheKeys.friendList, persist: true });
 
   if (friends.status === 'loading') {
     return (

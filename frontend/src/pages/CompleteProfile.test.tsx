@@ -144,7 +144,9 @@ describe('CompleteProfile — name feedback', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Spotify' }));
 
     // Assert
-    expect(await screen.findByText(/Couldn't check right now/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Couldn't check right now. We'll check when you continue."),
+    ).toBeInTheDocument();
     expect(continueButton()).toBeEnabled();
   });
 

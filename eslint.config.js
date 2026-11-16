@@ -83,6 +83,33 @@ export default tseslint.config(
     },
   },
 
+  // User-facing copy: no em dash in a string, template or JSX text, so a
+  // sentence reads as written by a person (improvement round, point 2). That is
+  // the frontend, plus the backend layers whose AppError messages reach users
+  // as toasts. Comments are not nodes, so they are untouched; tests are left
+  // out because their names are not copy. The en dash stays allowed: ranges
+  // ("2–40") and the "–/10" readout. This is the only no-restricted-syntax
+  // block: flat config replaces a rule's options, so another block setting it
+  // for these files would drop the guard; add its selectors here instead.
+  {
+    files: [
+      'frontend/src/**/*.{ts,tsx}',
+      'backend/src/{services,controllers,middleware,utils}/**/*.ts',
+    ],
+    ignores: ['**/*.test.{ts,tsx}', '**/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...['Literal[value=/—/]', 'TemplateElement[value.cooked=/—/]', 'JSXText[value=/—/]'].map(
+          (selector) => ({
+            selector,
+            message: 'User-facing copy uses no em dash: use a full stop, comma or colon.',
+          }),
+        ),
+      ],
+    },
+  },
+
   // Tests: assertions carry the meaning, so a few rules relax.
   {
     files: ['**/*.test.{ts,tsx}', '**/test/**/*.{ts,tsx}'],

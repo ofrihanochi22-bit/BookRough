@@ -139,6 +139,21 @@ describe('Profile — saving', () => {
     expect(saveButton()).toBeDisabled();
   });
 
+  it('says the check will run on Save when the live check itself fails', async () => {
+    // Arrange
+    api.checkDisplayName.mockRejectedValue(networkError());
+    render(<Profile />);
+
+    // Act
+    await userEvent.clear(nameInput());
+    await userEvent.type(nameInput(), 'Dana');
+
+    // Assert
+    expect(
+      await screen.findByText("Couldn't check right now. We'll check when you save."),
+    ).toBeInTheDocument();
+  });
+
   it('shows a 409 on the name line and keeps the typed values', async () => {
     // Arrange
     api.updateProfile.mockRejectedValue(httpError(409, DISPLAY_NAME_MESSAGES.taken));

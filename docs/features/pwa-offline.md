@@ -69,16 +69,19 @@ None in the database. Two pieces of state on the device, both cleared on sign-ou
 
 ### 3.3 Remembered session (`lib/sessionSnapshot.ts`)
 
-- **Saved** on every `setSession` (sign-in, `/auth/me`, onboarding, a profile update) to `localStorage` key `bookrough.session`: `{ user: PublicUser, needsOnboarding, isAdmin }`. The same fields every endpoint already returns through `toPublicUser` — no email, no token. The `HttpOnly` cookie is untouched.
-- **Read** only by `SessionGate` (`components/RouteGuards.tsx`), and only when `GET /api/auth/me` fails **with no response** (offline, DNS, a dropped connection). A `401` still means signed out; any other response (`5xx`) keeps today's retry screen.
-- If a snapshot exists, the store gets that session with a new flag, `offline: true`. Without one, the designed offline launch screen shows (§5.2).
-- **Re-checked** when the browser fires `online`, and on **Try again**: `/auth/me` runs quietly. Success replaces the snapshot and clears `offline`; a `401` signs out, as today.
-- **Deleted** in `clear()` — sign-out and every `401`.
-- A malformed snapshot (bad JSON, a missing field) is deleted and treated as none. Storage that throws counts as no snapshot.
+Since 2026-11-16 this is the saved session of `docs/features/client-cache.md` §3.3, adopted on updating from `main`; this branch's own `bookrough.session` is gone.
+
+- **Saved** on every confirmed `setSession` (sign-in, `/auth/me`, onboarding, a profile update) to `localStorage` key `bookrough.session.v1`: `{ user: PublicUser, needsOnboarding, isAdmin }`. The same fields every endpoint already returns through `toPublicUser`: no email, no token. The `HttpOnly` cookie is untouched.
+- **Read** once when the app loads. With one, the app opens signed in at once and `SessionGate` (`components/RouteGuards.tsx`) checks `GET /api/auth/me` behind it. A `401` signs out; success replaces the snapshot.
+- **No response at all** (offline, DNS, a dropped connection) marks the session unconfirmed, `offline: true` in the store, so it is read-only (`useOnlineStatus` is false) until the server answers. A `5xx` leaves it as it is, reading from the cache.
+- **Re-checked** while unconfirmed when the browser fires `online`, on returning to the foreground, and every 15 s. Success clears `offline`; a `401` signs out.
+- **Without a saved session**, no response shows the designed offline launch screen (§5.2), which retries when the connection returns; a `5xx` shows the retry screen.
+- **Deleted** in `clear()`: sign-out and every `401`.
+- A malformed snapshot (bad JSON, a missing field) is treated as none. Storage that throws counts as no snapshot.
 
 ### 3.4 Sign-out wipes the device
 
-`useAuthStore.clear()` (sign-out and every `401`) also deletes the remembered session and the `api` cache (`caches.delete('api')`), from the page; no custom service worker code is needed. A second person signing in on the same phone therefore never reads the first person's saved feed offline. The `images` cache and the precache hold nothing personal and stay.
+`useAuthStore.clear()` (sign-out and every `401`) also deletes the remembered session, the in-app cache of `client-cache.md` §3.5, and the `api` cache (`caches.delete('api')`), from the page; no custom service worker code is needed. A second person signing in on the same phone therefore never reads the first person's saved feed offline. The `images` cache and the precache hold nothing personal and stay.
 
 ### 3.5 Recovery if a broken service worker reaches production
 
@@ -106,7 +109,7 @@ No endpoint changes. Behaviour seen by the client:
 
 App-wide, at the very top, shown while `useOnlineStatus()` is false and the user is signed in:
 
-> You're offline — showing what you last loaded.
+> You're offline. Showing what you last loaded.
 
 Placeholder styling from the existing tokens (`bg-accent-soft`, `text-accent-ink`), `role="status"`, not dismissible (it disappears with the connection). The screens' own offline notes on write actions stay; the bar is about **reading**.
 
@@ -254,6 +257,7 @@ None at approval.
 | Date       | Decision                                                                                                                                                                                                                                                                                  | Reason                                                                                                                                                                                          |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-10-11 | Offline launch through a remembered session in `localStorage` (public user fields and two flags), used only when `/auth/me` gets no response; wiped on sign-out and `401` (option A)                                                                                                      | The only option that opens a cold offline launch on the feed while keeping "never cache auth endpoints"; what it stores is already public inside the app                                        |
+| 2026-11-16 | Adopt the saved session of `client-cache.md` (`bookrough.session.v1`): the app opens from it at once; no response from `/auth/me` makes it read-only until confirmed                                                                                                                      | Decided in that feature's spec (§3.3, §8): one saved session, not two. Keeps this step's read-only rule for a session the server cannot confirm                                                 |
 | 2026-10-11 | `GET /api/*` network first with no timeout; the saved copy only when the network fails; album art cache first (option A)                                                                                                                                                                  | Screens reload right after an action; stale-while-revalidate would show the old list. A timeout would silently serve old data during a cold start                                               |
 | 2026-10-11 | `vite-plugin-pwa` in `generateSW` mode, pinned to 1.3.0 (option A)                                                                                                                                                                                                                        | No service-worker code of our own to maintain; 2.0.0 is a major only eight days old                                                                                                             |
 | 2026-10-11 | Update prompt: a dismissible bar with Reload; ✕ hides it until the next launch; checks on launch and on returning to the foreground (option A)                                                                                                                                            | The user chooses when to reload, so no draft is lost, and the prompt always comes back (CLAUDE.md §16)                                                                                          |

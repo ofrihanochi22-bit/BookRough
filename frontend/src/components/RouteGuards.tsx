@@ -3,16 +3,16 @@ import { Navigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { fetchSession } from '../api/auth';
-import { readSessionSnapshot } from '../lib/sessionSnapshot';
 import { NotFound } from '../pages/NotFound';
-import { homePathFor, useAuthStore } from '../stores/auth';
+import { homePathFor, openedFromSnapshot, useAuthStore } from '../stores/auth';
+import { LoadingHint } from './ui/LoadingHint';
 import { Button } from './ui/Button';
 import { ScreenLayout } from './ui/ScreenLayout';
 import { Spinner } from './ui/Spinner';
 
 type GateFailure = 'offline' | 'unreachable';
 
-/** No response at all — offline, DNS, a dropped connection — as opposed to an answer. */
+/** No response at all (offline, DNS, a dropped connection), as opposed to an answer. */
 function isNoResponse(error: unknown): boolean {
   return isAxiosError(error) && !error.response;
 }
@@ -35,15 +35,14 @@ function checkSession(onFailure: (error: unknown) => void = () => {}): Promise<v
 
 /**
  * Resolves the session once, on app load, before any route renders. Until it
- * answers, a spinner fills the screen — never Welcome, which would flash for a
+ * answers, a spinner fills the screen, never Welcome, which would flash for a
  * user who is in fact signed in.
  *
- * Only a 401 means "signed out". With no response at all, the remembered
- * session (lib/sessionSnapshot.ts) opens the app read-only, so the installed
- * app works offline (docs/features/pwa-offline.md §3.3); without one, an
- * offline screen. Any other failure (a 5xx while the API restarts) says
- * nothing about the session, so it gets a retry screen instead of throwing
- * away a cookie that may well still be valid.
+ * With a saved session (client-cache.md §3.3) the app is already signed in and
+ * `checkSavedSession` runs behind it. Without one, only a 401 means "signed
+ * out": no response at all gets an offline screen that retries when the
+ * connection returns, and any other failure (a 5xx while the API restarts) a
+ * retry screen, instead of throwing away a cookie that may well still be valid.
  */
 export function SessionGate({ children }: { children: ReactNode }) {
   const status = useAuthStore((state) => state.status);
@@ -51,24 +50,27 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const started = useRef(false);
 
   const resolveSession = useCallback(() => {
-    setFailure(null);
-    void checkSession((error) => {
-      const remembered = isNoResponse(error) ? readSessionSnapshot() : null;
-      if (remembered) {
-        useAuthStore.getState().setSession(remembered, { offline: true });
-      } else {
-        setFailure(isNoResponse(error) ? 'offline' : 'unreachable');
-      }
-    });
+    void checkSession((error) => setFailure(isNoResponse(error) ? 'offline' : 'unreachable'));
   }, []);
+
+  const retry = useCallback(() => {
+    setFailure(null);
+    resolveSession();
+  }, [resolveSession]);
 
   useEffect(() => {
     // A ref, not a flag in the effect: StrictMode runs effects twice in
     // development, and the ref survives that so /auth/me is called once.
-    if (started.current || useAuthStore.getState().status !== 'unknown') {
+    if (started.current) {
       return;
     }
     started.current = true;
+    if (useAuthStore.getState().status !== 'unknown') {
+      if (openedFromSnapshot) {
+        checkSavedSession();
+      }
+      return;
+    }
     resolveSession();
   }, [resolveSession]);
 
@@ -77,9 +79,9 @@ export function SessionGate({ children }: { children: ReactNode }) {
     if (!failure) {
       return;
     }
-    window.addEventListener('online', resolveSession);
-    return () => window.removeEventListener('online', resolveSession);
-  }, [failure, resolveSession]);
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [failure, retry]);
 
   return (
     <>
@@ -93,10 +95,13 @@ export function SessionGate({ children }: { children: ReactNode }) {
                   ? "You're offline. Connect to open BookRough."
                   : "Can't reach BookRough right now. Check your connection and try again."}
               </p>
-              <Button onClick={resolveSession}>Try again</Button>
+              <Button onClick={retry}>Try again</Button>
             </div>
           ) : (
-            <Spinner label="Opening BookRough…" />
+            <div className="flex flex-col items-center gap-3">
+              <Spinner label="Opening BookRough…" />
+              <LoadingHint />
+            </div>
           )}
         </ScreenLayout>
       ) : (
@@ -106,15 +111,31 @@ export function SessionGate({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The app opened from the saved session (client-cache.md §3.3); this checks the
+ * cookie behind it. A 401 signs out. No response at all marks the session
+ * unconfirmed, so it is read-only until the server answers (pwa-offline.md
+ * §3.3, `ConfirmRememberedSession`). A 5xx leaves the screens reading from the
+ * cache, and each screen's own request shows its own error if it has nothing
+ * cached.
+ */
+function checkSavedSession(): void {
+  void checkSession((error) => {
+    if (isNoResponse(error)) {
+      useAuthStore.setState({ offline: true });
+    }
+  });
+}
+
 /** How often an unconfirmed session asks the server again while the app is in view. */
 const CONFIRM_INTERVAL_MS = 15_000;
 
 /**
- * While the session came from the snapshot (read-only), asks /auth/me again
- * when the connection returns, when the app comes back to the foreground, and
- * every 15 s — the browser may already think it is online (a timeout, a
- * captive portal), so no `online` event would come. Success confirms the
- * session; a 401 signs out like any other.
+ * While the session is unconfirmed (read-only), asks /auth/me again when the
+ * connection returns, when the app comes back to the foreground, and every
+ * 15 s: the browser may already think it is online (a timeout, a captive
+ * portal), so no `online` event would come. Success confirms the session; a
+ * 401 signs out like any other.
  */
 function ConfirmRememberedSession() {
   const unconfirmed = useAuthStore((state) => state.offline);

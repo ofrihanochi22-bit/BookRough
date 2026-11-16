@@ -1,4 +1,5 @@
 import type { Session } from '../stores/auth';
+import { wipeCache } from '../lib/requestCache';
 import { api, type SuccessBody } from './client';
 
 /** Sign in to an existing account, or create one (docs/features/sign-in-sign-up.md §4). */
@@ -21,6 +22,8 @@ export async function signInWithGoogle(
     { credential, intent },
     { skipErrorToast: true },
   );
+  // A new session starts from nothing, whoever was here before (client-cache.md §3.5).
+  wipeCache();
   return response.data.data;
 }
 
@@ -32,4 +35,5 @@ export async function fetchSession(): Promise<Session> {
 
 export async function logout(): Promise<void> {
   await api.post('/auth/logout');
+  wipeCache();
 }

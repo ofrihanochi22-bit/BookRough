@@ -8,8 +8,8 @@ import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { MIXTAPE_H1 } from '../components/ui/heading';
+import { LineIcon } from '../components/ui/LineIcon';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
-import { TAPE_PAPER } from '../components/ui/tape';
 import { TopBar } from '../components/ui/TopBar';
 import { useDisplayNameStatus, type DisplayNameStatus } from '../hooks/useDisplayNameStatus';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -179,11 +179,16 @@ interface AvatarTileProps {
   children: ReactNode;
 }
 
-/** The selected tile on tape paper, the other outlined in `line` (ui-redesign.md §5.13). */
+/**
+ * The selected tile outlined in `ink` with a check badge, the other in `line`
+ * (ui-redesign.md §5.13, improvement round 2026-11-15). Never a light fill:
+ * the pale generated avatar all but vanishes on `tape`. The selection shows
+ * by border weight, the check and the bold label — not colour alone.
+ */
 const TILE = {
-  // Same 1.5px border box either way, so choosing a tile never shifts the row.
-  selected: `rounded-[22px] border-[1.5px] border-transparent font-semibold ${TAPE_PAPER}`,
-  other: 'rounded-[22px] border-[1.5px] border-line text-ink',
+  // The padding absorbs the thicker border, so choosing a tile never shifts the row.
+  selected: 'border-2 border-ink p-[15.5px] font-semibold',
+  other: 'border-[1.5px] border-line p-4',
   focus:
     'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
 };
@@ -191,10 +196,20 @@ const TILE = {
 function AvatarTile({ label, selected, onSelect, children }: AvatarTileProps) {
   return (
     <label
-      className={`flex flex-1 cursor-pointer flex-col items-center gap-2 p-4 text-sm ${
+      className={`relative flex flex-1 cursor-pointer flex-col items-center gap-2 rounded-[22px] text-sm text-ink ${
         selected ? TILE.selected : TILE.other
       } ${TILE.focus}`}
     >
+      {selected && (
+        <span
+          data-testid="avatar-tile-check"
+          className="absolute top-2 right-2 flex size-6 items-center justify-center rounded-full bg-ink text-canvas"
+        >
+          <LineIcon className="size-4">
+            <path d="M5 12.5l4.5 4.5L19 7.5" strokeWidth="2.5" />
+          </LineIcon>
+        </span>
+      )}
       <input
         type="radio"
         name="avatar"

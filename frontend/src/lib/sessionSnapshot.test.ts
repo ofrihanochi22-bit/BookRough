@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeSession, makeUser } from '../test/fixtures';
-import { clearSessionSnapshot, readSessionSnapshot, saveSessionSnapshot } from './sessionSnapshot';
-
-const KEY = 'bookrough.session';
+import {
+  readSessionSnapshot,
+  removeSessionSnapshot,
+  saveSessionSnapshot,
+  SESSION_STORAGE_KEY as KEY,
+} from './sessionSnapshot';
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -59,24 +62,23 @@ describe('the remembered session', () => {
     expect(readSessionSnapshot()).toBeNull();
   });
 
-  it('clear removes it', () => {
+  it('remove deletes it', () => {
     // Arrange
     saveSessionSnapshot(makeSession());
 
     // Act
-    clearSessionSnapshot();
+    removeSessionSnapshot();
 
     // Assert
     expect(readSessionSnapshot()).toBeNull();
   });
 
-  it('deletes malformed JSON and treats it as none', () => {
+  it('treats malformed JSON as none', () => {
     // Arrange
     window.localStorage.setItem(KEY, '{ nope');
 
     // Act & Assert
     expect(readSessionSnapshot()).toBeNull();
-    expect(window.localStorage.getItem(KEY)).toBeNull();
   });
 
   it.each([
@@ -88,33 +90,27 @@ describe('the remembered session', () => {
       'a user with no id',
       { user: { displayName: 'Dana' }, needsOnboarding: false, isAdmin: false },
     ],
-  ])('deletes a snapshot that is %s', (_label, value) => {
+  ])('ignores a snapshot that is %s', (_label, value) => {
     // Arrange
     window.localStorage.setItem(KEY, JSON.stringify(value));
 
     // Act & Assert
     expect(readSessionSnapshot()).toBeNull();
-    expect(window.localStorage.getItem(KEY)).toBeNull();
   });
 
-  it.each([
-    ['displayName', 7],
-    ['profilePictureUrl', 7],
-    ['preferredService', 7],
-    ['createdAt', null],
-  ])('deletes a snapshot whose %s has the wrong type', (field, value) => {
+  it('ignores a snapshot whose createdAt is not a string', () => {
     // Arrange
     const session = makeSession();
     window.localStorage.setItem(
       KEY,
-      JSON.stringify({ ...session, user: { ...session.user, [field]: value } }),
+      JSON.stringify({ ...session, user: { ...session.user, createdAt: null } }),
     );
 
     // Act & Assert
     expect(readSessionSnapshot()).toBeNull();
   });
 
-  it.each(['needsOnboarding', 'isAdmin'])('deletes a snapshot with no %s', (field) => {
+  it.each(['needsOnboarding', 'isAdmin'])('ignores a snapshot with no %s', (field) => {
     // Arrange
     const { [field as 'isAdmin']: _dropped, ...rest } = makeSession();
     window.localStorage.setItem(KEY, JSON.stringify(rest));
@@ -144,6 +140,6 @@ describe('the remembered session', () => {
 
     // Act & Assert
     expect(() => saveSessionSnapshot(makeSession())).not.toThrow();
-    expect(() => clearSessionSnapshot()).not.toThrow();
+    expect(() => removeSessionSnapshot()).not.toThrow();
   });
 });

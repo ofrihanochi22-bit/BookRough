@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth';
 import { makeSession, resetAuthStore, setOnline } from '../test/fixtures';
 import { OfflineBar } from './OfflineBar';
 
-const MESSAGE = "You're offline — showing what you last loaded.";
+const MESSAGE = "You're offline. Showing what you last loaded.";
 
 afterEach(() => {
   // Unmount first: resetting the store under a mounted bar re-renders it outside act.

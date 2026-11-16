@@ -15,7 +15,7 @@ export function OfflineBar() {
 
   return (
     <p role="status" className="bg-accent-soft px-4 py-2 text-center text-sm text-accent-ink">
-      You&apos;re offline — showing what you last loaded.
+      You&apos;re offline. Showing what you last loaded.
     </p>
   );
 }

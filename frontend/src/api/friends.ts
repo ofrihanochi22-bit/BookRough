@@ -1,5 +1,7 @@
 import { api, type SuccessBody } from './client';
 import type { MemberUser } from './membership';
+import { cacheKeys as K, cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** The viewer's relation to another user (docs/features/friend-requests.md §4). */
 export type Friendship = 'NONE' | 'REQUEST_SENT' | 'REQUEST_RECEIVED' | 'FRIENDS';
@@ -21,6 +23,7 @@ export async function sendFriendRequest(userId: string): Promise<Friendship> {
     { userId },
     quiet,
   );
+  invalidate([K.friends, K.friendList, K.notifications, P.profile]);
   return response.data.data.friendship;
 }
 
@@ -29,6 +32,7 @@ export async function cancelFriendRequest(userId: string): Promise<Friendship> {
     `/friends/requests/sent/${path(userId)}`,
     quiet,
   );
+  invalidate([K.friends, K.friendList, K.notifications, P.profile]);
   return response.data.data.friendship;
 }
 
@@ -38,11 +42,13 @@ export async function acceptFriendRequest(userId: string): Promise<FriendView> {
     undefined,
     quiet,
   );
+  invalidate([K.friends, K.friendList, K.notifications, P.profile]);
   return response.data.data.friend;
 }
 
 export async function ignoreFriendRequest(userId: string): Promise<void> {
   await api.post(`/friends/requests/${path(userId)}/ignore`, undefined, quiet);
+  invalidate([K.friends, K.friendList, K.notifications, P.profile]);
 }
 
 export async function listFriends(): Promise<FriendView[]> {
@@ -69,5 +75,6 @@ export async function removeFriend(userId: string): Promise<Friendship> {
     `/friends/${path(userId)}`,
     quiet,
   );
+  invalidate([K.friends, K.friendList, K.notifications, P.profile]);
   return response.data.data.friendship;
 }

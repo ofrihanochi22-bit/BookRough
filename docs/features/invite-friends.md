@@ -144,6 +144,9 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 
 One list used in two places: each friend as avatar + name with a 44 px control on the right, by status — **Invite** (a checkbox on the Create form), **Invited** (tap to cancel, panel only), **Member** and **Blocked** (disabled, plain labels).
 
+- **The name is plain text, never a profile link** (amended 2026-11-15, improvement round point 4): a tap on a friend's name inside the form or the panel must not leave it. The avatar and name come from `PersonName`, the non-link twin of `PersonLink`.
+- **On the Create form the whole row is the checkbox's label:** a tap on the avatar, the name or the box toggles it, so the target is the full row (≥ 44 px tall). The checkbox keeps its one accessible name, "Invite {name}". In the panel only the Invite / Invited button acts; a tap on the name does nothing.
+
 - **Loading:** skeleton rows. **Empty (no friends):** "You don't have friends on BookRough yet." with a link to Search. **Error:** "Couldn't load your friends." with Try again.
 
 ### 5.2 Create Community (`pages/CreateCommunity.tsx`)

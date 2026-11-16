@@ -1,5 +1,6 @@
 import type { AccentColor } from '../lib/appSettings';
 import { api, type SuccessBody } from './client';
+import { invalidate } from '../lib/requestCache';
 
 /** GET /api/settings — the announcement is present only for a signed-in caller. */
 export interface PublicSettings {
@@ -58,5 +59,6 @@ export async function updateAdminSettings(update: SettingsUpdate): Promise<Admin
   const response = await api.patch<SuccessBody<AdminSettings>>('/admin/settings', update, {
     skipErrorToast: true,
   });
+  invalidate([]);
   return response.data.data;
 }
