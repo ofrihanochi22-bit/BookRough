@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  addChecks,
   type Config,
   type Deployment,
   deleteDeployment,
@@ -10,6 +11,7 @@ import {
   planDeploymentPrune,
   readConfig,
   readLiveId,
+  withChecks,
 } from './pruneDeployments.js';
 
 /* docs/features/deployment-pruning.md §7: every guard of the deployment prune. */
@@ -453,6 +455,89 @@ describe('the Vercel calls', () => {
     // Act & Assert
     await expect(listDeployments(config)).rejects.toThrowError(/More than 10 pages/);
     expect(fetchMock).toHaveBeenCalledTimes(10);
+  });
+
+  it("reads a deployment's checks from its details", async () => {
+    // Arrange
+    fetchMock.mockReturnValue(
+      answer(200, { id: 'dpl_1', checksState: 'completed', checksConclusion: 'failed' }),
+    );
+    const listed = deployment(1, { checksState: undefined, checksConclusion: undefined });
+
+    // Act
+    const result = await withChecks(config, listed);
+
+    // Assert
+    expect(result).toEqual({ ...listed, checksState: 'completed', checksConclusion: 'failed' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.vercel.com/v13/deployments/dpl_1?slug=team');
+    expect(init.method).toBeUndefined();
+    expect(init.headers).toEqual({ Authorization: 'Bearer secret-token' });
+  });
+
+  it('leaves the checks empty when the deployment has none', async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(200, { id: 'dpl_1' }));
+
+    // Act
+    const result = await withChecks(config, deployment(1, { checksState: undefined }));
+
+    // Assert
+    expect(result.checksState).toBeUndefined();
+    expect(result.checksConclusion).toBeUndefined();
+  });
+
+  it("fails with Vercel's reason when the details are refused", async () => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(403, { error: { code: 'forbidden' } }));
+
+    // Act & Assert
+    await expect(withChecks(config, deployment(1))).rejects.toThrowError(
+      'Reading the checks of dpl_1 failed with HTTP 403 (forbidden); deleting nothing.',
+    );
+  });
+
+  it.each([null, { id: 'dpl_other' }, 'text'])(
+    'fails when the details have an unexpected shape: %j',
+    async (body) => {
+      // Arrange
+      fetchMock.mockReturnValue(answer(200, body));
+
+      // Act & Assert
+      await expect(withChecks(config, deployment(1))).rejects.toThrowError(
+        'The details of dpl_1 have an unexpected shape; deleting nothing.',
+      );
+    },
+  );
+
+  it('reads checks only for READY production deployments other than the live one', async () => {
+    // Arrange
+    fetchMock.mockImplementation((url: string) => {
+      const id = /deployments\/(dpl_\d+)/.exec(url)?.[1];
+      return answer(200, { id, checksState: 'completed', checksConclusion: 'succeeded' });
+    });
+    const bare = { checksState: undefined, checksConclusion: undefined };
+    const list = [
+      deployment(5, bare),
+      deployment(4, bare),
+      deployment(3, { ...bare, state: 'ERROR' }),
+      deployment(2, { ...bare, target: null }),
+      deployment(1, { checksState: 'completed', checksConclusion: 'failed' }),
+    ];
+
+    // Act
+    const result = await addChecks(config, list, 'dpl_5');
+
+    // Assert
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/v13/deployments/dpl_4?');
+    expect(result.map((d) => d.checksConclusion)).toEqual([
+      undefined,
+      'succeeded',
+      undefined,
+      undefined,
+      'failed',
+    ]);
   });
 
   it.each([200, 404])('treats a DELETE answered %i as done', async (status) => {

@@ -45,11 +45,12 @@ None.
 
 No BookRough endpoint. The job calls Vercel's documented REST API with `fetch` and `VERCEL_TOKEN` (Bearer header), team slug `VERCEL_TEAM` as `slug=`, project `bookrough` (overridable by `VERCEL_PROJECT`):
 
-| Call                                                                                 | Use                                                                        |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| `GET /v9/projects/{project}`                                                         | `targets.production.id` — the live deployment                              |
-| `GET /v6/deployments?projectId={project}&target=production&limit=100[&until=<next>]` | every production deployment, following `pagination.next`, at most 10 pages |
-| `DELETE /v13/deployments/{id}`                                                       | delete one; `200` done, `404` already gone                                 |
+| Call                                                                                 | Use                                                                                                                                      |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /v9/projects/{project}`                                                         | `targets.production.id` — the live deployment                                                                                            |
+| `GET /v6/deployments?projectId={project}&target=production&limit=100[&until=<next>]` | every production deployment, following `pagination.next`, at most 10 pages                                                               |
+| `GET /v13/deployments/{id}`                                                          | the Deployment Checks (`checksState`, `checksConclusion`) of each READY production deployment but the live one: the list leaves them out |
+| `DELETE /v13/deployments/{id}`                                                       | delete one; `200` done, `404` already gone                                                                                               |
 
 Any other status, or a body in an unexpected shape, stops the run with Vercel's reason (`failureDetail`) and deletes nothing more.
 
@@ -130,4 +131,5 @@ A missing `VERCEL_TOKEN` or `VERCEL_TEAM`, a non-OK status, or an unexpected sha
 | 2026-11-16 | Delete ERROR / CANCELED production deployments once a newer READY exists                                                           | Keeps the list clean; the newest failure stays for debugging (developer)                                                                                                      |
 | 2026-11-16 | Remove `prune-images` and its code                                                                                                 | Every registry call gets `403` on this plan, even with a new token; a permanently red job hides real failures (developer)                                                     |
 | 2026-11-16 | A READY deployment that failed its checks is a failure; the live id is re-read before deleting; the nightly run ignores red suites | `/code-review`: a never-promoted build could take the rollback slot, a dashboard promote could race the deletions, and the live squigly.link test could skip the settling run |
+| 2026-11-16 | Checks are read per deployment from `GET /v13/deployments/{id}`                                                                    | The first dry run on `main` showed the list endpoint returns no `checksState` / `checksConclusion`, so the failed-checks guard could never trigger                            |
 | 2026-11-16 | New spec instead of rewriting production-hardening.md §3.8                                                                         | §3.8 records a shipped, now-withdrawn design; it gets an amendment note pointing here                                                                                         |
