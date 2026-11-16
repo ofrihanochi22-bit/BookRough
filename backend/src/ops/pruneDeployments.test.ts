@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  addChecks,
   type Config,
   type Deployment,
   deleteDeployment,
@@ -11,7 +10,6 @@ import {
   planDeploymentPrune,
   readConfig,
   readLiveId,
-  withChecks,
 } from './pruneDeployments.js';
 
 /* docs/features/deployment-pruning.md §7: every guard of the deployment prune. */
@@ -24,8 +22,9 @@ function deployment(day: number, overrides: Partial<Deployment> = {}): Deploymen
     created: day * DAY,
     state: 'READY',
     target: 'production',
-    checksState: 'completed',
-    checksConclusion: 'succeeded',
+    promoted: true,
+    rollbackCandidate: false,
+    substate: 'PROMOTED',
     sha: `sha${day}`.padEnd(40, '0'),
     ...overrides,
   };
@@ -41,7 +40,9 @@ function verdicts(list: Deployment[], liveId: string, options = OPTIONS): Record
 }
 
 describe('planDeploymentPrune', () => {
-  it('keeps the live and the newest other READY, and deletes older READY ones', () => {
+  const staged = { promoted: false, substate: 'STAGED' };
+
+  it('keeps the live and the newest other promoted READY, and deletes older ones', () => {
     // Arrange
     const list = [deployment(1), deployment(2), deployment(3), deployment(4)];
 
@@ -68,7 +69,7 @@ describe('planDeploymentPrune', () => {
     expect(plan.map((entry) => entry.deployment.id)).toEqual(['dpl_3', 'dpl_2', 'dpl_1']);
   });
 
-  it('keeps the live one when it is not the newest, paired with the newest other READY', () => {
+  it('keeps the live one when it is not the newest, paired with the newest other promoted', () => {
     // Arrange: rolled back from 3 to 2.
     const list = [deployment(1), deployment(2), deployment(3)];
 
@@ -79,7 +80,22 @@ describe('planDeploymentPrune', () => {
     expect(result).toEqual({ dpl_3: 'keep (rollback)', dpl_2: 'keep (live)', dpl_1: 'delete' });
   });
 
-  it('deletes nothing with two READY deployments or fewer', () => {
+  it("always keeps Vercel's own rollback candidates", () => {
+    // Arrange
+    const list = [deployment(1, { rollbackCandidate: true }), deployment(2), deployment(3)];
+
+    // Act
+    const result = verdicts(list, 'dpl_3');
+
+    // Assert
+    expect(result).toEqual({
+      dpl_3: 'keep (live)',
+      dpl_2: 'keep (rollback)',
+      dpl_1: 'keep (rollback)',
+    });
+  });
+
+  it('deletes nothing with two promoted deployments or fewer', () => {
     // Act
     const two = verdicts([deployment(1), deployment(2)], 'dpl_2');
     const one = verdicts([deployment(1)], 'dpl_1');
@@ -93,7 +109,7 @@ describe('planDeploymentPrune', () => {
     'keeps a %s deployment and does not count it',
     (state) => {
       // Arrange
-      const list = [deployment(1), deployment(2), deployment(3, { state })];
+      const list = [deployment(1), deployment(2), deployment(3, { ...staged, state })];
 
       // Act
       const result = verdicts(list, 'dpl_2');
@@ -107,57 +123,24 @@ describe('planDeploymentPrune', () => {
     },
   );
 
-  it.each(['registered', 'running'])(
-    'keeps a READY deployment whose checks are %s, uncounted',
-    (checksState) => {
-      // Arrange
-      const list = [
-        deployment(1),
-        deployment(2),
-        deployment(3, { checksState, checksConclusion: undefined }),
-      ];
-
-      // Act
-      const result = verdicts(list, 'dpl_2');
-
-      // Assert
-      expect(result.dpl_3).toBe('keep (unfinished)');
-      expect(result.dpl_1).toBe('keep (rollback)');
-    },
-  );
-
-  it('counts a READY deployment without Deployment Checks', () => {
-    // Arrange
-    const list = [
-      deployment(1),
-      deployment(2),
-      deployment(3, { checksState: undefined, checksConclusion: undefined }),
-    ];
+  it('keeps a READY deployment newer than the live one that is not promoted yet, uncounted', () => {
+    // Arrange: 3 built and is waiting on Deployment Checks.
+    const list = [deployment(1), deployment(2), deployment(3, staged)];
 
     // Act
     const result = verdicts(list, 'dpl_2');
 
     // Assert
-    expect(result).toEqual({ dpl_3: 'keep (rollback)', dpl_2: 'keep (live)', dpl_1: 'delete' });
+    expect(result).toEqual({
+      dpl_3: 'keep (unfinished)',
+      dpl_2: 'keep (live)',
+      dpl_1: 'keep (rollback)',
+    });
   });
 
-  it.each(['failed', 'canceled'])(
-    'never makes a READY deployment whose checks %s the rollback target',
-    (checksConclusion) => {
-      // Arrange: 3 built but failed its checks, so it was never promoted.
-      const list = [deployment(1), deployment(2), deployment(3, { checksConclusion })];
-
-      // Act
-      const result = verdicts(list, 'dpl_2');
-
-      // Assert
-      expect(result).toEqual({ dpl_3: 'keep', dpl_2: 'keep (live)', dpl_1: 'keep (rollback)' });
-    },
-  );
-
-  it('deletes a READY deployment that failed its checks once a newer one is READY', () => {
-    // Arrange
-    const list = [deployment(1), deployment(2, { checksConclusion: 'failed' }), deployment(3)];
+  it('never makes a never-promoted READY deployment the rollback target, and deletes it', () => {
+    // Arrange: 2 failed its checks and was never promoted; 3 was promoted after it.
+    const list = [deployment(1), deployment(2, staged), deployment(3)];
 
     // Act
     const result = verdicts(list, 'dpl_3');
@@ -168,7 +151,7 @@ describe('planDeploymentPrune', () => {
 
   it.each(['ERROR', 'CANCELED'])('deletes a superseded %s deployment', (state) => {
     // Arrange
-    const list = [deployment(1), deployment(2, { state }), deployment(3)];
+    const list = [deployment(1), deployment(2, { ...staged, state }), deployment(3)];
 
     // Act
     const result = verdicts(list, 'dpl_3');
@@ -177,9 +160,9 @@ describe('planDeploymentPrune', () => {
     expect(result.dpl_2).toBe('delete');
   });
 
-  it('keeps the newest failure when nothing READY came after it', () => {
+  it('keeps the newest failure when nothing promoted came after it', () => {
     // Arrange
-    const list = [deployment(1), deployment(2), deployment(3, { state: 'ERROR' })];
+    const list = [deployment(1), deployment(2), deployment(3, { ...staged, state: 'ERROR' })];
 
     // Act
     const result = verdicts(list, 'dpl_2');
@@ -207,6 +190,16 @@ describe('planDeploymentPrune', () => {
     ).toThrowError('The live deployment dpl_9 is not in the list; deleting nothing.');
   });
 
+  it('throws when the live deployment does not look promoted (the fields changed)', () => {
+    // Arrange: without promotion fields every older READY one would look never-promoted.
+    const list = [deployment(1, staged), deployment(2, staged)];
+
+    // Act & Assert
+    expect(() => planDeploymentPrune(list, { liveId: 'dpl_2', ...OPTIONS })).toThrowError(
+      'The live deployment dpl_2 is not marked as promoted in the list; deleting nothing.',
+    );
+  });
+
   it('throws on an unreadable creation time', () => {
     // Arrange
     const list = [deployment(1), deployment(2, { created: Number.NaN })];
@@ -229,41 +222,28 @@ describe('planDeploymentPrune', () => {
 });
 
 describe('describeEntry', () => {
-  it('prints id, time, short sha, state, checks, target and verdict', () => {
+  it('prints id, time, short sha, state, flags, target and verdict', () => {
     // Act
-    const line = describeEntry({ deployment: deployment(1), verdict: 'delete' });
+    const line = describeEntry({
+      deployment: deployment(1, { rollbackCandidate: true }),
+      verdict: 'keep (rollback)',
+    });
 
     // Assert
     expect(line).toBe(
-      'dpl_1  1970-01-02T00:00:00.000Z  sha1000  READY checks:completed/succeeded  production  → delete',
+      'dpl_1  1970-01-02T00:00:00.000Z  sha1000  READY/PROMOTED  promoted,rollback-candidate  production  → keep (rollback)',
     );
   });
 
-  it('copes with no sha, no checks and no target', () => {
+  it('copes with no sha, no substate, no flags and no target', () => {
     // Act
     const line = describeEntry({
-      deployment: deployment(1, {
-        sha: '',
-        checksState: undefined,
-        checksConclusion: undefined,
-        target: null,
-      }),
+      deployment: deployment(1, { sha: '', substate: undefined, promoted: false, target: null }),
       verdict: 'keep',
     });
 
     // Assert
-    expect(line).toBe('dpl_1  1970-01-02T00:00:00.000Z  (no sha)  READY  -  → keep');
-  });
-
-  it('prints checks without a conclusion', () => {
-    // Act
-    const line = describeEntry({
-      deployment: deployment(1, { checksState: 'running', checksConclusion: undefined }),
-      verdict: 'keep (unfinished)',
-    });
-
-    // Assert
-    expect(line).toContain('READY checks:running  production');
+    expect(line).toBe('dpl_1  1970-01-02T00:00:00.000Z  (no sha)  READY  -  -  → keep');
   });
 });
 
@@ -316,8 +296,9 @@ describe('the Vercel calls', () => {
     created: day * DAY,
     readyState: 'READY',
     target: 'production',
-    checksState: 'completed',
-    checksConclusion: 'succeeded',
+    readySubstate: 'PROMOTED',
+    aliasAssigned: day * DAY + 1000,
+    isRollbackCandidate: false,
     meta: { githubCommitSha: `sha${day}` },
     ...extra,
   });
@@ -384,8 +365,9 @@ describe('the Vercel calls', () => {
         created: DAY,
         state: 'ERROR',
         target: null,
-        checksState: undefined,
-        checksConclusion: undefined,
+        promoted: false,
+        rollbackCandidate: false,
+        substate: undefined,
         sha: '',
       },
     ]);
@@ -457,87 +439,39 @@ describe('the Vercel calls', () => {
     expect(fetchMock).toHaveBeenCalledTimes(10);
   });
 
-  it("reads a deployment's checks from its details", async () => {
+  it.each([
+    ['aliasAssigned as a timestamp', { aliasAssigned: 5, readySubstate: 'X' }, true],
+    ['aliasAssigned as true', { aliasAssigned: true, readySubstate: undefined }, true],
+    ['readySubstate PROMOTED alone', { aliasAssigned: null, readySubstate: 'PROMOTED' }, true],
+    ['neither', { aliasAssigned: null, readySubstate: 'STAGED' }, false],
+    ['aliasAssigned 0', { aliasAssigned: 0, readySubstate: undefined }, false],
+  ])('reads promotion from %s', async (_label, extra, promoted) => {
+    // Arrange
+    fetchMock.mockReturnValue(answer(200, { deployments: [raw(1, extra)] }));
+
+    // Act
+    const [first] = await listDeployments(config);
+
+    // Assert
+    expect(first?.promoted).toBe(promoted);
+  });
+
+  it('reads isRollbackCandidate, and only a literal true counts', async () => {
     // Arrange
     fetchMock.mockReturnValue(
-      answer(200, { id: 'dpl_1', checksState: 'completed', checksConclusion: 'failed' }),
+      answer(200, {
+        deployments: [
+          raw(2, { isRollbackCandidate: true }),
+          raw(1, { isRollbackCandidate: 'yes' }),
+        ],
+      }),
     );
-    const listed = deployment(1, { checksState: undefined, checksConclusion: undefined });
 
     // Act
-    const result = await withChecks(config, listed);
+    const list = await listDeployments(config);
 
     // Assert
-    expect(result).toEqual({ ...listed, checksState: 'completed', checksConclusion: 'failed' });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://api.vercel.com/v13/deployments/dpl_1?slug=team');
-    expect(init.method).toBeUndefined();
-    expect(init.headers).toEqual({ Authorization: 'Bearer secret-token' });
-  });
-
-  it('leaves the checks empty when the deployment has none', async () => {
-    // Arrange
-    fetchMock.mockReturnValue(answer(200, { id: 'dpl_1' }));
-
-    // Act
-    const result = await withChecks(config, deployment(1, { checksState: undefined }));
-
-    // Assert
-    expect(result.checksState).toBeUndefined();
-    expect(result.checksConclusion).toBeUndefined();
-  });
-
-  it("fails with Vercel's reason when the details are refused", async () => {
-    // Arrange
-    fetchMock.mockReturnValue(answer(403, { error: { code: 'forbidden' } }));
-
-    // Act & Assert
-    await expect(withChecks(config, deployment(1))).rejects.toThrowError(
-      'Reading the checks of dpl_1 failed with HTTP 403 (forbidden); deleting nothing.',
-    );
-  });
-
-  it.each([null, { id: 'dpl_other' }, 'text'])(
-    'fails when the details have an unexpected shape: %j',
-    async (body) => {
-      // Arrange
-      fetchMock.mockReturnValue(answer(200, body));
-
-      // Act & Assert
-      await expect(withChecks(config, deployment(1))).rejects.toThrowError(
-        'The details of dpl_1 have an unexpected shape; deleting nothing.',
-      );
-    },
-  );
-
-  it('reads checks only for READY production deployments other than the live one', async () => {
-    // Arrange
-    fetchMock.mockImplementation((url: string) => {
-      const id = /deployments\/(dpl_\d+)/.exec(url)?.[1];
-      return answer(200, { id, checksState: 'completed', checksConclusion: 'succeeded' });
-    });
-    const bare = { checksState: undefined, checksConclusion: undefined };
-    const list = [
-      deployment(5, bare),
-      deployment(4, bare),
-      deployment(3, { ...bare, state: 'ERROR' }),
-      deployment(2, { ...bare, target: null }),
-      deployment(1, { checksState: 'completed', checksConclusion: 'failed' }),
-    ];
-
-    // Act
-    const result = await addChecks(config, list, 'dpl_5');
-
-    // Assert
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0]?.[0]).toContain('/v13/deployments/dpl_4?');
-    expect(result.map((d) => d.checksConclusion)).toEqual([
-      undefined,
-      'succeeded',
-      undefined,
-      undefined,
-      'failed',
-    ]);
+    expect(list.map((d) => d.rollbackCandidate)).toEqual([true, false]);
   });
 
   it.each([200, 404])('treats a DELETE answered %i as done', async (status) => {
