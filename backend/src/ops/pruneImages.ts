@@ -241,6 +241,67 @@ export function readConfig(source: NodeJS.ProcessEnv): Config {
   };
 }
 
+/**
+ * TEMPORARY read-only probe (step 0 of the deployment-pruning work): proves whether this account's
+ * token may list production deployments at all, since the registry calls above get 403. Lists one
+ * page of the project's production deployments and prints them; never deletes. Remove it once the
+ * question is answered, or fold it into the real job.
+ */
+export interface DeploymentSummary {
+  id: string;
+  sha: string;
+  state: string;
+  createdAt: string;
+}
+
+/** Reads a GET /v6/deployments body; pure. Throws on any shape it does not recognise. */
+export function summarizeDeployments(body: unknown): DeploymentSummary[] {
+  const list = (body as { deployments?: unknown } | null)?.deployments;
+  if (!Array.isArray(list)) {
+    throw new Error('The deployment list has an unexpected shape.');
+  }
+  return (list as Record<string, unknown>[]).map((raw) => {
+    const state = raw.readyState ?? raw.state;
+    if (
+      typeof raw.uid !== 'string' ||
+      typeof raw.created !== 'number' ||
+      typeof state !== 'string'
+    ) {
+      throw new Error('A deployment in the list has an unexpected shape.');
+    }
+    const meta = (raw.meta ?? {}) as Record<string, unknown>;
+    const sha = typeof meta.githubCommitSha === 'string' ? meta.githubCommitSha : '(no sha)';
+    return { id: raw.uid, sha, state, createdAt: new Date(raw.created).toISOString() };
+  });
+}
+
+/* v8 ignore start -- the network half; summarizeDeployments holds the parsing and is tested. */
+export async function probeDeployments(source: NodeJS.ProcessEnv = process.env): Promise<void> {
+  const config = readConfig(source);
+  const params = new URLSearchParams({
+    projectId: config.project,
+    slug: config.team,
+    target: 'production',
+    limit: '100',
+  });
+  const response = await fetch(`https://api.vercel.com/v6/deployments?${params}`, {
+    headers: { Authorization: `Bearer ${config.token}` },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Listing the production deployments of ${config.project} failed with HTTP ${response.status} (${await failureDetail(response)}).`,
+    );
+  }
+  const deployments = summarizeDeployments(await response.json());
+  process.stdout.write(`Production deployments listed: ${deployments.length}
+`);
+  for (const d of deployments) {
+    process.stdout.write(`${d.id}  ${d.createdAt}  ${d.sha.slice(0, 12)}  ${d.state}
+`);
+  }
+}
+/* v8 ignore stop */
+
 /* v8 ignore start -- the network half; planPrune holds every decision and is tested. */
 export async function main(source: NodeJS.ProcessEnv = process.env): Promise<void> {
   const config = readConfig(source);
@@ -268,7 +329,8 @@ export async function main(source: NodeJS.ProcessEnv = process.env): Promise<voi
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+  const run = process.argv.includes('--probe-deployments') ? probeDeployments : main;
+  run().catch((error: unknown) => {
     process.stderr.write(`${(error as Error).message}\n`);
     process.exit(1);
   });

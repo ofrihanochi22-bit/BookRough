@@ -10,6 +10,7 @@ import {
   planPrune,
   readConfig,
   type RegistryImage,
+  summarizeDeployments,
 } from './pruneImages.js';
 
 /* docs/features/production-hardening.md §3.8: every guard of the registry prune. */
@@ -358,5 +359,48 @@ describe('failureDetail', () => {
 
     // Act & Assert
     expect(await failureDetail(response)).toBe('(no response body)');
+  });
+});
+
+describe('summarizeDeployments', () => {
+  it('reads id, sha, state and creation time, preferring readyState', () => {
+    // Arrange
+    const body = {
+      deployments: [
+        {
+          uid: 'dpl_a',
+          created: 0,
+          readyState: 'READY',
+          state: 'BUILDING',
+          meta: { githubCommitSha: SHA },
+        },
+        { uid: 'dpl_b', created: 86_400_000, state: 'ERROR' },
+      ],
+    };
+
+    // Act
+    const result = summarizeDeployments(body);
+
+    // Assert
+    expect(result).toEqual([
+      { id: 'dpl_a', sha: SHA, state: 'READY', createdAt: '1970-01-01T00:00:00.000Z' },
+      { id: 'dpl_b', sha: '(no sha)', state: 'ERROR', createdAt: '1970-01-02T00:00:00.000Z' },
+    ]);
+  });
+
+  it.each([null, {}, { deployments: 'x' }])('refuses a body without a list: %j', (body) => {
+    expect(() => summarizeDeployments(body)).toThrowError(
+      'The deployment list has an unexpected shape.',
+    );
+  });
+
+  it.each([
+    { created: 0, state: 'READY' },
+    { uid: 'dpl_a', created: '0', state: 'READY' },
+    { uid: 'dpl_a', created: 0 },
+  ])('refuses a malformed deployment: %j', (deployment) => {
+    expect(() => summarizeDeployments({ deployments: [deployment] })).toThrowError(
+      'A deployment in the list has an unexpected shape.',
+    );
   });
 });
