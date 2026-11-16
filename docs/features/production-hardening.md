@@ -119,6 +119,8 @@ Decided 2026-10-10 (production-deploy.md §3.3):
 
 ### 3.8 Registry pruning
 
+> **Withdrawn 2026-11-16.** Every registry call from this account gets `403` on Hobby, even with a new token, so `prune-images` and `pruneImages.ts` were removed. Old production deployments are pruned instead by `prune-deployments` (docs/features/deployment-pruning.md); registry images are deleted by hand when `/vercel-usage` flags Images Storage. The design below is kept as a record.
+
 Decided 2026-11-02 (deployment-storage.md §1.2); the gate (Images Storage seen to fall) passed on 2026-11-03.
 
 - **A `prune-images` job in `main.yml`** runs on `push` to `main` and on `workflow_dispatch`, not on the nightly schedule, with `needs: [test-e2e, test-docker]`. By then the newest image is the one being promoted. It runs `backend/src/ops/pruneImages.ts` with Node's own type stripping, calling Vercel's documented REST endpoints (`GET /v1/vcr/repository`, then `GET` and `DELETE /v1/vcr/repository/<name>/images`) with `fetch` and `VERCEL_TOKEN`. No Vercel CLI and no package; the decisions sit in a pure, unit-tested `planPrune`.

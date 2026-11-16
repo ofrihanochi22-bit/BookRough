@@ -118,7 +118,7 @@ Triggered on pushes to `main` and on a nightly schedule. Runs everything in `pr.
 |---|---|---|
 | `test:e2e` | `playwright test` | The full end-to-end suite against a built frontend and a live backend |
 | `test:docker` | `docker build` + `docker run` | Builds the backend image, runs it against an empty Postgres, and checks health, migrations, the security headers, that Chromium launches inside it, and graceful shutdown (`docs/features/backend-docker.md` §5) |
-| `prune-images` | `node backend/src/ops/pruneImages.ts` | After both suites, on push only: keeps the Vercel registry at the 4 newest backend images; a dry run until `PRUNE_IMAGES=delete` (`docs/features/production-hardening.md` §3.8) |
+| `prune-deployments` | `node backend/src/ops/pruneDeployments.ts` | After both suites, on push and nightly: keeps only the live production deployment and its rollback target; a dry run until `PRUNE_DEPLOYMENTS=delete` (`docs/features/deployment-pruning.md`) |
 
 **Why E2E is deliberately kept off the pull-request path:** installing browser binaries and driving real user flows costs several minutes, and E2E is by a wide margin the flakiest layer. A flaky test that blocks every merge gets ignored or disabled, which is worse than having no test. Catching a regression at merge time rather than at PR time is the accepted trade-off, and it is the standard arrangement in the industry for exactly this reason.
 
