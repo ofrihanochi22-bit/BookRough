@@ -244,6 +244,51 @@ export async function listDeployments(config: Config): Promise<Deployment[]> {
   throw new Error(`More than ${MAX_PAGES} pages of deployments; deleting nothing.`);
 }
 
+/**
+ * Fills in a deployment's Deployment Checks from `GET /v13/deployments/{id}`: the list endpoint
+ * leaves `checksState` and `checksConclusion` out (seen on the first run, 2026-11-16), so without
+ * this a build that failed its checks would look like a promotable READY one.
+ */
+export async function withChecks(config: Config, deployment: Deployment): Promise<Deployment> {
+  const params = new URLSearchParams({ slug: config.team });
+  const response = await fetch(
+    `${API}/v13/deployments/${encodeURIComponent(deployment.id)}?${params}`,
+    { headers: headers(config) },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Reading the checks of ${deployment.id} failed with HTTP ${response.status} (${await failureDetail(response)}); deleting nothing.`,
+    );
+  }
+  const body = (await response.json()) as Record<string, unknown> | null;
+  if (body === null || typeof body !== 'object' || body.id !== deployment.id) {
+    throw new Error(`The details of ${deployment.id} have an unexpected shape; deleting nothing.`);
+  }
+  return {
+    ...deployment,
+    checksState: typeof body.checksState === 'string' ? body.checksState : undefined,
+    checksConclusion: typeof body.checksConclusion === 'string' ? body.checksConclusion : undefined,
+  };
+}
+
+/** Reads the checks of every READY production deployment but the live one, which is kept anyway. */
+export async function addChecks(
+  config: Config,
+  deployments: Deployment[],
+  liveId: string,
+): Promise<Deployment[]> {
+  const result: Deployment[] = [];
+  for (const deployment of deployments) {
+    const needed =
+      deployment.state === 'READY' &&
+      deployment.target === 'production' &&
+      deployment.id !== liveId &&
+      deployment.checksState === undefined;
+    result.push(needed ? await withChecks(config, deployment) : deployment);
+  }
+  return result;
+}
+
 export async function deleteDeployment(config: Config, deployment: Deployment): Promise<void> {
   const params = new URLSearchParams({ slug: config.team });
   const response = await fetch(
@@ -272,7 +317,8 @@ export function describeEntry(entry: PlanEntry): string {
 export async function main(source: NodeJS.ProcessEnv = process.env): Promise<void> {
   const config = readConfig(source);
   const liveId = await readLiveId(config);
-  const plan = planDeploymentPrune(await listDeployments(config), {
+  const listed = await addChecks(config, await listDeployments(config), liveId);
+  const plan = planDeploymentPrune(listed, {
     liveId,
     keep: 2,
     maxDeletes: 10,
