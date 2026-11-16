@@ -153,6 +153,15 @@
     transform: rotate(0) scale(1);
   }
 }
+/* The guide's ring around the control to use (onboarding-tutorial.md §5.1): a soft halo spreading out. */
+@keyframes guide-ring {
+  0% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
 .mixtape-reel-spin {
   animation: mixtape-reel-spin 1.6s linear infinite;
   transform-box: fill-box;
