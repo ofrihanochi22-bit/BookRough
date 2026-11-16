@@ -3184,7 +3184,7 @@ cd backend && npx vitest run src/utils/startupTiming
 
 ### Step 6.1x — Skip the migration step when the database is up to date (Phase 6, a follow-up to Step 6.1w; every cold open: UC-1, UC-4)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged, PR #70)
 Branch: chore/migrate-check-on-start
 Spec: `docs/features/migrate-check-on-start.md`
 
@@ -3240,7 +3240,7 @@ docker restart api && docker logs api 2>&1 | grep startup
 
 ### Step 6.1y — An illustrated guide for new users (Phase 6 — UC-1 and UC-13; improvement round point 6)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged, PR #71)
 Branch: feat/illustrated-guide
 Spec: `docs/features/onboarding-tutorial.md` (amended 2026-11-16)
 
