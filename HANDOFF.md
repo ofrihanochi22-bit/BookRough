@@ -79,7 +79,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
   - Vercel → Settings → Build and Deployment: Preview deployment retention 7 days.
 - [ ] **Also on 2026-11-11** (the developer deferred these on 2026-11-07, so the image prune fails harmlessly until then):
   - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
-  - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
+  - Leave `PRUNE_DEPLOYMENTS` unset until the first `prune-deployments` run's plan has been read in the Actions log, then set the variable to `delete` (this replaced `PRUNE_IMAGES` on 2026-11-16; registry pruning was withdrawn).
   - Claude will ask before making `checks / secrets` a required check in branch protection.
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16). Step 6.4 (PR #43) was merged on 2026-11-07 without a fresh reading, on the developer's word: the Vercel connector cannot read the Usage meters, the last reading was 394.68 MB on 2026-11-03, and no deploy has run since. The developer read them on 2026-11-08: Images Storage 394.68 MB (unchanged since 2026-11-03) and Function Storage 0 B (2.37 GB on 2026-11-02). Read both meters again before the first deploy on 2026-11-11.
 
@@ -103,7 +103,7 @@ Changing Claude accounts touches none of these. Claude never holds a secret valu
 | Vercel (Hobby)       | Project `bookrough`, region `fra1`; env vars per environment (`DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `LOG_LEVEL`, `VITE_GOOGLE_CLIENT_ID`); Deployment Protection "Require Log In" on for previews |
 | Neon (Free)          | Project `bookrough-frankfurt`; branch `production` and branch `preview` (shared by every preview — reset it from its parent if a migration breaks it)                                                                        |
 | Google Cloud Console | The OAuth web client: JavaScript origins `http://localhost:5173` and `https://bookrough.vercel.app` (origins, not redirect URIs)                                                                                             |
-| GitHub Actions       | Secret `VERCEL_TOKEN` (team-scoped Vercel token for registry pruning — note its expiry here when created); variables `VERCEL_TEAM`, `PRUNE_IMAGES`                                                                           |
+| GitHub Actions       | Secret `VERCEL_TOKEN` (team-scoped Vercel token for deployment pruning — note its expiry here when created); variables `VERCEL_TEAM`, `PRUNE_DEPLOYMENTS` (`PRUNE_IMAGES` is obsolete since 2026-11-16 and can be deleted)   |
 | Local                | `backend/.env` and `frontend/.env`, copied from their `.env.example` files                                                                                                                                                   |
 
 The one admin account has `users.role = 'ADMIN'`, set directly in Neon — no endpoint grants it.

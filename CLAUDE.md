@@ -328,7 +328,7 @@ Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feed
 
 **`main.yml` — runs on push to `main` and on a nightly schedule:**
 
-- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, security headers, graceful shutdown) — and, on push only, `prune-images`, which keeps the Vercel registry at the 4 newest backend images (a dry run until the repository variable `PRUNE_IMAGES` is `delete`; docs/features/production-hardening.md §3.8).
+- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, security headers, graceful shutdown) — and `prune-deployments`, which keeps only the live Vercel production deployment and its rollback target (a dry run until the repository variable `PRUNE_DEPLOYMENTS` is `delete`; docs/features/deployment-pruning.md).
 
 E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
 

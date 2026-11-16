@@ -64,7 +64,7 @@ Keep it short and in the developer's language (Hebrew in an RTL view, CLAUDE.md 
 
 - One verdict line: **Safe to deploy**, **Safe, but watch X**, or **Stop: X is at N%**.
 - A small table: the three storage meters (value, limit, %, change since last reading), then any Watch or Stop meter.
-- When a storage meter is Watch or Stop, the remedy: delete old backend images in the project's Images tab (keep the current production image) and old deployments, and check whether the `prune-images` job ran on the last push to `main` (docs/features/production-hardening.md §3.8). Deleting frees the meter gradually, within about a day.
+- When a storage meter is Watch or Stop, the remedy: delete old backend images in the project's Images tab (keep the current production image) and old deployments, and check whether the `prune-deployments` job ran on the last push to `main` and is deleting, not dry-running (docs/features/deployment-pruning.md). Registry images have no job: Vercel refuses the registry API on Hobby. Deleting frees the meter gradually, within about a day.
 
 ## Before a merge into main
 
