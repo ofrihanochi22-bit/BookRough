@@ -130,6 +130,8 @@ No endpoint changes. Backend changes are measurement only.
 
 ### 4.1 Cold-start logs
 
+> **Superseded in part (2026-11-16):** the measurements below led to `docs/features/migrate-check-on-start.md`. The start command is now `node dist/index.js`; the timestamps and `Migrations finished` are gone, replaced by `Migrations up to date` (`checkMs`) or `Migrations applied` (`checkMs`, `migrateMs`), and `bootMs` counts from process start. `Database connected` is logged only when that check is off.
+
 Three `info` lines from the logger, context `startup`:
 
 | Message               | Fields                  | How measured                                                                                                                                                                                                                                                                                     |
