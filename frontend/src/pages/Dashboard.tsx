@@ -23,6 +23,7 @@ import { roleLabel } from '../lib/communityRoles';
 import { badgeText } from '../lib/friendCopy';
 import { bellLabel } from '../lib/notificationCopy';
 import { useNotifications } from '../stores/notifications';
+import { BELL_GLYPH } from '../components/ui/appIcons';
 
 /** The way into the notification center — notifications.md §5.1. */
 function NotificationsBell() {
@@ -39,8 +40,7 @@ function NotificationsBell() {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" />
-        <path d="M10 20a2 2 0 0 0 4 0" />
+        {BELL_GLYPH}
       </svg>
       {unread > 0 && (
         <span

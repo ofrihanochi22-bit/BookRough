@@ -489,9 +489,7 @@ describe('Profile — How BookRough works', () => {
 
     // Assert
     const dialog = screen.getByRole('dialog', { name: 'How BookRough works' });
-    expect(
-      within(dialog).getByRole('heading', { name: 'Welcome to BookRough' }),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Songs that travel' })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Skip' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.markTutorialSeen).not.toHaveBeenCalled();
