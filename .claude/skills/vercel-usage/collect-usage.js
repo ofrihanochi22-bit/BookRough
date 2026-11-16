@@ -5,6 +5,7 @@
 // script scrolls step by step and keeps what it has seen in window.__vercelUsage. One call stops
 // after ~35 s (the tool times out at 45 s); call it again until `done` is true. Each meter is keyed
 // "<group> / <meter>", e.g. "Images / Storage" or "Deployment Storage / Functions Storage".
+/* global window, document, Node, setTimeout -- runs in the browser page, not in Node */
 await (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const text = (e) => (e.innerText || '').trim().replace(/\s+/g, ' ');
