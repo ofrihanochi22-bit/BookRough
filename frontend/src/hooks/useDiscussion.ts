@@ -9,6 +9,7 @@ import {
   type PublicComment,
 } from '../api/comments';
 import { useRequest } from './useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 
 export type Person = PublicComment['author'];
 
@@ -29,7 +30,7 @@ export interface Discussion {
 /** The post's discussion: loaded once, then changed in place as the viewer writes. */
 export function useDiscussion(postId: string): Discussion {
   const load = useCallback(() => listComments(postId), [postId]);
-  const state = useRequest(load);
+  const state = useRequest(load, { key: cacheKeys.comments(postId) });
   const [local, setLocal] = useState<{ base: PublicComment[]; comments: PublicComment[] } | null>(
     null,
   );

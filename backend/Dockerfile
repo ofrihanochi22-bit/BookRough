@@ -70,5 +70,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 # Bring the schema up to date, then serve. A failed migration stops the
-# container before it serves anything; `exec` gives Node the signals.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]
+# container before it serves anything; `exec` gives Node the signals. The two
+# millisecond timestamps let Node log how long the migration took
+# (docs/features/client-cache.md §4.1).
+CMD ["sh", "-c", "export BOOT_STARTED_AT=$(date +%s%3N) && npx prisma migrate deploy && export MIGRATE_FINISHED_AT=$(date +%s%3N) && exec node dist/index.js"]

@@ -1,5 +1,7 @@
 import type { CommunityRole, PublicCommunity } from './communities';
 import { api, type SuccessBody } from './client';
+import { cacheKeys as K, cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 export interface MemberUser {
   id: string;
@@ -47,11 +49,13 @@ export async function listBlocked(communityId: string): Promise<BlockedUser[]> {
 
 export async function leaveCommunity(communityId: string): Promise<void> {
   await api.delete(`${base(communityId)}/members/me`, quiet);
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
 }
 
 /** Removes and blocks a member. */
 export async function removeMember(communityId: string, userId: string): Promise<void> {
   await api.delete(`${base(communityId)}/members/${encodeURIComponent(userId)}`, quiet);
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
 }
 
 export async function changeRole(
@@ -64,6 +68,7 @@ export async function changeRole(
     { role },
     quiet,
   );
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
   return response.data.data.member;
 }
 
@@ -76,11 +81,13 @@ export async function transferOwnership(
     { userId },
     quiet,
   );
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
   return response.data.data.community;
 }
 
 export async function unblockUser(communityId: string, userId: string): Promise<void> {
   await api.delete(`${base(communityId)}/bans/${encodeURIComponent(userId)}`, quiet);
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
 }
 
 export async function updateCommunity(
@@ -92,9 +99,18 @@ export async function updateCommunity(
     changes,
     quiet,
   );
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
   return response.data.data.community;
 }
 
 export async function deleteCommunity(communityId: string): Promise<void> {
   await api.delete(base(communityId), quiet);
+  invalidate([
+    K.communities,
+    K.community(communityId),
+    K.feed(communityId),
+    K.notifications,
+    K.myList,
+    P.recs,
+  ]);
 }

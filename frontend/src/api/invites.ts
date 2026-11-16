@@ -1,5 +1,7 @@
 import type { PublicCommunity } from './communities';
 import { api, type SuccessBody } from './client';
+import { cacheKeys as K } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 export interface Invite {
   token: string;
@@ -34,6 +36,7 @@ export async function resetInvite(communityId: string): Promise<Invite> {
     undefined,
     { skipErrorToast: true },
   );
+  invalidate([]);
   return response.data.data.invite;
 }
 
@@ -51,6 +54,7 @@ export async function acceptInvite(token: string): Promise<AcceptResult> {
     undefined,
     { skipErrorToast: true },
   );
+  invalidate([K.communities, K.notifications, K.friends]);
   return response.data.data;
 }
 

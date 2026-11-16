@@ -11,12 +11,14 @@ import { PersonLink } from '../components/PersonLink';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { ScoreSticker } from '../components/ui/ScoreSticker';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { CHIP } from '../components/ui/chip';
 import { TopBar } from '../components/ui/TopBar';
 import { useDiscussion } from '../hooks/useDiscussion';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { relativeTime } from '../lib/postLinks';
 import { RATINGS_FAILED } from '../lib/ratingCopy';
 import { noLongerFriends } from '../lib/recommendationCopy';
@@ -43,8 +45,8 @@ export function PostDetail() {
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
   const loadPost = useCallback(() => getPost(postId), [postId]);
   const loadRatings = useCallback(() => listPostRatings(postId), [postId]);
-  const loaded = useRequest(loadPost);
-  const ratings = useRequest(loadRatings);
+  const loaded = useRequest(loadPost, { key: cacheKeys.post(postId) });
+  const ratings = useRequest(loadRatings, { key: cacheKeys.postRatings(postId) });
   const discussion = useDiscussion(postId);
   const [local, setLocal] = useState<LocalPost | null>(null);
   const [editing, setEditing] = useState<PublicPostRating | null>(null);
@@ -89,6 +91,7 @@ export function PostDetail() {
       {loaded.status === 'loading' && (
         <div role="status" aria-label="Loading the post" className="flex flex-col gap-4">
           <Skeleton className="aspect-square w-full" />
+          <LoadingHint />
         </div>
       )}
 

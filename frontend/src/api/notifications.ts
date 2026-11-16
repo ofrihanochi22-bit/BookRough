@@ -1,4 +1,6 @@
 import { api, type SuccessBody } from './client';
+import { cacheKeys as K } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Every caller shows its own outcome, so no global error toast. */
 const quiet = { skipErrorToast: true } as const;
@@ -50,8 +52,10 @@ export async function countUnreadNotifications(): Promise<number> {
 
 export async function markNotificationRead(id: string): Promise<void> {
   await api.post(`/notifications/${encodeURIComponent(id)}/read`, undefined, quiet);
+  invalidate([K.notifications]);
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
   await api.post('/notifications/read-all', undefined, quiet);
+  invalidate([K.notifications]);
 }

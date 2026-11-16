@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios';
 import { listPosts, type PostsPage, type PublicPost } from '../api/posts';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { dismissTutorialItem } from '../lib/tutorial';
 import { SAVE_TIP } from '../lib/tutorialCopy';
 import { useAuthStore } from '../stores/auth';
@@ -14,6 +15,7 @@ import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
 import { LineIcon } from './ui/LineIcon';
 import { LoadError } from './ui/LoadError';
+import { LoadingHint } from './ui/LoadingHint';
 import { Skeleton } from './ui/Skeleton';
 
 interface CommunityFeedProps {
@@ -50,7 +52,7 @@ interface LocalChanges {
  */
 export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeedProps) {
   const load = useCallback(() => listPosts(communityId), [communityId]);
-  const first = useRequest(load);
+  const first = useRequest(load, { key: cacheKeys.feed(communityId), persist: true });
   const { reload } = first;
   const seenRefreshKey = useRef(refreshKey);
   useEffect(() => {
@@ -169,6 +171,7 @@ export function CommunityFeed({ communityId, onGone, refreshKey }: CommunityFeed
         <div role="status" aria-label="Loading posts" className="flex flex-col gap-4">
           <Skeleton className="h-56" />
           <Skeleton className="h-56" />
+          <LoadingHint />
         </div>
       )}
 

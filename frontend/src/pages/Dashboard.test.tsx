@@ -309,7 +309,7 @@ describe('Home (ui-redesign.md §5.1)', () => {
 
     // Assert
     const loading = screen.getByRole('status', { name: 'Loading your communities' });
-    expect(loading.children).toHaveLength(3);
+    expect(loading.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Search' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
