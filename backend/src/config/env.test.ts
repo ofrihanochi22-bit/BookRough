@@ -248,6 +248,31 @@ describe('parseEnv', () => {
     },
   );
 
+  it.each(['true', ' TRUE ', 'True'])(
+    'turns the migration check on for MIGRATE_ON_START=%j',
+    (value) => {
+      // Act
+      const parsed = parseEnv({ ...validEnv, NODE_ENV: 'production', MIGRATE_ON_START: value });
+
+      // Assert
+      expect(parsed.MIGRATE_ON_START).toBe(true);
+    },
+  );
+
+  it.each([undefined, '', 'false', '1', 'yes'])(
+    'leaves the migration check off for MIGRATE_ON_START=%j',
+    (value) => {
+      // Arrange
+      const source = value === undefined ? validEnv : { ...validEnv, MIGRATE_ON_START: value };
+
+      // Act
+      const parsed = parseEnv(source);
+
+      // Assert
+      expect(parsed.MIGRATE_ON_START).toBe(false);
+    },
+  );
+
   it('turns the onboarding tutorial on when TUTORIAL_ENABLED is unset', () => {
     // Act
     const parsed = parseEnv(validEnv);

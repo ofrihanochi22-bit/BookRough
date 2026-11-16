@@ -3132,7 +3132,7 @@ cd frontend && npx vitest run src/pages/CompleteProfile src/components/Walkthrou
 
 ### Step 6.1w — Client-side cache and a clearer cold start (Phase 6 — every read screen: UC-4, 5, 6, 7, 8, 9, 10, 12, 13, 16, 19, 20, 21, 22; improvement round point 5)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged, PR #69)
 Branch: feat/client-cache
 Spec: `docs/features/client-cache.md`
 
@@ -3181,6 +3181,62 @@ cd frontend && npx vitest run src/lib src/hooks src/api/invalidation src/api/cac
 ```bash
 cd backend && npx vitest run src/utils/startupTiming
 ```
+
+### Step 6.1x — Skip the migration step when the database is up to date (Phase 6, a follow-up to Step 6.1w; every cold open: UC-1, UC-4)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: chore/migrate-check-on-start
+Spec: `docs/features/migrate-check-on-start.md`
+
+Goal: Step 6.1w's logs showed `prisma migrate deploy` taking 1.9 to 2.6 s on every cold start in production, always with nothing pending, and each cold open starts two instances. Now an up-to-date database costs one query, and Prisma's CLI starts only when there is something to apply.
+
+What I did:
+
+- **Decision (Stage 1, 2026-11-16):** three options weighed: check first, migrate from CI, or keep as is. The developer delegated the choice (meet the app's needs, add no load, stay clear of Vercel's and Neon's limits). Chosen: check first. Migrating from CI was rejected because production's `DATABASE_URL` would have to live in GitHub too, previews would lose automatic migrations, and the image would stop being self-contained. Timed locally, most of the 2 s was the CLI starting, not the database.
+- **The check (`backend/src/db/migrateOnStart.ts`):** before `listen`, the API compares the folders under `prisma/migrations` with Prisma's `_prisma_migrations` table (raw SQL, since the table is not in `schema.prisma`). Up to date → `Migrations up to date` (`checkMs`, `count`) and serve. Otherwise, or when unsure (an empty database, a query error, an unreadable folder), it runs the CLI's own entry file with the same Node, no `npx`: success → `Migrations applied` (`checkMs`, `migrateMs`); failure → `Migrations failed` and exit 1 before serving, as before. A stop signal during the CLI is passed on to it.
+- **Switch:** `MIGRATE_ON_START` (`config/env.ts`, `.env.example`): only `true` turns it on. Off locally and in the E2E job.
+- **Dockerfile (approved by the developer, delegated):** `ENV MIGRATE_ON_START=true` and `CMD ["node", "dist/index.js"]`. No `sh`, no timestamps: `tini` signals Node directly. `startupTimings` and its variables are removed; `bootMs` now counts from process start. `Database connected` is logged only when the check is off, since `checkMs` already covers the connection.
+- **CI (`main.yml`, `test:docker`):** the first start must log `Migrations applied`; a `docker restart` must log `Migrations up to date` and answer `/api/health`.
+- **Measured locally (Docker Desktop, fresh Postgres):** first start `migrateMs` 1507, `bootMs` 2564; three restarts `checkMs` 67 to 76, `bootMs` 619 to 654. A failed migration row made the container exit 1 with Prisma's own message. Graceful stop still exits 0.
+- **Docs:** `deployment` §3.5 and §3.6 (.md + .docx); `client-cache.md` §4.1 marked as superseded in part.
+- **Code review** (`/code-review`, 6 findings): fixed: CRLF line endings from a scripted edit; a stop signal during the CLI would have orphaned it (now forwarded); `client-cache.md` §4.1 out of date; `MIGRATE_ON_START` missing from `.env.example`; folder checks run in parallel. Skipped: sharing one helper for the three boolean switches in `env.ts` (a refactor outside this change).
+- **Security review** (`/security-review`): no findings. The query is a static template, the CLI is spawned without a shell with fixed arguments, and no request data reaches either.
+- **Tests:** `src/db/migrateOnStart.test.ts` (the up-to-date rule, every path through the check, the folder listing, the spawn and signal forwarding), `src/db/migrateOnStart.integration.test.ts` (the real check and the real CLI against `music_app_test_db`), and the switch in `src/config/env.test.ts`. Backend 1488 tests in 82 files, 99.0% lines (both suites).
+
+How to view & test:
+
+```bash
+cd backend && npx vitest run src/db/migrateOnStart.test.ts src/config/env.test.ts
+```
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/db/migrateOnStart
+```
+
+The image, against a throwaway Postgres (CI-only values, as in `test:docker`):
+
+```bash
+docker build -t bookrough-api backend
+```
+
+```bash
+docker run -d --name api-pg -e POSTGRES_USER=bookrough -e POSTGRES_PASSWORD=bookrough -e POSTGRES_DB=music_app_test_db -p 5440:5432 postgres:16
+```
+
+```bash
+docker run -d --name api --add-host=host.docker.internal:host-gateway -p 4090:4000 -e DATABASE_URL=postgresql://bookrough:bookrough@host.docker.internal:5440/music_app_test_db -e JWT_SECRET=ci-only-secret-value-that-is-long-enough-to-pass-validation -e GOOGLE_CLIENT_ID=ci-only-client-id.apps.googleusercontent.com bookrough-api
+```
+
+```bash
+docker restart api && docker logs api 2>&1 | grep startup
+```
+
+1. The first `startup` line says `Migrations applied`; after the restart it says `Migrations up to date`, and `API listening` shows a much smaller `bootMs`.
+2. After the merge: open the app after more than 5 idle minutes, then read Vercel → Logs. Each instance should log `Migrations up to date` with `checkMs`, and `bootMs` should be far below the old 2.6 to 3.5 s. Record the numbers in `docs/deployment.md` §3.6.
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
