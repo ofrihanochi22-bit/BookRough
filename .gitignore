@@ -39,3 +39,6 @@ Thumbs.db
 
 # Claude Code local worktrees (scratch, never shared)
 .claude/worktrees/
+
+# /vercel-usage reading log (local; a reading must never leave an uncommitted change)
+.claude/vercel-usage-history.md
