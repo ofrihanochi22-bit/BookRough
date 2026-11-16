@@ -1,6 +1,8 @@
+import toast from 'react-hot-toast';
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -8,10 +10,17 @@ import {
 } from 'react';
 
 import { dismissTutorialItem } from '../lib/tutorial';
-import { WALKTHROUGH_CARDS } from '../lib/tutorialCopy';
+import {
+  guideServices,
+  guideSlides,
+  KEYS_HINT,
+  REOPEN_HINT,
+  SWIPE_HINT,
+} from '../lib/tutorialCopy';
+import { useAuthStore } from '../stores/auth';
 
+import { GuidePictureView } from './guide/GuidePictures';
 import { Button } from './ui/Button';
-import { ReelCassette } from './ui/Cassette';
 import { MIXTAPE_H1 } from './ui/heading';
 
 interface WalkthroughProps {
@@ -24,28 +33,48 @@ interface WalkthroughProps {
 }
 
 const FOCUSABLE = 'button:not([disabled]), [tabindex]:not([tabindex="-1"])';
-/** A horizontal drag this long (px) turns the card. */
+/** A horizontal drag this long (px) turns the slide. */
 const SWIPE_DISTANCE = 50;
 
+/** A touch screen reads "Tap" and the swipe hint; a mouse, "Click" and the arrow keys. */
+function isTouch(): boolean {
+  return window.matchMedia?.('(pointer: coarse)').matches ?? false;
+}
+
 /**
- * The onboarding walkthrough — docs/features/onboarding-tutorial.md §5.1.
- * Five full-screen cards over the tab screens. Skip, Escape and Get started
- * all close it; Next/Back, swiping and the arrow keys move between cards.
+ * The onboarding guide — docs/features/onboarding-tutorial.md §5.1. Six
+ * full-screen slides over the tab screens, each picturing a screen drawn in
+ * code with the control to use ringed. Skip, Escape and Get started all close
+ * it; Next/Back, swiping and the arrow keys move between slides.
  */
 export function Walkthrough({ mode, onClose }: WalkthroughProps) {
   const [index, setIndex] = useState(0);
   const panel = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const dragStart = useRef<number | null>(null);
-  const last = WALKTHROUGH_CARDS.length - 1;
-  const card = WALKTHROUGH_CARDS[index]!;
+  const user = useAuthStore((state) => state.user);
+  const service = user?.preferredService ?? null;
+  // Read once on open (§5.1): the wording does not flip mid-guide.
+  const [touch] = useState(isTouch);
+  const slides = useMemo(() => guideSlides({ touch, service }), [touch, service]);
+  const { yours, theirs } = guideServices(service);
+  const last = slides.length - 1;
+  const slide = slides[index]!;
 
-  const close = useCallback(() => {
-    if (mode === 'first') {
-      dismissTutorialItem('walkthrough');
-    }
-    onClose();
-  }, [mode, onClose]);
+  /** `early`: closed by Skip or Escape before the last slide. */
+  const close = useCallback(
+    (early: boolean) => {
+      if (mode === 'first') {
+        dismissTutorialItem('walkthrough');
+        if (early) {
+          toast(REOPEN_HINT);
+        }
+      }
+      onClose();
+    },
+    [mode, onClose],
+  );
+  const skip = useCallback(() => close(index < last), [close, index, last]);
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -57,18 +86,22 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
     };
   }, []);
 
-  // Escape is heard on the document, as in Sheet: focus can be on <body>.
+  // Escape and the arrow keys are heard on the document, as in Sheet: focus can be on <body>.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
-        close();
+        skip();
+      } else if (event.key === 'ArrowRight') {
+        setIndex((current) => Math.min(current + 1, last));
+      } else if (event.key === 'ArrowLeft') {
+        setIndex((current) => Math.max(current - 1, 0));
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [close]);
+  }, [skip, last]);
 
-  // Each card's heading takes focus, so a screen reader reads the new card.
+  // Each slide's heading takes focus, so a screen reader reads the new slide.
   useEffect(() => {
     heading.current?.focus();
   }, [index]);
@@ -76,11 +109,7 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
   const go = (next: number) => setIndex(Math.min(Math.max(next, 0), last));
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'ArrowRight') {
-      go(index + 1);
-    } else if (event.key === 'ArrowLeft') {
-      go(index - 1);
-    } else if (event.key === 'Tab' && panel.current) {
+    if (event.key === 'Tab' && panel.current) {
       const focusable = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE));
       const first = focusable[0];
       const end = focusable[focusable.length - 1];
@@ -125,27 +154,38 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={close}
+          onClick={skip}
           className="-mr-3 min-h-11 rounded-full px-4 text-sm font-medium text-muted"
         >
           Skip
         </button>
       </div>
 
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 text-center">
-        <ReelCassette className="w-28" />
+      <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col items-center justify-center gap-4 pt-2 pb-4 text-center">
+        {/* The picture shrinks first, and goes on a landscape phone (§6). */}
+        <div
+          role="img"
+          aria-label={slide.label}
+          className="flex max-h-80 min-h-0 flex-1 basis-80 justify-center [@media(max-height:480px)]:hidden"
+        >
+          <div aria-hidden="true" className="flex h-full max-w-[16rem] justify-center">
+            <GuidePictureView picture={slide.picture} user={user} yours={yours} theirs={theirs} />
+          </div>
+        </div>
         <h2 ref={heading} tabIndex={-1} className={`${MIXTAPE_H1} outline-none`}>
-          {card.title}
+          {slide.title}
         </h2>
-        <p className="text-base text-muted">{card.body}</p>
+        <p className="text-base text-muted">{slide.body}</p>
+        {index === 0 && <p className="text-sm text-muted">{touch ? SWIPE_HINT : KEYS_HINT}</p>}
       </div>
 
       <div className="mx-auto w-full max-w-md">
         <p className="sr-only">
-          Step {index + 1} of {WALKTHROUGH_CARDS.length}
+          Step {index + 1} of {slides.length}
         </p>
+        {index === last && <p className="mb-3 text-center text-sm text-muted">{REOPEN_HINT}</p>}
         <div aria-hidden="true" className="mb-6 flex justify-center gap-2">
-          {WALKTHROUGH_CARDS.map((item, position) => (
+          {slides.map((item, position) => (
             <span
               key={item.title}
               data-current={position === index || undefined}
@@ -164,7 +204,7 @@ export function Walkthrough({ mode, onClose }: WalkthroughProps) {
               Next
             </Button>
           ) : (
-            <Button className="flex-1" onClick={close}>
+            <Button className="flex-1" onClick={() => close(false)}>
               Get started
             </Button>
           )}
