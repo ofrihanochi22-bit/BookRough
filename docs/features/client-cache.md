@@ -8,7 +8,7 @@
 | **Use cases** | None of its own. Changes how every read screen loads: UC-4, 5, 6, 7, 8, 9, 10, 12, 13, 16, 19, 20, 21, 22 |
 | **Phase**     | 6 (improvement round, point 5)                                                                            |
 | **Branch**    | `feat/client-cache`                                                                                       |
-| **Status**    | ☑ Spec approved (2026-11-16) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                           |
+| **Status**    | ☑ Spec approved (2026-11-16) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                           |
 
 ---
 
