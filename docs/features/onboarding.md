@@ -112,7 +112,7 @@ Top to bottom: heading "Complete your profile"; avatar choice; display name; str
   - checking (debounced 400 ms) → small spinner "Checking…";
   - available → "✓ Available";
   - taken → "That display name is already taken."; reserved → "That name is reserved.";
-  - check failed (network) → "Couldn't check right now — we'll check when you continue." (does not block submit).
+  - check failed (network) → "Couldn't check right now. We'll check when you continue." (does not block submit).
 - **Streaming service:** five large radio buttons (Spotify, Apple Music, YouTube, Tidal, Deezer), each ≥ 44 px tall, **none selected**. Label: "Where do you listen?"
 - **Continue:** disabled until the name is valid and not known-taken/reserved and a service is chosen. While saving: busy "Saving…". On `409`: the name status switches to "taken" and the button returns. On success: the store is updated and the guard moves to `/home`.
 - **Loading state:** the session is already resolved by `SessionGate`; the screen renders immediately.

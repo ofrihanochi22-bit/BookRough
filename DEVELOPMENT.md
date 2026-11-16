@@ -3087,6 +3087,49 @@ cd frontend && npm run dev
 cd frontend && npx vitest run src/pages/CompleteProfile src/pages/Profile
 ```
 
+### Step 6.1v — No em dash in user-facing copy (Phase 6 — UC-1, UC-4, UC-12 and UC-13 copy only; improvement round point 2)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/copy-no-em-dash
+Spec: `docs/features/onboarding-tutorial.md` §5, `docs/features/onboarding.md` §6 (quoted copy updated)
+
+Goal: the long dash (—) in the app's copy read like machine-written text. Every string the user sees is rewritten so it needs no dash. Behaviour is unchanged.
+
+What I did:
+
+- **Inventory:** of about 360 lines with an em or en dash under `frontend/src` and `backend/src`, only five are copy the user sees. The rest are comments, test names, server start-up checks, log warnings and a test-only route. The PWA manifest and `index.html` have none, and no backend error `message` has one.
+- **Rules (agreed with the developer, 2026-11-15):** the en dash in ranges ("Use 2–40 characters.") stays, and so does the "–/10" readout on the rating sheet before a score is picked. Only the em dash used as a sentence dash goes.
+- **Rewrites (approved in bulk):** in `frontend/src/lib/tutorialCopy.ts`, the walkthrough cards "Share a song" ("…straight to a friend. Paste a link from any service.") and "Friends and notifications" ("Add friends on the Friends tab, where search finds anyone."), the save tip ("Save a song to listen later. You'll rate it from My List.") and the list tip ("Listened? Rate it here. Your score shows on the post."). In `frontend/src/components/DisplayNameField.tsx`, a failed name check now reads "Couldn't check right now. We'll check when you continue." (or "save" on My Profile). The two feature specs quote the new copy.
+- **Guard:** `eslint.config.js` has a `no-restricted-syntax` rule that fails on an em dash in a string literal, a template literal (cooked text, so a `—` escape is caught too) or JSX text. It covers `frontend/src` and the backend layers whose `AppError` messages reach users as toasts (`backend/src/{services,controllers,middleware,utils}`). Test files and comments are not checked. It runs in pre-commit and in CI's `lint` job, and needs no new dependency. Two E2E stand-in warnings on stderr in those layers now use a colon so the rule passes.
+- **Code review** (`/code-review`, 5 findings, all handled): the guard first covered only the frontend, so it now includes the backend's error-message layers. The template selector read the raw text and missed `—` escapes, so it now reads the cooked text. The branch had no `fix/` prefix, so the work moved to `fix/copy-no-em-dash`. The "save" wording on My Profile had no test, so one was added. Flat config would silently drop the guard if another block set the same rule, so the config now carries a comment saying where new selectors go.
+- **Tests:** `CompleteProfile.test.tsx` asserts the full "…when you continue." sentence, and `Profile.test.tsx` gains a test for "…when you save." The other tests match on the start of each tip, which is unchanged. No E2E selector uses any of these strings.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. On Complete Your Profile (a new account via Create account), stop the backend and type a name: the hint reads "Couldn't check right now. We'll check when you continue."
+2. On Home after onboarding, the walkthrough's "Share a song" and "Friends and notifications" cards have no dash. To replay it, open My Profile → How BookRough works.
+3. In a community with a friend's post, and on My List, the two tips read as full sentences.
+
+```bash
+npm run lint
+```
+
+```bash
+cd frontend && npx vitest run src/pages/CompleteProfile src/components/Walkthrough src/pages/MyList src/components/CommunityFeed
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

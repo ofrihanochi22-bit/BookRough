@@ -99,10 +99,10 @@ Visual treatment: the simplest that fits Mixtape (developer, defer visual design
 - **Layout (375px first):** a full-screen `role="dialog"` `aria-modal` overlay on `canvas`. Top right "Skip". Centre: heading + one or two lines. Bottom: five progress dots (current marked, `aria-current="step"`), "Back" (from card 2) and "Next"; on card 5 "Next" becomes **"Get started"**. Swipe left/right and arrow keys move between cards. Focus is trapped in the dialog and starts on the heading; Escape = Skip.
 - **Cards** (final copy, English):
   1. **Welcome to BookRough** — Share music with your friends, whatever service each of you listens on.
-  2. **Share a song** — Tap Share in the middle of the bar. Send a song to a community or straight to a friend — paste a link from any service.
+  2. **Share a song** — Tap Share in the middle of the bar. Send a song to a community or straight to a friend. Paste a link from any service.
   3. **Links that travel** — Each friend gets the song on their own service, the one in their profile. Converting a link takes a few seconds.
   4. **Save, listen, rate** — Save a community post with the bookmark and it goes to My List. Once you've listened, rate it there, 1 to 10. A song a friend sends you can be rated right from Recommendations.
-  5. **Friends and notifications** — Add friends on the Friends tab — search finds anyone. The bell on Home shows new posts, ratings, replies and invitations.
+  5. **Friends and notifications** — Add friends on the Friends tab, where search finds anyone. The bell on Home shows new posts, ratings, replies and invitations.
 - **Closing** (Skip, Escape or Get started): the overlay closes at once, the store marks `walkthrough` seen, and `PATCH /users/me/tutorial {seen:"walkthrough"}` is sent in the background. Failure (network, offline) is silent — no toast; the walkthrough simply returns next session. The interceptor's toast is suppressed for this call.
 - **Replay** (`mode="replay"`): same cards, sends nothing on close.
 - Loading / empty / error states: none — static content, no request before display.
@@ -111,8 +111,8 @@ Visual treatment: the simplest that fits Mixtape (developer, defer visual design
 
 A small note on `tape` paper (as the comment note), text + a "Got it" button (≥ 44px), `role="note"`. Shown once per account; dismissed by "Got it" **or** by doing the thing it explains. Either way: the store flag goes false at once and `PATCH /users/me/tutorial` is sent in the background, silent on failure. Never shown while the walkthrough is open.
 
-- **Save tip** — Community Feed: above the **first post card that shows a bookmark** (not your own post, not one you rated), when `tutorial.saveTip`. Copy: "Save a song to listen later — you'll rate it from My List." Acted on = a successful save of any post on that screen.
-- **List tip** — My List: above the **first saved card that has Rate & Review**, when `tutorial.listTip`. Copy: "Listened? Rate it here — your score shows on the post." Acted on = a submitted rating from My List.
+- **Save tip** — Community Feed: above the **first post card that shows a bookmark** (not your own post, not one you rated), when `tutorial.saveTip`. Copy: "Save a song to listen later. You'll rate it from My List." Acted on = a successful save of any post on that screen.
+- **List tip** — My List: above the **first saved card that has Rate & Review**, when `tutorial.listTip`. Copy: "Listened? Rate it here. Your score shows on the post." Acted on = a submitted rating from My List.
 - No eligible card on the screen (no posts, all your own, empty My List) → no tip; it waits for a later visit.
 
 ### 5.3 My Profile — "How BookRough works" row
