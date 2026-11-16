@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-|               |                                                                                                                                                                     |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Use cases** | No new UC. UC-1 (a walkthrough after Complete Your Profile); UC-12 and UC-13 (two tips along the rating loop)                                                       |
-| **Phase**     | 6 — Step 6.1q of `DEVELOPMENT.md`, manual-test note N4 (`docs/manual-tests/2026-11-04.md`), after the redesign; amended by Step 6.1y (improvement round point 6)    |
-| **Branch**    | `feat/onboarding-tutorial`; the amendment on `feat/illustrated-guide`                                                                                               |
-| **Status**    | ☑ Spec approved (2026-11-10) · ☑ Merged (PR #61). Amendment, the illustrated guide: ☑ Spec approved (2026-11-16) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+|               |                                                                                                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Use cases** | No new UC. UC-1 (a walkthrough after Complete Your Profile); UC-12 and UC-13 (two tips along the rating loop)                                                                |
+| **Phase**     | 6 — Step 6.1q of `DEVELOPMENT.md`, manual-test note N4 (`docs/manual-tests/2026-11-04.md`), after the redesign; amended by Step 6.1y (improvement round point 6)             |
+| **Branch**    | `feat/onboarding-tutorial`; the amendment on `feat/illustrated-guide`                                                                                                        |
+| **Status**    | ☑ Spec approved (2026-11-10) · ☑ Merged (PR #61). Amendment, the illustrated guide: ☑ Spec approved (2026-11-16) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged (PR #71) |
 
 ---
 
