@@ -215,25 +215,28 @@ jobs:
         if: failure()
         run: docker logs api || true
 
-  # Keeps the Vercel registry at the 4 newest backend images
-  # (docs/features/production-hardening.md §3.8). After both suites pass, so the
-  # newest image is the one Deployment Checks are about to promote. Push only:
-  # the nightly run deploys nothing. A dry run unless the repository variable
-  # PRUNE_IMAGES is "delete"; the plan is printed either way.
-  prune-images:
-    name: prune-images
+  # Keeps the project's production deployments at the live one and its rollback
+  # target (docs/features/deployment-pruning.md): each one stores a backend
+  # image in Functions Storage. After both suites, and nightly, which settles
+  # the count once a push's deployment has been promoted. A dry run unless the
+  # repository variable PRUNE_DEPLOYMENTS is "delete"; the plan is printed
+  # either way.
+  prune-deployments:
+    name: prune-deployments
     runs-on: ubuntu-latest
     needs: [test-e2e, test-docker]
-    if: github.event_name != 'schedule'
+    # Nightly, a red test-e2e (its live squigly.link test included) must not stop
+    # the run that settles the count; nothing deploys at night, and the plan
+    # comes from the live deployment, not from the suites.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || (needs.test-e2e.result == 'success' && needs.test-docker.result == 'success')) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Prune old images
-        run: node backend/src/ops/pruneImages.ts
+      - name: Prune old deployments
+        run: node backend/src/ops/pruneDeployments.ts
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
-          CURRENT_SHA: ${{ github.sha }}
-          PRUNE_IMAGES: ${{ vars.PRUNE_IMAGES }}
+          PRUNE_DEPLOYMENTS: ${{ vars.PRUNE_DEPLOYMENTS }}
