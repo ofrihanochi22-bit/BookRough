@@ -3238,6 +3238,57 @@ docker restart api && docker logs api 2>&1 | grep startup
 1. The first `startup` line says `Migrations applied`; after the restart it says `Migrations up to date`, and `API listening` shows a much smaller `bootMs`.
 2. After the merge: open the app after more than 5 idle minutes, then read Vercel → Logs. Each instance should log `Migrations up to date` with `checkMs`, and `bootMs` should be far below the old 2.6 to 3.5 s. Record the numbers in `docs/deployment.md` §3.6.
 
+### Step 6.1y — An illustrated guide for new users (Phase 6 — UC-1 and UC-13; improvement round point 6)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/illustrated-guide
+Spec: `docs/features/onboarding-tutorial.md` (amended 2026-11-16)
+
+Goal: the walkthrough a new user got described the site in five text cards without showing it. Now it is a guide of six slides, each picturing the screen and ringing the control to use, so people see how to join or start a community, share, save, rate and add friends.
+
+What I did:
+
+- **Decisions (Stage 1, 2026-11-16):** illustrated slides, then the two existing tips (not coach marks over the real UI, which a new user's empty screens cannot support, and not screenshots, which go stale). Six slides: songs that travel, join or start a community, share, save, rate, friends and the bell. Each picture is the whole phone screen in miniature, not a close-up. Pictures adapt to the user. Skip, dots and the Profile replay stay; a reopen hint is added. Everyone sees the new guide once, by a one-time reset.
+- **Slides (`frontend/src/lib/tutorialCopy.ts`, `components/Walkthrough.tsx`):** `guideSlides({ touch, service })` builds the six slides with their copy and each picture's accessible name. "Tap" or "Click" and the swipe or arrow-keys hint follow `matchMedia('(pointer: coarse)')`; slide 1 names the user's own service and gives the friend Spotify (Apple Music if the user is on Spotify). The last slide says "You can open this guide again from Profile."; an early Skip or Escape on the first viewing shows the same line as a toast.
+- **Pictures (`components/guide/GuidePictures.tsx`):** phone screens drawn in JSX with the Mixtape tokens and kit pieces (`Avatar`, `CommunityCover`), so they follow the accent colour and dark mode and add no image files to the PWA precache. The control to use is ringed in the accent; the ring's halo pulses only under `motion-safe:` (keyframes `guide-ring` in `index.css`). The user's own avatar stands for "you" in slides 1 and 6. The picture is `role="img"` with a label; its contents are hidden from screen readers. It shrinks first on a short screen and is hidden on a landscape phone.
+- **Shared icons (`components/ui/appIcons.tsx`):** the Home, Friends, Share, Profile, bookmark and bell shapes now live in one place, used by `BottomNav`, `BookmarkIcon`, the Home bell and the guide, so a redrawn icon changes in both.
+- **Keyboard:** the arrow keys are heard on the document (like Escape), so they work wherever focus is, but not with Alt, Ctrl or Meta held.
+- **Migration `20261116120000_reset_walkthrough_for_guide`:** data only, `UPDATE users SET walkthrough_seen_at = NULL`. The tips are not reset. No schema, API or `toPublicUser` change.
+- **Docs:** the spec (§1, §2, §3.1, §5.1, §6, §7, §9); `use cases` UC-1 and `frontend screens` (.md + .docx).
+- **Code review** (`/code-review`, 6 findings, all fixed): the old tests still targeted the five cards; the foundational docs still said "five cards"; the guide copied the real icon shapes (now shared); the document-level arrow keys ignored modifiers (Alt+Left is browser back); the service names were computed twice; slide clamping was duplicated between buttons and keys.
+- **Security review:** not run. No endpoint, authorisation or input handling changed (the flags' API is untouched); the migration is a fixed statement.
+- **Verified** on a production build at 375×812 and 375×667, light and dark: every control at least 44px tall, nothing scrolls, focus moves to each slide's heading, each picture announces its label.
+- **Tests:** `components/Walkthrough.test.tsx` (six slides in order, a picture and ring per slide, no image files, the service and avatar adaptations, Tap/Click and the hints, a missing `matchMedia`, arrow keys with and without modifiers, swipes, Skip/Escape/Get started, the reopen toast and when it is not shown, replay, the focus trap) and `backend/src/routes/tutorialReset.integration.test.ts` (the reset clears the walkthrough, keeps the tips, and leaves an onboarding user showing nothing). Frontend 1216 tests, 98.5% lines; backend 1490 tests, 99.0% lines.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate deploy && npm run dev
+```
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+1. Open `http://localhost:4173/` at phone width (DevTools, 375 px) and sign in. The guide opens over Home on slide 1, "Songs that travel", with a post picture and your own service ringed.
+2. Swipe or press Next through the six slides: each shows a phone screen with one control ringed (two on the last). The last slide says the guide can be reopened from Profile.
+3. Reload, sign in with another account that has not seen the guide, and press Skip on slide 2: a toast says "You can open this guide again from Profile."
+4. Open My Profile → "How BookRough works": the same six slides, and closing them records nothing.
+5. Switch the system to dark mode, or change the accent in Admin → Settings: the pictures follow.
+6. With "Reduce motion" on in the OS, the rings stay but do not pulse.
+
+```bash
+cd frontend && npx vitest run src/components/Walkthrough src/pages/Profile src/components/TabLayout
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tutorialReset src/routes/tutorial
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
