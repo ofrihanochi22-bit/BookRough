@@ -212,6 +212,25 @@ jobs:
         if: failure()
         run: docker logs api || true
 
+  # TEMPORARY read-only probe: can VERCEL_TOKEN list production deployments at
+  # all? (step 0 before any deployment-pruning job; the registry calls in
+  # prune-images get 403). Lists and prints; never deletes. Push only.
+  probe-deployments:
+    name: probe-deployments
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: List production deployments (read-only)
+        run: node backend/src/ops/pruneImages.ts --probe-deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
+          CURRENT_SHA: ${{ github.sha }}
+
   # Keeps the Vercel registry at the 4 newest backend images
   # (docs/features/production-hardening.md §3.8). After both suites pass, so the
   # newest image is the one Deployment Checks are about to promote. Push only:
