@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isAxiosError } from 'axios';
 
-import { runQuietly } from '../api/client';
 import { cacheSequence, getCached, invalidate, setCached } from '../lib/requestCache';
 
 export type RequestState<T> =
@@ -40,7 +39,7 @@ function isGone(error: unknown): boolean {
  * request is never shown.
  *
  * With a `key`, a cached answer is shown at once as `ready` and a fresh one is
- * fetched quietly behind it, replacing it in place (stale-while-revalidate,
+ * fetched behind it, replacing it in place (stale-while-revalidate,
  * docs/features/client-cache.md §5.1). A failed refresh keeps the cached data,
  * unless the server says the data is gone (403/404).
  */
@@ -57,8 +56,7 @@ export function useRequest<T>(
     const startedAt = cacheSequence();
     const cached = key === undefined ? undefined : getCached<T>(key);
     const hadCache = cached !== undefined;
-    const request = hadCache ? runQuietly(load) : load();
-    request.then(
+    load().then(
       (data) => {
         if (key !== undefined) {
           setCached(key, data, persist, startedAt);

@@ -159,7 +159,7 @@ Same order, same failure behaviour (a failed migration still stops the container
 | Key not cached                          | `loading` (the screen's skeleton)         | As today; success also fills the cache.                                                                                             |
 | `reload()` (Try again, after an action) | `loading`, as today                       | Removes the key first, so the reload is never answered from the cache.                                                              |
 
-- **Quiet background refresh.** A refresh behind cached data passes `skipErrorToast`, so reading offline does not toast on every screen. A `401` still reaches `onUnauthorized` and wipes everything.
+- **Quiet background refresh.** Every cached loader already passes `skipErrorToast` (each screen shows its own error state), so reading offline does not toast on every visit. A test keeps it that way for every loader in §3.1. A `401` still reaches `onUnauthorized` and wipes everything.
 - **Screens with local state** (feed, My List, Notifications, Recommendations) reset their local changes when `first.data` changes, as they do today on reload. The fresh answer usually arrives before the user can act; if it arrives after "load more", the list restarts from the fresh first page. Accepted (§6).
 - **The key changes** (another community): the new key's cache is shown, or the skeleton; an answer for the old key is never shown, as today.
 
@@ -208,7 +208,8 @@ Every screen in the table of §3.1 passes its key; nothing else in their layout 
 - ✅ Without options, behaves as today: loading, then ready (existing tests stay).
 - ✅ With a cached key: first render is `ready` with cached data, no loading state.
 - ✅ The background answer replaces the data in place and updates the cache.
-- ❌ The background refresh fails: cached data stays, status stays `ready`, and the request is made with `skipErrorToast`.
+- ❌ The background refresh fails: cached data stays and status stays `ready`, even if the key is invalidated afterwards.
+- ✅ Every cached loader of §3.1 shows no toast when the network fails.
 - ✅ Without cached data: loading, then ready, and the cache is filled.
 - ❌ Without cached data, the request fails: error state, as today.
 - ✅ `reload()` removes the key and shows loading.

@@ -68,36 +68,6 @@ export const api = axios.create({
   timeout: 15_000,
 });
 
-let quietDepth = 0;
-
-/**
- * Runs `load` with the global error toast skipped for every request it starts
- * synchronously. Used for a refresh behind cached data, so reading cached
- * screens offline does not toast on every visit (client-cache.md §5.1). A 401
- * still reaches `onUnauthorized`.
- */
-export function runQuietly<T>(load: () => Promise<T>): Promise<T> {
-  quietDepth += 1;
-  try {
-    return load();
-  } finally {
-    quietDepth -= 1;
-  }
-}
-
-// Synchronous, so it runs inside the `api.get(...)` call itself, while
-// `runQuietly` is still on the stack.
-api.interceptors.request.use(
-  (config) => {
-    if (quietDepth > 0) {
-      config.skipErrorToast = true;
-    }
-    return config;
-  },
-  undefined,
-  { synchronous: true },
-);
-
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorBody>) => {

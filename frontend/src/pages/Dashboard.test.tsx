@@ -1,7 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cacheKeys } from '../lib/cacheKeys';
+import { cacheSequence, setCached } from '../lib/requestCache';
+import { LOADING_HINT_DELAY_MS, LOADING_HINT_TEXT } from '../components/ui/LoadingHint';
 import { httpError, makeCommunity } from '../test/fixtures';
 import { useNotifications } from '../stores/notifications';
 import { Dashboard } from './Dashboard';
@@ -343,5 +346,67 @@ describe('Home (ui-redesign.md §5.1)', () => {
     expect(screen.getByText('A community is where your friends share music.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Create community' }));
     expect(screen.getByText('Create screen')).toBeInTheDocument();
+  });
+});
+
+describe('Home with the client cache (client-cache.md §5)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows cached communities on the first render, with no skeleton', () => {
+    // Arrange
+    setCached(
+      cacheKeys.communities,
+      [makeCommunity({ id: 'a', name: 'Friday Jazz' })],
+      true,
+      cacheSequence(),
+    );
+    listMyCommunities.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    expect(screen.getByRole('link', { name: /Friday Jazz/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Loading your communities' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('updates the cached list in place when the refresh brings a new community', async () => {
+    // Arrange
+    setCached(
+      cacheKeys.communities,
+      [makeCommunity({ id: 'a', name: 'Friday Jazz' })],
+      true,
+      cacheSequence(),
+    );
+    listMyCommunities.mockResolvedValue([
+      makeCommunity({ id: 'a', name: 'Friday Jazz' }),
+      makeCommunity({ id: 'b', name: 'Family' }),
+    ]);
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    expect(await screen.findByRole('link', { name: /Family/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Friday Jazz/ })).toBeInTheDocument();
+  });
+
+  it('adds the still-loading line under the skeleton after 2 seconds, not before', () => {
+    // Arrange
+    vi.useFakeTimers();
+    listMyCommunities.mockReturnValue(new Promise(() => {}));
+    renderDashboard();
+    expect(screen.queryByText(LOADING_HINT_TEXT)).not.toBeInTheDocument();
+
+    // Act
+    act(() => vi.advanceTimersByTime(LOADING_HINT_DELAY_MS));
+
+    // Assert
+    const loading = screen.getByRole('status', { name: 'Loading your communities' });
+    expect(within(loading).getByText(LOADING_HINT_TEXT)).toBeInTheDocument();
   });
 });

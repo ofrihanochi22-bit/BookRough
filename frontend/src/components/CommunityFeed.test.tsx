@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { cacheKeys } from '../lib/cacheKeys';
+import { cacheSequence, setCached } from '../lib/requestCache';
+
 import { useAuthStore } from '../stores/auth';
 import {
   httpError,
@@ -379,5 +382,40 @@ describe('CommunityFeed — the save tip', () => {
     // Assert
     await screen.findByText('Song 1');
     expect(screen.queryByText(TIP)).not.toBeInTheDocument();
+  });
+});
+
+describe('CommunityFeed with the client cache (client-cache.md §5.1)', () => {
+  const OTHER = '6c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f';
+
+  it('shows a cached first page at once, with no skeleton', () => {
+    // Arrange
+    setCached(cacheKeys.feed(ID), { posts: [post(1)], nextCursor: null }, true, cacheSequence());
+    listPosts.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    renderFeed();
+
+    // Assert
+    expect(titles()).toEqual(['Song 1']);
+    expect(screen.queryByRole('status', { name: 'Loading posts' })).not.toBeInTheDocument();
+  });
+
+  it("another community never shows this community's cached feed", () => {
+    // Arrange
+    setCached(cacheKeys.feed(ID), { posts: [post(1)], nextCursor: null }, true, cacheSequence());
+    listPosts.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    render(
+      <MemoryRouter>
+        <CommunityFeed communityId={OTHER} onGone={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(titles()).toEqual([]);
+    expect(screen.getByRole('status', { name: 'Loading posts' })).toBeInTheDocument();
+    expect(listPosts).toHaveBeenCalledWith(OTHER);
   });
 });
