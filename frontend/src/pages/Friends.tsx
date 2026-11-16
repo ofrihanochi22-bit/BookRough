@@ -25,11 +25,13 @@ import { LineIcon } from '../components/ui/LineIcon';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TAPE_PAPER } from '../components/ui/tape';
 import { SearchIconLink, TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import {
   ACTION_FAILED,
   badgeText,
@@ -78,7 +80,7 @@ const byName = (a: FriendView, b: FriendView) =>
  * A row at the top leads to Recommendations (direct-recommendations.md §5.1).
  */
 export function Friends() {
-  const loaded = useRequest(loadFriends);
+  const loaded = useRequest(loadFriends, { key: cacheKeys.friends, persist: true });
   const online = useOnlineStatus();
   const setCount = useFriendRequests((state) => state.setCount);
   const unseen = useFriendRequests((state) => state.unseen);
@@ -248,6 +250,7 @@ export function Friends() {
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
+            <LoadingHint />
           </div>
         )}
 

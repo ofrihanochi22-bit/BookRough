@@ -18,6 +18,7 @@ import { PILL_TRACK, pillTrackOptionClass } from '../components/ui/PillTrack';
 import { Sheet } from '../components/ui/Sheet';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
@@ -83,6 +84,7 @@ function ListSkeleton({ label }: { label: string }) {
       <Skeleton className="h-16" />
       <Skeleton className="h-16" />
       <Skeleton className="h-16" />
+      <LoadingHint />
     </div>
   );
 }

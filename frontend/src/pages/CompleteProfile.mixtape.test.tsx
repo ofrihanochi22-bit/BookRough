@@ -64,20 +64,60 @@ describe('Complete Your Profile (ui-redesign.md §5.13)', () => {
     expect(within(cassette()).queryByText('♪')).not.toBeInTheDocument();
   });
 
-  it('puts the selected avatar tile on tape paper and moves it when the other is chosen', async () => {
+  it('offers both avatar options as radios in one labelled group', () => {
+    // Act
+    render(<CompleteProfile />);
+
+    // Assert
+    const group = screen.getByRole('group', { name: 'Your avatar' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(2);
+    expect(within(group).getByRole('radio', { name: 'Generated' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Google photo' })).not.toBeChecked();
+  });
+
+  it('marks the selected avatar tile with an ink border and a check, never a light fill', () => {
+    // Act
+    render(<CompleteProfile />);
+
+    // Assert
+    const generated = screen.getByRole('radio', { name: 'Generated' }).closest('label');
+    const google = screen.getByRole('radio', { name: 'Google photo' }).closest('label');
+    expect(generated).toHaveClass('border-ink', 'font-semibold');
+    expect(generated).not.toHaveClass('bg-tape');
+    expect(within(generated!).getByTestId('avatar-tile-check')).toBeInTheDocument();
+    expect(google).toHaveClass('border-line');
+    expect(within(google!).queryByTestId('avatar-tile-check')).not.toBeInTheDocument();
+  });
+
+  it('moves the border, the check and the checked state when the other tile is chosen', async () => {
     // Arrange
     render(<CompleteProfile />);
     const generated = screen.getByRole('radio', { name: 'Generated' }).closest('label');
     const google = screen.getByRole('radio', { name: 'Google photo' }).closest('label');
-    expect(generated).toHaveClass('bg-tape');
-    expect(google).toHaveClass('border-line');
 
     // Act
     await userEvent.click(screen.getByRole('radio', { name: 'Google photo' }));
 
     // Assert
-    expect(google).toHaveClass('bg-tape');
-    expect(generated).not.toHaveClass('bg-tape');
+    expect(screen.getByRole('radio', { name: 'Google photo' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Generated' })).not.toBeChecked();
+    expect(google).toHaveClass('border-ink');
+    expect(within(google!).getByTestId('avatar-tile-check')).toBeInTheDocument();
+    expect(generated).toHaveClass('border-line');
+    expect(within(generated!).queryByTestId('avatar-tile-check')).not.toBeInTheDocument();
+  });
+
+  it('chooses an avatar tile from the keyboard', async () => {
+    // Arrange
+    render(<CompleteProfile />);
+    screen.getByRole('radio', { name: 'Generated' }).focus();
+
+    // Act
+    await userEvent.keyboard('{ArrowRight}');
+
+    // Assert
+    expect(screen.getByRole('radio', { name: 'Google photo' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Google photo' })).toHaveFocus();
   });
 
   it('saves the chosen values from Continue', async () => {

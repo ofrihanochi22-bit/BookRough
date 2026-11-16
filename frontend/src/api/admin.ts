@@ -1,5 +1,7 @@
 import { api, type SuccessBody } from './client';
 import type { StreamingService } from '../stores/auth';
+import { AVATAR_KEYS } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Mirrors the backend's AdminUser (docs/features/admin-panel.md §4.2). */
 export interface AdminUser {
@@ -36,6 +38,7 @@ export async function removeUserPhoto(userId: string): Promise<AdminUser> {
     `/admin/users/${encodeURIComponent(userId)}/avatar`,
     { skipErrorToast: true },
   );
+  invalidate([...AVATAR_KEYS]);
   return response.data.data.user;
 }
 

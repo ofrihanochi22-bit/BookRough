@@ -11,6 +11,7 @@ import { CommunityCover } from '../components/ui/CommunityCover';
 import { EmptyState } from '../components/ui/EmptyState';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -82,6 +83,7 @@ function InviteContent({ token }: { token: string }) {
             <Skeleton className="mx-auto h-5 w-1/3" />
             <Skeleton className="h-36 rounded-xl" />
             <Skeleton className="mx-auto h-5 w-1/4" />
+            <LoadingHint />
           </div>
         )}
 

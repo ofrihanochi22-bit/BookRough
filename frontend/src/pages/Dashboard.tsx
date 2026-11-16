@@ -7,9 +7,11 @@ import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { HEADER_ICON, SearchIconLink, TopBar } from '../components/ui/TopBar';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import {
   COMMUNITIES_LOAD_FAILED,
   CREATE_COMMUNITY_PATH,
@@ -21,6 +23,7 @@ import { roleLabel } from '../lib/communityRoles';
 import { badgeText } from '../lib/friendCopy';
 import { bellLabel } from '../lib/notificationCopy';
 import { useNotifications } from '../stores/notifications';
+import { BELL_GLYPH } from '../components/ui/appIcons';
 
 /** The way into the notification center — notifications.md §5.1. */
 function NotificationsBell() {
@@ -37,8 +40,7 @@ function NotificationsBell() {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z" />
-        <path d="M10 20a2 2 0 0 0 4 0" />
+        {BELL_GLYPH}
       </svg>
       {unread > 0 && (
         <span
@@ -61,7 +63,7 @@ function NotificationsBell() {
  * The header sits outside the request states, so it shows in every state.
  */
 export function Dashboard() {
-  const communities = useRequest(listMyCommunities);
+  const communities = useRequest(listMyCommunities, { key: cacheKeys.communities, persist: true });
 
   return (
     <ScreenLayout>
@@ -85,6 +87,7 @@ export function Dashboard() {
           <Skeleton className="h-[104px]" />
           <Skeleton className="h-[104px]" />
           <Skeleton className="h-[104px]" />
+          <LoadingHint />
         </div>
       )}
 

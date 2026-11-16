@@ -2968,6 +2968,327 @@ To change the artwork later: edit `icon.svg` (and `CassetteMark` together — th
 node frontend/scripts/render-icons.mjs
 ```
 
+### Step 6.1s — No white box behind the Google button (Phase 6 — UC-1, a bug fix; improvement round point 1)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/google-button-white-box
+Spec: none (a bug fix; no spec describes the button's backdrop)
+
+Goal: in dark mode, the "Sign in with Google" button on Welcome sits straight on the dark canvas, not inside a white rectangle.
+
+What I did:
+
+- **Cause.** Google draws its button in an iframe from `accounts.google.com`, whose page declares no `color-scheme` (it is `normal`, i.e. light). In dark mode our `:root` sets `color-scheme: dark`, and the iframe inherited it. When an iframe's scheme differs from its page's, Chromium and Safari paint an opaque backdrop in the page's default colour (white) behind the whole iframe: a 280 × 44 px white box around the dark pill. Seen in Chrome and Edge.
+- **Fix.** `frontend/src/components/GoogleCredentialButton.tsx` wraps `GoogleLogin` in a `div` with `style={{ colorScheme: 'normal' }}`, so the iframe matches Google's page and stays transparent. Google's button and its `filled_black` / `outline` theme are unchanged. It covers every place that uses the component: Welcome, the invite preview and My Profile's "Use my Google photo".
+- **Code review** (4 findings): the first test checked only a Tailwind class name, not the CSS value, and found the wrapper through `parentElement`. Fixed by switching to an inline style asserted with `toHaveStyle` and using `closest('div')`. The test sat in `GoogleSignIn.test.tsx` rather than next to the component (§10 colocation). Fixed with a new `GoogleCredentialButton.test.tsx`. The last finding: the fix assumes Google's page keeps declaring no scheme. Skipped, because that is how Google serves it today; the comment in the code names the assumption.
+- **Tests:** `GoogleCredentialButton.test.tsx` (new) asserts the wrapper's `color-scheme: normal`. It fails with the fix removed. Frontend: 90 files, 1073 tests, 97.8% lines.
+- **Browser check:** Google's iframe does not load in Claude's browser pane, so the real button could not be seen there. A local page with the same setup (a dark page, a 280 × 44 iframe with no declared scheme, and a dark pill) showed the white box without the wrapper and none with it.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Set the computer to dark mode, then open `http://localhost:5173/` in Chrome or Edge, signed out.
+2. The Google button sits directly on the dark background, with no white rectangle around it. Switch between Sign in and Create account: still no box.
+3. Switch the computer to light mode: the light outlined button, also with no box.
+4. At 375 px (DevTools → device toolbar), the same.
+
+```bash
+cd frontend && npx vitest run src/components/GoogleCredentialButton.test.tsx
+```
+
+### Step 6.1t — A friend's name in the invite list no longer leaves the form (Phase 6 — UC-9, a bug fix; improvement round point 4)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/invite-friend-rows
+Spec: `docs/features/invite-friends.md` §5.1 (amended)
+
+Goal: on Create Community, tapping a friend's name in "Invite friends" ticks them instead of opening their profile and losing the half-filled form.
+
+What I did:
+
+- **Where the row appeared.** `FriendPicker` is the only friend row inside a form or picker that linked to a profile. It is used in two places: the Create Community form (checkboxes) and the Invite friends panel, opened from the community page and from Community Settings (Invite / Invited buttons). The recipient picker for direct recommendations was already a whole-row button. The member list on Community Settings is a list, not a form, and keeps its profile links.
+- **Fix.** `components/PersonLink.tsx` gains `PersonName`, the same avatar and name as plain text, sharing its markup with `PersonLink`. `FriendPicker` uses it in both modes, so no name is a profile link. On the Create form the whole row is the checkbox's `<label>`: a tap on the avatar, the name or the box toggles it (row 44 px tall, pressed state `bg-canvas`); the checkbox keeps its one accessible name, "Invite {name}". In the panel only the buttons act, as agreed with the developer.
+- **Code review** (4 findings, all fixed): no test covered the fix (added below); spec §5.1 did not describe the plain-text rows (amended); the first version copied `PersonLink`'s avatar-and-name markup (now shared through `PersonName`); the tappable row had no pressed feedback (added). No `/security-review`: presentation only, no auth, input or external service.
+- **Tests:** `FriendPicker.test.tsx`: a tap on the name or the avatar toggles; offline, a tap does nothing; in both modes no row is a link and a tap on the name sends nothing. `CreateCommunity.test.tsx`: a tap on the name ticks the friend, keeps the typed name, and Create invites them. Frontend: 90 files, 1078 tests, 97.8% lines.
+- **Browser check at 375 px:** a temporary page rendering only the picker (not committed). Tapping "Yael" ticked her box with no navigation; each row 327 × 44 px; no horizontal scroll.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in with an account that has at least one friend, open `http://localhost:5173/communities/new` at 375 px (DevTools → device toolbar).
+2. Type a name, then tap a friend's name, then their avatar: the checkbox ticks and unticks; the page stays on the form with the name still typed.
+3. Create: the ticked friend is invited, as before.
+4. On the new community, open Invite friends: tapping a friend's name does nothing and the sheet stays open; Invite and Invited still work.
+
+```bash
+cd frontend && npx vitest run src/components/FriendPicker.test.tsx src/pages/CreateCommunity.test.tsx
+```
+
+### Step 6.1u — Selected avatar tiles and service rows are outlined, not filled (Phase 6 — UC-1 and UC-4, presentation only; improvement round point 3)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/avatar-choice-selected-tile
+Spec: `docs/features/ui-redesign.md` §5.13, `docs/features/onboarding.md` §6, `docs/features/profile-settings.md` §5 (amended)
+
+Goal: on Complete Your Profile, the selected "Your avatar" tile was a cream `tape` block. The pale generated avatar was about 1.2:1 against it, and the block clashed with the dark screen.
+
+What I did:
+
+- **Design (agreed with the developer, 2026-11-15):** option A of three mockups. Both tiles stay on the screen's own background. The selected one gets a 2px `ink` border, an `ink` check badge in its top corner and a bold label; the other keeps its 1.5px `line` outline. The padding absorbs the thicker border, so the row never shifts. The accent colour is not used (only the existing focus outline). On the dark background the generated avatar reads at about 12:1, so its colours are unchanged.
+- **Code:** `frontend/src/pages/CompleteProfile.tsx`: `AvatarTile` styling and the check badge (`LineIcon`, decorative). Radio semantics, the sr-only inputs with their names and the focus outline are unchanged.
+- **"Where do you listen?" too** (developer's go, 2026-11-15, after the code review): `components/StreamingServicePicker.tsx`, shared by Complete Your Profile and My Profile, marks the selected row the same way — 2px `ink` border and bold name, its accent radio unchanged — instead of the `tape` fill.
+- **My Profile's avatar block left as it is** (developer's choice): it has no tiles to select, only the current avatar on its tape card with a `tape-ink` ring and action buttons. The specs now say so.
+- **Code review** (4 findings): the "Where do you listen?" picker on the same screen still marked its selection with a tape fill. It was raised with the developer, who approved fixing it in this PR (above). The missing DEVELOPMENT.md entry has been written (this entry). The tests asserting class names were kept, matching the screen's other style tests, and they also assert that the selected tile has no `bg-tape`. The finding that the tile depends on the `--ink` scope needs no change: the tiles only render on the canvas.
+- **Tests:** `CompleteProfile.mixtape.test.tsx`: both options are radios in the "Your avatar" group with Generated checked; the selected tile has the `ink` border and the check, and no `tape` fill; choosing the other moves the border, the check and the checked state; arrow keys move the selection. `Profile.mixtape.test.tsx`: the selected service row has the `ink` border and no `tape` fill, and the border moves with the choice. Frontend: 90 files, 1081 tests, 97.8% lines.
+- **Browser check at 375 px** (production build of a temporary page rendering only this screen, not committed): tiles 157 × 119 px and service rows 327 × 48 px whichever is selected, no horizontal scroll; correct in dark and light schemes.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/` with a new Google account (Create account) so you land on Complete Your Profile; set DevTools to 375 px.
+2. Under "Your avatar", Generated has a cream border and a check, with no filled card. Tap Google photo: the border and check move to it.
+3. Tab to the tiles: the focus outline shows; the arrow keys switch the selection.
+4. Under "Where do you listen?", pick a service: its row gets the cream border and bold name, with no fill. The same on My Profile (`http://localhost:5173/profile`).
+
+```bash
+cd frontend && npx vitest run src/pages/CompleteProfile src/pages/Profile
+```
+
+### Step 6.1v — No em dash in user-facing copy (Phase 6 — UC-1, UC-4, UC-12 and UC-13 copy only; improvement round point 2)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: fix/copy-no-em-dash
+Spec: `docs/features/onboarding-tutorial.md` §5, `docs/features/onboarding.md` §6 (quoted copy updated)
+
+Goal: the long dash (—) in the app's copy read like machine-written text. Every string the user sees is rewritten so it needs no dash. Behaviour is unchanged.
+
+What I did:
+
+- **Inventory:** of about 360 lines with an em or en dash under `frontend/src` and `backend/src`, only five are copy the user sees. The rest are comments, test names, server start-up checks, log warnings and a test-only route. The PWA manifest and `index.html` have none, and no backend error `message` has one.
+- **Rules (agreed with the developer, 2026-11-15):** the en dash in ranges ("Use 2–40 characters.") stays, and so does the "–/10" readout on the rating sheet before a score is picked. Only the em dash used as a sentence dash goes.
+- **Rewrites (approved in bulk):** in `frontend/src/lib/tutorialCopy.ts`, the walkthrough cards "Share a song" ("…straight to a friend. Paste a link from any service.") and "Friends and notifications" ("Add friends on the Friends tab, where search finds anyone."), the save tip ("Save a song to listen later. You'll rate it from My List.") and the list tip ("Listened? Rate it here. Your score shows on the post."). In `frontend/src/components/DisplayNameField.tsx`, a failed name check now reads "Couldn't check right now. We'll check when you continue." (or "save" on My Profile). The two feature specs quote the new copy.
+- **Guard:** `eslint.config.js` has a `no-restricted-syntax` rule that fails on an em dash in a string literal, a template literal (cooked text, so a `—` escape is caught too) or JSX text. It covers `frontend/src` and the backend layers whose `AppError` messages reach users as toasts (`backend/src/{services,controllers,middleware,utils}`). Test files and comments are not checked. It runs in pre-commit and in CI's `lint` job, and needs no new dependency. Two E2E stand-in warnings on stderr in those layers now use a colon so the rule passes.
+- **Code review** (`/code-review`, 5 findings, all handled): the guard first covered only the frontend, so it now includes the backend's error-message layers. The template selector read the raw text and missed `—` escapes, so it now reads the cooked text. The branch had no `fix/` prefix, so the work moved to `fix/copy-no-em-dash`. The "save" wording on My Profile had no test, so one was added. Flat config would silently drop the guard if another block set the same rule, so the config now carries a comment saying where new selectors go.
+- **Tests:** `CompleteProfile.test.tsx` asserts the full "…when you continue." sentence, and `Profile.test.tsx` gains a test for "…when you save." The other tests match on the start of each tip, which is unchanged. No E2E selector uses any of these strings.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. On Complete Your Profile (a new account via Create account), stop the backend and type a name: the hint reads "Couldn't check right now. We'll check when you continue."
+2. On Home after onboarding, the walkthrough's "Share a song" and "Friends and notifications" cards have no dash. To replay it, open My Profile → How BookRough works.
+3. In a community with a friend's post, and on My List, the two tips read as full sentences.
+
+```bash
+npm run lint
+```
+
+```bash
+cd frontend && npx vitest run src/pages/CompleteProfile src/components/Walkthrough src/pages/MyList src/components/CommunityFeed
+```
+
+### Step 6.1w — Client-side cache and a clearer cold start (Phase 6 — every read screen: UC-4, 5, 6, 7, 8, 9, 10, 12, 13, 16, 19, 20, 21, 22; improvement round point 5)
+
+Status: ✅ Done (merged, PR #69)
+Branch: feat/client-cache
+Spec: `docs/features/client-cache.md`
+
+Goal: moving between screens showed an empty skeleton every time, and opening the app after a quiet spell showed skeletons for 4–5 s while the Vercel container and Neon woke up. Now a screen shows its last data at once and refreshes behind it, a cold launch shows the user's communities straight away, a long wait says so calmly, and the cold start is measured.
+
+What I did:
+
+- **Cause, verified in code:** `useRequest` kept answers only in the component's state, so every visit started from "loading"; and `SessionGate` held the whole app behind GET `/auth/me`, which waits on the cold server.
+- **Cache (`frontend/src/lib/requestCache.ts`, `lib/cacheKeys.ts`, `hooks/useRequest.ts`):** `useRequest(load, { key, persist })` shows a cached answer as `ready` on the first render, fetches behind it and replaces it in place. A failed refresh keeps the cached data, except a 403/404, which shows the screen's existing error and drops the key. `reload()` drops the key and loads fresh, as before. Memory is bounded at 100 entries (least recently used goes first). An answer is not cached if a matching invalidation happened while it was in flight.
+- **On the device:** the user's own lists (Home, each community's header and first feed page, My List, notifications, recommendations, friends) are kept in `localStorage` under `bookrough.cache.v1`, labelled with the user's id: at most 40 entries, ignored after 14 days, writes coalesced, and skipped when another tab has signed in as someone else. Admin, search, other people's profiles and single posts stay in memory only.
+- **Saved session (`lib/sessionSnapshot.ts`, `stores/auth.ts`, `components/RouteGuards.tsx`):** `bookrough.session.v1` holds the public user, `needsOnboarding` and `isAdmin` (no email, no token). With one, the app opens signed in at once and checks `/auth/me` behind it: success replaces it, a 401 signs out, anything else leaves the app reading from the cache. Sign-out, every 401 and every sign-in wipe the cache and the snapshot.
+- **Invalidation map:** every write in `frontend/src/api/` calls `invalidate([...])` with the keys it makes stale (spec §3.4), so after the user's own action a screen loads fresh once and never shows the old state. A test fails if a write declares nothing.
+- **Still loading:** `components/ui/LoadingHint.tsx` adds "Still loading. This can take a few seconds." under every screen's skeleton and under the "Opening BookRough…" spinner, after 2 s. Never over cached data.
+- **Cold-start measurement:** the Dockerfile start command records a timestamp before and after `prisma migrate deploy` (approved by the developer); the API logs `Migrations finished` (`migrateMs`), `API listening` (`bootMs`) and `Database connected` (`connectMs`), context `startup` (`backend/src/utils/startupTiming.ts`). Whether migrations should move out of the start command is decided later from these numbers, in `docs/deployment.md`.
+- **Decisions (Stage 1, 2026-11-16):** built on `main` without waiting for Step 6.2; extend `useRequest` rather than adopt TanStack Query (no new dependency); a targeted invalidation map; neutral wording for the hint; measure before changing deployment. Keep-warm pings stay ruled out.
+- **Code review** (`/code-review`, 8 findings, all handled): a failed refresh followed by an invalidation could leave a screen loading with nothing in flight (now settled with the cached data); opening Received invalidated the recommendations cache on every visit (mark-seen now invalidates nothing and runs once per visit); answers could be persisted under a stale user after another tab switched accounts (writes now check the saved session); one global counter dropped unrelated in-flight answers (now per-key, via an invalidation log); every answer rewrote the whole device copy (now coalesced); eviction ignored reads (now least recently used); a quiet-refresh helper relied on synchronous axios interceptors (removed, since every cached loader already skips the toast, and a test pins that); the spec's map had drifted from the code (fixed).
+- **Security review** (`/security-review`): no findings. The snapshot never decides authorisation; the server still authorises every endpoint.
+- **Tests:** `lib/requestCache.test.ts`, `hooks/useRequest.test.tsx`, `api/invalidation.test.ts` (completeness plus every write's exact keys), `api/cachedLoaders.test.ts`, `stores/authSnapshot.test.ts`, `components/SessionGate.test.tsx`, cache cases in `Dashboard.test.tsx` and `CommunityFeed.test.tsx`, and `backend/src/utils/startupTiming.test.ts`. Frontend 1201 tests, 98.5% lines; backend 1461 tests, 99.0% lines.
+- **Step 6.2 note:** when `feat/pwa-offline` next updates from `main`, it should use `bookrough.session.v1` instead of its own snapshot and decide whether its `api` runtime cache is still needed (spec §8).
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+1. Open `http://localhost:4173/`, sign in, and open a community, then go back: Home shows its cards at once, with no skeleton.
+2. Reload the page: Home appears straight away from the device, with no "Opening BookRough…" spinner.
+3. Join or create a community, then go Home: Home shows its skeleton once and then the new community, never the old list.
+4. Stop the backend and open a screen you have not visited: after 2 s the skeleton reads "Still loading. This can take a few seconds."
+5. Sign out, then look in DevTools → Application → Local Storage: `bookrough.cache.v1` and `bookrough.session.v1` are gone.
+6. In production, after more than 5 idle minutes, open the app, then read Vercel → Logs for the three `startup` lines.
+
+```bash
+cd frontend && npx vitest run src/lib src/hooks src/api/invalidation src/api/cachedLoaders src/stores src/components/SessionGate
+```
+
+```bash
+cd backend && npx vitest run src/utils/startupTiming
+```
+
+### Step 6.1x — Skip the migration step when the database is up to date (Phase 6, a follow-up to Step 6.1w; every cold open: UC-1, UC-4)
+
+Status: ✅ Done (merged, PR #70)
+Branch: chore/migrate-check-on-start
+Spec: `docs/features/migrate-check-on-start.md`
+
+Goal: Step 6.1w's logs showed `prisma migrate deploy` taking 1.9 to 2.6 s on every cold start in production, always with nothing pending, and each cold open starts two instances. Now an up-to-date database costs one query, and Prisma's CLI starts only when there is something to apply.
+
+What I did:
+
+- **Decision (Stage 1, 2026-11-16):** three options weighed: check first, migrate from CI, or keep as is. The developer delegated the choice (meet the app's needs, add no load, stay clear of Vercel's and Neon's limits). Chosen: check first. Migrating from CI was rejected because production's `DATABASE_URL` would have to live in GitHub too, previews would lose automatic migrations, and the image would stop being self-contained. Timed locally, most of the 2 s was the CLI starting, not the database.
+- **The check (`backend/src/db/migrateOnStart.ts`):** before `listen`, the API compares the folders under `prisma/migrations` with Prisma's `_prisma_migrations` table (raw SQL, since the table is not in `schema.prisma`). Up to date → `Migrations up to date` (`checkMs`, `count`) and serve. Otherwise, or when unsure (an empty database, a query error, an unreadable folder), it runs the CLI's own entry file with the same Node, no `npx`: success → `Migrations applied` (`checkMs`, `migrateMs`); failure → `Migrations failed` and exit 1 before serving, as before. A stop signal during the CLI is passed on to it.
+- **Switch:** `MIGRATE_ON_START` (`config/env.ts`, `.env.example`): only `true` turns it on. Off locally and in the E2E job.
+- **Dockerfile (approved by the developer, delegated):** `ENV MIGRATE_ON_START=true` and `CMD ["node", "dist/index.js"]`. No `sh`, no timestamps: `tini` signals Node directly. `startupTimings` and its variables are removed; `bootMs` now counts from process start. `Database connected` is logged only when the check is off, since `checkMs` already covers the connection.
+- **CI (`main.yml`, `test:docker`):** the first start must log `Migrations applied`; a `docker restart` must log `Migrations up to date` and answer `/api/health`.
+- **Measured locally (Docker Desktop, fresh Postgres):** first start `migrateMs` 1507, `bootMs` 2564; three restarts `checkMs` 67 to 76, `bootMs` 619 to 654. A failed migration row made the container exit 1 with Prisma's own message. Graceful stop still exits 0.
+- **Docs:** `deployment` §3.5 and §3.6 (.md + .docx); `client-cache.md` §4.1 marked as superseded in part.
+- **Code review** (`/code-review`, 6 findings): fixed: CRLF line endings from a scripted edit; a stop signal during the CLI would have orphaned it (now forwarded); `client-cache.md` §4.1 out of date; `MIGRATE_ON_START` missing from `.env.example`; folder checks run in parallel. Skipped: sharing one helper for the three boolean switches in `env.ts` (a refactor outside this change).
+- **Security review** (`/security-review`): no findings. The query is a static template, the CLI is spawned without a shell with fixed arguments, and no request data reaches either.
+- **Tests:** `src/db/migrateOnStart.test.ts` (the up-to-date rule, every path through the check, the folder listing, the spawn and signal forwarding), `src/db/migrateOnStart.integration.test.ts` (the real check and the real CLI against `music_app_test_db`), and the switch in `src/config/env.test.ts`. Backend 1488 tests in 82 files, 99.0% lines (both suites).
+
+How to view & test:
+
+```bash
+cd backend && npx vitest run src/db/migrateOnStart.test.ts src/config/env.test.ts
+```
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/db/migrateOnStart
+```
+
+The image, against a throwaway Postgres (CI-only values, as in `test:docker`):
+
+```bash
+docker build -t bookrough-api backend
+```
+
+```bash
+docker run -d --name api-pg -e POSTGRES_USER=bookrough -e POSTGRES_PASSWORD=bookrough -e POSTGRES_DB=music_app_test_db -p 5440:5432 postgres:16
+```
+
+```bash
+docker run -d --name api --add-host=host.docker.internal:host-gateway -p 4090:4000 -e DATABASE_URL=postgresql://bookrough:bookrough@host.docker.internal:5440/music_app_test_db -e JWT_SECRET=ci-only-secret-value-that-is-long-enough-to-pass-validation -e GOOGLE_CLIENT_ID=ci-only-client-id.apps.googleusercontent.com bookrough-api
+```
+
+```bash
+docker restart api && docker logs api 2>&1 | grep startup
+```
+
+1. The first `startup` line says `Migrations applied`; after the restart it says `Migrations up to date`, and `API listening` shows a much smaller `bootMs`.
+2. After the merge: open the app after more than 5 idle minutes, then read Vercel → Logs. Each instance should log `Migrations up to date` with `checkMs`, and `bootMs` should be far below the old 2.6 to 3.5 s. Record the numbers in `docs/deployment.md` §3.6.
+
+### Step 6.1y — An illustrated guide for new users (Phase 6 — UC-1 and UC-13; improvement round point 6)
+
+Status: ✅ Done (merged, PR #71)
+Branch: feat/illustrated-guide
+Spec: `docs/features/onboarding-tutorial.md` (amended 2026-11-16)
+
+Goal: the walkthrough a new user got described the site in five text cards without showing it. Now it is a guide of six slides, each picturing the screen and ringing the control to use, so people see how to join or start a community, share, save, rate and add friends.
+
+What I did:
+
+- **Decisions (Stage 1, 2026-11-16):** illustrated slides, then the two existing tips (not coach marks over the real UI, which a new user's empty screens cannot support, and not screenshots, which go stale). Six slides: songs that travel, join or start a community, share, save, rate, friends and the bell. Each picture is the whole phone screen in miniature, not a close-up. Pictures adapt to the user. Skip, dots and the Profile replay stay; a reopen hint is added. Everyone sees the new guide once, by a one-time reset.
+- **Slides (`frontend/src/lib/tutorialCopy.ts`, `components/Walkthrough.tsx`):** `guideSlides({ touch, service })` builds the six slides with their copy and each picture's accessible name. "Tap" or "Click" and the swipe or arrow-keys hint follow `matchMedia('(pointer: coarse)')`; slide 1 names the user's own service and gives the friend Spotify (Apple Music if the user is on Spotify). The last slide says "You can open this guide again from Profile."; an early Skip or Escape on the first viewing shows the same line as a toast.
+- **Pictures (`components/guide/GuidePictures.tsx`):** phone screens drawn in JSX with the Mixtape tokens and kit pieces (`Avatar`, `CommunityCover`), so they follow the accent colour and dark mode and add no image files to the PWA precache. The control to use is ringed in the accent; the ring's halo pulses only under `motion-safe:` (keyframes `guide-ring` in `index.css`). The user's own avatar stands for "you" in slides 1 and 6. The picture is `role="img"` with a label; its contents are hidden from screen readers. It shrinks first on a short screen and is hidden on a landscape phone.
+- **Shared icons (`components/ui/appIcons.tsx`):** the Home, Friends, Share, Profile, bookmark and bell shapes now live in one place, used by `BottomNav`, `BookmarkIcon`, the Home bell and the guide, so a redrawn icon changes in both.
+- **Keyboard:** the arrow keys are heard on the document (like Escape), so they work wherever focus is, but not with Alt, Ctrl or Meta held.
+- **Migration `20261116120000_reset_walkthrough_for_guide`:** data only, `UPDATE users SET walkthrough_seen_at = NULL`. The tips are not reset. No schema, API or `toPublicUser` change.
+- **Docs:** the spec (§1, §2, §3.1, §5.1, §6, §7, §9); `use cases` UC-1 and `frontend screens` (.md + .docx).
+- **Code review** (`/code-review`, 6 findings, all fixed): the old tests still targeted the five cards; the foundational docs still said "five cards"; the guide copied the real icon shapes (now shared); the document-level arrow keys ignored modifiers (Alt+Left is browser back); the service names were computed twice; slide clamping was duplicated between buttons and keys.
+- **Security review:** not run. No endpoint, authorisation or input handling changed (the flags' API is untouched); the migration is a fixed statement.
+- **Verified** on a production build at 375×812 and 375×667, light and dark: every control at least 44px tall, nothing scrolls, focus moves to each slide's heading, each picture announces its label.
+- **Tests:** `components/Walkthrough.test.tsx` (six slides in order, a picture and ring per slide, no image files, the service and avatar adaptations, Tap/Click and the hints, a missing `matchMedia`, arrow keys with and without modifiers, swipes, Skip/Escape/Get started, the reopen toast and when it is not shown, replay, the focus trap) and `backend/src/routes/tutorialReset.integration.test.ts` (the reset clears the walkthrough, keeps the tips, and leaves an onboarding user showing nothing). Frontend 1216 tests, 98.5% lines; backend 1490 tests, 99.0% lines.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate deploy && npm run dev
+```
+
+```bash
+cd frontend && npm run build && npm run preview
+```
+
+1. Open `http://localhost:4173/` at phone width (DevTools, 375 px) and sign in. The guide opens over Home on slide 1, "Songs that travel", with a post picture and your own service ringed.
+2. Swipe or press Next through the six slides: each shows a phone screen with one control ringed (two on the last). The last slide says the guide can be reopened from Profile.
+3. Reload, sign in with another account that has not seen the guide, and press Skip on slide 2: a toast says "You can open this guide again from Profile."
+4. Open My Profile → "How BookRough works": the same six slides, and closing them records nothing.
+5. Switch the system to dark mode, or change the accent in Admin → Settings: the pictures follow.
+6. With "Reduce motion" on in the OS, the rings stay but do not pulse.
+
+```bash
+cd frontend && npx vitest run src/components/Walkthrough src/pages/Profile src/components/TabLayout
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tutorialReset src/routes/tutorial
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
@@ -3019,6 +3340,8 @@ Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
 Goal: With no connection, the app opens and previously loaded content is readable. Write actions are clearly blocked rather than failing silently.
+
+> **Note (2026-11-16, Step 6.1w):** `main` now has a client-side cache and a saved session (`docs/features/client-cache.md`). On updating from `main`, this branch adopts `bookrough.session.v1` instead of its own `bookrough.session`, keeps its sign-out wipe of Cache Storage alongside the new wipe, and decides whether its `api` runtime cache is still needed.
 
 > ⚠️ Register the service worker **only in production builds**. A service worker against the Vite dev server serves stale assets and produces hours of phantom debugging. Verify every change with `npm run build && npm run preview`.
 

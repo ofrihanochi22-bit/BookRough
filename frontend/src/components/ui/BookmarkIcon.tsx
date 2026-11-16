@@ -1,3 +1,5 @@
+import { BOOKMARK_GLYPH } from './appIcons';
+
 /** The bookmark shape shared by the tab bar and the save button; filled when saved. */
 export function BookmarkIcon({ filled = false }: { filled?: boolean }) {
   return (
@@ -11,7 +13,7 @@ export function BookmarkIcon({ filled = false }: { filled?: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z" />
+      {BOOKMARK_GLYPH}
     </svg>
   );
 }

@@ -5,6 +5,8 @@ import {
   type PostsPage,
   type PublicPost,
 } from './posts';
+import { cachePrefixes as P } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 /** Every caller shows its own outcome, so no global error toast. */
 const quiet = { skipErrorToast: true } as const;
@@ -19,6 +21,7 @@ export async function sendRecommendation(recipientId: string, input: NewPost): P
     { recipientId, ...input },
     { ...quiet, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
+  invalidate([P.recs]);
   return response.data.data.post;
 }
 
@@ -48,8 +51,11 @@ export async function countUnseenRecommendations(): Promise<number> {
 
 export async function markRecommendationsSeen(): Promise<void> {
   await api.post('/recommendations/seen', undefined, quiet);
+  // Only the unseen count changes; no cached list shows it.
+  invalidate([]);
 }
 
 export async function hideRecommendation(postId: string): Promise<void> {
   await api.put(`/recommendations/${encodeURIComponent(postId)}/hidden`, undefined, quiet);
+  invalidate([P.recs]);
 }

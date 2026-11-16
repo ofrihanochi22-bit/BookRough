@@ -4,7 +4,8 @@ import { isAxiosError } from 'axios';
 
 import { fetchSession } from '../api/auth';
 import { NotFound } from '../pages/NotFound';
-import { homePathFor, useAuthStore } from '../stores/auth';
+import { homePathFor, openedFromSnapshot, useAuthStore } from '../stores/auth';
+import { LoadingHint } from './ui/LoadingHint';
 import { Button } from './ui/Button';
 import { ScreenLayout } from './ui/ScreenLayout';
 import { Spinner } from './ui/Spinner';
@@ -24,7 +25,6 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const started = useRef(false);
 
   const resolveSession = useCallback(() => {
-    setUnreachable(false);
     fetchSession()
       .then((session) => useAuthStore.getState().setSession(session))
       .catch((error: unknown) => {
@@ -39,10 +39,21 @@ export function SessionGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     // A ref, not a flag in the effect: StrictMode runs effects twice in
     // development, and the ref survives that so /auth/me is called once.
-    if (started.current || useAuthStore.getState().status !== 'unknown') {
+    if (started.current) {
       return;
     }
     started.current = true;
+    if (useAuthStore.getState().status !== 'unknown') {
+      if (openedFromSnapshot) {
+        checkSavedSession();
+      }
+      return;
+    }
+    resolveSession();
+  }, [resolveSession]);
+
+  const retry = useCallback(() => {
+    setUnreachable(false);
     resolveSession();
   }, [resolveSession]);
 
@@ -54,16 +65,35 @@ export function SessionGate({ children }: { children: ReactNode }) {
             <p className="text-sm text-muted">
               Can&apos;t reach BookRough right now. Check your connection and try again.
             </p>
-            <Button onClick={resolveSession}>Try again</Button>
+            <Button onClick={retry}>Try again</Button>
           </div>
         ) : (
-          <Spinner label="Opening BookRough…" />
+          <div className="flex flex-col items-center gap-3">
+            <Spinner label="Opening BookRough…" />
+            <LoadingHint />
+          </div>
         )}
       </ScreenLayout>
     );
   }
 
   return children;
+}
+
+/**
+ * The app opened from the saved session (client-cache.md §3.3); this checks the
+ * cookie behind it. Only a 401 changes anything: no response or a 5xx leaves
+ * the screens reading from the cache, and each screen's own request shows its
+ * own error if it has nothing cached.
+ */
+function checkSavedSession(): void {
+  fetchSession()
+    .then((session) => useAuthStore.getState().setSession(session))
+    .catch((error: unknown) => {
+      if (isAxiosError(error) && error.response?.status === 401) {
+        useAuthStore.getState().clear();
+      }
+    });
 }
 
 /** Welcome is for signed-out visitors only; anyone else is sent onward. */

@@ -71,7 +71,7 @@ function NameStatusLine({
     status.kind === 'invalid'
       ? status.message
       : status.kind === 'unknown'
-        ? `Couldn't check right now — we'll check when you ${submitVerb}.`
+        ? `Couldn't check right now. We'll check when you ${submitVerb}.`
         : (STATUS_TEXT[status.kind] ?? HINT);
   const tone = isBad(status)
     ? 'text-danger'

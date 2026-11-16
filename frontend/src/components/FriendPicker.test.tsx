@@ -70,6 +70,62 @@ describe('FriendPicker (invite-friends.md §5.1)', () => {
     expect(screen.getByRole('checkbox', { name: 'Invite Dov' })).toBeChecked();
   });
 
+  it('select mode: a tap on the name or the avatar toggles the checkbox', async () => {
+    // Arrange
+    const onToggle = vi.fn();
+    renderPicker({
+      mode: 'select',
+      candidates: [candidate('dov', 'Dov', 'INVITABLE')],
+      selected: new Set(),
+      onToggle,
+    });
+    const name = screen.getByText('Dov');
+    const avatar = name.previousElementSibling as HTMLElement;
+
+    // Act
+    await userEvent.click(name);
+    await userEvent.click(avatar);
+
+    // Assert
+    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(onToggle).toHaveBeenCalledWith('dov');
+  });
+
+  it('select mode offline: a tap on the name does nothing', async () => {
+    // Arrange
+    const onToggle = vi.fn();
+    renderPicker({
+      mode: 'select',
+      candidates: [candidate('dov', 'Dov', 'INVITABLE')],
+      selected: new Set(),
+      onToggle,
+      online: false,
+    });
+
+    // Act
+    await userEvent.click(screen.getByText('Dov'));
+
+    // Assert
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: 'Invite Dov' })).toBeDisabled();
+  });
+
+  it.each(['select', 'manage'] as const)(
+    '%s mode: no name is a link to a profile, so a tap cannot leave the form',
+    async (mode) => {
+      // Arrange
+      const onInvite = vi.fn();
+      renderPicker({ mode, onInvite, selected: new Set(), onToggle: vi.fn() });
+
+      // Act
+      await userEvent.click(screen.getByText('Dov'));
+
+      // Assert
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      expect(onInvite).not.toHaveBeenCalled();
+    },
+  );
+
   it('disables every control offline, and the busy row', () => {
     // Act
     renderPicker({ online: false });

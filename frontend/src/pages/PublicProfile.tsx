@@ -21,10 +21,12 @@ import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { ProfileTape, TAPE_AVATAR_RING } from '../components/ui/ProfileTape';
 import { ScoreSticker } from '../components/ui/ScoreSticker';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import { displayTitle, pendingTitle, relativeTime } from '../lib/postLinks';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED, ratingsEmptyHint } from '../lib/profileCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
@@ -51,8 +53,8 @@ export function PublicProfile() {
   const viewerId = useAuthStore((state) => state.user?.id);
   const loadProfile = useCallback(() => getProfile(userId), [userId]);
   const loadRatings = useCallback(() => listProfileRatings(userId), [userId]);
-  const profile = useRequest(loadProfile);
-  const ratings = useRequest(loadRatings);
+  const profile = useRequest(loadProfile, { key: cacheKeys.profile(userId) });
+  const ratings = useRequest(loadRatings, { key: cacheKeys.profileRatings(userId) });
   const [more, setMore] = useState<MorePages | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   // The friend button's answer, kept against the profile load it was made on.
@@ -106,9 +108,12 @@ export function PublicProfile() {
     <ScreenLayout>
       <TopBar />
       {profile.status === 'loading' && (
-        <div role="status" aria-label="Loading the profile" className="flex items-center gap-4">
-          <Skeleton className="size-20 rounded-full" />
-          <Skeleton className="h-8 flex-1" />
+        <div role="status" aria-label="Loading the profile" className="flex flex-col gap-3">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-20 rounded-full" />
+            <Skeleton className="h-8 flex-1" />
+          </div>
+          <LoadingHint />
         </div>
       )}
 

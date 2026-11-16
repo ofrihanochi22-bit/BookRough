@@ -1,4 +1,6 @@
 import { api, type SuccessBody } from './client';
+import { cacheKeys as K } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 export type CommunityRole = 'OWNER' | 'ADMIN' | 'MEMBER';
 
@@ -24,6 +26,7 @@ export async function createCommunity(input: NewCommunity): Promise<PublicCommun
     input,
     { skipErrorToast: true },
   );
+  invalidate([K.communities]);
   return response.data.data.community;
 }
 

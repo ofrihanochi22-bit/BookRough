@@ -95,17 +95,23 @@ function Controls({
           <Spinner label={busyLabel} />
         ) : (
           !blockingMessage && (
-            <GoogleLogin
-              // Keyed by its words, so Google redraws its button when they change.
-              key={text}
-              onSuccess={(response) => void handleCredential(response.credential)}
-              onError={() => setError(MESSAGES.googleFailed)}
-              text={text}
-              shape="pill"
-              size="large"
-              theme={prefersDark ? 'filled_black' : 'outline'}
-              width={280}
-            />
+            // Google's button is an iframe whose page declares no color-scheme,
+            // i.e. light. Inheriting our dark scheme would make the browser
+            // paint an opaque white backdrop behind the whole iframe, a white
+            // box around the pill. Matching its scheme keeps it transparent.
+            <div style={{ colorScheme: 'normal' }}>
+              <GoogleLogin
+                // Keyed by its words, so Google redraws its button when they change.
+                key={text}
+                onSuccess={(response) => void handleCredential(response.credential)}
+                onError={() => setError(MESSAGES.googleFailed)}
+                text={text}
+                shape="pill"
+                size="large"
+                theme={prefersDark ? 'filled_black' : 'outline'}
+                width={280}
+              />
+            </div>
           )
         )}
       </div>
