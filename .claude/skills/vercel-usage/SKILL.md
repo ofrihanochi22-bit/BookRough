@@ -13,10 +13,18 @@ Vercel's connector cannot read these meters on Hobby: `list_billing_charges` ans
 
 ## Steps
 
-1. **Load the tools in one call:** `ToolSearch` `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__javascript_tool,mcp__claude-in-chrome__tabs_close_mcp`.
+1. **Load the tools in one call:** `ToolSearch` `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__javascript_tool,mcp__claude-in-chrome__browser_batch,mcp__claude-in-chrome__tabs_close_mcp`.
 2. **Open a fresh tab:** `tabs_context_mcp` with `createIfEmpty: true`, then `tabs_create_mcp` unless the group has only an empty new tab. Never reuse one of the developer's own tabs.
 3. **Navigate** that tab to `https://vercel.com/bookrough/~/usage`. If it lands on a login page, stop: ask the developer to sign in to Vercel in Chrome, and go no further.
-4. **Collect.** Read [collect-usage.js](collect-usage.js) and run its full contents with `javascript_tool` on that tab. It returns JSON `{ done, period, count, meters }`. While `done` is false, run it again (same tab: it resumes where it stopped); at most 4 runs. If `count` is still 0 after the first run, wait a few seconds and run again once; if still 0, the page layout has changed — report that and fall back (below).
+4. **Collect.** Read [collect-usage.js](collect-usage.js) and run its full contents with `javascript_tool` on that tab. The page loads sections lazily, so the script reads it in passes until a whole pass finds nothing new: expect 4 to 8 runs. Batch them with `browser_batch` (navigate, then four identical `javascript_tool` runs, then four more if needed) to save round trips; a run after `done: true` changes nothing. Each run resumes where the last one stopped, in the same tab, and returns JSON:
+   - `done`: true once the whole page has been read. Do not assess until it is true. If it is still false after 10 runs, report that and fall back (below).
+   - `count`: meters read so far (about 55 in November 2026). If it stays 0, the page layout has changed: report that and fall back.
+   - `period`: the 30-day window shown on the page.
+   - `storage`: the three storage meters, each `{ value, pct }`.
+   - `missingStorage`: storage meters the page never showed. If not empty, run the whole check once more in a new tab; if still missing, fall back for those meters. Never report a missing meter as OK.
+   - `flagged`: every other meter at 60% or more.
+   - `highestOther`: the fullest non-storage meter.
+   - `unparsed`: meters whose units the script did not understand. Mention them, and assess them by eye.
 5. **Close the tab** with `tabs_close_mcp`.
 6. **Assess** (next section) and **append** to the history file.
 7. **Report** to the developer (format below).
@@ -25,7 +33,7 @@ If Claude in Chrome is not connected, or any step fails twice, say so in one lin
 
 ## Assessing the meters
 
-Each meter is `"<value> / <limit>"`. A limit of `-` means no Hobby limit — skip it. Convert both sides to one unit (B, kB, MB, GB = ×1000; durations `1h 2m 3s`; counts with commas) and compute the percentage.
+The script computes each meter's percentage of its Hobby limit and skips meters with no limit (`-`). Status:
 
 | Status   | Rule                                   |
 | -------- | -------------------------------------- |
