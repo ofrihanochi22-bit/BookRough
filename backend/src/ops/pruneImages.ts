@@ -111,13 +111,39 @@ export function chooseRepository(names: string[], pinned: string | undefined): s
   return names[0] as string;
 }
 
+/**
+ * Vercel's own reason for a failed response, for the job log: `error.code` and `error.message` from
+ * its JSON error shape, or the start of the raw body. One line, at most 300 characters. The request
+ * carries the token only in a header, and Vercel does not echo it, so nothing secret is printed.
+ */
+export async function failureDetail(response: Response): Promise<string> {
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch {
+    return '(no response body)';
+  }
+  let detail = raw;
+  try {
+    const parsed = JSON.parse(raw) as { error?: { code?: unknown; message?: unknown } };
+    const { code, message } = parsed.error ?? {};
+    const parts = [code, message].filter((part): part is string => typeof part === 'string');
+    if (parts.length > 0) detail = parts.join(': ');
+  } catch {
+    // Not JSON: keep the raw text.
+  }
+  const line = detail.replace(/\s+/g, ' ').trim();
+  if (line === '') return '(empty response body)';
+  return line.length > 300 ? `${line.slice(0, 300)}…` : line;
+}
+
 export async function listRepositories(config: Config): Promise<string[]> {
   const response = await fetch(`${API}?${query(config, { limit: String(PAGE_LIMIT) })}`, {
     headers: { Authorization: `Bearer ${config.token}` },
   });
   if (!response.ok) {
     throw new Error(
-      `Listing the repositories of project ${config.project} failed with HTTP ${response.status}; deleting nothing.`,
+      `Listing the repositories of project ${config.project} failed with HTTP ${response.status} (${await failureDetail(response)}); deleting nothing.`,
     );
   }
   const body = (await response.json()) as { repositories?: unknown; nextCursor?: unknown };
@@ -145,7 +171,7 @@ export async function listImages(config: Config, repository: string): Promise<Re
     });
     if (!response.ok) {
       throw new Error(
-        `Listing the images of repository ${repository} failed with HTTP ${response.status}; deleting nothing.`,
+        `Listing the images of repository ${repository} failed with HTTP ${response.status} (${await failureDetail(response)}); deleting nothing.`,
       );
     }
     const body = (await response.json()) as { images?: unknown; nextCursor?: unknown };
@@ -186,7 +212,9 @@ export async function deleteImage(
     headers: { Authorization: `Bearer ${config.token}` },
   });
   if (response.status !== 202 && response.status !== 404 && response.status !== 410) {
-    throw new Error(`Deleting ${image.id} failed with HTTP ${response.status}.`);
+    throw new Error(
+      `Deleting ${image.id} failed with HTTP ${response.status} (${await failureDetail(response)}).`,
+    );
   }
 }
 

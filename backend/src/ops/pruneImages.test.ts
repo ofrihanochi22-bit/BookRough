@@ -4,6 +4,7 @@ import {
   chooseRepository,
   type Config,
   deleteImage,
+  failureDetail,
   listImages,
   listRepositories,
   planPrune,
@@ -201,11 +202,13 @@ describe('the registry calls', () => {
 
   it('fails, deleting nothing, when the repository listing is refused', async () => {
     // Arrange
-    fetchMock.mockReturnValue(answer(404, {}));
+    fetchMock.mockReturnValue(
+      answer(403, { error: { code: 'forbidden', message: 'Not authorized' } }),
+    );
 
     // Act & Assert
     await expect(listRepositories(config)).rejects.toThrowError(
-      /repositories of project bookrough failed with HTTP 404; deleting nothing/,
+      'Listing the repositories of project bookrough failed with HTTP 403 (forbidden: Not authorized); deleting nothing.',
     );
   });
 
@@ -246,11 +249,11 @@ describe('the registry calls', () => {
 
   it('fails, deleting nothing, when the listing is refused', async () => {
     // Arrange
-    fetchMock.mockReturnValue(answer(403, {}));
+    fetchMock.mockReturnValue(answer(403, { error: { code: 'forbidden' } }));
 
     // Act & Assert
     await expect(listImages(config, 'api')).rejects.toThrowError(
-      /images of repository api failed with HTTP 403; deleting nothing/,
+      /images of repository api failed with HTTP 403 \(forbidden\); deleting nothing/,
     );
   });
 
@@ -294,7 +297,66 @@ describe('the registry calls', () => {
 
     // Act & Assert
     await expect(deleteImage(config, 'api', image(1))).rejects.toThrowError(
-      /image_1 failed with HTTP 500/,
+      /image_1 failed with HTTP 500 \(\(empty response body\)\)/,
     );
+  });
+});
+
+describe('failureDetail', () => {
+  const raw = (body: string | null, status = 403) => new Response(body, { status });
+
+  it("reads Vercel's error code and message", async () => {
+    // Arrange
+    const response = raw(JSON.stringify({ error: { code: 'forbidden', message: 'No access' } }));
+
+    // Act
+    const detail = await failureDetail(response);
+
+    // Assert
+    expect(detail).toBe('forbidden: No access');
+  });
+
+  it('keeps the raw body when it is not JSON, on one line', async () => {
+    // Arrange
+    const response = raw('Bad\n  gateway');
+
+    // Act
+    const detail = await failureDetail(response);
+
+    // Assert
+    expect(detail).toBe('Bad gateway');
+  });
+
+  it('keeps JSON without an error object as it is', async () => {
+    // Arrange
+    const response = raw(JSON.stringify({ reason: 'plan' }));
+
+    // Act & Assert
+    expect(await failureDetail(response)).toBe('{"reason":"plan"}');
+  });
+
+  it('says so when the body is empty', async () => {
+    // Act & Assert
+    expect(await failureDetail(raw(null))).toBe('(empty response body)');
+  });
+
+  it('cuts a long body to 300 characters', async () => {
+    // Arrange
+    const response = raw('x'.repeat(500));
+
+    // Act
+    const detail = await failureDetail(response);
+
+    // Assert
+    expect(detail).toBe(`${'x'.repeat(300)}…`);
+  });
+
+  it('copes with a body that cannot be read', async () => {
+    // Arrange
+    const response = raw('already read');
+    await response.text();
+
+    // Act & Assert
+    expect(await failureDetail(response)).toBe('(no response body)');
   });
 });
