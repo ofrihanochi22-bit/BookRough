@@ -45,12 +45,11 @@ None.
 
 No BookRough endpoint. The job calls Vercel's documented REST API with `fetch` and `VERCEL_TOKEN` (Bearer header), team slug `VERCEL_TEAM` as `slug=`, project `bookrough` (overridable by `VERCEL_PROJECT`):
 
-| Call                                                                                 | Use                                                                                                                                      |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /v9/projects/{project}`                                                         | `targets.production.id` — the live deployment                                                                                            |
-| `GET /v6/deployments?projectId={project}&target=production&limit=100[&until=<next>]` | every production deployment, following `pagination.next`, at most 10 pages                                                               |
-| `GET /v13/deployments/{id}`                                                          | the Deployment Checks (`checksState`, `checksConclusion`) of each READY production deployment but the live one: the list leaves them out |
-| `DELETE /v13/deployments/{id}`                                                       | delete one; `200` done, `404` already gone                                                                                               |
+| Call                                                                                 | Use                                                                        |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `GET /v9/projects/{project}`                                                         | `targets.production.id` — the live deployment                              |
+| `GET /v6/deployments?projectId={project}&target=production&limit=100[&until=<next>]` | every production deployment, following `pagination.next`, at most 10 pages |
+| `DELETE /v13/deployments/{id}`                                                       | delete one; `200` done, `404` already gone                                 |
 
 Any other status, or a body in an unexpected shape, stops the run with Vercel's reason (`failureDetail`) and deletes nothing more.
 
@@ -65,11 +64,10 @@ Any other status, or a body in an unexpected shape, stops the run with Vercel's 
 
 Pure; throws rather than guessing.
 
-1. **The live deployment** (`liveId`) is always kept, whatever its state. If `liveId` is missing, or not in the list, the run deletes nothing and fails.
-2. **Anything not finished** is kept and does not count: every state other than `READY`, `ERROR` and `CANCELED` (`BUILDING`, `QUEUED`, `INITIALIZING`, any state Vercel adds later), and a `READY` deployment whose Deployment Checks are still `registered` or `running`.
-   **A READY deployment whose checks ended `failed` or `canceled`** (`checksConclusion`) will never be promoted: it is treated as a failure (rule 4), never as the rollback target.
-3. **READY deployments:** keep 2 in all — the live one plus the newest other READY deployment (by `created`). Every older READY one is deleted.
-4. **ERROR / CANCELED deployments, and READY ones that failed their checks,** are deleted once superseded: when a READY deployment created after them exists. The newest failure, with nothing READY after it, stays for debugging.
+1. **The live deployment** (`liveId`) is always kept. If `liveId` is missing, not in the list, or not marked as promoted there, the run deletes nothing and fails (the last guards against Vercel changing the fields below).
+2. **Promotion comes from the list itself** (found by a read-only probe, 2026-11-16): a deployment is promoted when `aliasAssigned` is set or `readySubstate` is `PROMOTED`. Vercel also marks `isRollbackCandidate`, which is always kept. Deployment Checks fields (`checksState`, `checksConclusion`) do not exist in this account's responses, list or details.
+3. **Promoted READY deployments:** keep 2 in all — the live one plus the newest other promoted one (by `created`). Every older promoted one is deleted. A READY deployment that was never promoted is never the rollback target: newer than the newest promoted one, it may still be in checks and is kept uncounted; older, it failed them and is deleted. Anything not finished (`BUILDING`, `QUEUED`, `INITIALIZING`, any state Vercel adds later) is kept uncounted.
+4. **ERROR / CANCELED deployments** are deleted once superseded: when a promoted READY deployment created after them exists. The newest failure, with nothing promoted after it, stays for debugging.
 5. **Only `target: production`** is ever a candidate; anything else in the list is kept.
 6. **At most 10 deletions per run.** More means something is wrong with the listing: the run deletes nothing and fails, and the developer deletes by hand.
 7. Every run prints the live id, then each deployment with its id, creation time, short SHA, state and verdict (`keep (live)`, `keep (rollback)`, `keep (unfinished)`, `delete`).
@@ -100,8 +98,9 @@ A missing `VERCEL_TOKEN` or `VERCEL_TEAM`, a non-OK status, or an unexpected sha
 - ✅ The live one is kept even when it is not the newest (after a rollback); the newest other READY is its pair.
 - ✅ Two READY or fewer: deletes nothing.
 - ✅ BUILDING / QUEUED / INITIALIZING and an unknown state are kept and not counted.
-- ✅ READY with checks `registered` or `running` is kept and not counted; with checks `completed` and `succeeded` it counts.
-- ✅ READY with checks `completed` and `failed` is never the rollback target: the older READY one is kept, and it is deleted once a newer settled READY exists.
+- ✅ A READY deployment newer than the live one and not yet promoted is kept and not counted.
+- ✅ A never-promoted READY deployment older than the live one is never the rollback target and is deleted; Vercel's `isRollbackCandidate` is always kept.
+- ❌ The live deployment not marked as promoted: throws.
 - ✅ ERROR / CANCELED older than a READY one are deleted; the newest failure with nothing READY after it is kept.
 - ✅ A non-production deployment in the list is kept.
 - ❌ `liveId` missing or not in the list: throws.
@@ -132,4 +131,5 @@ A missing `VERCEL_TOKEN` or `VERCEL_TEAM`, a non-OK status, or an unexpected sha
 | 2026-11-16 | Remove `prune-images` and its code                                                                                                 | Every registry call gets `403` on this plan, even with a new token; a permanently red job hides real failures (developer)                                                     |
 | 2026-11-16 | A READY deployment that failed its checks is a failure; the live id is re-read before deleting; the nightly run ignores red suites | `/code-review`: a never-promoted build could take the rollback slot, a dashboard promote could race the deletions, and the live squigly.link test could skip the settling run |
 | 2026-11-16 | Checks are read per deployment from `GET /v13/deployments/{id}`                                                                    | The first dry run on `main` showed the list endpoint returns no `checksState` / `checksConclusion`, so the failed-checks guard could never trigger                            |
+| 2026-11-16 | Promotion (`aliasAssigned`, `readySubstate`, `isRollbackCandidate`) replaces Deployment Checks fields; the v13 lookup is removed   | The second dry run showed v13 carries no checks fields either; a read-only probe found the promotion fields in the list itself                                                |
 | 2026-11-16 | New spec instead of rewriting production-hardening.md §3.8                                                                         | §3.8 records a shipped, now-withdrawn design; it gets an amendment note pointing here                                                                                         |
