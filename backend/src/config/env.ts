@@ -55,6 +55,14 @@ const envSchema = z
       .string()
       .optional()
       .transform((value) => value?.trim().toLowerCase() === 'true'),
+    // Set by the Dockerfile (docs/features/migrate-check-on-start.md): before
+    // listening, check for pending migrations and apply them only if there are
+    // any. Only "true" switches it on; unset locally, where developers run
+    // `npm run prisma:migrate` themselves.
+    MIGRATE_ON_START: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim().toLowerCase() === 'true'),
     // The onboarding tutorial (docs/features/onboarding-tutorial.md §4): only
     // "false" switches it off for every user of this environment — local E2E
     // and CI set it. Unset, or anything else, means on. Allowed in every mode:

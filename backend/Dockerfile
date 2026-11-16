@@ -68,9 +68,12 @@ EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://localhost:' + (process.env.PORT || 4000) + '/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 
+# Bring the schema up to date, then serve. The API checks Prisma's migrations
+# table itself and starts `prisma migrate deploy` only when something is
+# pending, so an up-to-date database costs one query instead of the CLI's
+# start-up (docs/features/migrate-check-on-start.md). A failed migration stops
+# the container before it serves anything. Node is tini's direct child, so it
+# receives the signals.
+ENV MIGRATE_ON_START=true
 ENTRYPOINT ["/usr/bin/tini", "--"]
-# Bring the schema up to date, then serve. A failed migration stops the
-# container before it serves anything; `exec` gives Node the signals. The two
-# millisecond timestamps let Node log how long the migration took
-# (docs/features/client-cache.md §4.1).
-CMD ["sh", "-c", "export BOOT_STARTED_AT=$(date +%s%3N) && npx prisma migrate deploy && export MIGRATE_FINISHED_AT=$(date +%s%3N) && exec node dist/index.js"]
+CMD ["node", "dist/index.js"]
