@@ -3355,6 +3355,26 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/op
 cd frontend && npx vitest run src/pages/AdminOverview src/pages/Admin src/lib/overviewCopy src/stores/settings src/api
 ```
 
+### Step 6.1z1 — Lint guard against raw SQL built from text (Phase 6 — every UC that reads or writes the database; a follow-up to a SQL injection audit)
+
+Status: 🟡 Done; PR open, waiting to merge
+Branch: chore/ban-unsafe-raw-sql
+
+Goal: the backend must stay closed to SQL injection without anyone remembering to keep it that way.
+
+What I did:
+
+- **Audit (2026-11-17, no code changed):** the backend's nine raw-SQL spots (notification grouping, app-open count, database size, settings lock, the row locks in comments, friendships and posting, the start-up migration check) all use `$queryRaw` / `$executeRaw` tagged templates or `Prisma.sql`. Every value is sent as a bound parameter. Every request value passes Zod before Prisma sees it, so a filter object such as `?q[contains]=` is a 422. People search escapes `%`, `_` and `\` (`escapeLike` in `profile.service.ts`). Verdict: no SQL injection.
+- **Guard:** `eslint.config.js` has a `no-restricted-properties` rule for `backend/src`. It fails on `$queryRawUnsafe`, `$executeRawUnsafe` and `Prisma.raw`, the three calls that put text straight into SQL. Test files and `src/test/` are left out, because they reset the test database with fixed strings. It runs in pre-commit and in CI's `lint` job, and needs no new dependency.
+
+How to view & test:
+
+```bash
+npm run lint
+```
+
+To see the rule fire, add `prisma.$queryRawUnsafe('SELECT 1')` to any file under `backend/src/services/` and run `npm run lint`: it fails with "Use the $queryRaw / $executeRaw tagged template…". Remove the line again.
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
