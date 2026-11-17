@@ -42,7 +42,7 @@ export function SignOutSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** A Sign out button that asks first — Home's header and My Profile (§5.1, §5.2). */
+/** A Sign out button that asks first — the bottom of My Profile (§5.2). */
 export function SignOutButton({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false);
 

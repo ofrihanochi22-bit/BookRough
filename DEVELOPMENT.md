@@ -1885,6 +1885,14 @@ Spec: docs/features/visible-sign-out.md
 
 Goal: Sign out from the screen the app opens on, and never by accident.
 
+> **Amended 2026-11-17 — Sign out only on My Profile** (branch `fix/sign-out-profile-only`, UC-3). The developer did not want the button on Home.
+>
+> **What I did:** removed `SignOutButton` from the Dashboard header (`pages/Dashboard.tsx`); the "Your communities" heading now stands alone in row 2. Sign out stays at the bottom of My Profile, still behind the "Sign out?" sheet. `Dashboard.test.tsx` now asserts there is no Sign out button in any state; the E2E `signOut()` helper (`e2e/support/flows.ts`) goes through the Profile tab. Docs: amendment notes in `visible-sign-out.md` and `ui-redesign.md`; `use cases` (UC-3) and `frontend screens` (2.1, 4.3), .md + .docx.
+>
+> **How to view & test:** run the three commands below, open `http://localhost:5173/` at 375px and sign in. Home shows "Your communities" with no Sign out button. Tap **Profile**, scroll to the bottom, tap **Sign out** → "Sign out?" → **Sign out** → Welcome. Tests: `cd frontend && npx vitest run src/pages/Dashboard.test.tsx src/pages/Profile.test.tsx src/components/SignOutSheet.test.tsx`.
+>
+> The rest of this step describes the original 2026-11-08 build.
+
 Tasks:
 
 - [x] Spec: docs/features/visible-sign-out.md approved. A button in the Home header, a "Sign out?" confirmation on Home and My Profile, disabled offline (PR #40's pattern), and Complete Your Profile's link left alone.

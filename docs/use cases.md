@@ -44,7 +44,7 @@
 - **Trigger:** The user taps or clicks the "Logout" button, found in the Home screen's header and at the bottom of My Profile.
 - **Step-by-step scenario (Success):**
 - The user is on Home, the screen the app opens on, or on My Profile.
-- The user clicks "Sign out" in the Home header, or at the bottom of My Profile.
+- The user clicks "Sign out" at the bottom of My Profile.
 - The system asks "Sign out?", and Cancel leaves the user signed in. Offline, the confirmation is disabled ("You're offline. Connect to sign out."), because only the server can end the session.
 - Upon confirmation, the backend invalidates the user's session token.
 - The frontend clears any cached local user data and redirects the user to the public Welcome screen.

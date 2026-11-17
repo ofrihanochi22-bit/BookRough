@@ -10,6 +10,8 @@
 | **Branch**    | `feat/visible-sign-out`                                            |
 | **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
+> **Amended 2026-11-17 (the developer's decision).** The Home header's Sign out button is **removed**. Sign out lives only at the bottom of My Profile (§5.2), still behind the "Sign out?" confirmation. §5.1 below is superseded; the Home tests now assert there is no Sign out button, and the E2E `signOut()` helper goes through the Profile tab.
+
 ---
 
 ## 0. Where this comes from
@@ -132,3 +134,4 @@ None.
 | 2026-11-08 | Disabled offline inside the sheet                                   | PR #40's pattern. The server alone can clear the `HttpOnly` cookie.                |
 | 2026-11-08 | Complete Your Profile's link is left alone                          | An onboarding escape hatch. PR #40 already edits it, so we avoid a conflict.       |
 | 2026-11-08 | `SignOutButton` (trigger + sheet) is exported beside `SignOutSheet` | Home and My Profile need the same open/close state; one component, not two copies. |
+| 2026-11-17 | Home's Sign out removed; only the bottom of My Profile keeps it     | The developer's choice: the button on Home was in the way.                         |

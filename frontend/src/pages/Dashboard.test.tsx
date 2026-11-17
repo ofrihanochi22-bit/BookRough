@@ -118,7 +118,7 @@ describe('Dashboard — roles', () => {
   });
 });
 
-describe('Dashboard — sign out in the header', () => {
+describe('Dashboard — no sign out on Home (it lives on My Profile)', () => {
   it.each([
     [
       'loading',
@@ -140,7 +140,7 @@ describe('Dashboard — sign out in the header', () => {
       () => listMyCommunities.mockRejectedValue(httpError(500, 'Something went wrong.')),
       () => screen.findByRole('alert'),
     ],
-  ])('shows Sign out beside the heading while %s', async (_state, arrange, settled) => {
+  ])('shows no Sign out button while %s', async (_state, arrange, settled) => {
     // Arrange
     arrange();
 
@@ -149,29 +149,8 @@ describe('Dashboard — sign out in the header', () => {
     await settled();
 
     // Assert
-    const header = screen.getByRole('heading', { name: 'Your communities' }).parentElement!;
-    expect(within(header).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-  });
-
-  it('asks before signing out, and Cancel keeps the user on Home', async () => {
-    // Arrange
-    listMyCommunities.mockResolvedValue([]);
-    renderDashboard();
-    await screen.findByRole('heading', { name: 'Start your first community' });
-
-    // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-
-    // Assert
-    const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByText('Sign out?')).toBeInTheDocument();
-
-    // Act
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
-
-    // Assert
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 });
 
@@ -224,7 +203,7 @@ describe('Home (ui-redesign.md §5.1)', () => {
     useNotifications.setState({ unread: 0 });
   });
 
-  it('puts the logo, Search and the bell in row 1, and Sign out beside the heading', async () => {
+  it('puts the logo, Search and the bell in row 1, and the heading below', async () => {
     // Arrange
     listMyCommunities.mockResolvedValue([]);
     useNotifications.setState({ unread: 3 });
@@ -239,10 +218,7 @@ describe('Home (ui-redesign.md §5.1)', () => {
       'href',
       '/notifications',
     );
-    const heading = screen.getByRole('heading', { level: 1, name: 'Your communities' });
-    expect(heading.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Sign out' }),
-    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Your communities' })).toBeInTheDocument();
   });
 
   it('opens Search from the header icon', async () => {
@@ -314,7 +290,6 @@ describe('Home (ui-redesign.md §5.1)', () => {
     const loading = screen.getByRole('status', { name: 'Loading your communities' });
     expect(loading.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Search' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
 
   it('shows the load error with Try again, which loads again', async () => {

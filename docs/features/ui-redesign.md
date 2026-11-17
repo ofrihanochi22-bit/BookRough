@@ -186,11 +186,11 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 ### 5.1 Communities Dashboard (Home) — agreed
 
-- **Header, two rows.** Row 1: the small mark and "BookRough" (Wordmark, compact variant) on the left; Search icon button (→ `/search`) and the notifications bell with its unread badge on the right. Row 2: the "Your communities" heading in the display face, and the secondary **Sign out** pill beside it (kept on Home per visible-sign-out.md §5.1; opens `SignOutSheet` as today). The split stops the heading from truncating at 375px.
+- **Header, two rows.** Row 1: the small mark and "BookRough" (Wordmark, compact variant) on the left; Search icon button (→ `/search`) and the notifications bell with its unread badge on the right. Row 2: the "Your communities" heading in the display face. (A **Sign out** pill sat beside it until 2026-11-17; it was removed, and Sign out lives only on My Profile — visible-sign-out.md.) The split stops the heading from truncating at 375px.
 - **List:** each community is a full-width **cassette card** (§3.5): stripe band in the community's hue, name in the display face, "N members · Role" below it, two reels on the right. The whole card links to the feed, as today.
 - **Create community:** the floating button is **removed**; a dashed "+ Create community" tile ends the list. (Also reachable from the Share sheet when you have no communities.)
 - **Loading:** three cassette-shaped skeletons. **Error:** `LoadError` with Retry, existing copy. **Empty:** the kit's empty state with the existing heading, line and primary "Create community" button.
-- The header sits outside the request states, so Search, the bell and Sign out show in every state, as today.
+- The header sits outside the request states, so Search and the bell show in every state, as today.
 
 ### 5.2 Community Feed — agreed
 
@@ -385,7 +385,7 @@ No backend behaviour changes before the swap. The old design is the default unti
 - ❌ Post card: no sticker without ratings; the ⋯ sheet shows only the permitted actions (Hide / Edit comment / Delete post).
 - ✅ Rating sheet: ten stars as radios; tapping star N checks N and shows "N/10"; arrow keys move the choice; a drag across the row sets the value; edit mode starts at the existing score.
 - ❌ Rating sheet: Submit disabled with no score, offline, or a comment error; the existing error messages show.
-- ✅ Home: Search icon and bell in row 1, Sign out beside the heading; cassette cards link to their feeds; the dashed Create tile; no floating button.
+- ✅ Home: Search icon and bell in row 1, the heading below (no Sign out on Home since 2026-11-17); cassette cards link to their feeds; the dashed Create tile; no floating button.
 - ❌ Home: loading skeletons, `LoadError` with Retry, the empty state.
 - ✅ Feed composer: the collapsed pill expands to the composer with focus in the link field; ✕ collapses it and keeps the draft; posting collapses it and the post is on top.
 - ✅ Post Detail: no average block; "No ratings yet" with none; ratings, threads and comments stacked.
