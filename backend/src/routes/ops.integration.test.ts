@@ -87,7 +87,7 @@ describe('GET /api/admin/overview', () => {
     expect(data.app.users).toEqual({ total: 2, onboarded: 2 });
     expect(data.app.communities).toBe(0);
     expect(data.database.usedBytes).toBeGreaterThan(0);
-    expect(data.database.limitBytes).toBe(512 * 1024 * 1024);
+    expect(data.database.limitBytes).toBe(1024 * 1024 * 1024);
     expect(data.vercel).toEqual({
       usage: null,
       deployments: null,

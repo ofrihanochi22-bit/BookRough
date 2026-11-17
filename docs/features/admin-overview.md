@@ -250,11 +250,11 @@ Strings are bounded, arrays are capped, and numbers are finite and non-negative.
 
 ### 4.6 Configuration
 
-| Variable              | Where                                                         | Notes                                                                                                                                                                                                                                                   |
-| --------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OPS_INGEST_TOKEN`    | Vercel env (Production) **and** GitHub secret, the same value | **The developer's** (CLAUDE.md §11). At least 32 characters; generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Unset means §4.3 is off (`404`) and the CI job skips posting with a notice.                |
-| `OPS_INGEST_URL`      | GitHub variable, not a secret                                 | Defaults to `https://bookrough.vercel.app/api/ops/snapshots`.                                                                                                                                                                                           |
-| `DB_STORAGE_LIMIT_MB` | Vercel env, optional                                          | Defaults to **512**, the conservative reading of Neon Free. Neon's own pages disagree, between 0.5 GB and 1 GB per project; the developer confirms the figure in the Neon console (§8). Not a secret. Named after the database, not the provider (§16). |
+| Variable              | Where                                                         | Notes                                                                                                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPS_INGEST_TOKEN`    | Vercel env (Production) **and** GitHub secret, the same value | **The developer's** (CLAUDE.md §11). At least 32 characters; generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Unset means §4.3 is off (`404`) and the CI job skips posting with a notice. |
+| `OPS_INGEST_URL`      | GitHub variable, not a secret                                 | Defaults to `https://bookrough.vercel.app/api/ops/snapshots`.                                                                                                                                                                            |
+| `DB_STORAGE_LIMIT_MB` | Vercel env, optional                                          | Defaults to **1024**: Neon Free's 1 GB per project, read in the Neon console's Billing page on 2026-11-17 (§9). Set it only if the plan changes. Not a secret. Named after the database, not the provider (§16).                         |
 
 Validated in `config/env.ts`: the token is at least 32 characters when set, and the limit is a positive integer.
 
@@ -387,7 +387,7 @@ A run the developer declined posts the table with `deleted: []`.
 - ✅ "Last deletion" picks the newest snapshot with `deleted_count > 0` per source, ignoring newer zero runs.
 - ✅ A stored payload the schema rejects is skipped with a `WARN`, and the next older valid one is used. If none is valid, `null`.
 - ✅ Opens: today, 7-day and 30-day sums at UTC day boundaries; `countingSince` is the earliest row, or `null`.
-- ✅ The database block uses `DB_STORAGE_LIMIT_MB`, defaulting to 512.
+- ✅ The database block uses `DB_STORAGE_LIMIT_MB`, defaulting to 1024.
 
 **Unit — `recordAppOpen` and the settings controller**
 
@@ -471,9 +471,7 @@ A run the developer declined posts the table with `deleted: []`.
 
 ## 9. Open questions
 
-- **Neon's Free storage limit:** 0.5 GB or 1 GB per project. Neon's [FAQ](https://neon.com/faqs/free-plan-limits-and-quotas) and [cost docs](https://neon.com/docs/introduction/cost-optimization) say 1 GB; its [pricing post](https://neon.com/blog/new-usage-based-pricing) also mentions 0.5 GB.
-  - **The default of 512 MB errs early, not late**, so this doesn't block approval.
-  - The developer reads the figure in the Neon console (Project → Settings or Billing) and, if it is 1 GB, sets `DB_STORAGE_LIMIT_MB=1024` in Vercel.
+None. **Resolved 2026-11-17:** Neon's own pages disagreed on the Free storage limit (0.5 GB or 1 GB per project). The Neon console's Billing page for this account reads "1 GB storage" per project on the Free plan, so the default is 1024 MB and Vercel needs no variable.
 
 ## 10. Decisions log
 

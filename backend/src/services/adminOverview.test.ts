@@ -265,8 +265,8 @@ describe('getAdminOverview', () => {
     });
     expect(overview.database).toEqual({
       usedBytes: 40 * 1024 * 1024,
-      limitBytes: 512 * 1024 * 1024,
-      pct: 7.8,
+      limitBytes: 1024 * 1024 * 1024,
+      pct: 3.9,
       status: 'ok',
     });
     expect(overview.vercel).toEqual({

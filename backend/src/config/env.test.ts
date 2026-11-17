@@ -302,16 +302,16 @@ describe('parseEnv', () => {
 });
 
 describe('the Admin → Overview variables (docs/features/admin-overview.md §4.6)', () => {
-  it('leave the ingest off and the database limit at 512 MB when unset or blank', () => {
+  it('leave the ingest off and the database limit at 1024 MB when unset or blank', () => {
     // Act
     const unset = parseEnv(validEnv);
     const blank = parseEnv({ ...validEnv, OPS_INGEST_TOKEN: '  ', DB_STORAGE_LIMIT_MB: '' });
 
     // Assert
     expect(unset.OPS_INGEST_TOKEN).toBeUndefined();
-    expect(unset.DB_STORAGE_LIMIT_MB).toBe(512);
+    expect(unset.DB_STORAGE_LIMIT_MB).toBe(1024);
     expect(blank.OPS_INGEST_TOKEN).toBeUndefined();
-    expect(blank.DB_STORAGE_LIMIT_MB).toBe(512);
+    expect(blank.DB_STORAGE_LIMIT_MB).toBe(1024);
   });
 
   it('accept a token of 32 characters or more and a positive limit', () => {

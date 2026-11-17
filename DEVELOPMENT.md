@@ -3313,7 +3313,7 @@ What I did:
 What the developer does (secrets are theirs, CLAUDE.md §11):
 
 1. Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
-2. Vercel → bookrough → Settings → Environment Variables: add `OPS_INGEST_TOKEN` (Production) with that value. Optional: `DB_STORAGE_LIMIT_MB=1024` if the Neon console shows 1 GB.
+2. Vercel → bookrough → Settings → Environment Variables: add `OPS_INGEST_TOKEN` (Production) with that value. (`DB_STORAGE_LIMIT_MB` defaults to 1024, Neon Free's 1 GB, confirmed in the Neon console; set it only if the plan changes.)
 3. GitHub → Settings → Secrets and variables → Actions → New repository secret: `OPS_INGEST_TOKEN`, the same value.
 
 How to view & test:

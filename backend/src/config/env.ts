@@ -82,10 +82,11 @@ const envSchema = z
         message: 'OPS_INGEST_TOKEN must be at least 32 characters',
       }),
     // The database's storage allowance in MB, shown against its size on the
-    // Overview. 512 is the cautious reading of Neon Free (admin-overview.md §9).
+    // Overview. 1024: Neon Free's 1 GB per project, read in the Neon console's
+    // Billing page on 2026-11-17 (admin-overview.md §9).
     DB_STORAGE_LIMIT_MB: z.preprocess(
       (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-      z.coerce.number().int().positive().default(512),
+      z.coerce.number().int().positive().default(1024),
     ),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
