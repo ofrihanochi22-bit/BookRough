@@ -300,3 +300,39 @@ describe('parseEnv', () => {
     expect(parsed.TUTORIAL_ENABLED).toBe(true);
   });
 });
+
+describe('the Admin → Overview variables (docs/features/admin-overview.md §4.6)', () => {
+  it('leave the ingest off and the database limit at 1024 MB when unset or blank', () => {
+    // Act
+    const unset = parseEnv(validEnv);
+    const blank = parseEnv({ ...validEnv, OPS_INGEST_TOKEN: '  ', DB_STORAGE_LIMIT_MB: '' });
+
+    // Assert
+    expect(unset.OPS_INGEST_TOKEN).toBeUndefined();
+    expect(unset.DB_STORAGE_LIMIT_MB).toBe(1024);
+    expect(blank.OPS_INGEST_TOKEN).toBeUndefined();
+    expect(blank.DB_STORAGE_LIMIT_MB).toBe(1024);
+  });
+
+  it('accept a token of 32 characters or more and a positive limit', () => {
+    // Act
+    const parsed = parseEnv({
+      ...validEnv,
+      OPS_INGEST_TOKEN: 't'.repeat(32),
+      DB_STORAGE_LIMIT_MB: '1024',
+    });
+
+    // Assert
+    expect(parsed.OPS_INGEST_TOKEN).toBe('t'.repeat(32));
+    expect(parsed.DB_STORAGE_LIMIT_MB).toBe(1024);
+  });
+
+  it.each([
+    ['a token under 32 characters', { OPS_INGEST_TOKEN: 'short' }, 'OPS_INGEST_TOKEN'],
+    ['a zero limit', { DB_STORAGE_LIMIT_MB: '0' }, 'DB_STORAGE_LIMIT_MB'],
+    ['a limit that is not a number', { DB_STORAGE_LIMIT_MB: 'lots' }, 'DB_STORAGE_LIMIT_MB'],
+  ])('refuse %s, naming the variable', (_label, extra, name) => {
+    // Act + Assert
+    expect(() => parseEnv({ ...validEnv, ...extra })).toThrow(name);
+  });
+});

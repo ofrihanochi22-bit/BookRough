@@ -4,6 +4,7 @@ import { AppSettings } from './components/AppSettings';
 import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { TabLayout } from './components/TabLayout';
 import { AdminCommunities, AdminLayout, AdminUsers } from './pages/Admin';
+import { AdminOverviewTab } from './pages/AdminOverview';
 import { AdminSettingsTab } from './pages/AdminSettings';
 import { Community } from './pages/Community';
 import { CommunitySettings } from './pages/CommunitySettings';
@@ -86,7 +87,8 @@ export function App() {
             }
           >
             <Route element={<AdminLayout />}>
-              <Route index element={<Navigate to="users" replace />} />
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<AdminOverviewTab />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="communities" element={<AdminCommunities />} />
               <Route path="settings" element={<AdminSettingsTab />} />

@@ -12,7 +12,9 @@
 
 ---
 
-> **Amended by `avatar-upload.md` (N10, 2026-11-08).** The users list is read-only with one exception: **Remove photo** on a row with a photo (an upload or a Google photo), confirmed in a sheet. It's recorded as a log line, not in `setting_changes`.
+> **Amended by `admin-overview.md` (2026-11-17).** A first tab, **Overview**, joins Users, Communities and Settings, and `/admin` now opens it: storage limits, deployments, images, last deletions and app counts, read-only. It adds the tables `ops_snapshots` and `daily_app_opens` and three endpoints; nothing in this spec's lists or settings changes.
+
+> **Amended by `avatar-upload.md` (N10, 2026-11-08). The users list is read-only with one exception: **Remove photo** on a row with a photo (an upload or a Google photo), confirmed in a sheet. It's recorded as a log line, not in `setting_changes`.
 
 ## 1. Goal
 

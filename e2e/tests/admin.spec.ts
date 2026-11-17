@@ -25,7 +25,10 @@ test('an admin reaches the lists from My Profile; a normal user sees not-found',
   await page.getByRole('link', { name: /Admin area/ }).click();
 
   // Assert
+  // /admin lands on Overview (docs/features/admin-overview.md §5); the people are on Users.
   await expect(page.getByRole('heading', { name: 'Admin' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Storage limits' })).toBeVisible();
+  await page.getByRole('link', { name: 'Users' }).click();
   await expect(page.getByText(admin.displayName)).toBeVisible();
   await page.getByRole('link', { name: 'Communities' }).click();
   await expect(page).toHaveURL(/\/admin\/communities$/);

@@ -183,8 +183,30 @@ The discussion on a post (UC-22, `docs/features/discussion-threads.md` §3). A p
 - **deleted_at** (TIMESTAMP, Nullable): set when a post comment with replies is deleted, so its thread stays; anything else is removed.
 - (Indexed on post_id and created_at, for the discussion; on rating_id, parent_id and author_id for the cascades. The hand-written CHECKs `comments_one_thread` (at most one of rating_id and parent_id) and `comments_body_or_deleted` (a body unless deleted) are invisible to Prisma.)
 
+### 15. ops_snapshots Table
+
+One reading by an ops tool, shown on Admin → Overview (UC-19 amended, `docs/features/admin-overview.md` §3.2). Inserted, never updated; rows received over 90 days ago are deleted by the next insert.
+
+- **id** (UUID, Primary Key).
+- **source** (Enum: `VERCEL_USAGE`, `IMAGE_CLEANUP`, `PRUNE_DEPLOYMENTS`): which tool wrote it — the `/vercel-usage` and `/vercel-image-cleanup` skills through the admin's session, the `prune-deployments` CI job through its ingest token.
+- **captured_at** (TIMESTAMP, Not Null): when the tool read the data; at most 7 days old and 5 minutes ahead when posted.
+- **received_at** (TIMESTAMP, Default Current Time): used for the 90-day retention.
+- **payload** (JSONB, Not Null): validated against the source's schema on write and again on read; it holds no personal data.
+- **deleted_count** (INTEGER, Default 0): how many deployments or images the run deleted, so "last deletion" is one query.
+- **written_by_id** (UUID, Nullable, Foreign Key referencing users(id), set null on delete): the admin who posted it; null for CI. Never returned by any endpoint.
+- (Indexed on source and captured_at, on source, deleted_count and captured_at, on received_at, and on written_by_id. The hand-written CHECK `ops_snapshots_deleted_nonneg` is invisible to Prisma.)
+
+### 16. daily_app_opens Table
+
+The anonymous count of app opens (UC-19 amended, `docs/features/admin-overview.md` §3.3). One row per UTC day, incremented by the app's start-up settings fetch; no column refers to a person.
+
+- **day** (DATE, Primary Key, UTC).
+- **signed_in** (INTEGER, Default 0): opens with a valid session.
+- **signed_out** (INTEGER, Default 0): opens without one.
+- (The hand-written CHECK `daily_app_opens_nonneg` keeps both counts non-negative; invisible to Prisma.)
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is fourteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`.
+> **The schema is sixteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.
