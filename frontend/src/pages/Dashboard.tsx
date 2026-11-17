@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 
 import { listMyCommunities } from '../api/communities';
 import { CreateCommunityLink } from '../components/CreateCommunityLink';
-import { SignOutButton } from '../components/SignOutSheet';
 import { LoadError } from '../components/ui/LoadError';
 import { CommunityCover } from '../components/ui/CommunityCover';
 import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
@@ -58,7 +57,7 @@ function NotificationsBell() {
  * Communities Dashboard, the home screen — docs/features/communities-create.md
  * §6.4. Lists the communities the user belongs to, newest joined first. Layout
  * per docs/features/ui-redesign.md §5.1: a two-row header
- * (the logo, Search and the bell; then the heading and Sign out), cassette
+ * (the logo, Search and the bell; then the heading), cassette
  * cards, and a dashed Create tile ending the list instead of a floating button.
  * The header sits outside the request states, so it shows in every state.
  */
@@ -72,14 +71,10 @@ export function Dashboard() {
           <SearchIconLink />
           <NotificationsBell />
         </TopBar>
-        {/* Never truncated (§5.1): it fits at 375px, and wraps rather than clips if a font runs wide. */}
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="min-w-0 font-display text-2xl font-bold tracking-[-0.02em] break-words">
-            Your communities
-          </h1>
-          {/* Sign-out where the app opens — visible-sign-out.md §5.1. */}
-          <SignOutButton className="shrink-0 px-4" />
-        </div>
+        {/* Sign out lives only at the bottom of My Profile — visible-sign-out.md §1 (2026-11-17). */}
+        <h1 className="font-display text-2xl font-bold tracking-[-0.02em] break-words">
+          Your communities
+        </h1>
       </header>
 
       {communities.status === 'loading' && (
