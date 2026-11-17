@@ -3341,7 +3341,7 @@ Spec: docs/features/pwa-offline.md
 
 Goal: With no connection, the app opens and previously loaded content is readable. Write actions are clearly blocked rather than failing silently.
 
-> **Note (2026-11-16, Step 6.1w):** `main` now has a client-side cache and a saved session (`docs/features/client-cache.md`). Done on updating from `main`: this branch uses `bookrough.session.v1` instead of its own `bookrough.session` (the app opens from it at once; no response from `/auth/me` makes it read-only until confirmed, `pwa-offline.md` §3.3), and keeps its sign-out wipe of Cache Storage alongside the new wipe. **Still open:** whether its `api` runtime cache is still needed.
+> **Note (2026-11-16, Step 6.1w):** `main` now has a client-side cache and a saved session (`docs/features/client-cache.md`). Done on updating from `main`: this branch uses `bookrough.session.v1` instead of its own `bookrough.session` (the app opens from it at once; no response from `/auth/me` makes it read-only until confirmed, `pwa-offline.md` §3.3), and keeps its sign-out wipe of Cache Storage alongside the new wipe. **Decided 2026-11-17:** its `api` runtime cache stays as it is, for the screens the in-app cache does not keep (`pwa-offline.md` §3.2).
 
 > ⚠️ Register the service worker **only in production builds**. A service worker against the Vite dev server serves stale assets and produces hours of phantom debugging. Verify every change with `npm run build && npm run preview`.
 
