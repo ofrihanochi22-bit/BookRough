@@ -67,6 +67,31 @@ export default tseslint.config(
     },
   },
 
+  // Backend: no raw SQL built from text (SQL injection audit, 2026-11-17).
+  // `$queryRaw` / `$executeRaw` as tagged templates, and `Prisma.sql`, send
+  // every value as a bound parameter; the Unsafe variants and `Prisma.raw`
+  // splice text into the query. Tests may use them with fixed strings to reset
+  // the test database, so they are left out.
+  {
+    files: ['backend/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/test/**'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...['$queryRawUnsafe', '$executeRawUnsafe'].map((property) => ({
+          property,
+          message:
+            'Use the $queryRaw / $executeRaw tagged template, which binds every value as a parameter.',
+        })),
+        {
+          object: 'Prisma',
+          property: 'raw',
+          message: 'Prisma.raw splices text into SQL. Use Prisma.sql with bound values instead.',
+        },
+      ],
+    },
+  },
+
   // Frontend: browser globals, React rules.
   {
     files: ['frontend/**/*.{ts,tsx}'],
