@@ -268,35 +268,145 @@ export function describeEntry(entry: PlanEntry): string {
   return `${deployment.id}  ${created}  ${sha}  ${deployment.state}${substate}  ${flags || '-'}  ${deployment.target ?? '-'}  → ${verdict}`;
 }
 
+/**
+ * The snapshot Admin → Overview shows (docs/features/admin-overview.md §6.3). `deletedIds` holds
+ * only deletions Vercel confirmed (200, or 404 for already gone); a dry run deleted nothing.
+ */
+export interface PruneSnapshot {
+  source: 'PRUNE_DEPLOYMENTS';
+  capturedAt: string;
+  payload: {
+    dryRun: boolean;
+    liveId: string;
+    deployments: {
+      id: string;
+      sha: string | null;
+      createdAt: string;
+      state: string;
+      target: string | null;
+      verdict: Verdict;
+    }[];
+    deleted: { id: string; sha: string | null; createdAt: string }[];
+  };
+}
+
+function shaOrNull(sha: string): string | null {
+  return /^[0-9a-f]{7,40}$/.test(sha) ? sha : null;
+}
+
+/** The Overview stores at most this many deployments per snapshot (admin-overview.md §4.4). */
+export const SNAPSHOT_DEPLOYMENTS = 200;
+
+export function buildPruneSnapshot(
+  plan: PlanEntry[],
+  liveId: string,
+  deletedIds: ReadonlySet<string>,
+  dryRun: boolean,
+  capturedAt: Date,
+): PruneSnapshot {
+  // The plan is newest first; a listing past the cap sends its newest part, plus every deletion.
+  const included = plan.filter(
+    (entry, index) => index < SNAPSHOT_DEPLOYMENTS || deletedIds.has(entry.deployment.id),
+  );
+  const deployments = included.map(({ deployment, verdict }) => ({
+    id: deployment.id,
+    sha: shaOrNull(deployment.sha),
+    createdAt: new Date(deployment.created).toISOString(),
+    state: deployment.state.slice(0, 20),
+    target: deployment.target === null ? null : deployment.target.slice(0, 20),
+    verdict,
+  }));
+  return {
+    source: 'PRUNE_DEPLOYMENTS',
+    capturedAt: capturedAt.toISOString(),
+    payload: {
+      dryRun,
+      liveId,
+      deployments,
+      deleted: dryRun
+        ? []
+        : deployments
+            .filter((deployment) => deletedIds.has(deployment.id))
+            .map(({ id, sha, createdAt }) => ({ id, sha, createdAt })),
+    },
+  };
+}
+
+export const DEFAULT_INGEST_URL = 'https://bookrough.vercel.app/api/ops/snapshots';
+
+/**
+ * Posts the snapshot to the app. Never throws: the dashboard is a view, and pruning is this job's
+ * purpose, so a failure here is a warning in the log and the job stays green. Returns the line it
+ * printed, for the tests.
+ */
+export async function postSnapshot(
+  snapshot: PruneSnapshot,
+  source: NodeJS.ProcessEnv,
+  write: (line: string) => void = (line) => process.stdout.write(line),
+): Promise<string> {
+  const token = source.OPS_INGEST_TOKEN?.trim();
+  const url = source.OPS_INGEST_URL?.trim() || DEFAULT_INGEST_URL;
+  let line: string;
+  if (!token) {
+    line = '::notice::OPS_INGEST_TOKEN is not set; the Overview snapshot was not posted.\n';
+  } else {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(snapshot),
+      });
+      line =
+        response.status === 201
+          ? 'Posted the Overview snapshot.\n'
+          : `::warning::Posting the Overview snapshot failed with HTTP ${response.status} (${await failureDetail(response)}).\n`;
+    } catch (error) {
+      line = `::warning::Posting the Overview snapshot failed (${(error as Error).message}).\n`;
+    }
+  }
+  write(line);
+  return line;
+}
+
 /* v8 ignore start -- the entry point; every decision and call above is tested. */
 export async function main(source: NodeJS.ProcessEnv = process.env): Promise<void> {
   const config = readConfig(source);
   const liveId = await readLiveId(config);
+  const capturedAt = new Date();
   const plan = planDeploymentPrune(await listDeployments(config), {
     liveId,
     keep: 2,
     maxDeletes: 10,
   });
   const doomed = plan.filter((entry) => entry.verdict === 'delete');
+  const deleted = new Set<string>();
+  const report = () =>
+    postSnapshot(buildPruneSnapshot(plan, liveId, deleted, !config.deleting, capturedAt), source);
 
   process.stdout.write(`Live: ${liveId}\n${plan.map(describeEntry).join('\n')}\n`);
   process.stdout.write(
     `${config.deleting ? 'Deleting' : 'Would delete (dry run)'} ${doomed.length}.\n`,
   );
-  if (!config.deleting || doomed.length === 0) {
-    return;
-  }
-  // Production may have been re-pointed since it was read (a promote in the dashboard): plan again
-  // rather than delete what might now be live.
-  const liveNow = await readLiveId(config);
-  if (liveNow !== liveId) {
-    throw new Error(
-      `Production moved from ${liveId} to ${liveNow} during the run; deleting nothing.`,
-    );
-  }
-  for (const entry of doomed) {
-    await deleteDeployment(config, entry.deployment);
-    process.stdout.write(`Deleted ${entry.deployment.id}\n`);
+  try {
+    if (!config.deleting || doomed.length === 0) {
+      return;
+    }
+    // Production may have been re-pointed since it was read (a promote in the dashboard): plan
+    // again rather than delete what might now be live.
+    const liveNow = await readLiveId(config);
+    if (liveNow !== liveId) {
+      throw new Error(
+        `Production moved from ${liveId} to ${liveNow} during the run; deleting nothing.`,
+      );
+    }
+    for (const entry of doomed) {
+      await deleteDeployment(config, entry.deployment);
+      deleted.add(entry.deployment.id);
+      process.stdout.write(`Deleted ${entry.deployment.id}\n`);
+    }
+  } finally {
+    // Also after a failure part-way: what was deleted stays deleted, and the Overview says so.
+    await report();
   }
 }
 

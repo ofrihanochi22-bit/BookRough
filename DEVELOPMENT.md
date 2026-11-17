@@ -3289,6 +3289,64 @@ cd frontend && npx vitest run src/components/Walkthrough src/pages/Profile src/c
 cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tutorialReset src/routes/tutorial
 ```
 
+### Step 6.1z — Admin → Overview: storage and app health on one page (Phase 6 — UC-19 amended)
+
+Status: 🟡 PR open, waiting for the developer's word to merge
+Branch: feat/admin-overview
+Spec: `docs/features/admin-overview.md`
+
+Goal: after the 30-day pause in October 2026, three tools watch Vercel storage, but each prints its result and forgets it. Now the admin opens one read-only page that shows where every limit that could block the app stands, which deployments and images exist and when each kind was last deleted, and how the app is used, with every block saying where its data came from and how old it is.
+
+What I did:
+
+- **Decisions (Stage 1, 2026-11-17):** the Vercel figures are snapshots written by the tools that already read them; the server never calls Vercel. Site visits are an anonymous daily count of app opens. Overview is the first Admin tab, recorded as an amendment to UC-19. Snapshots are kept 90 days; a reading older than 48 hours is Stale. The Neon database's own size is shown live.
+- **Migration `add_ops_overview`:** tables `ops_snapshots` (source, captured/received times, JSONB payload, `deleted_count`, the admin who posted it) and `daily_app_opens` (day, signed in, signed out), with the hand-written CHECKs `ops_snapshots_deleted_nonneg` and `daily_app_opens_nonneg`. Sixteen tables now.
+- **Backend:** `services/opsSnapshots.ts` (a strict Zod schema per source; each writer limited to its own sources; 90-day retention in the same transaction), `services/adminOverview.ts` (one answer: live counts, `pg_database_size` against `DB_STORAGE_LIMIT_MB`, the latest valid snapshot per source, the change since the previous usage reading, images in use by a remaining deployment, last deletions), `services/appOpens.ts` (an atomic `INSERT … ON CONFLICT` per UTC day). Endpoints: `GET /api/admin/overview` and `POST /api/admin/ops/snapshots` (admin session, the skills) and `POST /api/ops/snapshots` (bearer `OPS_INGEST_TOKEN`, CI only, `404` when unset, the sign-in rate tier). `GET /api/settings?open=1` counts one open without ever affecting the answer.
+- **Frontend:** `pages/AdminOverview.tsx` with six blocks (storage limits, deployments, images, last deletions, app), each with its source and age and a Stale chip; Refresh keeps the blocks while it re-reads; skeleton, error, per-block empty and offline states. `/admin` now opens Overview. The settings store sends `open=1` once per app load.
+- **Tools:** `collect-usage.js` returns the reading in bytes, ready to post, and `/vercel-usage` posts it through the admin's session in Chrome; `read-images.js` adds each image's bytes, digest and publish time, and `/vercel-image-cleanup` posts the table and what it deleted. `pruneDeployments.ts` posts its plan and confirmed deletions (`buildPruneSnapshot`, `postSnapshot`); a failed post is a warning and never fails the job. `main.yml` passes `OPS_INGEST_TOKEN` and `OPS_INGEST_URL`.
+- **Docs:** this spec; `tables`, `use cases`, `frontend screens`, `deployment` (.md + .docx); CLAUDE.md §6, §9, §17; `admin-panel.md`; `backend/.env.example`.
+- **Code review** (`/code-review`, 9 findings, all fixed): images of deployments a run had deleted still read "In use"; a deletion that failed part-way still read "Deleted"; the admin E2E and a component test expected `/admin` to open Users; a listing over 200 deployments would be refused (CI now sends the newest 200 plus its deletions); a failed first settings fetch lost the open, and two loads at start could count it twice; each Overview read 20 full payloads per source; a duplicated date format; the docs still said fourteen tables.
+- **Security review** (`/security-review`): no findings. Checked: both admin routes behind `requireAuth` and `requireAppAdmin`; the CI token compared in constant time, refused as a cookie, never logged, and able to write deployments snapshots only; bound SQL values; no names or ids in the answer; no personal data in `daily_app_opens`.
+- **Tests:** backend `services/opsSnapshots`, `services/adminOverview`, `services/appOpens`, `middleware/requireIngestToken`, `controllers/settings.controller`, `config/env`, `ops/pruneDeployments` (unit) and `routes/ops.integration` (the Overview, both ingest paths with 201/400/401/403/404/422/429, retention, opens, the privacy check); frontend `pages/AdminOverview`, `lib/overviewCopy`, `stores/settings`, `api/admin`, `api/settings`, `pages/Admin`; E2E `admin.spec.ts` updated for the new landing tab. Backend 1631 tests, 99.1% lines; frontend 1338 tests, 98.5% lines.
+- **Not yet seen in a browser:** the tab is covered by component tests only; it needs a signed-in admin to look at.
+
+What the developer does (secrets are theirs, CLAUDE.md §11):
+
+1. Generate a token: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+2. Vercel → bookrough → Settings → Environment Variables: add `OPS_INGEST_TOKEN` (Production) with that value. (`DB_STORAGE_LIMIT_MB` defaults to 1024, Neon Free's 1 GB, confirmed in the Neon console; set it only if the plan changes.)
+3. GitHub → Settings → Secrets and variables → Actions → New repository secret: `OPS_INGEST_TOKEN`, the same value.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate deploy && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in with an account whose `users.role` is `ADMIN`, open My Profile → Admin area: the Overview tab opens first. With no snapshots yet, each Vercel block says which tool to run; Storage limits shows the Neon database, and App shows the live counts.
+2. Reload the app a few times: App opens → Today grows by one per reload.
+3. Post a reading as the admin, from the browser console on `http://localhost:5173`: `fetch('/api/admin/ops/snapshots', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'VERCEL_USAGE', capturedAt: new Date().toISOString(), payload: { period: null, storage: { functions: { usedBytes: 8.2e9, limitBytes: 1e10 }, images: { usedBytes: 4.5e9, limitBytes: 1e10 }, deployment: { usedBytes: 0, limitBytes: 1e10 } }, others: [] } }) })`. Press Refresh: Functions Storage reads 82%, Stop, listed first.
+4. In production, after the token is set: the next `prune-deployments` run fills Deployments, and `/vercel-usage` and `/vercel-image-cleanup` fill the rest.
+
+```bash
+cd backend && npx vitest run src/services/opsSnapshots src/services/adminOverview src/services/appOpens src/middleware/requireIngestToken src/ops src/config src/controllers/settings
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/ops src/routes/admin src/routes/settings
+```
+
+```bash
+cd frontend && npx vitest run src/pages/AdminOverview src/pages/Admin src/lib/overviewCopy src/stores/settings src/api
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type Config,
   type Deployment,
+  buildPruneSnapshot,
+  DEFAULT_INGEST_URL,
   deleteDeployment,
   describeEntry,
   failureDetail,
   listDeployments,
   planDeploymentPrune,
+  postSnapshot,
   readConfig,
   readLiveId,
 } from './pruneDeployments.js';
@@ -540,5 +543,160 @@ describe('failureDetail', () => {
 
     // Act & Assert
     expect(await failureDetail(used)).toBe('(no response body)');
+  });
+});
+
+/* docs/features/admin-overview.md §8 — the snapshot the job posts to Admin → Overview. */
+describe('buildPruneSnapshot', () => {
+  const HEX = 'abcdef1'.padEnd(40, '0');
+  const plan = () =>
+    planDeploymentPrune(
+      [deployment(5, { sha: HEX }), deployment(4, { sha: '' }), deployment(3), deployment(2)],
+      { liveId: 'dpl_5', ...OPTIONS },
+    );
+
+  it('maps every planned deployment with its verdict, and lists only confirmed deletions', () => {
+    // Act
+    const snapshot = buildPruneSnapshot(
+      plan(),
+      'dpl_5',
+      new Set(['dpl_3']),
+      false,
+      new Date(5 * DAY),
+    );
+
+    // Assert
+    expect(snapshot.source).toBe('PRUNE_DEPLOYMENTS');
+    expect(snapshot.capturedAt).toBe(new Date(5 * DAY).toISOString());
+    expect(snapshot.payload.liveId).toBe('dpl_5');
+    expect(snapshot.payload.dryRun).toBe(false);
+    expect(snapshot.payload.deployments.map((d) => [d.id, d.verdict])).toEqual([
+      ['dpl_5', 'keep (live)'],
+      ['dpl_4', 'keep (rollback)'],
+      ['dpl_3', 'delete'],
+      ['dpl_2', 'delete'],
+    ]);
+    expect(snapshot.payload.deployments[0]?.sha).toBe(HEX);
+    // An empty or non-hex SHA is sent as null rather than refused by the server.
+    expect(snapshot.payload.deployments[1]?.sha).toBeNull();
+    expect(snapshot.payload.deleted.map((d) => d.id)).toEqual(['dpl_3']);
+  });
+
+  it('lists no deletions on a dry run', () => {
+    // Act
+    const snapshot = buildPruneSnapshot(
+      plan(),
+      'dpl_5',
+      new Set(['dpl_3']),
+      true,
+      new Date(5 * DAY),
+    );
+
+    // Assert
+    expect(snapshot.payload.dryRun).toBe(true);
+    expect(snapshot.payload.deleted).toEqual([]);
+  });
+
+  it('sends the newest 200 of a longer listing, plus any deletion past them', () => {
+    // Arrange — 205 deployments, the oldest one deleted.
+    const many = Array.from({ length: 205 }, (_, i) => ({
+      deployment: deployment(300 - i),
+      verdict: 'keep' as const,
+    }));
+
+    // Act
+    const snapshot = buildPruneSnapshot(many, 'dpl_300', new Set(['dpl_96']), false, new Date());
+
+    // Assert
+    expect(snapshot.payload.deployments).toHaveLength(201);
+    expect(snapshot.payload.deployments.at(-1)?.id).toBe('dpl_96');
+  });
+});
+
+describe('postSnapshot', () => {
+  const fetchMock = vi.fn();
+  const snapshot = buildPruneSnapshot([], 'dpl_1', new Set(), true, new Date(DAY));
+  const lines: string[] = [];
+  const write = (line: string) => {
+    lines.push(line);
+  };
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    lines.length = 0;
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('posts with the bearer token to the default URL and accepts 201', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue(new Response('{}', { status: 201 }));
+
+    // Act
+    const line = await postSnapshot(snapshot, { OPS_INGEST_TOKEN: ' tok ' }, write);
+
+    // Assert
+    expect(line).toBe('Posted the Overview snapshot.\n');
+    expect(fetchMock).toHaveBeenCalledWith(DEFAULT_INGEST_URL, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer tok', 'Content-Type': 'application/json' },
+      body: JSON.stringify(snapshot),
+    });
+  });
+
+  it('uses OPS_INGEST_URL when set', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue(new Response('{}', { status: 201 }));
+
+    // Act
+    await postSnapshot(
+      snapshot,
+      { OPS_INGEST_TOKEN: 'tok', OPS_INGEST_URL: 'http://localhost:4000/api/ops/snapshots' },
+      write,
+    );
+
+    // Assert
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:4000/api/ops/snapshots');
+  });
+
+  it('skips with a notice when the token is not set', async () => {
+    // Act
+    const line = await postSnapshot(snapshot, {}, write);
+
+    // Assert
+    expect(line).toMatch(/^::notice::OPS_INGEST_TOKEN is not set/);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(lines).toEqual([line]);
+  });
+
+  it('warns, without throwing, when the app refuses the post', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: 'error', code: 401, message: 'Invalid ingest token.' }),
+        { status: 401 },
+      ),
+    );
+
+    // Act
+    const line = await postSnapshot(snapshot, { OPS_INGEST_TOKEN: 'zq-secret-value-zq' }, write);
+
+    // Assert — Vercel-style detail is printed, the token never is.
+    expect(line).toMatch(/^::warning::Posting the Overview snapshot failed with HTTP 401/);
+    expect(line).not.toContain('zq-secret-value-zq');
+  });
+
+  it('warns, without throwing, when the network fails', async () => {
+    // Arrange
+    fetchMock.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+
+    // Act
+    const line = await postSnapshot(snapshot, { OPS_INGEST_TOKEN: 'tok' }, write);
+
+    // Assert
+    expect(line).toBe('::warning::Posting the Overview snapshot failed (getaddrinfo ENOTFOUND).\n');
   });
 });

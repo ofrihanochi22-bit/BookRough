@@ -25,9 +25,23 @@ Vercel's connector cannot read these meters on Hobby: `list_billing_charges` ans
    - `flagged`: every other meter at 60% or more.
    - `highestOther`: the fullest non-storage meter.
    - `unparsed`: meters whose units the script did not understand. Mention them, and assess them by eye.
-5. **Close the tab** with `tabs_close_mcp`.
-6. **Assess** (next section) and **append** to the history file.
-7. **Report** to the developer (format below).
+   - `snapshot`: the payload Admin → Overview stores, or `null` while the page isn't fully read or a storage meter is missing or unreadable.
+5. **Assess** (next section) and **append** to the history file.
+6. **Post to Admin → Overview** (docs/features/admin-overview.md §6.1). If `snapshot` is null, skip this and say so. Otherwise navigate the same tab to `https://bookrough.vercel.app/` and run, with `javascript_tool`:
+
+   ```js
+   const r = await fetch('/api/admin/ops/snapshots', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ source: 'VERCEL_USAGE', capturedAt: '<ISO time of the reading>', payload: /* `snapshot` from the last collect-usage.js run, as is */ }),
+   });
+   JSON.stringify({ status: r.status, body: await r.text() });
+   ```
+
+   `201` is done. `401` or `403` means the developer isn't signed in to BookRough as admin in Chrome: say so and ask them to sign in. Any other status: report it in one line. **The post never changes the verdict or blocks a merge**: the verdict comes from the reading.
+
+7. **Close the tab** with `tabs_close_mcp`.
+8. **Report** to the developer (format below), with one line on whether the Overview post went through.
 
 If Claude in Chrome is not connected, or any step fails twice, say so in one line and fall back to the old routine: ask the developer to read Functions Storage, Images Storage and Deployment Storage in Vercel → Usage. Before a merge, do not merge until one of the two has happened.
 

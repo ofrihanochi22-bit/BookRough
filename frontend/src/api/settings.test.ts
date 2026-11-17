@@ -21,6 +21,19 @@ afterEach(() => {
 });
 
 describe('settings API module', () => {
+  it('fetchPublicSettings marks the start-up fetch with open=1, and only that one', async () => {
+    // Arrange (docs/features/admin-overview.md §4.5)
+    const seen = respondWith(ok({ accentColor: 'green', welcomeTagline: 'x' }));
+
+    // Act
+    await fetchPublicSettings({ countOpen: true });
+    await fetchPublicSettings({ countOpen: false });
+
+    // Assert
+    expect(seen[0]).toMatchObject({ url: '/settings', params: { open: '1' } });
+    expect(seen[1]?.params).toBeUndefined();
+  });
+
   it('fetchPublicSettings gets /settings without the global toast', async () => {
     // Arrange
     const seen = respondWith(ok({ accentColor: 'green', welcomeTagline: 'x' }));
