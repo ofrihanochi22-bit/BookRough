@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { createCommunityAndReadLink } from '../support/flows';
+import { createCommunityAndReadLink, openComposer } from '../support/flows';
 
 /**
  * The offline golden loop — docs/features/pwa-offline.md §7. Chromium only:
@@ -27,7 +27,8 @@ test('with no connection the app opens signed in and reads what it last loaded',
 }) => {
   // Arrange — a community with a post, and a worker in charge of the page.
   await createCommunityAndReadLink(page, 'Offline Club');
-  const composer = page.getByRole('form', { name: 'Share a song' });
+  // The composer starts collapsed behind a "Share a song or album" pill.
+  const composer = await openComposer(page);
   await composer.getByLabel('Share a song or album').fill(SHARED);
   await composer.getByRole('button', { name: 'Post' }).click();
   const post = page
@@ -54,8 +55,9 @@ test('with no connection the app opens signed in and reads what it last loaded',
   // Assert — signed in, reading the saved feed, with writes blocked.
   await expect(post).toBeVisible();
   await expect(page.getByText("You're offline. Showing what you last loaded.")).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
   await expect(page.getByText("You're offline. Connect to post.")).toBeVisible();
+  const offlineComposer = await openComposer(page);
+  await expect(offlineComposer.getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
 
   // Assert — My List is readable too, and a screen never loaded says so.
   await page

@@ -3425,6 +3425,7 @@ Made the app readable offline and able to offer updates, per `docs/features/pwa-
 - **Device wipe (`lib/offlineCache.ts`, `stores/auth.ts`):** sign-out and every `401` delete the snapshot and the `api` cache, and the cache has one owner, so a late answer cannot cross users.
 - **Screens:** `OfflineBar`, the offline launch screen in `SessionGate`, `UpdatePrompt`, and offline wording in `LoadError`. Sign out and Reset link gained offline states.
 - **E2E:** serves the build same-origin through a `vite preview` proxy (`PREVIEW_API_PROXY`), and blocks service workers except in the one test about them.
+- **Fix after the merge (2026-11-17):** `test:e2e` failed on `main` because `offline.spec.ts` still looked for the composer as it was before the redesign; the composer now starts collapsed. The test opens it with `openComposer` (`e2e/support/flows.ts`), before posting and again offline, where the Post button is disabled. Run: `cd e2e && npx playwright test offline --project=chromium` (needs Docker for `music_app_test_db`).
 - **Docs:** `deployment` §6, `frontend screens` §6, `tech stack` (.md + .docx); `google-auth.md` §6, `profile-settings.md`.
 - **Tests:** frontend 740 (98.58% lines), E2E 44 + 4 skipped. New: the worker's rules rebuilt from source as `sw.js` runs them, `sessionSnapshot`, `offlineCache`, `stores/auth`, `SessionGate`, `OfflineBar`, `UpdatePrompt`, `LoadError`, `useOnlineStatus`, the `vercel.json` and manifest contracts, and the offline golden loop on Chromium.
 
