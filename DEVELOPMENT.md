@@ -3335,7 +3335,7 @@ docker exec api-smoke node --input-type=module -e "import { convertLink } from '
 
 ### Step 6.2 — PWA: offline support (Phase 6)
 
-Status: 🟡 Built and tested locally; the iPhone checks O1–O9 wait for the Vercel pause to end
+Status: 🟡 Built and tested locally; the iPhone checks O1–O9 run on production after the merge (decided 2026-11-17)
 Branch: feat/pwa-offline
 Spec: docs/features/pwa-offline.md
 
@@ -3355,8 +3355,8 @@ Tasks:
 - [x] Frontend: The update bar when a new version is waiting.
 - [x] Review: `/code-review` (7 findings, all fixed) and `/security-review` (no findings).
 - [x] Tests: unit, component, contract and E2E per spec §7.
-- [ ] Tests: Manual — airplane mode on a real iPhone, O1–O6 and O8. Needs a preview, so it waits for the pause to end.
-- [ ] Tests: Manual — deploy a second build and confirm the update bar appears (O7), and check `/sw.js` caching on the preview (O9).
+- [ ] Tests: Manual — airplane mode on a real iPhone, O1–O6 and O8, on production right after the merge.
+- [ ] Tests: Manual — at the next merge into `main`, confirm the update bar appears (O7); check `/sw.js` caching on production (O9).
 
 What I did:
 
@@ -3388,7 +3388,7 @@ cd frontend && npm run build && PREVIEW_API_PROXY=http://localhost:4000 VITE_API
 
 Open `http://localhost:4173/`, sign in, and open a community and My List. In DevTools → Application: the service worker is activated, and Cache Storage holds the precache, `api` and `images`, with no `/api/auth/` entry. Set Network to Offline and reload: the feed renders, the offline bar shows, and Post is disabled with its note. Open a screen you never visited: "You're offline, and this wasn't loaded before."
 
-On a real iPhone, on this branch's preview, follow O1–O9 and the setup in the spec's §3.6. The branch must first opt in to a preview by its exact name in `vercel.json`, and remove it before the merge; each preview stores one more image.
+On a real iPhone, on production once the merge is live, follow O1–O9 as in the spec's §3.6. There is no preview for this branch (decided 2026-11-17, to save a backend image of storage). O7 waits for the next merge into `main`; a failed check gets a fix PR before the next feature.
 
 Tests:
 
