@@ -20,10 +20,16 @@ export interface Deployment {
   created: number;
   state: string;
   target: string | null;
-  /** Deployment Checks: `registered`, `running`, `completed`, or absent when there are none. */
-  checksState: string | undefined;
-  /** How the checks ended: `succeeded`, `failed`, `skipped`, `canceled`, or absent. */
-  checksConclusion: string | undefined;
+  /**
+   * Ever served production: Vercel's `aliasAssigned` is set, or `readySubstate` is `PROMOTED`. A
+   * READY production deployment that is not promoted is waiting on Deployment Checks, or failed
+   * them and never will be.
+   */
+  promoted: boolean;
+  /** Vercel's own `isRollbackCandidate`: the deployments the dashboard can roll back to. */
+  rollbackCandidate: boolean;
+  /** `readySubstate`, for the log only. */
+  substate: string | undefined;
   sha: string;
 }
 
@@ -36,35 +42,9 @@ export interface PlanEntry {
 
 export interface PlanOptions {
   liveId: string;
-  /** READY deployments to keep, the live one included. */
+  /** Promoted READY deployments to keep, the live one included. */
   keep: number;
   maxDeletes: number;
-}
-
-const FAILED_CHECKS = new Set(['failed', 'canceled']);
-
-/** Built and past Deployment Checks, or without any: the only READY deployments that count. */
-function isSettledReady(deployment: Deployment): boolean {
-  return (
-    deployment.state === 'READY' &&
-    deployment.checksState !== 'registered' &&
-    deployment.checksState !== 'running' &&
-    !FAILED_CHECKS.has(deployment.checksConclusion ?? '')
-  );
-}
-
-/**
- * A build that failed or was cancelled, or one that built but failed its Deployment Checks and so
- * will never be promoted: never a rollback target, deleted once a settled READY one is newer.
- */
-function isFailed(deployment: Deployment): boolean {
-  return (
-    deployment.state === 'ERROR' ||
-    deployment.state === 'CANCELED' ||
-    (deployment.state === 'READY' &&
-      deployment.checksState === 'completed' &&
-      FAILED_CHECKS.has(deployment.checksConclusion ?? ''))
-  );
 }
 
 /**
@@ -79,29 +59,41 @@ export function planDeploymentPrune(deployments: Deployment[], options: PlanOpti
       );
     }
   }
-  if (!deployments.some((deployment) => deployment.id === options.liveId)) {
+  const live = deployments.find((deployment) => deployment.id === options.liveId);
+  if (live === undefined) {
     throw new Error(`The live deployment ${options.liveId} is not in the list; deleting nothing.`);
+  }
+  // The live deployment is promoted by definition; if the list does not say so, Vercel's fields
+  // have changed and "never promoted" can no longer be told apart.
+  if (!live.promoted) {
+    throw new Error(
+      `The live deployment ${live.id} is not marked as promoted in the list; deleting nothing.`,
+    );
   }
 
   const newestFirst = [...deployments].sort((a, b) => b.created - a.created);
   const production = newestFirst.filter((deployment) => deployment.target === 'production');
-  const ready = production.filter(isSettledReady);
-  const kept = new Set<string>([options.liveId]);
-  for (const deployment of ready) {
+  const promotedReady = production.filter((d) => d.state === 'READY' && d.promoted);
+  const kept = new Set<string>([live.id]);
+  for (const deployment of promotedReady) {
     if (kept.size >= options.keep) break;
     kept.add(deployment.id);
   }
-  const newestReady = ready[0]?.created ?? -Infinity;
+  const newestPromoted = promotedReady[0]?.created ?? -Infinity;
 
   const plan = newestFirst.map((deployment): PlanEntry => {
+    const superseded = deployment.created < newestPromoted;
     let verdict: Verdict;
-    if (deployment.id === options.liveId) verdict = 'keep (live)';
+    if (deployment.id === live.id) verdict = 'keep (live)';
     else if (deployment.target !== 'production') verdict = 'keep';
-    else if (kept.has(deployment.id)) verdict = 'keep (rollback)';
-    else if (isSettledReady(deployment)) verdict = 'delete';
-    else if (isFailed(deployment) && deployment.created < newestReady) verdict = 'delete';
-    else if (isFailed(deployment)) verdict = 'keep';
-    else verdict = 'keep (unfinished)';
+    else if (kept.has(deployment.id) || deployment.rollbackCandidate) verdict = 'keep (rollback)';
+    else if (deployment.state === 'READY' && deployment.promoted) verdict = 'delete';
+    // Built but never promoted: newer than the live one, it may still be in checks; older, it
+    // failed them, like a failed build.
+    else if (deployment.state === 'READY') verdict = superseded ? 'delete' : 'keep (unfinished)';
+    else if (deployment.state === 'ERROR' || deployment.state === 'CANCELED') {
+      verdict = superseded ? 'delete' : 'keep';
+    } else verdict = 'keep (unfinished)';
     return { deployment, verdict };
   });
 
@@ -203,8 +195,12 @@ function toDeployment(raw: Record<string, unknown>): Deployment {
     created: raw.created,
     state,
     target: typeof raw.target === 'string' ? raw.target : null,
-    checksState: typeof raw.checksState === 'string' ? raw.checksState : undefined,
-    checksConclusion: typeof raw.checksConclusion === 'string' ? raw.checksConclusion : undefined,
+    promoted:
+      (typeof raw.aliasAssigned === 'number' && raw.aliasAssigned > 0) ||
+      raw.aliasAssigned === true ||
+      raw.readySubstate === 'PROMOTED',
+    rollbackCandidate: raw.isRollbackCandidate === true,
+    substate: typeof raw.readySubstate === 'string' ? raw.readySubstate : undefined,
     sha: typeof meta.githubCommitSha === 'string' ? meta.githubCommitSha : '',
   };
 }
@@ -262,10 +258,14 @@ export function describeEntry(entry: PlanEntry): string {
   const { deployment, verdict } = entry;
   const created = new Date(deployment.created).toISOString();
   const sha = deployment.sha === '' ? '(no sha)' : deployment.sha.slice(0, 7);
-  const checks = deployment.checksState
-    ? ` checks:${deployment.checksState}${deployment.checksConclusion ? `/${deployment.checksConclusion}` : ''}`
-    : '';
-  return `${deployment.id}  ${created}  ${sha}  ${deployment.state}${checks}  ${deployment.target ?? '-'}  → ${verdict}`;
+  const substate = deployment.substate ? `/${deployment.substate}` : '';
+  const flags = [
+    deployment.promoted ? 'promoted' : '',
+    deployment.rollbackCandidate ? 'rollback-candidate' : '',
+  ]
+    .filter(Boolean)
+    .join(',');
+  return `${deployment.id}  ${created}  ${sha}  ${deployment.state}${substate}  ${flags || '-'}  ${deployment.target ?? '-'}  → ${verdict}`;
 }
 
 /* v8 ignore start -- the entry point; every decision and call above is tested. */
