@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes usable from the iPhone home screen (CLAUDE.md §1, §16)     |
 | **Phase**     | 6 — Step 6.1 of `DEVELOPMENT.md`, second in the re-sliced order (`production-deploy.md` §0) |
 | **Branch**    | `feat/pwa-installable`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                          |
 
 ---
 
