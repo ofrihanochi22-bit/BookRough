@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
   listAdminCommunities: vi.fn(),
   removeUserPhoto: vi.fn(),
+  fetchAdminOverview: vi.fn(),
   fetchSession: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('../api/admin', () => ({
   listAdminUsers: api.listAdminUsers,
   listAdminCommunities: api.listAdminCommunities,
   removeUserPhoto: api.removeUserPhoto,
+  fetchAdminOverview: api.fetchAdminOverview,
 }));
 vi.mock('react-hot-toast', () => ({
   default: { success: api.toastSuccess, error: api.toastError },
@@ -87,18 +89,22 @@ describe('who can see the admin area', () => {
     expect(api.listAdminUsers).not.toHaveBeenCalled();
   });
 
-  it('sends an admin from /admin to the Users tab', async () => {
-    // Arrange
+  it('sends an admin from /admin to the Overview tab, listed first', async () => {
+    // Arrange — the Overview's request never settles; only the landing matters here.
     signedIn(true);
-    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchAdminOverview.mockReturnValue(new Promise(() => {}));
 
     // Act
     renderAt('/admin');
 
-    // Assert
+    // Assert (docs/features/admin-overview.md §5)
     expect(await screen.findByRole('heading', { name: 'Admin' })).toBeInTheDocument();
-    expect(await screen.findByText('1 user')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    const tabs = within(screen.getByRole('navigation', { name: 'Admin sections' }))
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+    expect(tabs).toEqual(['Overview', 'Users', 'Communities', 'Settings']);
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
+    expect(api.fetchAdminOverview).toHaveBeenCalled();
   });
 
   it('renders not-found for an unknown admin path', async () => {

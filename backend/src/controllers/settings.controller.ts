@@ -2,7 +2,9 @@ import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { sessionUser } from '../middleware/requireAuth.js';
+import { recordAppOpen } from '../services/appOpens.js';
 import { getAdminSettings, getPublicSettings, updateSettings } from '../services/appSettings.js';
+import { createLogger } from '../utils/logger.js';
 import { success } from '../utils/response.js';
 import { parseBody } from '../utils/validate.js';
 
@@ -22,9 +24,19 @@ const settingsUpdateSchema = z
   .strict()
   .refine((body) => Object.keys(body).length > 0);
 
+const log = createLogger('settings');
+
 /** GET /api/settings — public, behind optionalAuth. */
 export const publicSettings: RequestHandler = async (req, res, next) => {
   try {
+    // The app's start-up fetch adds open=1: one anonymous app open
+    // (docs/features/admin-overview.md §4.5). Not awaited, and a failure
+    // never touches the settings answer.
+    if (req.query.open === '1') {
+      recordAppOpen(req.user !== undefined).catch((error: unknown) => {
+        log.warn({ err: error }, 'Could not count an app open');
+      });
+    }
     res.status(200).json(success(await getPublicSettings(req.user !== undefined)));
   } catch (error) {
     next(error);

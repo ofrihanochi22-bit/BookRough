@@ -11,6 +11,7 @@ import { healthRouter } from './health.js';
 import { invitationsRouter } from './invitations.js';
 import { invitesRouter } from './invites.js';
 import { notificationsRouter } from './notifications.js';
+import { opsRouter } from './ops.js';
 import { postsRouter } from './posts.js';
 import { recommendationsRouter } from './recommendations.js';
 import { settingsRouter } from './settings.js';
@@ -31,6 +32,7 @@ apiRouter.use('/recommendations', recommendationsRouter);
 apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/settings', settingsRouter);
+apiRouter.use('/ops', opsRouter);
 
 /**
  * GET /api/__boom — mounted only under NODE_ENV=test.

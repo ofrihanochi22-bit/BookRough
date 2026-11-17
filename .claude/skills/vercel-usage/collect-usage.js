@@ -98,7 +98,29 @@ await (async () => {
   const others = rows
     .filter((r) => !STORAGE.includes(r.meter) && r.pct !== null && !Number.isNaN(r.pct))
     .sort((a, b) => b.pct - a.pct);
+  // The payload Admin → Overview stores (docs/features/admin-overview.md §4.4), ready to post as
+  // is. Null until the page is fully read, or when a storage meter is missing or unreadable: the
+  // skill never posts a partial reading.
+  const meterBytes = (key) => {
+    const value = state.meters[key];
+    if (!value) return null;
+    const [usedBytes, limitBytes] = value.split(' / ').map(amount);
+    const ok = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+    return ok(usedBytes) && ok(limitBytes) && limitBytes > 0 ? { usedBytes, limitBytes } : null;
+  };
+  const [functions, images, deployment] = STORAGE.map(meterBytes);
+  const snapshot =
+    state.complete && functions && images && deployment
+      ? {
+          period: period ? period.slice(0, 80) : null,
+          storage: { functions, images, deployment },
+          others: others
+            .slice(0, 60)
+            .map((r) => ({ name: r.meter.slice(0, 80), pct: Math.min(1000, Math.max(0, r.pct)) })),
+        }
+      : null;
   return JSON.stringify({
+    snapshot,
     done: state.complete,
     pass: state.pass,
     period,

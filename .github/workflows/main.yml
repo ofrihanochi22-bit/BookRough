@@ -240,3 +240,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
           PRUNE_DEPLOYMENTS: ${{ vars.PRUNE_DEPLOYMENTS }}
+          # Admin → Overview (docs/features/admin-overview.md §6.3): the run posts its plan and its
+          # deletions. Unset token: a notice and no post; a failed post never fails the job.
+          OPS_INGEST_TOKEN: ${{ secrets.OPS_INGEST_TOKEN }}
+          OPS_INGEST_URL: ${{ vars.OPS_INGEST_URL }}

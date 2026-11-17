@@ -38,10 +38,17 @@ export interface AdminSettings {
 
 export type SettingsUpdate = Partial<AdminSettingsValues>;
 
-/** Never toasts: a failure quietly leaves the defaults in place (§5.4). */
-export async function fetchPublicSettings(): Promise<PublicSettings> {
+/**
+ * Never toasts: a failure quietly leaves the defaults in place (§5.4).
+ * `countOpen` marks the app's start-up fetch, which the server counts as one
+ * anonymous app open (docs/features/admin-overview.md §4.5).
+ */
+export async function fetchPublicSettings(
+  options: { countOpen?: boolean } = {},
+): Promise<PublicSettings> {
   const response = await api.get<SuccessBody<PublicSettings>>('/settings', {
     skipErrorToast: true,
+    ...(options.countOpen ? { params: { open: '1' } } : {}),
   });
   return response.data.data;
 }
