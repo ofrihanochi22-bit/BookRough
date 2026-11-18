@@ -208,7 +208,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
   - Any other failure → the row stays; toast "Action failed. Please check your internet connection and try again."
 - **Your friends** section: one row per friend, alphabetical — `PersonLink`. No actions in this feature.
 - **Loading:** skeleton rows for both sections.
-- **Empty:** no requests and no friends → "No friends yet" / "Find people on the Search tab and add them as friends." with a link to Search. With requests but no friends, Your friends reads "Friends you accept appear here."
+- **Empty:** no requests and no friends → "No friends yet" / "Find people with Search and add them as friends." (amended 2026-11-11: Search is a header icon since the Mixtape redesign, not a tab) with a link to Search. With requests but no friends, Your friends reads "Friends you accept appear here."
 - **Error:** `LoadError` — "Couldn't load your friends." with Try again (the two lists load together).
 - **Offline:** banner "You're offline. Connect to answer requests." with Accept and Ignore disabled; the lists stay readable.
 
