@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `admin-delete.md` (2026-11-18).** The users and communities lists are no longer read-only: each row has **Delete**, behind an "Are you sure?" dialog. Deleting a user is a hard delete through the cascades; communities they own pass to their oldest admin, else oldest member, and one where they are the only member is deleted. Deleting a community tells each former member with a `COMMUNITY_REMOVED` notification. An `ADMIN` row has no Delete, and the server refuses one (`403`). Three endpoints: `GET /api/admin/users/:userId/deletion-preview`, `DELETE /api/admin/users/:userId`, `DELETE /api/admin/communities/:communityId`. Each delete is a log line, not a `setting_changes` row.
+
 > **Amended by `admin-overview.md` (2026-11-17).** A first tab, **Overview**, joins Users, Communities and Settings, and `/admin` now opens it: storage limits, deployments, images, last deletions and app counts, read-only. It adds the tables `ops_snapshots` and `daily_app_opens` and three endpoints; nothing in this spec's lists or settings changes.
 
 > **Amended by `avatar-upload.md` (N10, 2026-11-08). The users list is read-only with one exception: **Remove photo** on a row with a photo (an upload or a Google photo), confirmed in a sheet. It's recorded as a log line, not in `setting_changes`.

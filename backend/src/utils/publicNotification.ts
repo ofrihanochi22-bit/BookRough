@@ -9,8 +9,11 @@ export interface PublicNotification {
   /** The latest activity: a group's newest post, otherwise when it happened. */
   at: string;
   read: boolean;
-  actor: MemberUser;
+  /** Null for COMMUNITY_REMOVED: the reader never learns which admin deleted it. */
+  actor: MemberUser | null;
   community: { id: string; name: string } | null;
+  /** COMMUNITY_REMOVED only: the deleted community's name. */
+  communityName: string | null;
   post: { id: string; title: string | null } | null;
   /** Above 1 only for a COMMUNITY_POSTS group. */
   count: number;
@@ -40,8 +43,9 @@ export function toPublicNotification(
     type: row.type,
     at: row.updatedAt.toISOString(),
     read: row.readAt !== null,
-    actor: toMemberUser(row.actor),
+    actor: row.type === 'COMMUNITY_REMOVED' ? null : toMemberUser(row.actor),
     community: row.community && { id: row.community.id, name: row.community.name },
+    communityName: row.type === 'COMMUNITY_REMOVED' ? row.communityName : null,
     post: row.post && { id: row.post.id, title: row.post.songTitle },
     count: row.count,
     score: row.type === 'RATING' ? score : null,

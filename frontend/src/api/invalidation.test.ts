@@ -2,7 +2,7 @@ import { AxiosError, AxiosHeaders, type AxiosAdapter } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cacheSequence, getCached, setCached } from '../lib/requestCache';
-import { removeUserPhoto } from './admin';
+import { deleteAdminCommunity, deleteAdminUser, removeUserPhoto } from './admin';
 import { logout, signInWithGoogle } from './auth';
 import { removeBookmark, saveBookmark } from './bookmarks';
 import { api } from './client';
@@ -115,6 +115,9 @@ const SESSION = {
 /** Every write, the call that makes it, and exactly the keys it removes (spec §3.4). */
 const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   ['removeUserPhoto', () => removeUserPhoto('u1'), AVATARS],
+  // An admin's delete may touch any list (admin-delete.md): every key goes.
+  ['deleteAdminUser', () => deleteAdminUser('u2'), UNIVERSE],
+  ['deleteAdminCommunity', () => deleteAdminCommunity('c2'), UNIVERSE],
   ['saveBookmark', () => saveBookmark('p1'), BOOKMARK],
   ['removeBookmark', () => removeBookmark('p1'), BOOKMARK],
   [

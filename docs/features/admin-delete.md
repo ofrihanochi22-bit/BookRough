@@ -8,7 +8,7 @@
 | **Use cases** | UC-19 amended (admin area); UC-21 amended (a new notification)                  |
 | **Phase**     | 6 — DEVELOPMENT.md Step 6.1z2                                                   |
 | **Branch**    | `feat/admin-delete`                                                             |
-| **Status**    | ☑ Spec approved (2026-11-18) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved (2026-11-18) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 
@@ -65,18 +65,18 @@ What the dialog shows before the admin confirms.
 ### `DELETE /api/admin/users/:userId`
 
 - **Request:** `userId` as a UUID. No body.
-- **Behaviour:** in **one transaction**: re-read the target, refuse if it is an `ADMIN`; for each community it owns, pick the successor at that moment, delete the old owner's membership row, promote the successor to `OWNER` (in that order, because the partial unique index allows one owner), or delete the community if no one else is a member; then delete the user. After commit, send the `COMMUNITY_OWNER` notifications (actor = the admin) through the existing `writeSafely`, so a failed notification never undoes the delete.
+- **Behaviour:** in **one transaction** (15 s timeout): lock the target's row and the rows of the communities it owns (`FOR UPDATE`, so nobody joins them meanwhile), re-read the target, refuse if it is an `ADMIN`; for each community it owns, pick the successor at that moment, delete the old owner's membership row, promote the successor to `OWNER` (in that order, because the partial unique index allows one owner), or delete the community if no one else is a member; then delete the user. After commit, send the `COMMUNITY_OWNER` notifications (actor = the admin) through the existing `writeSafely`, so a failed notification never undoes the delete.
 - **Success `200`:** `{ transferred: [{ communityId, newOwnerId }], deletedCommunities: [communityId] }`. This is what actually happened, which may differ from the preview (§6).
-- **Errors:** `400` bad UUID · `401` · `403` not an app admin / target is an `ADMIN` / target is the caller · `404` user not found (including already deleted).
+- **Errors:** `400` bad UUID · `401` · `403` not an app admin / target is an `ADMIN` / target is the caller · `404` user not found (including already deleted) · `409` the target's ownership changed while deleting (nothing was deleted; retry).
 
 ### `DELETE /api/admin/communities/:communityId`
 
 - **Request:** `communityId` as a UUID. No body.
-- **Behaviour:** read the name and member ids, delete the community (cascades), and after commit create one `COMMUNITY_REMOVED` notification per former member (actor = the admin, `community_name` = the name) in a single `createMany` through `writeSafely`.
+- **Behaviour:** lock the community's row (`FOR UPDATE`: a new membership's foreign-key check waits on it, so the member list is complete), read the name and member ids, delete the community (cascades), and after commit create one `COMMUNITY_REMOVED` notification per former member (actor = the admin, `community_name` = the name) in a single `createMany` through `writeSafely`.
 - **Success `204`.**
 - **Errors:** `400` bad UUID · `401` · `403` not an app admin · `404` community not found (including already deleted).
 
-The admin user list's `AdminUser` view gains `role`, so the frontend knows which rows get no button. The notifications list's filter (`notification.service.ts`) gains a branch for `COMMUNITY_REMOVED` with no membership condition, since the reader is no longer a member of anything. Its view carries `communityName`.
+The admin user list's `AdminUser` view already carries `isAdmin`, which tells the frontend which rows get no button, so no `role` field is added (amended in Stage 2: the spec first said `role`). The notifications list's filter (`notification.service.ts`) gains a branch for `COMMUNITY_REMOVED` with no membership condition, since the reader is no longer a member of anything. Its view carries `communityName`.
 
 ## 5. Screens & components
 
@@ -87,7 +87,7 @@ The admin user list's `AdminUser` view gains `role`, so the frontend knows which
 - **Dialog**: title **"Are you sure?"**. Body: "Delete **Mia** and everything they posted? 12 posts, 30 ratings and 8 comments will be deleted, including replies others wrote under them. This can't be undone." Then one line per owned community: "**Jazz** passes to **Ada**." or "**Solo** will be deleted." The copy uses "they", never a gendered pronoun guessed from the name. Buttons: **Delete user** (danger) and **Cancel**. Escape, Cancel and a tap outside all close it without acting.
 - While deleting: the confirm button shows a spinner, and both buttons are inert until the request ends.
 - **Success:** the dialog closes, the row leaves the list, and a toast says "Mia was deleted."
-- **Error:** the dialog stays open with the backend's message inline (a preview error has a Retry). The list is unchanged. A `404` closes the dialog, removes the row and toasts "That user was already deleted."
+- **Error:** the dialog stays open with the backend's message inline (a preview error has a Retry). The list is unchanged. A `404` (on the delete or on the preview) closes the dialog, removes the row and toasts "That user was already deleted."
 
 **Admin → Communities** (same page)
 

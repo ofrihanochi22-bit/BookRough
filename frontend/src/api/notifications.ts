@@ -14,7 +14,8 @@ export type NotificationType =
   | 'COMMUNITY_INVITATION'
   | 'COMMUNITY_ADMIN'
   | 'COMMUNITY_OWNER'
-  | 'COMMENT_REPLY';
+  | 'COMMENT_REPLY'
+  | 'COMMUNITY_REMOVED';
 
 /** docs/features/notifications.md §4 (UC-21). */
 export interface PublicNotification {
@@ -22,8 +23,11 @@ export interface PublicNotification {
   type: NotificationType;
   at: string;
   read: boolean;
-  actor: { id: string; displayName: string; profilePictureUrl: string | null };
+  /** Null for COMMUNITY_REMOVED: the reader never learns which admin deleted it. */
+  actor: { id: string; displayName: string; profilePictureUrl: string | null } | null;
   community: { id: string; name: string } | null;
+  /** COMMUNITY_REMOVED only: the deleted community's name (admin-delete.md §4). */
+  communityName: string | null;
   post: { id: string; title: string | null } | null;
   count: number;
   score: number | null;

@@ -380,6 +380,9 @@ enum NotificationType {
   COMMUNITY_OWNER
   /// Someone replied to the reader in a post's discussion, grouped per post while unread (UC-22).
   COMMENT_REPLY
+  /// An app admin deleted a community the reader belonged to (UC-19, UC-21; admin-delete.md).
+  /// Carries `community_name`, never `community_id` or `post_id`.
+  COMMUNITY_REMOVED
 }
 
 /// The in-app inbox — docs/features/notifications.md §3 (UC-21).
@@ -402,6 +405,10 @@ model Notification {
   communityId String?          @map("community_id") @db.Uuid
   /// RECOMMENDATION and RATING.
   postId      String?          @map("post_id") @db.Uuid
+  /// COMMUNITY_REMOVED only: the deleted community's name, copied when it was deleted.
+  /// The CHECK `notifications_removed_shape` (add_community_removed_notification) ties
+  /// it to that type (docs/features/admin-delete.md §3).
+  communityName String?        @map("community_name") @db.VarChar(100)
   /// Above 1 only for a COMMUNITY_POSTS group.
   count       Int              @default(1)
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)

@@ -12,6 +12,9 @@ const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
   listAdminCommunities: vi.fn(),
   removeUserPhoto: vi.fn(),
+  fetchUserDeletionPreview: vi.fn(),
+  deleteAdminUser: vi.fn(),
+  deleteAdminCommunity: vi.fn(),
   fetchAdminOverview: vi.fn(),
   fetchSession: vi.fn(),
   toastSuccess: vi.fn(),
@@ -22,6 +25,9 @@ vi.mock('../api/admin', () => ({
   listAdminUsers: api.listAdminUsers,
   listAdminCommunities: api.listAdminCommunities,
   removeUserPhoto: api.removeUserPhoto,
+  fetchUserDeletionPreview: api.fetchUserDeletionPreview,
+  deleteAdminUser: api.deleteAdminUser,
+  deleteAdminCommunity: api.deleteAdminCommunity,
   fetchAdminOverview: api.fetchAdminOverview,
 }));
 vi.mock('react-hot-toast', () => ({
@@ -299,5 +305,274 @@ describe('Users tab — Remove photo', () => {
     // Assert
     expect(api.toastError).toHaveBeenCalledWith('User not found.');
     expect(screen.getByRole('dialog', { name: 'Remove photo?' })).toBeInTheDocument();
+  });
+});
+
+/** docs/features/admin-delete.md §5 and §7 (component scenarios). */
+describe('Users tab — Delete', () => {
+  const MIA_ID = '11111111-1111-4111-8111-111111111111';
+  const PREVIEW = {
+    displayName: 'Mia',
+    counts: { posts: 12, ratings: 30, comments: 8 },
+    communities: [
+      {
+        id: 'c-jazz',
+        name: 'Jazz',
+        outcome: 'TRANSFER' as const,
+        newOwner: { id: 'u-ada', displayName: 'Ada' },
+      },
+      { id: 'c-solo', name: 'Solo', outcome: 'DELETE' as const },
+    ],
+  };
+
+  beforeEach(() => signedIn(true));
+
+  async function openDialog() {
+    renderAt('/admin/users');
+    const row = (await screen.findByText('Mia')).closest('li')!;
+    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    return screen.getByRole('dialog', { name: 'Are you sure?' });
+  }
+
+  it('shows Delete on a user row and not on an admin row', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([
+      adminUser(),
+      adminUser({ id: 'admin-id', displayName: 'Boss', isAdmin: true }),
+    ]);
+
+    // Act
+    renderAt('/admin/users');
+
+    // Assert
+    const mia = (await screen.findByText('Mia')).closest('li')!;
+    const boss = screen.getByText('Boss').closest('li')!;
+    expect(within(mia).getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(within(boss).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+  });
+
+  it("opens 'Are you sure?' with the preview's counts and the per-community lines", async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockResolvedValue(PREVIEW);
+
+    // Act
+    const sheet = await openDialog();
+
+    // Assert
+    expect(await within(sheet).findByText(/everything they posted/)).toHaveTextContent(
+      "Delete Mia and everything they posted? 12 posts, 30 ratings and 8 comments will be deleted, including replies others wrote under them. This can't be undone.",
+    );
+    expect(
+      within(sheet)
+        .getByText(/passes to/)
+        .closest('li'),
+    ).toHaveTextContent('Jazz passes to Ada.');
+    expect(
+      within(sheet)
+        .getByText(/will be deleted\.$/)
+        .closest('li'),
+    ).toHaveTextContent('Solo will be deleted.');
+    expect(api.fetchUserDeletionPreview).toHaveBeenCalledWith(MIA_ID);
+  });
+
+  it('keeps the confirm button unavailable while the preview loads', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    const sheet = await openDialog();
+
+    // Assert
+    expect(within(sheet).getByRole('status')).toHaveTextContent('Loading what will be deleted');
+    expect(within(sheet).getByRole('button', { name: 'Delete user' })).toBeDisabled();
+  });
+
+  it('closes on Cancel and on Escape without deleting', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockResolvedValue(PREVIEW);
+
+    // Act
+    let sheet = await openDialog();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const row = screen.getByText('Mia').closest('li')!;
+    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    sheet = screen.getByRole('dialog', { name: 'Are you sure?' });
+    await within(sheet).findByText(/everything they posted/);
+    await userEvent.keyboard('{Escape}');
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(api.deleteAdminUser).not.toHaveBeenCalled();
+  });
+
+  it('deletes on confirm, removes the row and toasts', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockResolvedValue(PREVIEW);
+    api.deleteAdminUser.mockResolvedValue(undefined);
+    const sheet = await openDialog();
+    await within(sheet).findByText(/everything they posted/);
+
+    // Act
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete user' }));
+
+    // Assert
+    expect(api.deleteAdminUser).toHaveBeenCalledWith(MIA_ID);
+    expect(api.toastSuccess).toHaveBeenCalledWith('Mia was deleted.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mia')).not.toBeInTheDocument();
+    expect(screen.getByText('0 users')).toBeInTheDocument();
+  });
+
+  it('shows a preview error inline with Retry, which loads it again', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview
+      .mockRejectedValueOnce(networkError())
+      .mockResolvedValueOnce(PREVIEW);
+
+    // Act
+    const sheet = await openDialog();
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+      "Couldn't load what will be deleted.",
+    );
+    expect(within(sheet).getByRole('button', { name: 'Delete user' })).toBeDisabled();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Retry' }));
+
+    // Assert
+    expect(await within(sheet).findByText(/everything they posted/)).toBeInTheDocument();
+    expect(api.fetchUserDeletionPreview).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the dialog open with the message when the delete fails', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockResolvedValue(PREVIEW);
+    api.deleteAdminUser.mockRejectedValue(httpError(403, "Admins can't be deleted here."));
+    const sheet = await openDialog();
+    await within(sheet).findByText(/everything they posted/);
+
+    // Act
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete user' }));
+
+    // Assert
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+      "Admins can't be deleted here.",
+    );
+    expect(screen.getByRole('dialog', { name: 'Are you sure?' })).toBeInTheDocument();
+    expect(screen.getByText('1 user')).toBeInTheDocument();
+  });
+
+  it('removes the row with "already deleted" on a 404', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockResolvedValue(PREVIEW);
+    api.deleteAdminUser.mockRejectedValue(httpError(404, 'User not found.'));
+    const sheet = await openDialog();
+    await within(sheet).findByText(/everything they posted/);
+
+    // Act
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete user' }));
+
+    // Assert
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(api.toastSuccess).toHaveBeenCalledWith('That user was already deleted.');
+    expect(screen.queryByText('Mia')).not.toBeInTheDocument();
+  });
+
+  it('treats a 404 on the preview as already deleted', async () => {
+    // Arrange
+    api.listAdminUsers.mockResolvedValue([adminUser()]);
+    api.fetchUserDeletionPreview.mockRejectedValue(httpError(404, 'User not found.'));
+    renderAt('/admin/users');
+    const row = (await screen.findByText('Mia')).closest('li')!;
+
+    // Act
+    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+
+    // Assert
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(api.toastSuccess).toHaveBeenCalledWith('That user was already deleted.');
+    expect(screen.queryByText('Mia')).not.toBeInTheDocument();
+  });
+});
+
+describe('Communities tab — Delete', () => {
+  beforeEach(() => signedIn(true));
+
+  async function openDialog() {
+    renderAt('/admin/communities');
+    const row = (await screen.findByText('Friday Jazz')).closest('li')!;
+    await userEvent.click(within(row).getByRole('button', { name: 'Delete' }));
+    return screen.getByRole('dialog', { name: 'Are you sure?' });
+  }
+
+  it('opens the dialog with the member count, deletes, and shows the empty state', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity({ memberCount: 14 })]);
+    api.deleteAdminCommunity.mockResolvedValue(undefined);
+
+    // Act
+    const sheet = await openDialog();
+    expect(within(sheet).getByText(/All 14 members/)).toHaveTextContent(
+      "Delete Friday Jazz? All 14 members lose its posts, ratings and comments, and each will be told an admin removed it. This can't be undone.",
+    );
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete community' }));
+
+    // Assert
+    expect(api.deleteAdminCommunity).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222');
+    expect(api.toastSuccess).toHaveBeenCalledWith('Friday Jazz was deleted.');
+    expect(await screen.findByText('No communities yet.')).toBeInTheDocument();
+  });
+
+  it('words a one-member community in the singular', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity({ memberCount: 1 })]);
+
+    // Act
+    const sheet = await openDialog();
+
+    // Assert
+    expect(within(sheet).getByText(/Its 1 member/)).toHaveTextContent(
+      'Its 1 member loses its posts, ratings and comments, and will be told an admin removed it.',
+    );
+  });
+
+  it('keeps the dialog open with the message when the delete fails', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity()]);
+    api.deleteAdminCommunity.mockRejectedValue(networkError());
+
+    // Act
+    const sheet = await openDialog();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete community' }));
+
+    // Assert
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent(
+      "Couldn't delete the community. Try again.",
+    );
+    expect(screen.getByText('1 community')).toBeInTheDocument();
+  });
+
+  it('removes the row with "already deleted" on a 404', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([
+      adminCommunity(),
+      adminCommunity({ id: 'c-other', name: 'Rock' }),
+    ]);
+    api.deleteAdminCommunity.mockRejectedValue(httpError(404, 'Community not found.'));
+
+    // Act
+    const sheet = await openDialog();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete community' }));
+
+    // Assert
+    await waitFor(() => expect(screen.queryByText('Friday Jazz')).not.toBeInTheDocument());
+    expect(api.toastSuccess).toHaveBeenCalledWith('That community was already deleted.');
+    expect(screen.getByText('Rock')).toBeInTheDocument();
   });
 });

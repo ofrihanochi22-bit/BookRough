@@ -10,6 +10,7 @@ import {
   type AdminCommunity,
   type AdminUser,
 } from '../api/admin';
+import { DeleteCommunitySheet, DeleteUserSheet } from '../components/AdminDeleteSheets';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -86,6 +87,8 @@ export function AdminUsers() {
   const forbidden = useForbiddenEndsAdmin(users);
   /** Rows changed here (a photo removed), by id, over the loaded list. */
   const [changed, setChanged] = useState<Record<string, AdminUser>>({});
+  /** Rows deleted here (admin-delete.md §5), hidden from the loaded list. */
+  const [deleted, setDeleted] = useState<ReadonlySet<string>>(new Set());
 
   if (forbidden) {
     return <NotFound />;
@@ -97,15 +100,17 @@ export function AdminUsers() {
     return <LoadError message="Couldn't load the users." onRetry={users.reload} />;
   }
 
+  const shown = users.data.filter((user) => !deleted.has(user.id));
   return (
     <section aria-label="Users">
-      <p className="mb-3 text-sm text-muted">{countLabel(users.data.length, 'user', 'users')}</p>
+      <p className="mb-3 text-sm text-muted">{countLabel(shown.length, 'user', 'users')}</p>
       <ul className={LIST}>
-        {users.data.map((user) => (
+        {shown.map((user) => (
           <UserRow
             key={user.id}
             user={changed[user.id] ?? user}
             onChange={(updated) => setChanged((rows) => ({ ...rows, [updated.id]: updated }))}
+            onDeleted={() => setDeleted((ids) => new Set(ids).add(user.id))}
           />
         ))}
       </ul>
@@ -113,8 +118,17 @@ export function AdminUsers() {
   );
 }
 
-function UserRow({ user, onChange }: { user: AdminUser; onChange: (user: AdminUser) => void }) {
+function UserRow({
+  user,
+  onChange,
+  onDeleted,
+}: {
+  user: AdminUser;
+  onChange: (user: AdminUser) => void;
+  onDeleted: () => void;
+}) {
   const [removing, setRemoving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const details = [
     user.preferredService ? streamingServiceLabel(user.preferredService) : null,
     `Joined ${formatDate(user.createdAt)}`,
@@ -148,8 +162,17 @@ function UserRow({ user, onChange }: { user: AdminUser; onChange: (user: AdminUs
           Remove photo
         </Button>
       )}
+      {/* No Delete on an admin's row, the caller's own included (admin-delete.md D4). */}
+      {!user.isAdmin && (
+        <Button variant="destructive" onClick={() => setDeleting(true)} className="shrink-0 px-4">
+          Delete
+        </Button>
+      )}
       {removing && (
         <RemovePhotoSheet user={user} onClose={() => setRemoving(false)} onRemoved={onChange} />
+      )}
+      {deleting && (
+        <DeleteUserSheet user={user} onClose={() => setDeleting(false)} onDeleted={onDeleted} />
       )}
     </li>
   );
@@ -205,6 +228,8 @@ function RemovePhotoSheet({
 export function AdminCommunities() {
   const communities = useRequest(listAdminCommunities);
   const forbidden = useForbiddenEndsAdmin(communities);
+  /** Rows deleted here (admin-delete.md §5), hidden from the loaded list. */
+  const [deleted, setDeleted] = useState<ReadonlySet<string>>(new Set());
 
   if (forbidden) {
     return <NotFound />;
@@ -215,25 +240,37 @@ export function AdminCommunities() {
   if (communities.status === 'error') {
     return <LoadError message="Couldn't load the communities." onRetry={communities.reload} />;
   }
-  if (communities.data.length === 0) {
+  const shown = communities.data.filter((community) => !deleted.has(community.id));
+  if (shown.length === 0) {
     return <EmptyState>No communities yet.</EmptyState>;
   }
 
   return (
     <section aria-label="Communities">
       <p className="mb-3 text-sm text-muted">
-        {countLabel(communities.data.length, 'community', 'communities')}
+        {countLabel(shown.length, 'community', 'communities')}
       </p>
       <ul className={LIST}>
-        {communities.data.map((community) => (
-          <CommunityRow key={community.id} community={community} />
+        {shown.map((community) => (
+          <CommunityRow
+            key={community.id}
+            community={community}
+            onDeleted={() => setDeleted((ids) => new Set(ids).add(community.id))}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-function CommunityRow({ community }: { community: AdminCommunity }) {
+function CommunityRow({
+  community,
+  onDeleted,
+}: {
+  community: AdminCommunity;
+  onDeleted: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
   const owner = community.owner
     ? `Owner: ${community.owner.displayName ?? 'Not finished signing up'}`
     : 'No owner';
@@ -251,6 +288,16 @@ function CommunityRow({ community }: { community: AdminCommunity }) {
           ].join(' · ')}
         </p>
       </div>
+      <Button variant="destructive" onClick={() => setDeleting(true)} className="shrink-0 px-4">
+        Delete
+      </Button>
+      {deleting && (
+        <DeleteCommunitySheet
+          community={community}
+          onClose={() => setDeleting(false)}
+          onDeleted={onDeleted}
+        />
+      )}
     </li>
   );
 }

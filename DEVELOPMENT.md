@@ -3377,7 +3377,7 @@ To see the rule fire, add `prisma.$queryRawUnsafe('SELECT 1')` to any file under
 
 ### Step 6.1z1a — Friends empty-state copy after the redesign (Phase 6 — UC-6, UC-20 copy fix)
 
-Status: 🟡 Built and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #62)
 Branch: fix/friends-empty-copy
 Spec: docs/features/friend-requests.md (Friends empty state, amended)
 
@@ -3401,6 +3401,85 @@ cd frontend && npm run dev
 
 ```bash
 cd frontend && npx vitest run src/pages/Friends src/components/SendRecommendationSheet src/components/ShareSheet
+```
+
+### Step 6.1z2 — The admin deletes a user or a community (Phase 6 — UC-19 and UC-21 amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/admin-delete
+Spec: docs/features/admin-delete.md
+
+Goal: Admin → Users and Admin → Communities stop being read-only. Each row gets **Delete**, behind an "Are you sure?" dialog that says what will be lost.
+
+Tasks:
+
+- [x] Spec (Stage 1, approved 2026-11-18): D1 hard delete through the cascades; D2 owned communities pass to the oldest admin, else the oldest member; D3 re-signup allowed; D4 no deleting an `ADMIN`, oneself included; D5 a deleted community's members are notified.
+- [x] Migration `add_community_removed_notification`, service, controllers, routes, Admin and Notifications screens.
+- [x] Review: `/code-review` and `/security-review`.
+- [x] Tests: unit, integration, component (spec §7).
+
+What I did:
+
+- **Database.** `NotificationType` gains `COMMUNITY_REMOVED`; `notifications` gains `community_name VARCHAR(100)`. The hand-written CHECK `notifications_removed_shape` sets a name on exactly the `COMMUNITY_REMOVED` rows and keeps them without a community or post. It compares the type as text, because Postgres refuses a new enum value in the transaction that added it.
+- **Backend.** New `backend/src/services/adminDelete.service.ts`:
+  - `previewUserDeletion` returns the counts and what happens to each owned community.
+  - `deleteUser` runs in one transaction with a 15 s timeout. It locks the user's row and the rows of the communities they own (`FOR UPDATE`). It refuses an `ADMIN` or oneself with `403`. For each owned community it deletes the owner's row, then promotes the successor picked at that moment. A community with no other member is deleted. If the ownership changed meanwhile, it answers `409` and nothing is deleted. The new owners get `COMMUNITY_OWNER` after the commit.
+  - `deleteCommunityAsAdmin` locks the community, deletes it, and writes one `COMMUNITY_REMOVED` per former member through `writeSafely`.
+  - Three routes in `routes/admin.ts`, each behind `requireAuth` + `requireAppAdmin`: `GET /api/admin/users/:userId/deletion-preview`, `DELETE /api/admin/users/:userId`, `DELETE /api/admin/communities/:communityId`. A malformed id is `400`.
+  - Notifications: `notifyCommunityRemoved`, and a visibility branch with no membership condition. The view sends `actor: null` and `communityName` for this type, so the reader never learns which admin did it. The log lines carry ids and counts only.
+- **Frontend.**
+  - New `components/AdminDeleteSheets.tsx`. The user dialog loads the preview with a spinner, shows "Delete Mia and everything they posted? 12 posts, 30 ratings and 8 comments will be deleted…", and adds one line per owned community. The community dialog states the member count.
+  - Errors show inline: a failed preview has a Retry, and a failed delete keeps the dialog open. A `404` on either counts as "already deleted": the row leaves the list. An admin's row has no Delete button.
+  - Notifications renders "**Jazz** was removed by an admin." as a button with no link, which only marks the notice read.
+  - A delete clears every client cache key (`DELETION_KEYS`).
+- **Docs.** Spec amended where implementation corrected it: the existing `isAdmin` is used instead of a new `role` field, plus the `409`, the locks and the preview `404`. Also updated: CLAUDE.md §6, §9 and §17; `admin-panel.md`; `tables.md` + `tables.docx`.
+- **Code review** (7 findings, all fixed):
+  - The transaction kept Prisma's default 5 s timeout.
+  - A concurrent ownership change gave a raw 500 instead of a `409`.
+  - A member joining mid-delete went un-notified. The community row is now locked.
+  - A preview `404` looped on Retry.
+  - The spec divergence on `role` wasn't recorded.
+  - The removed-community avatar colour was keyed on the notification id.
+  - The new-owner notifications were sent one by one.
+- **Security review:** no finding at confidence 8 or above. It checked authorisation on all three routes, the role check under the row lock, the bound parameters in both raw queries, CSRF (SameSite=Lax plus CORS), the anonymous actor, and the logs. Two notes:
+  - The self-check now also ignores letter case.
+  - The new owner's `COMMUNITY_OWNER` notice does name the admin as its actor, as the spec says. That differs from the anonymous removal notice; a product choice the developer may want to revisit.
+- **Tests:**
+  - `adminDelete.service.test.ts` (19).
+  - `notification.service.test.ts` (+4).
+  - `adminDelete.integration.test.ts` (11). These cover the cascade, including another person's reply under the deleted user's review; the hand-over and its notice; the `401` on the deleted user's cookie; re-signup as a new account; a forced mid-transaction failure that rolls everything back (a temporary trigger); `400`/`401`/`403`/`404` on all three routes; and the CHECK.
+  - `Admin.test.tsx` (+13), `Notifications.test.tsx` (+1), `invalidation.test.ts` (+2).
+  - Frontend: 107 files, 1353 tests, 98.5% lines. Backend (unit + integration, one pass): 91 files, 1665 tests, 99.2% lines.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Sign in at `http://localhost:5173/` with the admin account (role set in the database), plus two other accounts in another browser profile. One of them creates a community "Jazz" and invites the other.
+2. Admin → Users: the admin's own row has no Delete. Press **Delete** on Jazz's owner: the dialog lists their posts, ratings and comments and "**Jazz** passes to …". Cancel closes it; Escape too.
+3. Confirm: the row leaves the list with "… was deleted.". The other account now owns Jazz and has "made you the owner" in Notifications. The deleted account's tab returns to Welcome on its next request.
+4. Admin → Communities → **Delete** on a community → confirm. Each former member's Notifications shows "**Jazz** was removed by an admin.", with no actor; tapping it only marks it read.
+
+```bash
+cd backend && npx vitest run src/services/adminDelete src/services/notification
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/adminDelete
+```
+
+```bash
+cd frontend && npx vitest run src/pages/Admin src/pages/Notifications src/api/invalidation
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

@@ -1,6 +1,6 @@
 import { api, type SuccessBody } from './client';
 import type { StreamingService } from '../stores/auth';
-import { AVATAR_KEYS } from '../lib/cacheKeys';
+import { AVATAR_KEYS, DELETION_KEYS } from '../lib/cacheKeys';
 import { invalidate } from '../lib/requestCache';
 
 /** Mirrors the backend's AdminUser (docs/features/admin-panel.md §4.2). */
@@ -40,6 +40,41 @@ export async function removeUserPhoto(userId: string): Promise<AdminUser> {
   );
   invalidate([...AVATAR_KEYS]);
   return response.data.data.user;
+}
+
+/** Mirrors the backend's UserDeletionPreview (docs/features/admin-delete.md §4). */
+export interface UserDeletionPreview {
+  displayName: string | null;
+  counts: { posts: number; ratings: number; comments: number };
+  communities: {
+    id: string;
+    name: string;
+    outcome: 'TRANSFER' | 'DELETE';
+    newOwner?: { id: string; displayName: string | null };
+  }[];
+}
+
+/** What the "Are you sure?" dialog shows. The dialog shows its own error, so no toast. */
+export async function fetchUserDeletionPreview(userId: string): Promise<UserDeletionPreview> {
+  const response = await api.get<SuccessBody<{ preview: UserDeletionPreview }>>(
+    `/admin/users/${encodeURIComponent(userId)}/deletion-preview`,
+    { skipErrorToast: true },
+  );
+  return response.data.data.preview;
+}
+
+/** Deletes a user for good (admin-delete.md §4). The dialog shows its own error. */
+export async function deleteAdminUser(userId: string): Promise<void> {
+  await api.delete(`/admin/users/${encodeURIComponent(userId)}`, { skipErrorToast: true });
+  invalidate([...DELETION_KEYS]);
+}
+
+/** Deletes a community for good; its members are told (admin-delete.md §4). */
+export async function deleteAdminCommunity(communityId: string): Promise<void> {
+  await api.delete(`/admin/communities/${encodeURIComponent(communityId)}`, {
+    skipErrorToast: true,
+  });
+  invalidate([...DELETION_KEYS]);
 }
 
 export async function listAdminCommunities(): Promise<AdminCommunity[]> {
