@@ -10,11 +10,20 @@ export interface NotificationView {
   /** Bold at the start: the actor, or "3 new posts" for a group. */
   lead: string;
   rest: string;
-  to: string;
+  /** Null when there is nowhere to go: opening it only marks it read. */
+  to: string | null;
 }
 
 export function viewOf(item: PublicNotification): NotificationView {
-  const actor = item.actor.displayName;
+  // admin-delete.md §5: no actor, and the community is gone, so no link.
+  if (item.type === 'COMMUNITY_REMOVED') {
+    return {
+      lead: item.communityName ?? 'A community',
+      rest: ' was removed by an admin.',
+      to: null,
+    };
+  }
+  const actor = item.actor?.displayName ?? 'Someone';
   const community = item.community?.name ?? 'a community';
   const title = item.post?.title ?? null;
 
@@ -46,7 +55,7 @@ export function viewOf(item: PublicNotification): NotificationView {
       return {
         lead: actor,
         rest: ' accepted your friend request',
-        to: `/users/${item.actor.id}`,
+        to: `/users/${item.actor?.id ?? ''}`,
       };
     case 'COMMUNITY_INVITATION':
       return { lead: actor, rest: ` invited you to ${community}`, to: '/friends' };

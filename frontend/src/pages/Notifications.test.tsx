@@ -31,6 +31,7 @@ function note(overrides: Partial<PublicNotification> = {}): PublicNotification {
     read: false,
     actor: DANA,
     community: null,
+    communityName: null,
     post: null,
     count: 1,
     score: null,
@@ -192,6 +193,27 @@ describe('Notifications — rows', () => {
     // Assert
     expect(await screen.findByText(/sent you a song/)).toBeInTheDocument();
     expect(screen.getByText(/rated your post$/)).toBeInTheDocument();
+  });
+
+  it('shows a removed community by name, with no actor and no link, and marks it read when tapped', async () => {
+    // Arrange — admin-delete.md §5
+    useNotifications.setState({ unread: 1 });
+    api.listNotifications.mockResolvedValue({
+      items: [note({ type: 'COMMUNITY_REMOVED', actor: null, communityName: 'Jazz' })],
+      nextCursor: null,
+    });
+    renderScreen();
+
+    // Act
+    const row = await screen.findByRole('button', { name: /was removed by an admin/ });
+    await userEvent.click(row);
+
+    // Assert
+    expect(row).toHaveTextContent('Jazz was removed by an admin.');
+    expect(row).not.toHaveTextContent('Dana');
+    expect(screen.queryByRole('link', { name: /removed/ })).not.toBeInTheDocument();
+    expect(api.markNotificationRead).toHaveBeenCalledWith('n1');
+    expect(useNotifications.getState().unread).toBe(0);
   });
 
   it('marks an unread row read when tapped, and lowers the badge', async () => {

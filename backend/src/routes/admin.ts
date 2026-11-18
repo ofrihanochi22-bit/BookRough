@@ -1,6 +1,12 @@
 import { Router } from 'express';
 
-import { communities, users } from '../controllers/admin.controller.js';
+import {
+  communities,
+  removeCommunity,
+  removeUser,
+  userDeletionPreview,
+  users,
+} from '../controllers/admin.controller.js';
 import { adminDeleteAvatar } from '../controllers/avatar.controller.js';
 import { adminSnapshot, overview } from '../controllers/ops.controller.js';
 import { adminSettings, changeSettings } from '../controllers/settings.controller.js';
@@ -20,3 +26,12 @@ adminRouter.get('/settings', requireAuth, requireAppAdmin, adminSettings);
 adminRouter.patch('/settings', requireAuth, requireAppAdmin, changeSettings);
 // The one write on users (avatar-upload.md D2; CLAUDE.md §17 amended).
 adminRouter.delete('/users/:userId/avatar', requireAuth, requireAppAdmin, adminDeleteAvatar);
+// The two deletes (admin-delete.md; CLAUDE.md §17 amended). An ADMIN target is refused in the service.
+adminRouter.get(
+  '/users/:userId/deletion-preview',
+  requireAuth,
+  requireAppAdmin,
+  userDeletionPreview,
+);
+adminRouter.delete('/users/:userId', requireAuth, requireAppAdmin, removeUser);
+adminRouter.delete('/communities/:communityId', requireAuth, requireAppAdmin, removeCommunity);

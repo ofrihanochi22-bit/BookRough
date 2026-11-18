@@ -219,20 +219,21 @@ function NotificationRow({
   onOpen: (item: PublicNotification) => void;
 }) {
   const view = viewOf(item);
-  return (
-    <Link
-      to={view.to}
-      onClick={() => onOpen(item)}
-      data-read={item.read || undefined}
-      className={`flex min-h-14 items-center gap-3 rounded-[18px] px-3 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-        item.read ? 'text-muted' : 'bg-surface text-ink shadow-[0_1px_4px_rgb(0_0_0/0.12)]'
-      }`}
-    >
+  const className = `flex min-h-14 w-full items-center gap-3 rounded-[18px] px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+    item.read ? 'text-muted' : 'bg-surface text-ink shadow-[0_1px_4px_rgb(0_0_0/0.12)]'
+  }`;
+  // A removed community shows a generated avatar for its stored name; there is no actor.
+  const avatar = item.actor
+    ? { id: item.actor.id, name: item.actor.displayName, pictureUrl: item.actor.profilePictureUrl }
+    : // Keyed on the name, the community's id being gone, so its colour is the same on every row.
+      { id: `removed:${item.communityName ?? ''}`, name: item.communityName, pictureUrl: null };
+  const content = (
+    <>
       <span className={`shrink-0 ${item.read ? 'opacity-60 grayscale' : ''}`}>
         <Avatar
-          id={item.actor.id}
-          name={item.actor.displayName}
-          pictureUrl={item.actor.profilePictureUrl}
+          id={avatar.id}
+          name={avatar.name}
+          pictureUrl={avatar.pictureUrl}
           size={40}
           decorative
         />
@@ -247,6 +248,29 @@ function NotificationRow({
           <span className="sr-only">Unread</span>
         </span>
       )}
+    </>
+  );
+
+  if (view.to === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        data-read={item.read || undefined}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <Link
+      to={view.to}
+      onClick={() => onOpen(item)}
+      data-read={item.read || undefined}
+      className={className}
+    >
+      {content}
     </Link>
   );
 }

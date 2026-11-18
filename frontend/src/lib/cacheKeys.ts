@@ -47,3 +47,15 @@ export const AVATAR_KEYS = [
   cachePrefixes.comments,
   cachePrefixes.recs,
 ] as const;
+
+/**
+ * An admin deleted a user or a community (admin-delete.md): their posts,
+ * ratings, comments and memberships may sit in any list, so all of it is stale.
+ */
+export const DELETION_KEYS = [
+  ...AVATAR_KEYS,
+  cacheKeys.communities,
+  cachePrefixes.community,
+  cacheKeys.myList,
+  cacheKeys.notifications,
+] as const;

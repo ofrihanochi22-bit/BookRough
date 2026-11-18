@@ -204,15 +204,49 @@ export function notifyRole(input: {
 }
 
 /**
+ * An app admin deleted a community (admin-delete.md D5): one row per former
+ * member, carrying the name because the community is gone. The actor is the
+ * admin, never shown to the reader.
+ */
+export async function notifyCommunityRemoved(input: {
+  actorId: string;
+  communityName: string;
+  userIds: string[];
+}) {
+  if (input.userIds.length === 0) {
+    return;
+  }
+  await writeSafely('communityRemoved', () =>
+    prisma.notification.createMany({
+      data: input.userIds.map((userId) => ({
+        userId,
+        type: NotificationType.COMMUNITY_REMOVED,
+        actorId: input.actorId,
+        communityName: input.communityName,
+      })),
+    }),
+  );
+}
+
+/**
  * What a reader may still see (§4): a community's posts and role notices only while a member,
  * an invitation unless banned, a post only while Post Detail would open it.
  * Filtered on every read, so leaving hides rows and rejoining shows them again.
+ * A removed community has no members left, so its notice has no condition.
  */
 function visibleTo(userId: string): Prisma.NotificationWhereInput {
   return {
     userId,
     OR: [
-      { type: { in: [NotificationType.FRIEND_REQUEST, NotificationType.FRIEND_ACCEPTED] } },
+      {
+        type: {
+          in: [
+            NotificationType.FRIEND_REQUEST,
+            NotificationType.FRIEND_ACCEPTED,
+            NotificationType.COMMUNITY_REMOVED,
+          ],
+        },
+      },
       {
         type: {
           in: [

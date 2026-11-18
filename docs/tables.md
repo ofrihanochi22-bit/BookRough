@@ -149,15 +149,16 @@ The in-app inbox (UC-21, `docs/features/notifications.md` §3). One row per noti
 
 - **id** (UUID, Primary Key).
 - **user_id** (UUID, Foreign Key referencing users(id), cascade on delete): the reader.
-- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN`, `COMMUNITY_OWNER` (these two from `docs/features/role-notifications.md`) or `COMMENT_REPLY` (`docs/features/discussion-threads.md`).
-- **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster.
+- **type** (ENUM `NotificationType`, Not Null): `COMMUNITY_POSTS`, `RECOMMENDATION`, `RATING`, `FRIEND_REQUEST`, `FRIEND_ACCEPTED`, `COMMUNITY_INVITATION`, `COMMUNITY_ADMIN`, `COMMUNITY_OWNER` (these two from `docs/features/role-notifications.md`), `COMMENT_REPLY` (`docs/features/discussion-threads.md`) or `COMMUNITY_REMOVED` (`docs/features/admin-delete.md`).
+- **actor_id** (UUID, Foreign Key referencing users(id), cascade on delete): who did it; for a post group, the latest poster; for `COMMUNITY_REMOVED`, the admin who deleted the community, never shown to the reader.
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id), cascade on delete): for post groups and invitations.
 - **post_id** (UUID, Nullable, Foreign Key referencing posts(id), cascade on delete): for recommendations, ratings and discussion replies.
+- **community_name** (VARCHAR(100), Nullable): `COMMUNITY_REMOVED` only, the deleted community's name, copied when it was deleted. The hand-written CHECK `notifications_removed_shape` sets it on exactly the `COMMUNITY_REMOVED` rows and keeps those rows without a community_id or post_id.
 - **count** (INTEGER, Not Null, Default 1): above 1 only for a post group; the hand-written CHECK `notifications_count_positive` keeps it at least 1.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Default Current Time): bumped when a group grows; the list is ordered by it.
 - **read_at** (TIMESTAMP, Nullable): set when the reader marks it read.
-- (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community; `notifications_one_open_reply_group` on (user_id, post_id), where type is `COMMENT_REPLY` and read_at is null, keeps one unread group of replies per post. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing.)
+- (Indexed on user_id, updated_at and id, newest first, for the list; on actor_id, post_id and community_id for the cascades. The hand-written partial unique index `notifications_one_open_group` on (user_id, community_id), where type is `COMMUNITY_POSTS` and read_at is null, keeps one unread group per community; `notifications_one_open_reply_group` on (user_id, post_id), where type is `COMMENT_REPLY` and read_at is null, keeps one unread group of replies per post. What a reader sees is filtered when read: a former member's post groups and a banned user's invitations stop showing; a `COMMUNITY_REMOVED` row always shows.)
 
 ### 13. user_avatars Table
 

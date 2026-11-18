@@ -14,6 +14,7 @@ import {
   notifyFriendRequest,
   notifyInvitations,
   notifyCommentReply,
+  notifyCommunityRemoved,
   notifyRating,
   notifyRecommendation,
   notifyRole,
@@ -70,6 +71,7 @@ function row(overrides: Record<string, unknown> = {}) {
     createdAt: AT,
     updatedAt: AT,
     readAt: null,
+    communityName: null,
     actor: { id: DANA, displayName: 'Dana', profilePictureUrl: null },
     community: null,
     post: null,
@@ -231,6 +233,41 @@ describe('writers', () => {
     expect(db.notification.create).not.toHaveBeenCalled();
   });
 
+  it('notifyCommunityRemoved writes one COMMUNITY_REMOVED per former member, with the name', async () => {
+    // Act
+    await notifyCommunityRemoved({ actorId: DANA, communityName: 'Jazz', userIds: [ME.id, 'u-2'] });
+
+    // Assert
+    expect(db.notification.createMany).toHaveBeenCalledWith({
+      data: [
+        { userId: ME.id, type: 'COMMUNITY_REMOVED', actorId: DANA, communityName: 'Jazz' },
+        { userId: 'u-2', type: 'COMMUNITY_REMOVED', actorId: DANA, communityName: 'Jazz' },
+      ],
+    });
+  });
+
+  it('notifyCommunityRemoved writes nothing for a community with no members', async () => {
+    // Act
+    await notifyCommunityRemoved({ actorId: DANA, communityName: 'Jazz', userIds: [] });
+
+    // Assert
+    expect(db.notification.createMany).not.toHaveBeenCalled();
+  });
+
+  it('notifyCommunityRemoved warns instead of throwing when the write fails', async () => {
+    // Arrange
+    db.notification.createMany.mockRejectedValue(new Error('database down'));
+
+    // Act & Assert
+    await expect(
+      notifyCommunityRemoved({ actorId: DANA, communityName: 'Jazz', userIds: [ME.id] }),
+    ).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'communityRemoved' }),
+      'Notification write failed',
+    );
+  });
+
   it('a failing write is caught and warned about, never thrown', async () => {
     // Arrange
     db.notification.create.mockRejectedValue(new Error('database down'));
@@ -255,6 +292,31 @@ describe('writers', () => {
 });
 
 describe('listNotifications', () => {
+  it('shows a COMMUNITY_REMOVED row with its name and no actor', async () => {
+    // Arrange
+    db.notification.findMany.mockResolvedValue([
+      row({ type: 'COMMUNITY_REMOVED', communityName: 'Jazz' }),
+    ]);
+
+    // Act
+    const page = await listNotifications(ME);
+
+    // Assert
+    expect(page.items[0]).toMatchObject({
+      type: 'COMMUNITY_REMOVED',
+      actor: null,
+      community: null,
+      communityName: 'Jazz',
+    });
+    const call = db.notification.findMany.mock.calls[0]![0] as {
+      where: { AND: { OR: { type: { in?: string[] } | string }[] }[] };
+    };
+    // Visible with no membership condition: the reader is no longer a member of anything.
+    expect(call.where.AND[0]!.OR[0]).toEqual({
+      type: { in: ['FRIEND_REQUEST', 'FRIEND_ACCEPTED', 'COMMUNITY_REMOVED'] },
+    });
+  });
+
   it('reads the caller’s visible rows, newest activity first, and maps them field by field', async () => {
     // Arrange
     db.notification.findMany.mockResolvedValue([
@@ -288,6 +350,7 @@ describe('listNotifications', () => {
           read: false,
           actor: { id: DANA, displayName: 'Dana', profilePictureUrl: null },
           community: { id: COMMUNITY, name: 'Friday Jazz' },
+          communityName: null,
           post: null,
           count: 3,
           score: null,

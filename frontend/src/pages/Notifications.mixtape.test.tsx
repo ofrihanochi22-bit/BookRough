@@ -27,6 +27,7 @@ function note(overrides: Partial<PublicNotification> = {}): PublicNotification {
     read: false,
     actor: DANA,
     community: null,
+    communityName: null,
     post: null,
     count: 1,
     score: null,
