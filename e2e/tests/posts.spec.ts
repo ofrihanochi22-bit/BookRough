@@ -78,12 +78,16 @@ test('when the converter is unavailable the post is saved with its original link
 
   // Assert — no error dialog, no lost post.
   const card = postsOn(page).filter({ hasText: 'Shared from Spotify' });
-  await expect(card.getByText('Other services unavailable')).toBeVisible();
+  await expect(
+    card.getByText(
+      "Couldn't convert this link to other services. Something went wrong on our side.",
+    ),
+  ).toBeVisible();
   await expect(card.getByRole('link', { name: 'Open in Spotify' })).toHaveAttribute(
     'href',
     OUTAGE_TRACK,
   );
-  await expect(card.getByRole('button', { name: 'Find on other services' })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Try again to convert this link' })).toBeVisible();
 });
 
 test('live: the real squigly.link converts a known track', async ({ page }, testInfo) => {

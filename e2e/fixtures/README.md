@@ -12,6 +12,6 @@ If a secret scanner flags the private key, dismiss it as a test fixture — do n
 
 Canned link conversions that replace squigly.link in the E2E suite (`docs/features/posts-feed.md` §4.2). The API reads it when started with `E2E_SCRAPER_FIXTURES` (refused unless `NODE_ENV=test`).
 
-- `conversions`: the result for each listed link. Any other link behaves like an outage, so the "Other services unavailable" path is testable.
+- `conversions`: the result for each listed link. Any other link behaves like an outage, so the conversion-failure notice is testable.
 - `delayMs`: long enough for the "Finding this track on other services…" state to be seen.
 - `live`: links handed to the real converter. Only the nightly test (`RUN_LIVE_E2E=1`) sends one.

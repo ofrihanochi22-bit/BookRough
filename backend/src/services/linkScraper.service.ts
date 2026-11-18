@@ -59,7 +59,13 @@ export const BLOCKED_RESOURCES = new Set(['image', 'stylesheet', 'font', 'media'
 // squigly.link selectors. Checked against the live site on 2026-10-04.
 const INPUT_SELECTOR = 'input[placeholder="Paste a track or album link"]';
 const SUBMIT_SELECTOR = 'button:has-text("Create link")';
-const RESULT_PAGE_URL = /^https:\/\/squigly\.link\/(?:song|album)\//;
+/**
+ * A result page: `/song/<artist>/<title>`, `/album/…`, or — for some links,
+ * seen from 2026-11-18 — a short code such as `/edWSMP`, with the same
+ * content (conversion-retry.md §1.1). Exported for unit tests.
+ */
+export const RESULT_PAGE_URL =
+  /^https:\/\/squigly\.link\/(?:(?:song|album)\/|[A-Za-z0-9]+\/?(?:[?#]|$))/;
 /** The result page's links render a moment after its metadata. */
 const SERVICE_LINK_SELECTOR = Object.values(SERVICE_HOSTS)
   .flat()

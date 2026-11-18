@@ -193,7 +193,7 @@ export function PostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
-  const { retrying, retryMessage, retry } = useRetryConversion(post, onUpdated, onStale);
+  const { retrying, notice, retry } = useRetryConversion(post, onUpdated, onStale);
   const main = mainLink(post, viewerService);
   const detailPath = linkToDetail ? `/posts/${post.id}` : null;
   // Post Detail shows the card in its detail mode (§5.3): full-width cover, large sticker.
@@ -268,7 +268,9 @@ export function PostCard({
               <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
                 {pendingTitle(post)}
               </Title>
-              <p className="text-xs text-muted">Other services unavailable</p>
+              <p role="status" className="text-xs text-danger">
+                {notice}
+              </p>
             </>
           ) : (
             <>
@@ -319,15 +321,16 @@ export function PostCard({
             Other services
           </button>
         )}
-        {post.conversionPending && post.isMine && (
+        {post.conversionPending && (
           <button
             type="button"
             className={`${CHIP} ${online ? '' : 'border-dashed text-muted'}`}
             disabled={!online || retrying}
             aria-busy={retrying || undefined}
+            aria-label={retrying ? undefined : 'Try again to convert this link'}
             onClick={retry}
           >
-            {retrying ? CONVERTING_COPY : 'Find on other services'}
+            {retrying ? CONVERTING_COPY : 'Try again'}
           </button>
         )}
         {detailPath && (
@@ -339,11 +342,6 @@ export function PostCard({
           </Link>
         )}
       </div>
-      {retryMessage && (
-        <p role="status" className="text-xs text-muted">
-          {retryMessage}
-        </p>
-      )}
 
       {menuOpen && (
         <PostActionsSheet

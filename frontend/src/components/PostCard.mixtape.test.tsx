@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
+import { PENDING_NOTICE, STILL_PENDING_NOTICE } from '../hooks/useRetryConversion';
 import { CONVERTING_COPY } from '../lib/postText';
 import { makeLinkOnlyPost, makePendingPost, makePost, makeUser } from '../test/fixtures';
 import { PostCard, type PostCardProps } from './PostCard';
@@ -197,20 +198,17 @@ describe('PostCard — layout and actions (ui-redesign.md §5.0)', () => {
 });
 
 describe('PostCard — pending (ui-redesign.md §5.0)', () => {
-  it('replaces the cover with still reels and keeps the unavailable line', () => {
+  it('replaces the cover with still reels and keeps the failure notice', () => {
     // Act
     renderCard(makePendingPost());
 
     // Assert
     expect(screen.getByTestId('pending-cover')).toBeInTheDocument();
     expect(screen.getByTestId('reel-cassette')).not.toHaveAttribute('data-spinning');
-    expect(screen.getByText('Other services unavailable')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Find on other services' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(PENDING_NOTICE)).toBeInTheDocument();
   });
 
-  it("spins the reels while the author's retry runs, then reports the result", async () => {
+  it('spins the reels while a retry runs, then reports the result', async () => {
     // Arrange
     let finish!: (post: PublicPost) => void;
     retryConversion.mockReturnValue(new Promise((resolve) => (finish = resolve)));
@@ -218,7 +216,7 @@ describe('PostCard — pending (ui-redesign.md §5.0)', () => {
     const { onUpdated } = renderCard(pending);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Try again to convert this link' }));
 
     // Assert
     expect(screen.getByRole('button', { name: CONVERTING_COPY })).toBeDisabled();
@@ -228,7 +226,7 @@ describe('PostCard — pending (ui-redesign.md §5.0)', () => {
     finish(pending);
 
     // Assert
-    expect(await screen.findByText('Still unavailable. Try again later.')).toBeInTheDocument();
+    expect(await screen.findByText(STILL_PENDING_NOTICE)).toBeInTheDocument();
     expect(onUpdated).toHaveBeenCalledWith(pending);
   });
 });

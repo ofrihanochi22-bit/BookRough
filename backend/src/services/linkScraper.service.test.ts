@@ -6,6 +6,7 @@ import {
   convertLink,
   LAUNCH_ARGS,
   parseResultPage,
+  RESULT_PAGE_URL,
   type ResultPage,
 } from './linkScraper.service.js';
 
@@ -365,6 +366,32 @@ describe('convertLink — leaving the queue', () => {
       expect(third?.outcome).toBe(outcome);
     },
   );
+});
+
+describe('RESULT_PAGE_URL (conversion-retry.md §1.1)', () => {
+  it.each([
+    'https://squigly.link/song/rick-astley/never-gonna-give-you-up',
+    'https://squigly.link/album/queen/a-night-at-the-opera',
+    'https://squigly.link/edWSMP',
+    'https://squigly.link/edWSMP/',
+    'https://squigly.link/edWSMP?ref=1',
+  ])('accepts the result page %s', (url) => {
+    // Act & Assert
+    expect(RESULT_PAGE_URL.test(url)).toBe(true);
+  });
+
+  it.each([
+    'https://squigly.link/',
+    'https://squigly.link/?q=1',
+    'https://squigly.link/a/b/c',
+    'https://squigly.link/ed-WSMP',
+    'http://squigly.link/edWSMP',
+    'https://squigly.link.evil.example/edWSMP',
+    'https://evil.example/edWSMP',
+  ])('rejects %s', (url) => {
+    // Act & Assert
+    expect(RESULT_PAGE_URL.test(url)).toBe(false);
+  });
 });
 
 describe('parseResultPage', () => {

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PENDING_NOTICE } from '../hooks/useRetryConversion';
 import { cacheKeys } from '../lib/cacheKeys';
 import { cacheSequence, setCached } from '../lib/requestCache';
 
@@ -196,11 +197,13 @@ describe('CommunityFeed', () => {
     renderFeed();
 
     // Act
-    await userEvent.click(await screen.findByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Try again to convert this link' }),
+    );
 
     // Assert
     expect(await screen.findByText('Song 9')).toBeInTheDocument();
-    expect(screen.queryByText('Other services unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText(PENDING_NOTICE)).not.toBeInTheDocument();
   });
 
   it('reloads the feed when a retry finds the post changed', async () => {
@@ -215,7 +218,9 @@ describe('CommunityFeed', () => {
     renderFeed();
 
     // Act
-    await userEvent.click(await screen.findByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Try again to convert this link' }),
+    );
 
     // Assert
     expect(await screen.findByText('Song 3')).toBeInTheDocument();

@@ -365,6 +365,41 @@ describe('POST /api/posts/:postId/conversion', () => {
     });
   });
 
+  it('200: another member converts it too (conversion-retry.md §4)', async () => {
+    // Arrange
+    const { postId, yoni } = await pendingPost();
+
+    // Act
+    const response = await retry(postId, yoni);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post).toMatchObject({
+      conversionPending: false,
+      isMine: false,
+      canDelete: false,
+      title: 'Bohemian Rhapsody',
+    });
+  });
+
+  it('200: an admin who is not the author keeps their delete after retrying', async () => {
+    // Arrange: Yoni posts; Dana owns the community.
+    const { id, dana, yoni } = await community();
+    convertLink.mockResolvedValueOnce(UNAVAILABLE);
+    const created = await post(id, yoni);
+
+    // Act
+    const response = await retry(created.body.data.post.id as string, dana);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post).toMatchObject({
+      conversionPending: false,
+      isMine: false,
+      canDelete: true,
+    });
+  });
+
   it.each([
     ['unavailable again', UNAVAILABLE],
     ['not found', { outcome: 'not_found' }],
@@ -394,20 +429,17 @@ describe('POST /api/posts/:postId/conversion', () => {
     expect(response.body.message).toBe('This post already has its links.');
   });
 
-  it('403 for a member who is not the author; 404 for a stranger, unknown and malformed ids; 401 signed out', async () => {
+  it('404 for a stranger, unknown and malformed ids; 401 signed out', async () => {
     // Arrange
     const { postId, yoni, zed } = await pendingPost();
 
     // Act
-    const member = await retry(postId, yoni);
     const stranger = await retry(postId, zed);
     const unknown = await retry(UNKNOWN_UUID, yoni);
     const malformed = await retry('nope', yoni);
     const signedOut = await retry(postId);
 
     // Assert
-    expect(member.status).toBe(403);
-    expect(member.body.message).toBe('Only the author can do this.');
     for (const response of [stranger, unknown, malformed]) {
       expect(response.status).toBe(404);
       expect(response.body.message).toBe('Post not found.');

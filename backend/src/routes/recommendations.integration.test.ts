@@ -709,7 +709,7 @@ describe('the existing post endpoints on a direct item', () => {
     expect((await save(noam, postId)).status).toBe(409);
   });
 
-  it('the recipient cannot retry or delete', async () => {
+  it('the recipient can retry (conversion-retry.md §4) but cannot delete', async () => {
     // Arrange
     const { dana, noam } = await trio();
     convertLink.mockResolvedValueOnce(UNAVAILABLE);
@@ -720,7 +720,8 @@ describe('the existing post endpoints on a direct item', () => {
     const deleted = await destroy(noam, postId);
 
     // Assert
-    expect(retried.status).toBe(403);
+    expect(retried.status).toBe(200);
+    expect(retried.body.data.post).toMatchObject({ conversionPending: false, isMine: false });
     expect(deleted.status).toBe(403);
     expect(deleted.body.message).toBe('Only the sender can delete this.');
   });

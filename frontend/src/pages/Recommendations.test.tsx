@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PENDING_NOTICE } from '../hooks/useRetryConversion';
 import type { PublicPost } from '../api/posts';
 import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
@@ -406,7 +407,7 @@ describe('Recommendations', () => {
     expect(await screen.findByText("You haven't sent anything")).toBeInTheDocument();
   });
 
-  it('a pending item shows the quiet note, and only the sender can retry', async () => {
+  it('a pending item shows the failure notice, and both recipient and sender can retry', async () => {
     // Arrange
     const user = userEvent.setup();
     const { id: _id, ...pending } = makePendingPost();
@@ -428,11 +429,11 @@ describe('Recommendations', () => {
     renderScreen();
 
     // Act & Assert
-    expect(await screen.findByText('Other services unavailable')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Find on other services' })).toBeNull();
+    expect(await screen.findByText(PENDING_NOTICE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again to convert this link' })).toBeEnabled();
     await user.click(sentTab());
     expect(
-      await screen.findByRole('button', { name: 'Find on other services' }),
+      await screen.findByRole('button', { name: 'Try again to convert this link' }),
     ).toBeInTheDocument();
   });
 
