@@ -96,7 +96,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
 Top to bottom:
 
 1. **Heading** "Your profile".
-2. **Avatar:** the current avatar (Google photo or generated initials), and one action depending on the current choice:
+2. **Avatar:** the current avatar (Google photo or generated initials), and one action depending on the current choice. These are actions, not selectable tiles, so this block keeps its look when Complete Your Profile's tiles changed to an `ink` border and check (ui-redesign.md §5.13, 2026-11-15):
    - using the Google photo → **Use generated avatar** (no confirmation; it is reversible). Line under it: "Your Google photo will be deleted from BookRough."
    - using the generated avatar → **Use my Google photo**, which shows the Google button ("Continue with Google to fetch your photo"). Line: "We'll fetch your current photo from Google. Nothing else is kept."
 3. **Display name:** the onboarding field and status line (counter `n/20`, local rules, debounced availability check, "taken" / "reserved" / "Couldn't check right now"). The caller's own current name counts as available (already true server-side).
@@ -109,7 +109,7 @@ Top to bottom:
 - **Loading:** none — the screen renders from the session already in the store.
 - **Avatar switch in progress:** that control busy ("Switching…" / the Google button replaced by "Fetching your photo…"); Save and the other avatar action disabled meanwhile.
 - **Errors:** avatar errors inline under the avatar (the server's message: different account, no photo, sign-in didn't complete, unavailable); save errors other than `409`/`422` inline above Save; a closed or failed Google popup → "Google sign-in didn't complete. Please try again."
-- **Offline:** banner "You're offline. Connect to change your profile." — Save and both avatar actions disabled; Sign out stays enabled (it fails gracefully and keeps the session, as today).
+- **Offline:** banner "You're offline. Connect to change your profile." — Save and both avatar actions disabled. Sign out is disabled too, with "You're offline. Connect to sign out." — changed by `pwa-offline.md` §5.4 (2026-10-11): the installed app now opens offline, and only the server can clear the `HttpOnly` cookie.
 
 ### 5.2 Shared components
 
@@ -158,7 +158,7 @@ Existing Complete Your Profile and Welcome tests must pass unchanged — the pro
 - ✅ Using the Google photo → **Use generated avatar** → request, avatar becomes initials.
 - ✅ Using the generated avatar → Google button → credential posted → photo shown.
 - ❌ Different account / no photo / popup failed → the matching inline message; the avatar unchanged.
-- ❌ Offline → banner; Save and avatar actions disabled; Sign out enabled.
+- ❌ Offline → banner; Save, avatar actions and Sign out disabled (`pwa-offline.md` §5.4).
 - ✅ Sign out (existing tests stay green).
 - ✅ Complete Your Profile and Welcome suites pass unchanged after the extractions.
 

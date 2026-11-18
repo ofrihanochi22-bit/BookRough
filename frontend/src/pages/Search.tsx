@@ -9,6 +9,7 @@ import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { LineIcon } from '../components/ui/LineIcon';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { MIXTAPE_H1 } from '../components/ui/heading';
@@ -141,6 +142,7 @@ export function Search() {
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
+            <LoadingHint />
           </div>
         )}
 

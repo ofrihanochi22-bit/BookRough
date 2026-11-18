@@ -201,9 +201,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Fourteen tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Sixteen tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -219,6 +219,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `user_avatars` holds an uploaded profile photo — only the server's own 256×256 WebP re-encode, never the uploaded bytes — and reaches clients through `users.profile_picture_url` = `/api/users/<id>/avatar?v=<ms>` (docs/features/avatar-upload.md §3).
 
 - `comments` holds the discussion on a post (UC-22): a post comment, or a reply in one flat thread under a review (`rating_id`) or a post comment (`parent_id`). The hand-written CHECKs `comments_one_thread` and `comments_body_or_deleted` in the `add_comments` migration, and the partial unique index `notifications_one_open_reply_group` in `add_comment_reply_group` (the target of the reply-grouping upsert), are invisible to Prisma (docs/features/discussion-threads.md §3).
+
+- `ops_snapshots` holds what the ops tools read (Vercel's storage meters, the deployments, the registry images) for Admin → Overview, kept 90 days; `daily_app_opens` is one row per UTC day of anonymous app-open counts, with no column that refers to a person. Their CHECKs `ops_snapshots_deleted_nonneg` and `daily_app_opens_nonneg`, in the `add_ops_overview` migration, are invisible to Prisma (docs/features/admin-overview.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API. Three nullable timestamps — `walkthrough_seen_at`, `save_tip_seen_at`, `list_tip_seen_at` — record the onboarding tutorial, and reach only the user themself as `tutorial` flags in the session (docs/features/onboarding-tutorial.md).
@@ -282,6 +284,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 - **UC-21 is new**: the in-app notification center — new community posts, direct recommendations, ratings, friend requests and invitations (docs/features/notifications.md). No push, no email.
 - **UC-22 is new**: discussing a recommendation — comments on a post and replies in a flat thread under a review or a comment, with the person replied to notified (docs/features/discussion-threads.md).
+- **UC-19 was amended** with Admin → Overview: a read-only page of storage limits, deployments, images, last deletions and app counts, fed by the ops tools' snapshots and by Postgres (docs/features/admin-overview.md). No new UC number.
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---
@@ -328,7 +331,7 @@ Target wall-clock for the whole PR workflow is **under ~3 minutes**, so the feed
 
 **`main.yml` — runs on push to `main` and on a nightly schedule:**
 
-- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, security headers, graceful shutdown) — and, on push only, `prune-images`, which keeps the Vercel registry at the 4 newest backend images (a dry run until the repository variable `PRUNE_IMAGES` is `delete`; docs/features/production-hardening.md §3.8).
+- Everything in `pr.yml`, plus `test:e2e` — the full Playwright suite against a built frontend and a live backend — and `test:docker`, which builds the backend image and runs it against an empty Postgres (health, migrations, security headers, graceful shutdown) — and `prune-deployments`, which keeps only the live Vercel production deployment and its rollback target (a dry run until the repository variable `PRUNE_DEPLOYMENTS` is `delete`; docs/features/deployment-pruning.md).
 
 E2E is deliberately kept off the PR path: installing browsers plus running real flows costs many minutes and is the flakiest layer. Catching a regression at merge time rather than at PR time is the accepted trade-off. **If a nightly or post-merge E2E run goes red, fixing it takes priority over starting the next feature.**
 
@@ -540,7 +543,8 @@ The full specification is in [docs/deployment.md](docs/deployment.md) (companion
 
 - The target is a **real, publicly reachable deployment**, on the simplest option available, with a strong preference for free tiers.
 - **The provider was chosen on 2026-10-10, against the terms in force that day: Vercel (Hobby) and Neon (Free), both in Frankfurt, with Google Cloud Run as the agreed fallback.** Production lives at `https://bookrough.vercel.app`; the frontend and the API share that one origin, which is what keeps the `SameSite=Lax` cookie working. `main` deploys to production through Vercel's GitHub app; another branch gets a preview (on the Neon `preview` branch) only when it opts in by its exact name in `vercel.json` — every deployment stores a backend image against two separate Hobby allowances, 10 GB of Images Storage and 10 GB of Function Storage (docs/features/deployment-storage.md). From Step 6.4, production deployments wait for `test:e2e` and `test:docker` through Vercel Deployment Checks, set in the dashboard. Full record: docs/deployment.md §3.6, docs/features/production-deploy.md and docs/features/production-hardening.md.
-- **Storage check before every merge to `main`.** Going over Images Storage paused the team for 30 days on 2026-10-12. Claude has no Vercel access and usage alerts need the Pro plan, so before merging Claude reminds the developer to read both meters in Vercel → Usage, and does not merge until the developer has answered.
+- **Storage check before every merge to `main`.** Going over Images Storage paused the team for 30 days on 2026-10-12. Usage alerts need the Pro plan and Vercel's connector cannot read the meters on Hobby, so before merging Claude runs the project skill `/vercel-usage` (`.claude/skills/vercel-usage/`), which reads every meter from the Usage page in the developer's Chrome. Claude does not merge while a meter is at 80% or more. If Claude in Chrome is unavailable, Claude asks the developer to read the three storage meters in Vercel → Usage, and does not merge until the developer has answered.
+- **Image cleanup after every merge to `main`.** Deleting a deployment does not delete its registry image, and Vercel refuses the registry API on Hobby, so no CI job can prune images. After each merge Claude makes, once the new production deployment is live and `prune-deployments` has run, Claude runs `/vercel-image-cleanup` (`.claude/skills/vercel-image-cleanup/`). It lists the images in the developer's Chrome, plans to delete those whose tags match no remaining deployment, and deletes them only after the developer says yes to that run's list.
 - Still, **keep the code provider-agnostic**: all configuration via environment variables, no provider SDKs, no vendor-specific build steps, nothing in the code that assumes a particular host. The backend Dockerfile stays the deployment unit, so moving to the fallback stays a configuration change. `vercel.json` is the only Vercel-specific file.
 - The hard constraint that drives the eventual choice: the backend runs headless Chromium, which needs meaningfully more memory than a plain Node service, and free tiers are tight. §7's `p-limit(2)` cap exists for this reason.
 
@@ -577,6 +581,7 @@ Settled in the feature's Stage 1 session and written to [docs/features/admin-pan
 - **Read-only lists** of users and communities. No deleting, suspending or editing anyone — with one exception added on 2026-11-08: the admin can **remove a user's photo** (docs/features/avatar-upload.md D2), recorded as a log line.
 - **Three presentation settings, fixed in code**: an announcement banner, an accent colour from a named palette, and the Welcome tagline. A new setting needs a new spec — never just a new row. Do not let it grow into a CMS by accident.
 - **A history table** records every settings change (who, old value, new value, when), shown on the settings screen.
+- **An Overview tab, first** (added 2026-11-17, docs/features/admin-overview.md): storage limits, deployments, images, last deletions and app counts on one read-only page. The Vercel figures are snapshots posted by `/vercel-usage` and `/vercel-image-cleanup` (through the admin's session) and by `prune-deployments` (through `OPS_INGEST_TOKEN`, which can write deployments only); the server never calls Vercel, and Refresh re-reads what is stored. Site visits are an anonymous daily count of app opens: no identifier per person, so never unique visitors.
 
 ---
 

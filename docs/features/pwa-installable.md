@@ -8,7 +8,7 @@
 | **Use cases** | None directly — every UC becomes usable from the iPhone home screen (CLAUDE.md §1, §16)     |
 | **Phase**     | 6 — Step 6.1 of `DEVELOPMENT.md`, second in the re-sliced order (`production-deploy.md` §0) |
 | **Branch**    | `feat/pwa-installable`                                                                      |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged                          |
 
 ---
 
@@ -79,6 +79,8 @@ Decided 2026-10-11, option A:
 ### 3.2 Icons (placeholder)
 
 The vinyl mark from `components/ui/Wordmark.tsx`, drawn in `--on-accent` white on a full-bleed `--accent` purple (`#534ab7`) square. No look-and-feel decision is asked here; the real logo replaces these files and nothing else.
+
+> **Superseded 2026-11-11** by `pwa-icons-cassette.md`: the same files now show the Mixtape cassette mark on the dark canvas `#1B1A2E`. The file set, the sizes and the render script below are unchanged.
 
 | File (`frontend/public/`) | Size   | Notes                                                                                                                                |
 | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |

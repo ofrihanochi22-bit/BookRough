@@ -35,7 +35,7 @@ The current look is clean but generic: every block is the same outlined dark car
 - Any change to what a screen can do, any endpoint, any schema change.
 - New copy beyond what the new navigation strictly needs (Share sheet labels). Existing strings stay.
 - Any text in the logo besides "BookRough" — no tagline, no slogan inside the mark.
-- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec.
+- An app icon or PWA icon set redrawn from the logo — the icons in `frontend/public/` are unchanged by this spec. Done afterwards as its own feature, `pwa-icons-cassette.md` (2026-11-11).
 - Uploaded or derived community covers — covers stay generated (CLAUDE.md §8).
 - i18n / RTL (CLAUDE.md §8).
 - Colour extraction from album art (cross-origin images cannot be read reliably).
@@ -186,11 +186,11 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 ### 5.1 Communities Dashboard (Home) — agreed
 
-- **Header, two rows.** Row 1: the small mark and "BookRough" (Wordmark, compact variant) on the left; Search icon button (→ `/search`) and the notifications bell with its unread badge on the right. Row 2: the "Your communities" heading in the display face, and the secondary **Sign out** pill beside it (kept on Home per visible-sign-out.md §5.1; opens `SignOutSheet` as today). The split stops the heading from truncating at 375px.
+- **Header, two rows.** Row 1: the small mark and "BookRough" (Wordmark, compact variant) on the left; Search icon button (→ `/search`) and the notifications bell with its unread badge on the right. Row 2: the "Your communities" heading in the display face. (A **Sign out** pill sat beside it until 2026-11-17; it was removed, and Sign out lives only on My Profile — visible-sign-out.md.) The split stops the heading from truncating at 375px.
 - **List:** each community is a full-width **cassette card** (§3.5): stripe band in the community's hue, name in the display face, "N members · Role" below it, two reels on the right. The whole card links to the feed, as today.
 - **Create community:** the floating button is **removed**; a dashed "+ Create community" tile ends the list. (Also reachable from the Share sheet when you have no communities.)
 - **Loading:** three cassette-shaped skeletons. **Error:** `LoadError` with Retry, existing copy. **Empty:** the kit's empty state with the existing heading, line and primary "Create community" button.
-- The header sits outside the request states, so Search, the bell and Sign out show in every state, as today.
+- The header sits outside the request states, so Search and the bell show in every state, as today.
 
 ### 5.2 Community Feed — agreed
 
@@ -274,7 +274,7 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 - **Heading** "Your profile" in the display face.
 - **Avatar section:** a `tape` paper card with a stripe band in the user's own hue (as on the Public Profile, §5.6): the 72–80px avatar with a `tape-ink` ring, "Upload a photo" as an outlined pill in `tape-ink`, "Use my Google photo" with its existing helper text. The Google button keeps **Google's own styling** (Google branding rules). Remove-photo and error/progress states unchanged, kit styling.
 - **Display name:** kit field with the existing counter and help text.
-- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row on `tape` paper with an accent radio, the others outlined; service names only, no logos.
+- **"Where do you listen?":** selectable rows (`role` and `fieldset` unchanged); the selected row outlined in a 2px `ink` border with a bold name and its accent radio, the others outlined in `line`; service names only, no logos. **No `tape` fill** (amended 2026-11-15, improvement round point 3, so it matches the avatar tiles of §5.13 on the same onboarding screen).
 - **Save changes:** accent primary, full width; same enable rules.
 - **Admin area** (admins only): a `surface` row with an icon and a chevron.
 - **Sign out:** an outlined chip, centred, opening `SignOutSheet` as today.
@@ -292,7 +292,8 @@ Opened by the central tab-bar button. A bottom sheet in steps; the back arrow re
 
 - **Heading** "Complete your profile". Offline alert unchanged.
 - **Your cassette:** a `tape` label with a stripe band in the user's hue, showing the display name **as it is typed** (presentation of the field's current value; placeholder look when empty). No new data.
-- **Your avatar:** the two existing tiles (Generated / Google photo) side by side; the selected tile on `tape` paper, the other outlined. Helper line unchanged.
+- **Your avatar:** the two existing tiles (Generated / Google photo) side by side, both on the screen's own background. The selected tile has a 2px `ink` border, a small `ink` check badge in its top corner and a bold label; the other is outlined in `line`. **Never a `tape` fill** (amended 2026-11-15, improvement round point 3): the pale generated avatar is about 1.2:1 on `tape`, and a cream block clashed with the dark screen. On the dark background the generated avatar reads at about 12:1, so its own colours are unchanged. The accent is not used for the selection (only for the focus outline). Helper line unchanged.
+- **My Profile is deliberately different** (§5.11): it has no tiles to select, only the current avatar with a `tape-ink` ring and action buttons, so it keeps its layout (decided 2026-11-15).
 - **Display name / Where do you listen?:** as on My Profile (§5.11).
 - **Continue:** accent primary, full width. The small "Sign out" link stays as it is (no confirmation), per visible-sign-out.md.
 
@@ -384,7 +385,7 @@ No backend behaviour changes before the swap. The old design is the default unti
 - ❌ Post card: no sticker without ratings; the ⋯ sheet shows only the permitted actions (Hide / Edit comment / Delete post).
 - ✅ Rating sheet: ten stars as radios; tapping star N checks N and shows "N/10"; arrow keys move the choice; a drag across the row sets the value; edit mode starts at the existing score.
 - ❌ Rating sheet: Submit disabled with no score, offline, or a comment error; the existing error messages show.
-- ✅ Home: Search icon and bell in row 1, Sign out beside the heading; cassette cards link to their feeds; the dashed Create tile; no floating button.
+- ✅ Home: Search icon and bell in row 1, the heading below (no Sign out on Home since 2026-11-17); cassette cards link to their feeds; the dashed Create tile; no floating button.
 - ❌ Home: loading skeletons, `LoadError` with Retry, the empty state.
 - ✅ Feed composer: the collapsed pill expands to the composer with focus in the link field; ✕ collapses it and keeps the draft; posting collapses it and the post is on top.
 - ✅ Post Detail: no average block; "No ratings yet" with none; ratings, threads and comments stacked.

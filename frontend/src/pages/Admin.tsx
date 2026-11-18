@@ -18,29 +18,22 @@ import { PILL_TRACK, pillTrackOptionClass } from '../components/ui/PillTrack';
 import { Sheet } from '../components/ui/Sheet';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
 import { useRequest } from '../hooks/useRequest';
 import { memberCountLabel } from '../lib/communityCopy';
+import { formatDate } from '../lib/overviewCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
 import { NotFound } from './NotFound';
 
 const TABS = [
+  { to: '/admin/overview', label: 'Overview' },
   { to: '/admin/users', label: 'Users' },
   { to: '/admin/communities', label: 'Communities' },
   { to: '/admin/settings', label: 'Settings' },
 ] as const;
-
-const dateFormat = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-
-function formatDate(iso: string): string {
-  return dateFormat.format(new Date(iso));
-}
 
 /** A list of rows: one `surface` card of divider rows (ui-redesign.md §5.17). */
 const LIST = 'flex flex-col divide-y divide-line rounded-[22px] bg-surface px-4';
@@ -83,6 +76,7 @@ function ListSkeleton({ label }: { label: string }) {
       <Skeleton className="h-16" />
       <Skeleton className="h-16" />
       <Skeleton className="h-16" />
+      <LoadingHint />
     </div>
   );
 }

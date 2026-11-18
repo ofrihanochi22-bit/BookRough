@@ -76,13 +76,15 @@ describe('session bootstrap', () => {
     expect(await welcomeHeading()).toBeInTheDocument();
   });
 
-  it('offers a retry instead of signing the user out when the API is unreachable', async () => {
+  it('offers a retry when offline with no remembered session, instead of signing out', async () => {
     // Arrange
     fetchSession
       .mockRejectedValueOnce(new AxiosError('Network Error', 'ERR_NETWORK'))
       .mockResolvedValueOnce(makeSession());
     renderAt('/home');
-    expect(await screen.findByRole('alert')).toHaveTextContent("Can't reach BookRough right now.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "You're offline. Connect to open BookRough.",
+    );
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));

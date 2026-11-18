@@ -1,7 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cacheKeys } from '../lib/cacheKeys';
+import { cacheSequence, setCached } from '../lib/requestCache';
+import { LOADING_HINT_DELAY_MS, LOADING_HINT_TEXT } from '../components/ui/LoadingHint';
 import { httpError, makeCommunity } from '../test/fixtures';
 import { useNotifications } from '../stores/notifications';
 import { Dashboard } from './Dashboard';
@@ -115,7 +118,7 @@ describe('Dashboard — roles', () => {
   });
 });
 
-describe('Dashboard — sign out in the header', () => {
+describe('Dashboard — no sign out on Home (it lives on My Profile)', () => {
   it.each([
     [
       'loading',
@@ -137,7 +140,7 @@ describe('Dashboard — sign out in the header', () => {
       () => listMyCommunities.mockRejectedValue(httpError(500, 'Something went wrong.')),
       () => screen.findByRole('alert'),
     ],
-  ])('shows Sign out beside the heading while %s', async (_state, arrange, settled) => {
+  ])('shows no Sign out button while %s', async (_state, arrange, settled) => {
     // Arrange
     arrange();
 
@@ -146,29 +149,8 @@ describe('Dashboard — sign out in the header', () => {
     await settled();
 
     // Assert
-    const header = screen.getByRole('heading', { name: 'Your communities' }).parentElement!;
-    expect(within(header).getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-  });
-
-  it('asks before signing out, and Cancel keeps the user on Home', async () => {
-    // Arrange
-    listMyCommunities.mockResolvedValue([]);
-    renderDashboard();
-    await screen.findByRole('heading', { name: 'Start your first community' });
-
-    // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-
-    // Assert
-    const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByText('Sign out?')).toBeInTheDocument();
-
-    // Act
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
-
-    // Assert
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your communities' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
   });
 });
 
@@ -221,7 +203,7 @@ describe('Home (ui-redesign.md §5.1)', () => {
     useNotifications.setState({ unread: 0 });
   });
 
-  it('puts the logo, Search and the bell in row 1, and Sign out beside the heading', async () => {
+  it('puts the logo, Search and the bell in row 1, and the heading below', async () => {
     // Arrange
     listMyCommunities.mockResolvedValue([]);
     useNotifications.setState({ unread: 3 });
@@ -236,10 +218,7 @@ describe('Home (ui-redesign.md §5.1)', () => {
       'href',
       '/notifications',
     );
-    const heading = screen.getByRole('heading', { level: 1, name: 'Your communities' });
-    expect(heading.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Sign out' }),
-    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Your communities' })).toBeInTheDocument();
   });
 
   it('opens Search from the header icon', async () => {
@@ -309,9 +288,8 @@ describe('Home (ui-redesign.md §5.1)', () => {
 
     // Assert
     const loading = screen.getByRole('status', { name: 'Loading your communities' });
-    expect(loading.children).toHaveLength(3);
+    expect(loading.querySelectorAll('[aria-hidden="true"]')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Search' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
 
   it('shows the load error with Try again, which loads again', async () => {
@@ -343,5 +321,67 @@ describe('Home (ui-redesign.md §5.1)', () => {
     expect(screen.getByText('A community is where your friends share music.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('link', { name: 'Create community' }));
     expect(screen.getByText('Create screen')).toBeInTheDocument();
+  });
+});
+
+describe('Home with the client cache (client-cache.md §5)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows cached communities on the first render, with no skeleton', () => {
+    // Arrange
+    setCached(
+      cacheKeys.communities,
+      [makeCommunity({ id: 'a', name: 'Friday Jazz' })],
+      true,
+      cacheSequence(),
+    );
+    listMyCommunities.mockReturnValue(new Promise(() => {}));
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    expect(screen.getByRole('link', { name: /Friday Jazz/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: 'Loading your communities' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('updates the cached list in place when the refresh brings a new community', async () => {
+    // Arrange
+    setCached(
+      cacheKeys.communities,
+      [makeCommunity({ id: 'a', name: 'Friday Jazz' })],
+      true,
+      cacheSequence(),
+    );
+    listMyCommunities.mockResolvedValue([
+      makeCommunity({ id: 'a', name: 'Friday Jazz' }),
+      makeCommunity({ id: 'b', name: 'Family' }),
+    ]);
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    expect(await screen.findByRole('link', { name: /Family/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Friday Jazz/ })).toBeInTheDocument();
+  });
+
+  it('adds the still-loading line under the skeleton after 2 seconds, not before', () => {
+    // Arrange
+    vi.useFakeTimers();
+    listMyCommunities.mockReturnValue(new Promise(() => {}));
+    renderDashboard();
+    expect(screen.queryByText(LOADING_HINT_TEXT)).not.toBeInTheDocument();
+
+    // Act
+    act(() => vi.advanceTimersByTime(LOADING_HINT_DELAY_MS));
+
+    // Assert
+    const loading = screen.getByRole('status', { name: 'Loading your communities' });
+    expect(within(loading).getByText(LOADING_HINT_TEXT)).toBeInTheDocument();
   });
 });

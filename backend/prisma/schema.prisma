@@ -99,7 +99,7 @@ model User {
   saveTipSeenAt           DateTime?             @map("save_tip_seen_at") @db.Timestamptz(3)
   /// When the list tip (My List) was dismissed or acted on.
   listTipSeenAt           DateTime?             @map("list_tip_seen_at") @db.Timestamptz(3)
-  memberships            CommunityMember[]
+  memberships             CommunityMember[]
   bans                    CommunityBan[]        @relation("BannedUser")
   bansIssued              CommunityBan[]        @relation("BannedBy")
   settingChanges          SettingChange[]
@@ -116,6 +116,7 @@ model User {
   avatar                  UserAvatar?
   comments                Comment[]             @relation("CommentAuthor")
   commentsRepliedTo       Comment[]             @relation("CommentReplyTo")
+  opsSnapshots            OpsSnapshot[]
 
   @@map("users")
 }
@@ -472,4 +473,47 @@ model Comment {
   @@index([parentId])
   @@index([authorId])
   @@map("comments")
+}
+
+/// Which tool wrote an ops snapshot (docs/features/admin-overview.md §3.1).
+enum OpsSource {
+  VERCEL_USAGE
+  IMAGE_CLEANUP
+  PRUNE_DEPLOYMENTS
+}
+
+/// One reading by an ops tool, shown on Admin → Overview
+/// (docs/features/admin-overview.md §3.2). Inserted, never updated; rows older
+/// than 90 days are deleted by the next insert. `payload` is validated against
+/// the source's schema on write and again on read. Hand-written in the
+/// add_ops_overview migration, invisible to Prisma: the CHECK
+/// `ops_snapshots_deleted_nonneg`.
+model OpsSnapshot {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source       OpsSource
+  capturedAt   DateTime  @map("captured_at") @db.Timestamptz(3)
+  receivedAt   DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+  payload      Json
+  /// Items the run deleted, copied from the payload, so "last deletion" is one query.
+  deletedCount Int       @default(0) @map("deleted_count")
+  /// The admin whose session posted it; null for CI, or once that account is deleted.
+  writtenById  String?   @map("written_by_id") @db.Uuid
+  writtenBy    User?     @relation(fields: [writtenById], references: [id], onDelete: SetNull)
+
+  @@index([source, capturedAt(sort: Desc)])
+  @@index([source, deletedCount, capturedAt(sort: Desc)])
+  @@index([receivedAt])
+  @@index([writtenById])
+  @@map("ops_snapshots")
+}
+
+/// App opens per UTC day, counted on the start-up settings fetch
+/// (docs/features/admin-overview.md §3.3). No column refers to a person.
+/// Hand-written CHECK `daily_app_opens_nonneg` in the add_ops_overview migration.
+model DailyAppOpens {
+  day       DateTime @id @db.Date
+  signedIn  Int      @default(0) @map("signed_in")
+  signedOut Int      @default(0) @map("signed_out")
+
+  @@map("daily_app_opens")
 }

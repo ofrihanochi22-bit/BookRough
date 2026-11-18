@@ -67,6 +67,31 @@ export default tseslint.config(
     },
   },
 
+  // Backend: no raw SQL built from text (SQL injection audit, 2026-11-17).
+  // `$queryRaw` / `$executeRaw` as tagged templates, and `Prisma.sql`, send
+  // every value as a bound parameter; the Unsafe variants and `Prisma.raw`
+  // splice text into the query. Tests may use them with fixed strings to reset
+  // the test database, so they are left out.
+  {
+    files: ['backend/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/test/**'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        ...['$queryRawUnsafe', '$executeRawUnsafe'].map((property) => ({
+          property,
+          message:
+            'Use the $queryRaw / $executeRaw tagged template, which binds every value as a parameter.',
+        })),
+        {
+          object: 'Prisma',
+          property: 'raw',
+          message: 'Prisma.raw splices text into SQL. Use Prisma.sql with bound values instead.',
+        },
+      ],
+    },
+  },
+
   // Frontend: browser globals, React rules.
   {
     files: ['frontend/**/*.{ts,tsx}'],
@@ -80,6 +105,33 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
+  },
+
+  // User-facing copy: no em dash in a string, template or JSX text, so a
+  // sentence reads as written by a person (improvement round, point 2). That is
+  // the frontend, plus the backend layers whose AppError messages reach users
+  // as toasts. Comments are not nodes, so they are untouched; tests are left
+  // out because their names are not copy. The en dash stays allowed: ranges
+  // ("2–40") and the "–/10" readout. This is the only no-restricted-syntax
+  // block: flat config replaces a rule's options, so another block setting it
+  // for these files would drop the guard; add its selectors here instead.
+  {
+    files: [
+      'frontend/src/**/*.{ts,tsx}',
+      'backend/src/{services,controllers,middleware,utils}/**/*.ts',
+    ],
+    ignores: ['**/*.test.{ts,tsx}', '**/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...['Literal[value=/—/]', 'TemplateElement[value.cooked=/—/]', 'JSXText[value=/—/]'].map(
+          (selector) => ({
+            selector,
+            message: 'User-facing copy uses no em dash: use a full stop, comma or colon.',
+          }),
+        ),
+      ],
     },
   },
 

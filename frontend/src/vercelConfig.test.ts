@@ -53,6 +53,20 @@ describe('vercel.json', () => {
     expect(config.rewrites.at(-1)?.source).toBe('/(.*)');
   });
 
+  it('serves the service worker as a file, never as the app shell', () => {
+    // Arrange: the SPA fallback only rewrites paths with no dot.
+    const fallback = config.services.web?.rewrites?.[0];
+    expect(fallback?.destination).toBe('/index.html');
+    const toShell = (path: string) => matcher(fallback?.source ?? '').test(path);
+
+    // Act & Assert
+    expect(serviceFor('/sw.js')).toBe('web');
+    expect(serviceFor('/workbox-abc123.js')).toBe('web');
+    expect(toShell('/sw.js')).toBe(false);
+    expect(toShell('/workbox-abc123.js')).toBe(false);
+    expect(toShell('/friends')).toBe(true);
+  });
+
   it('sends every other path to the site', () => {
     // Act & Assert
     expect(serviceFor('/')).toBe('web');

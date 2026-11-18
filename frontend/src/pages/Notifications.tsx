@@ -15,10 +15,12 @@ import { EmptyState as KitEmptyState } from '../components/ui/EmptyState';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { cacheKeys } from '../lib/cacheKeys';
 import {
   MARK_ALL_FAILED,
   MORE_FAILED,
@@ -53,7 +55,7 @@ function fresh(page: NotificationsPage): LocalChanges {
  * read reads the rest. Opening the screen changes nothing (D5).
  */
 export function Notifications() {
-  const first = useRequest(listNotifications);
+  const first = useRequest(listNotifications, { key: cacheKeys.notifications, persist: true });
   const online = useOnlineStatus();
   const unread = useNotifications((state) => state.unread);
   const setUnread = useNotifications((state) => state.setUnread);
@@ -165,6 +167,7 @@ export function Notifications() {
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />
             <Skeleton className="h-16" />
+            <LoadingHint />
           </div>
         )}
 

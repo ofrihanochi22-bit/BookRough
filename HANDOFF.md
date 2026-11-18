@@ -29,7 +29,7 @@ Stack in one line: React + Vite + TS + Tailwind + Zustand / Express + TS + Prism
 
 ## 2. Progress
 
-Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommendations between friends, is new** and is built on `feat/direct-recommendations` (Step 6.1a).
+Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommendations between friends, is new** and merged in PR #39 (Step 6.1a); it reaches production with the first deployment after the pause.
 
 | Phase                    | Steps                                                                                                                                    | PRs      | Status |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
@@ -44,11 +44,11 @@ Phases 0–5 are done; Phase 6 (shipping) is half done. **UC-20, direct recommen
 
 UC-17 (password reset) is withdrawn; its number is not reused.
 
-**Step 6.1b — link-only posts (UC-11, amended), added 2026-11-03:** Bandcamp, SoundCloud and live YouTube videos shared without conversion (`docs/features/link-only-posts.md`). Built, reviewed and tested on `feat/link-only-posts`, in an open PR built while PR #40 waits; backend 68 test files at 99.01% lines, frontend 61 at 98.67%.
+**Step 6.1b — link-only posts (UC-11, amended), merged as PR #41 on 2026-11-03:** Bandcamp, SoundCloud and live YouTube videos shared without conversion (`docs/features/link-only-posts.md`); backend 68 test files at 99.01% lines, frontend 61 at 98.67%.
 
 **Manual-test notes N1–N10, from 2026-11-08:** the developer chose to build them before Step 6.2, one feature and PR each, while PR #40 waits for the Vercel pause. New write controls follow PR #40's offline pattern. N4 (the onboarding tutorial) goes last, after a planned UI redesign. **Step 6.1c, visible sign-out (N8, UC-3)** merged as PR #46. **Step 6.1d, the notification center (N1 + N2, a new UC-21)** merged as PR #47. **Step 6.1e, editing a post's comment (N7)** merged as PR #48. **Step 6.1f, a separate Sign in and Create account (N9)** merged as PR #49, and reverses CLAUDE.md §5's "same button". PR #50 fixed the E2E test that #47 broke. **Step 6.1g, role notifications (N5)** merged as PR #51. **Step 6.1h, photo uploads (N10)** merged as PR #52. It added `sharp`, so the backend image grew by about 10–15 MB. **Step 6.1i, discussion threads (N3, a new UC-22)** is on `feat/discussion-threads`, with the `add_comments` and `add_comment_reply_group` migrations. With N3, every note is built except N4 and N6, which wait for the UI redesign. The `add_role_notifications` and `add_user_avatars` migrations are also still waiting for Neon. The `add_notifications` and `add_post_comment_edited_at` migrations run on Neon with the next deployment.
 
-Last measured (Step 6.1a): backend 930 tests at 98.93% lines, frontend 659 tests at 98.67%, E2E 43 runs (+3 skipped). CI floor is 80%.
+Last measured (Step 6.2): backend 930 tests at 98.93% lines, frontend 740 tests at 98.58%, E2E 44 runs (+4 skipped). CI floor is 80%.
 
 ---
 
@@ -57,13 +57,10 @@ Last measured (Step 6.1a): backend 930 tests at 98.93% lines, frontend 659 tests
 Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships in this order: 6.3 → 6.1 → 6.3a → **6.1a → 6.2 → 6.4 → 6.5**.
 
 0. **Get production back up** (§4) — nothing else can be checked on an iPhone until it is.
-   0a. **Step 6.1b — link-only posts.** Its PR waits for the developer's word, green CI and the storage check (CLAUDE.md §16). Merging runs the `add_link_only_posts` migration on Neon with the next deployment. Whichever of it and PR #40 merges second adds `*.bcbits.com`, `*.sndcdn.com` and `i.ytimg.com` to Step 6.2's album-art cache. After deploying, post one real Bandcamp, SoundCloud and KEXP link on production.
-1. **Step 6.1a — Direct recommendations (UC-20).** Built and tested on `feat/direct-recommendations`; its PR waits for the developer's word and the storage check (CLAUDE.md §16). Merging runs a migration on Neon when the next deployment starts, so it is expected after the pause ends.
-2. **Step 6.2 — PWA offline — Stages 1–3 done, Stage 4 not started.** Branch `feat/pwa-offline` (pushed, **no PR yet**, last commit `fa0d46f`, 2026-10-11). Its spec `docs/features/pwa-offline.md` is approved and marks ☑ Spec · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged. The branch holds the spec, the implementation (`vite-plugin-pwa` 1.3.0 pinned — approved 2026-10-11; network-first `GET /api/*`, cache-first album art, remembered session for offline launch, `OfflineBar`, `UpdatePrompt`, sign-out wipes the caches) and one code-review fix-up commit. Its `DEVELOPMENT.md` entry is still ☐ — not yet updated.
-   - It branched from `c7da76b` (PR #34), **before** PR #35 and Step 6.1a — bring it up to date with `main` first, after 6.1a merges.
-   - Remaining: Stage 4 tests from the spec's scenario list, `/security-review` if the spec asks for it, the iPhone/airplane-mode and second-deploy checks, then `DEVELOPMENT.md` and the PR.
-   - For an iPhone check the branch must opt in to a Vercel preview by adding its exact name to `vercel.json` → `git.deploymentEnabled`, and remove it before merge. The service worker is registered in production builds only.
-3. **Step 6.4 — Production hardening** (`chore/production-hardening`). Stages 1–4 done on 2026-11-07: spec `docs/features/production-hardening.md` (approved), four rate-limit tiers, `TRUST_PROXY_HOPS`, baseline security headers, safe error logs, a `gitleaks` `secrets` CI job (history scanned: test fixtures only), and a `prune-images` job in `main.yml` (a dry run until `PRUNE_IMAGES=delete`). Its PR waits for the developer's word, the dashboard steps in §4, green CI and the storage check. After the pause, run the spec's production checks P2–P7. **The address goes to friends only after this merges and P2–P7 pass.**
+1. **Step 6.2 — PWA offline — built and tested locally, in an open PR.** What is left is the real iPhone: checks O1–O9 in `docs/features/pwa-offline.md` §7, on this branch's preview. The site must be back first. For the preview the branch opts in by its exact name in `vercel.json` → `git.deploymentEnabled`, and removes that line before merge; each preview stores one more image. If the opted-in branch builds no preview, create one by hand (Deployments → Create Deployment).
+2. **First deployment after the pause:** it applies the UC-20 migration on Neon. Check a post that already exists, then a real direct recommendation between two Google accounts.
+   - The same first deployment also applies the Step 6.1b migration (`add_link_only_posts`). Then post one real Bandcamp, SoundCloud and KEXP link on production and check each card's title, cover and platform button.
+3. **Step 6.4 — Production hardening** — merged as PR #43 on 2026-11-07: spec `docs/features/production-hardening.md`, four rate-limit tiers, `TRUST_PROXY_HOPS`, baseline security headers, safe error logs, a `gitleaks` `secrets` CI job (history scanned: test fixtures only), and a `prune-images` job in `main.yml` (a dry run until `PRUNE_IMAGES=delete`). After the pause, do the dashboard steps in §4, then run the spec's production checks P2–P7. **The address goes to friends only after P2–P7 pass.**
 4. **Step 6.5 — README** (`docs/readme-deploy`).
 
 ---
@@ -79,7 +76,7 @@ Phase 6 was re-sliced on 2026-10-10, and UC-20 joined on 2026-11-02, so it ships
   - Vercel → Settings → Build and Deployment: Preview deployment retention 7 days.
 - [ ] **Also on 2026-11-11** (the developer deferred these on 2026-11-07, so the image prune fails harmlessly until then):
   - Vercel → Account Settings → Tokens: create a token scoped to the team, with an expiry; GitHub → repository → Settings → Secrets and variables → Actions: secret `VERCEL_TOKEN`, and variable `VERCEL_TEAM` = the team slug. Note the token's expiry date in §5.
-  - Leave `PRUNE_IMAGES` unset until the first `prune-images` run's plan has been read in the Actions log, then set the variable to `delete`.
+  - Leave `PRUNE_DEPLOYMENTS` unset until the first `prune-deployments` run's plan has been read in the Actions log, then set the variable to `delete` (this replaced `PRUNE_IMAGES` on 2026-11-16; registry pruning was withdrawn).
   - Claude will ask before making `checks / secrets` a required check in branch protection.
 - [ ] **First deploying merge after the pause (S5):** compare Images Storage before and after it, to learn whether Vercel removes old images by itself (`docs/features/deployment-storage.md` §1.2). Until that is known, read both storage meters before every merge (CLAUDE.md §16). Step 6.4 (PR #43) was merged on 2026-11-07 without a fresh reading, on the developer's word: the Vercel connector cannot read the Usage meters, the last reading was 394.68 MB on 2026-11-03, and no deploy has run since. The developer read them on 2026-11-08: Images Storage 394.68 MB (unchanged since 2026-11-03) and Function Storage 0 B (2.37 GB on 2026-11-02). Read both meters again before the first deploy on 2026-11-11.
 
@@ -103,7 +100,7 @@ Changing Claude accounts touches none of these. Claude never holds a secret valu
 | Vercel (Hobby)       | Project `bookrough`, region `fra1`; env vars per environment (`DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `LOG_LEVEL`, `VITE_GOOGLE_CLIENT_ID`); Deployment Protection "Require Log In" on for previews |
 | Neon (Free)          | Project `bookrough-frankfurt`; branch `production` and branch `preview` (shared by every preview — reset it from its parent if a migration breaks it)                                                                        |
 | Google Cloud Console | The OAuth web client: JavaScript origins `http://localhost:5173` and `https://bookrough.vercel.app` (origins, not redirect URIs)                                                                                             |
-| GitHub Actions       | Secret `VERCEL_TOKEN` (team-scoped Vercel token for registry pruning — note its expiry here when created); variables `VERCEL_TEAM`, `PRUNE_IMAGES`                                                                           |
+| GitHub Actions       | Secret `VERCEL_TOKEN` (team-scoped Vercel token for deployment pruning — note its expiry here when created); variables `VERCEL_TEAM`, `PRUNE_DEPLOYMENTS` (`PRUNE_IMAGES` is obsolete since 2026-11-16 and can be deleted)   |
 | Local                | `backend/.env` and `frontend/.env`, copied from their `.env.example` files                                                                                                                                                   |
 
 The one admin account has `users.role = 'ADMIN'`, set directly in Neon — no endpoint grants it.

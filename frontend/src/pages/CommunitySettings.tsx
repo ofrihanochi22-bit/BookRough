@@ -27,6 +27,7 @@ import { Button } from '../components/ui/Button';
 import { LoadError } from '../components/ui/LoadError';
 import { ScreenLayout } from '../components/ui/ScreenLayout';
 import { Sheet } from '../components/ui/Sheet';
+import { LoadingHint } from '../components/ui/LoadingHint';
 import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { MIXTAPE_H1 } from '../components/ui/heading';
@@ -212,6 +213,7 @@ export function CommunitySettings() {
           <Skeleton className="h-24" />
           <Skeleton className="h-14" />
           <Skeleton className="h-14" />
+          <LoadingHint />
         </div>
       )}
 

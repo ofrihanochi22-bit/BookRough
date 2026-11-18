@@ -50,7 +50,10 @@ jobs:
       # The frontend is served from the preview port, so that is the origin the
       # API must accept.
       CORS_ORIGIN: http://localhost:4173
-      VITE_API_BASE_URL: http://localhost:4000/api
+      # Same-origin, as in production: vite preview proxies /api to the API
+      # (frontend/vite.config.ts), which the service worker's API cache needs.
+      VITE_API_BASE_URL: /api
+      PREVIEW_API_PROXY: http://localhost:4000
       VITE_GOOGLE_CLIENT_ID: ci-only-client-id.apps.googleusercontent.com
       E2E_BASE_URL: http://localhost:4173
       # The suite signs in dozens of times from one address; the API refuses
@@ -163,7 +166,20 @@ jobs:
           echo "The API never answered /api/health." && exit 1
       # /api/settings reads app_settings, which exists only once migrated.
       - name: Prove the migrations ran
-        run: curl -fsS http://localhost:4000/api/settings
+        run: |
+          curl -fsS http://localhost:4000/api/settings
+          docker logs api 2>&1 | grep -q '"msg":"Migrations applied"'
+      # A second start against the now-migrated database must skip the CLI
+      # (docs/features/migrate-check-on-start.md).
+      - name: A restart skips the migration step
+        run: |
+          docker restart -t 10 api
+          for i in $(seq 1 45); do
+            if curl -fsS http://localhost:4000/api/health > /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:4000/api/health
+          docker logs api 2>&1 | grep -q '"msg":"Migrations up to date"'
       # The baseline headers (docs/features/production-hardening.md §3.3).
       - name: Security headers are sent
         run: |
@@ -199,25 +215,32 @@ jobs:
         if: failure()
         run: docker logs api || true
 
-  # Keeps the Vercel registry at the 4 newest backend images
-  # (docs/features/production-hardening.md §3.8). After both suites pass, so the
-  # newest image is the one Deployment Checks are about to promote. Push only:
-  # the nightly run deploys nothing. A dry run unless the repository variable
-  # PRUNE_IMAGES is "delete"; the plan is printed either way.
-  prune-images:
-    name: prune-images
+  # Keeps the project's production deployments at the live one and its rollback
+  # target (docs/features/deployment-pruning.md): each one stores a backend
+  # image in Functions Storage. After both suites, and nightly, which settles
+  # the count once a push's deployment has been promoted. A dry run unless the
+  # repository variable PRUNE_DEPLOYMENTS is "delete"; the plan is printed
+  # either way.
+  prune-deployments:
+    name: prune-deployments
     runs-on: ubuntu-latest
     needs: [test-e2e, test-docker]
-    if: github.event_name != 'schedule'
+    # Nightly, a red test-e2e (its live squigly.link test included) must not stop
+    # the run that settles the count; nothing deploys at night, and the plan
+    # comes from the live deployment, not from the suites.
+    if: ${{ !cancelled() && (github.event_name == 'schedule' || (needs.test-e2e.result == 'success' && needs.test-docker.result == 'success')) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Prune old images
-        run: node backend/src/ops/pruneImages.ts
+      - name: Prune old deployments
+        run: node backend/src/ops/pruneDeployments.ts
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
-          CURRENT_SHA: ${{ github.sha }}
-          PRUNE_IMAGES: ${{ vars.PRUNE_IMAGES }}
+          PRUNE_DEPLOYMENTS: ${{ vars.PRUNE_DEPLOYMENTS }}
+          # Admin → Overview (docs/features/admin-overview.md §6.3): the run posts its plan and its
+          # deletions. Unset token: a notice and no post; a failed post never fails the job.
+          OPS_INGEST_TOKEN: ${{ secrets.OPS_INGEST_TOKEN }}
+          OPS_INGEST_URL: ${{ vars.OPS_INGEST_URL }}

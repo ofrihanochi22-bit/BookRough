@@ -55,6 +55,14 @@ const envSchema = z
       .string()
       .optional()
       .transform((value) => value?.trim().toLowerCase() === 'true'),
+    // Set by the Dockerfile (docs/features/migrate-check-on-start.md): before
+    // listening, check for pending migrations and apply them only if there are
+    // any. Only "true" switches it on; unset locally, where developers run
+    // `npm run prisma:migrate` themselves.
+    MIGRATE_ON_START: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim().toLowerCase() === 'true'),
     // The onboarding tutorial (docs/features/onboarding-tutorial.md §4): only
     // "false" switches it off for every user of this environment — local E2E
     // and CI set it. Unset, or anything else, means on. Allowed in every mode:
@@ -63,6 +71,23 @@ const envSchema = z
       .string()
       .optional()
       .transform((value) => value?.trim().toLowerCase() !== 'false'),
+    // Admin → Overview (docs/features/admin-overview.md §4.6). The bearer token
+    // the prune-deployments CI job posts its snapshot with. Unset or blank
+    // means the CI ingest endpoint is off (404). The developer's secret.
+    OPS_INGEST_TOKEN: z
+      .string()
+      .optional()
+      .transform((value) => value?.trim() || undefined)
+      .refine((value) => value === undefined || value.length >= 32, {
+        message: 'OPS_INGEST_TOKEN must be at least 32 characters',
+      }),
+    // The database's storage allowance in MB, shown against its size on the
+    // Overview. 1024: Neon Free's 1 GB per project, read in the Neon console's
+    // Billing page on 2026-11-17 (admin-overview.md §9).
+    DB_STORAGE_LIMIT_MB: z.preprocess(
+      (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+      z.coerce.number().int().positive().default(1024),
+    ),
     // E2E only (docs/features/auth-flow-e2e.md): an RSA public key that stands
     // in for Google's. Escaped "\n" sequences are accepted so a PEM fits on
     // one line. Empty means "not set".

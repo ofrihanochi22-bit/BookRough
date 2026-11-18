@@ -2,7 +2,7 @@ import { AxiosHeaders, type AxiosAdapter, type InternalAxiosRequestConfig } from
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { api } from './client';
-import { listAdminCommunities, listAdminUsers } from './admin';
+import { fetchAdminOverview, listAdminCommunities, listAdminUsers } from './admin';
 
 function respondWith(data: unknown): InternalAxiosRequestConfig[] {
   const seen: InternalAxiosRequestConfig[] = [];
@@ -21,6 +21,18 @@ afterEach(() => {
 });
 
 describe('admin API module', () => {
+  it('fetchAdminOverview gets /admin/overview without the global toast and unwraps it', async () => {
+    // Arrange
+    const seen = respondWith(ok({ generatedAt: '2026-11-17T12:00:00.000Z' }));
+
+    // Act
+    const overview = await fetchAdminOverview();
+
+    // Assert
+    expect(overview).toEqual({ generatedAt: '2026-11-17T12:00:00.000Z' });
+    expect(seen[0]).toMatchObject({ method: 'get', url: '/admin/overview', skipErrorToast: true });
+  });
+
   it('listAdminUsers gets /admin/users without the global toast and unwraps the list', async () => {
     // Arrange
     const seen = respondWith(ok({ users: [{ id: 'u-1' }] }));

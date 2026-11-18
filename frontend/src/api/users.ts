@@ -1,5 +1,7 @@
 import type { Session, StreamingService, TutorialItem, TutorialState } from '../stores/auth';
 import { api, type SuccessBody } from './client';
+import { AVATAR_KEYS } from '../lib/cacheKeys';
+import { invalidate } from '../lib/requestCache';
 
 export type Availability =
   { available: true; reason: null } | { available: false; reason: 'taken' | 'reserved' };
@@ -25,6 +27,7 @@ export async function updateProfile(update: ProfileUpdate): Promise<Session> {
   const response = await api.patch<SuccessBody<Session>>('/users/me', update, {
     skipErrorToast: true,
   });
+  invalidate([...AVATAR_KEYS]);
   return response.data.data;
 }
 
@@ -34,6 +37,7 @@ export async function uploadAvatar(image: Blob): Promise<Session> {
     headers: { 'Content-Type': image.type },
     skipErrorToast: true,
   });
+  invalidate([...AVATAR_KEYS]);
   return response.data.data;
 }
 
@@ -44,6 +48,7 @@ export async function chooseGooglePhoto(credential: string): Promise<Session> {
     { credential },
     { skipErrorToast: true },
   );
+  invalidate([...AVATAR_KEYS]);
   return response.data.data;
 }
 
@@ -57,5 +62,6 @@ export async function markTutorialSeen(item: TutorialItem): Promise<TutorialStat
     { seen: item },
     { skipErrorToast: true },
   );
+  invalidate([]);
   return response.data.data.tutorial;
 }

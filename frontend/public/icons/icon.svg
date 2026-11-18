@@ -1,11 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Placeholder identity (docs/features/pwa-installable.md §3.2): the Wordmark's
-       vinyl mark in --on-accent on a full-bleed --accent square. The mark stays
-       inside the maskable safe zone, so one source serves every icon. -->
-  <rect width="512" height="512" fill="#534ab7" />
-  <g fill="none" stroke="#ffffff" stroke-width="20">
-    <circle cx="256" cy="256" r="112.5" />
-    <circle cx="256" cy="256" r="68.75" opacity="0.5" />
-    <circle cx="256" cy="256" r="20" fill="#ffffff" stroke="none" />
+  <!-- The app icon (docs/features/pwa-icons-cassette.md): the logo's CassetteMark,
+       element for element, centred on the dark canvas. The mark sits inside the
+       maskable safe circle, so one source serves every icon. Keep the <g> in step
+       with CassetteMark in frontend/src/components/ui/Cassette.tsx — a test
+       compares them. Render the PNGs with frontend/scripts/render-icons.mjs. -->
+  <rect width="512" height="512" fill="#1B1A2E" />
+  <g transform="translate(87 148.75) scale(3.25)">
+    <rect x="0" y="0" width="104" height="66" rx="9" fill="#FF5A36" />
+    <rect x="10" y="9" width="84" height="34" rx="6" fill="#FBF8F2" />
+    <circle cx="33" cy="26" r="11" fill="#1B1A2E" />
+    <circle cx="33" cy="26" r="4.5" fill="#FFC93C" />
+    <circle cx="71" cy="26" r="11" fill="#1B1A2E" />
+    <circle cx="71" cy="26" r="4.5" fill="#FFC93C" />
+    <path d="M24 66l6-14h44l6 14z" fill="#C23A17" />
   </g>
 </svg>

@@ -59,7 +59,7 @@ Written this way, the Phase 6 decision was a configuration change, not a rewrite
 `backend/Dockerfile` is the deployment unit (Step 3.4, `docs/features/backend-docker.md`). What any host needs to know:
 - **Build:** `docker build -t bookrough-api backend`. Base `node:24.21.0-bookworm-slim` (Debian 12, Node 24) with only Chromium's headless shell and its system libraries, installed by the `playwright` package in the lockfile, so the browser always matches the library; a multi-stage build whose runtime stage holds production dependencies, `dist/` and the Prisma migrations only.
 - **Run:** set `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, and optionally `PORT` (default 4000), `LOG_LEVEL` and `TRUST_PROXY_HOPS` (default 0; 1 behind a host's proxy). `NODE_ENV=production` is baked in, so both E2E stand-ins are refused.
-- **Migrations run on start:** `prisma migrate deploy`, then the API. A failed migration stops the container before it serves; concurrent starts are safe (Prisma's advisory lock).
+- **Migrations run on start, only when needed:** the image sets `MIGRATE_ON_START=true` and starts `node dist/index.js`. Before listening, the API compares the migration folders it ships with Prisma's `_prisma_migrations` table; when everything is applied it serves at once, otherwise (or when unsure, such as an empty database) it runs `prisma migrate deploy` first. A failed migration stops the container before it serves; concurrent starts are safe (Prisma's advisory lock). A host that migrates by other means can leave the variable unset (`docs/features/migrate-check-on-start.md`).
 - **Process:** runs as the non-root `node` user, with `tini` as PID 1 so `SIGTERM` reaches Node (graceful shutdown) and orphaned Chromium processes are reaped — no `--init` flag needed from the host. `--disable-dev-shm-usage` means `--ipc=host` is not needed either.
 - **Health:** a Docker `HEALTHCHECK` on `GET /api/health`, which deliberately does not touch the database.
 - **Measured (Docker Desktop, 2026-10-05):** image 2.85 GB (2.51 GB of it the base, which also carries unused Firefox and WebKit); about 83 MB of memory idle and about 234 MB at the peak of one real conversion. A 512 MB instance looks workable with `p-limit(2)`; verify under load in Phase 6. Slimmed on 2026-10-11 to 1.17 GB (the browser and its libraries 589 MB, production `node_modules` 345 MB); a real conversion in 2.4 s and about 114 MB of memory afterwards (`docs/features/deployment-storage.md`).
@@ -74,8 +74,9 @@ Written this way, the Phase 6 decision was a configuration change, not a rewrite
 - **One origin:** `https://bookrough.vercel.app` — `/api/*` to the container, everything else to the Vite build (`vercel.json`). The `SameSite=Lax` cookie needs no change and CORS is not exercised. `*.vercel.app` is on the Public Suffix List, so a split `api.` / `web.` layout would have broken the cookie.
 - **Neon Free:** permanent, no card, Postgres 16 in AWS `eu-central-1`; branch `main` for production, branch `preview` for preview deployments.
 - **Deploys:** Vercel's GitHub integration — `main` to production; another branch builds a preview only when it opts in by its exact name in `vercel.json` (`git.deploymentEnabled`), because every deployment stores a backend image (`docs/features/deployment-storage.md`). Phase 6's hardening step makes production wait for `test:e2e` and `test:docker` (Vercel Deployment Checks). Before each merge to `main`, the developer checks both storage meters in Vercel → Usage: whether Vercel removes old images by itself is unconfirmed, so each merge may add about 0.4 GB.
-- **Hardening (Step 6.4):** four rate-limit tiers in each instance's memory; `trust proxy` from `TRUST_PROXY_HOPS` (`1` behind Vercel); baseline security headers on the API (Express) and the pages (`vercel.json`'s `web` service), no CSP. Production waits for `test:e2e` and `test:docker` through Vercel Deployment Checks, set in the dashboard, and `main.yml`'s `prune-images` job keeps the registry at the 4 newest images — a dry run until the repository variable `PRUNE_IMAGES` is `delete` (`docs/features/production-hardening.md`).
+- **Hardening (Step 6.4):** four rate-limit tiers in each instance's memory; `trust proxy` from `TRUST_PROXY_HOPS` (`1` behind Vercel); baseline security headers on the API (Express) and the pages (`vercel.json`'s `web` service), no CSP. Production waits for `test:e2e` and `test:docker` through Vercel Deployment Checks, set in the dashboard, and `main.yml`'s `prune-deployments` job keeps only the live production deployment and its rollback target — a dry run until the repository variable `PRUNE_DEPLOYMENTS` is `delete` (`docs/features/deployment-pruning.md`). Registry images are deleted by hand: Vercel refuses the registry API on Hobby.
 - **Measured in production (2026-10-11):** a real Spotify → Apple Music conversion in 5.3 s.
+- **Migrations on start (2026-11-16):** Vercel Logs showed `prisma migrate deploy` taking 1.9 to 2.6 s on every cold start, always with nothing pending, and each cold open starts two instances. Running migrations from CI was rejected (production's `DATABASE_URL` would have to live in GitHub too, previews would lose automatic migrations, and the image would stop being self-contained); the API now checks with one query and starts the CLI only when something is pending. Locally the image's restart went from 2.6 s to 0.65 s before listening (`docs/features/migrate-check-on-start.md`).
 - **Rejected:** Render Free and Koyeb Free (0.1 CPU), Render Starter ($7 a month), Fly.io and Railway (no ongoing free tier), Netlify (no containers); the free databases of Render (deleted after 30 days) and Supabase (paused after 7 idle days).
 
 ### 4. Environments
@@ -95,7 +96,8 @@ There is deliberately **no staging environment**. For a project this size it wou
 - The production `JWT_SECRET` must be independently generated and must never match a development value.
 - The Google OAuth client must list the production origin (`https://bookrough.vercel.app`) under **Authorized JavaScript origins** — not under redirect URIs, which this sign-in flow does not use; an origin entered there instead produces `origin_mismatch`. This is a manual step in the Google Cloud Console and is easy to get wrong.
 - Production variables are set in Vercel per environment: `DATABASE_URL` and `JWT_SECRET` (secrets, different for Production and Preview), `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `PORT=4000`, `LOG_LEVEL=info` (lowercase). Never `E2E_GOOGLE_PUBLIC_KEY` or `E2E_SCRAPER_FIXTURES`. The full table is in `docs/features/production-deploy.md` §3.6.
-- GitHub holds the repository secret `VERCEL_TOKEN` (a team-scoped Vercel token with an expiry, for registry pruning) and the repository variables `VERCEL_TEAM` and `PRUNE_IMAGES`. `TRUST_PROXY_HOPS=1` is set in Vercel for Production and Preview; `RATE_LIMITS_DISABLED` is never set outside tests, and the API refuses it unless `NODE_ENV=test`. `TUTORIAL_ENABLED` is left unset in Production and Preview, so the onboarding tutorial is on; only E2E sets it to `false` (`docs/features/onboarding-tutorial.md` §4).
+- GitHub holds the repository secret `VERCEL_TOKEN` (a team-scoped Vercel token with an expiry, for deployment pruning) and the repository variables `VERCEL_TEAM` and `PRUNE_DEPLOYMENTS`. `TRUST_PROXY_HOPS=1` is set in Vercel for Production and Preview; `RATE_LIMITS_DISABLED` is never set outside tests, and the API refuses it unless `NODE_ENV=test`. `TUTORIAL_ENABLED` is left unset in Production and Preview, so the onboarding tutorial is on; only E2E sets it to `false` (`docs/features/onboarding-tutorial.md` §4).
+- Admin → Overview (`docs/features/admin-overview.md` §4.6): `OPS_INGEST_TOKEN` is a secret of at least 32 characters, set to the same value in Vercel (Production) and as the GitHub repository secret of the same name; the `prune-deployments` job posts its snapshot with it, and unset it turns that endpoint off (`404`). The token can write only a deployments snapshot, so a leak cannot fake a storage reading or read anything; rotate it in both places. The optional repository variable `OPS_INGEST_URL` overrides where the job posts, and the optional Vercel variable `DB_STORAGE_LIMIT_MB` (default 1024, Neon Free's 1 GB per project) is the database plan's storage limit the Overview compares against; set it only if the plan changes.
 - Rotating a secret is a configuration change at the provider, not a code change or a redeploy of new source.
 
 ### 6. The Progressive Web App
@@ -117,8 +119,8 @@ The PWA is **in full scope, including offline support**.
 Generated by `vite-plugin-pwa` (Workbox):
 
 - **Precache the app shell** — HTML, JS, CSS, fonts, icons — so a cold launch renders instantly.
-- **Runtime-cache** feed responses and album art with a stale-while-revalidate strategy, so returning to a screen is immediate while fresh data loads behind it.
-- **Never cache authentication endpoints or mutations.** Only safe `GET` requests are cached.
+- **Runtime-cache** API reads and album art. GET /api/* is network first with no timeout: online, every read goes to the server, and the saved copy is used only when the network fails. Screens reload right after an action, so stale-while-revalidate would show the old list. Album art and Google photos are cache first, with an expiry.
+- **Never cache authentication endpoints or mutations.** Only safe `GET` requests are cached, and never /api/auth/* or /api/health.
 - **A designed offline fallback page** when a navigation cannot be served, rather than the browser's error screen.
 
 #### 6.3. Offline behaviour
@@ -127,22 +129,25 @@ Generated by `vite-plugin-pwa` (Workbox):
 
 - With no connection, the user can open the app and read a previously loaded feed and their own lists.
 - Posting, rating, and bookmarking require connectivity. When offline, these controls show a clear "you're offline" state.
+- **Offline launch:** the last confirmed session is remembered on the device, public fields only, and opens the app read-only when /auth/me gets no response. Sign out is disabled offline, because only the server can clear the HttpOnly cookie. Sign-out and every 401 delete the remembered session and the saved API answers, so the next person on a phone reads nothing of the last one.
 - **Nothing is queued invisibly.** A background sync queue that replays writes when the connection returns is explicitly out of scope: the failure modes — a rating submitted against a post that was since deleted, a duplicate post on flaky reconnect — are not worth the complexity here. The user is told plainly that the action needs a connection.
 
 #### 6.4. Updates
 
 - When a new service worker is installed and waiting, the app prompts the user to reload to get the new version.
 - A stale shell must never be allowed to sit indefinitely against a newer API.
+- **The prompt:** a dismissible bar with Reload; ✕ hides it for this launch. The app checks for a new version on launch and on returning to the foreground, with no timer.
 
 #### 6.5. Development hazard
 
 Register the service worker **only in production builds**. A service worker running against the Vite dev server serves stale assets and produces hours of phantom debugging. Any PWA-related change must be verified against a production build (`npm run build && npm run preview`), never against the dev server alone.
+- **Recovery:** a service worker is sticky, and a broken one keeps serving its shell after the server is fixed. The way out is a deploy with selfDestroying: true in pwaOptions, which ships a worker that unregisters itself and deletes its caches.
 
 ### 7. Deployment checklist (Phase 6)
 
 - [x] Provider chosen, with current free-tier terms verified and recorded in this document (§3.6, 2026-10-10).
 - [x] Production Postgres provisioned; `DATABASE_URL` set as a secret.
-- [x] Prisma migrations run against production — automatic: the container runs `prisma migrate deploy` on start (§3.5).
+- [x] Prisma migrations run against production — automatic: the container applies pending migrations on start (§3.5).
 - [x] `JWT_SECRET` independently generated and set.
 - [x] Google OAuth client updated with the production origin (JavaScript origins only, §5).
 - [x] Backend deployed from the Playwright-based Docker image; `/api/health` returns 200 over HTTPS.
@@ -156,4 +161,4 @@ Register the service worker **only in production builds**. A service worker runn
 - [x] Rate limits, `trust proxy` and baseline security headers in the code, with history scanned for secrets (Step 6.4, 2026-11-07).
 - [ ] `TRUST_PROXY_HOPS=1` set in Vercel and per-address limiting verified in production (production-hardening.md P2).
 - [ ] Production deployments wait for `test:e2e` and `test:docker` (Vercel Deployment Checks, P3).
-- [ ] Registry pruning read as a dry run once, then switched on with `PRUNE_IMAGES=delete` (P5).
+- [ ] Deployment pruning read as a dry run once, then switched on with `PRUNE_DEPLOYMENTS=delete` (P5; registry pruning was withdrawn, `docs/features/deployment-pruning.md`).
