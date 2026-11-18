@@ -493,7 +493,7 @@ describe('POST /api/posts/:postId/conversion on link-only and YouTube posts', ()
     });
   });
 
-  it('401, 403, 404: signed out, not the author, unknown post', async () => {
+  it('401, 404: signed out, unknown post; another member may retry (conversion-retry.md §4)', async () => {
     // Arrange
     const w = await world();
     convertLink.mockResolvedValueOnce({ outcome: 'unavailable', reason: 'timeout' });
@@ -502,12 +502,12 @@ describe('POST /api/posts/:postId/conversion on link-only and YouTube posts', ()
 
     // Act
     const signedOut = await request(app).post(`/api/posts/${id}/conversion`);
-    const notAuthor = await retry(w.noam, id);
+    const otherMember = await retry(w.noam, id);
     const unknown = await retry(w.dana, UNKNOWN_UUID);
 
     // Assert
     expect(signedOut.status).toBe(401);
-    expect(notAuthor.status).toBe(403);
+    expect(otherMember.status).toBe(200);
     expect(unknown.status).toBe(404);
   });
 });

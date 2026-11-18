@@ -216,7 +216,7 @@ Community behaviour, status codes and messages stay exactly as they are. Direct 
 | `PATCH /posts/:postId/rating`    | Recipient only, as above; no rating `404`; not friends now `403`                                                                               |
 | `PUT /posts/:postId/bookmark`    | Recipient only, also after unfriending; sender `403` "You can't save your own post."; rated `409`; third party `404`                           |
 | `DELETE /posts/:postId/bookmark` | Unchanged: it only ever deletes the caller's own row                                                                                           |
-| `POST /posts/:postId/conversion` | Sender only, also after unfriending; recipient `403` "Only the author can do this."; third party `404`; not pending `409`                      |
+| `POST /posts/:postId/conversion` | Sender or recipient, also after unfriending (conversion-retry.md §4; was sender only); third party `404`; not pending `409`                    |
 | `DELETE /posts/:postId`          | Sender only, also after unfriending; recipient `403` "Only the sender can delete this."; third party `404`                                     |
 | `GET /users/me/bookmarks`        | Lists saved direct items with `community: null`, hidden or not                                                                                 |
 | `GET /users/:userId/ratings`     | Never includes direct items: its filter goes through community membership                                                                      |
@@ -247,7 +247,7 @@ Mobile-first at 375 px; touch targets ≥ 44 px; semantic tokens only; visuals a
   - **Rate & Review** opens `RatingSheet` (UC-13's rules and messages), and after `201` the card shows "You rated n/10". It works whether or not the song was saved.
   - Not friends now (`direct.isFriend` false): "You're no longer friends with {name}" replaces the rate button. Saving and opening stay.
   - A ⋯ menu with **Hide** and a confirmation: "Hide this from Received? {name} won't be told." The card leaves the list, with the toast "Hidden from Received".
-- **Sent card:** shows the rating ("★ 8 · 1 rating") when there is one, **Find on other services** when pending, and the existing ⋯ delete menu. The confirmation says "Delete this recommendation? {name} will lose it too, with any rating. They won't be notified."
+- **Sent card:** shows the rating ("★ 8 · 1 rating") when there is one, **Try again** when pending (on received cards too, since conversion-retry.md §5), and the existing ⋯ delete menu. The confirmation says "Delete this recommendation? {name} will lose it too, with any rating. They won't be notified."
 - **Load more** at the bottom of each list while `nextCursor` exists; failure → inline Try again.
 - **Loading:** three card skeletons per list.
 - **Empty:** Received, "Nothing here yet" / "Songs your friends send you appear here."; Sent, "You haven't sent anything" / "Send a friend a song from the button above."

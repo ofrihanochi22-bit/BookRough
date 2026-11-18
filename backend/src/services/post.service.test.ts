@@ -171,14 +171,32 @@ describe('retryConversion', () => {
     await expectAppError(retryConversion(USER, POST_ID), 404, POST_NOT_FOUND);
   });
 
-  it('checks membership before authorship, and authorship before state', async () => {
+  it.each([
+    ['another member of the community', { authorId: 'someone-else' }],
+    [
+      'the recipient of a direct recommendation',
+      { authorId: 'someone-else', communityId: null, recipientId: USER.id },
+    ],
+  ])('lets %s retry: the converter runs and the post is written', async (_who, owner) => {
+    // Arrange: the re-read finds nothing, so the call ends before serialising
+    // (the response shape is the integration tests' job).
+    db.post.findUnique.mockResolvedValueOnce({ ...pending, ...owner }).mockResolvedValueOnce(null);
+
+    // Act
+    await expectAppError(retryConversion(USER, POST_ID), 404, POST_NOT_FOUND);
+
+    // Assert: no 403 on the way.
+    expect(convertLink).toHaveBeenCalledTimes(1);
+    expect(db.post.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: POST_ID, conversionPending: true } }),
+    );
+  });
+
+  it('checks membership before state', async () => {
     // Arrange
-    db.post.findUnique.mockResolvedValue({ ...pending, authorId: 'someone-else' });
+    db.post.findUnique.mockResolvedValue({ ...pending, conversionPending: false });
 
     // Act & Assert
-    await expectAppError(retryConversion(USER, POST_ID), 403, AUTHOR_ONLY);
-
-    db.post.findUnique.mockResolvedValue({ ...pending, conversionPending: false });
     await expectAppError(retryConversion(USER, POST_ID), 409, ALREADY_CONVERTED);
 
     db.communityMember.findUnique.mockResolvedValue(null);

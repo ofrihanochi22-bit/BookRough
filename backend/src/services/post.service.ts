@@ -300,9 +300,10 @@ export async function listPosts(
 }
 
 /**
- * POST /posts/:postId/conversion — the author retries a pending post. A post the
- * caller cannot reach is a 404, like a missing one; on a direct item the sender
- * may retry after unfriending (direct-recommendations.md §3.4). A link-only post
+ * POST /posts/:postId/conversion — anyone who can see a pending post retries it
+ * (conversion-retry.md §4): a member of its community, or the sender or
+ * recipient of a direct item, after unfriending too. A post the caller cannot
+ * reach is a 404, like a missing one. A link-only post
  * is never pending, so it is a 409; a pending YouTube video may become one
  * (link-only-posts.md §4).
  */
@@ -311,10 +312,7 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
   if (!post) {
     throw new AppError(POST_NOT_FOUND, 404);
   }
-  await checkPostAccess(user, post);
-  if (post.authorId !== user.id) {
-    throw new AppError(AUTHOR_ONLY, 403);
-  }
+  const access = await checkPostAccess(user, post);
   if (!post.conversionPending || !post.sourceService) {
     throw new AppError(ALREADY_CONVERTED, 409);
   }
@@ -361,7 +359,9 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
     ratingSummaries([postId]),
     friendsOnPosts(user.id, [current]),
   ]);
-  return toPublicPost(current, user.id, false, summaryFor(summaries, postId), friends);
+  // The caller need not be the author, so an admin keeps their delete (posts-delete.md).
+  const moderates = access.scope === 'COMMUNITY' && isAdminRole(access.role);
+  return toPublicPost(current, user.id, moderates, summaryFor(summaries, postId), friends);
 }
 
 /**

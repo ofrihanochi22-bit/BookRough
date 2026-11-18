@@ -63,7 +63,7 @@ export const list: RequestHandler = async (req, res, next) => {
   }
 };
 
-/** POST /api/posts/:postId/conversion — the author retries a pending post. */
+/** POST /api/posts/:postId/conversion — anyone who can see a pending post retries it. */
 export const retry: RequestHandler = async (req, res, next) => {
   try {
     const post = await retryConversion(sessionUser(req), parsePostId(req.params.postId));

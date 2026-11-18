@@ -172,11 +172,11 @@ The author carries only the three `MemberUser` fields (reusing `utils/communityM
 
 Retry the conversion of a pending post (developer's choice, option A).
 
-- **Auth:** the post's author, who must still be a member of its community.
+- **Auth:** any member of the post's community — the author or not (since conversion-retry.md §4; originally the author only).
 - **Request:** no body.
 - **Behaviour:** runs the same converter with the same limits. Success → the metadata and links are written and `conversionPending` becomes false. Unavailable again → nothing changes and the post stays pending. squigly says "could not be found" → also unchanged (the post was accepted during an outage; it is not rejected after the fact).
 - **Success:** `200 { post: PublicPost }` (pending or converted).
-- **Errors:** `401`; `404` "Post not found." (unknown or malformed id, or the caller is not a member of its community); `403` "Only the author can do this." (a member who isn't the author); `409` "This post already has its links." (not pending). A conditional update (`WHERE conversion_pending = true`) makes a double tap write once; the second gets the current post.
+- **Errors:** `401`; `404` "Post not found." (unknown or malformed id, or the caller is not a member of its community); `409` "This post already has its links." (not pending). A conditional update (`WHERE conversion_pending = true`) makes a double tap write once; the second gets the current post.
 
 ### Changes to existing endpoints
 
@@ -264,14 +264,14 @@ The "Posts are coming soon" panel is replaced, below the header and buttons, by:
 - Body (converted): cover art (square; on image load error, a neutral placeholder tile), title, artist, an "Album" label for albums, the comment (line breaks kept).
 - **Main button** (developer's choice, option A): "Open in {viewer's service}" linking to `links[viewerService]`; if that link is missing or the post is pending, "Open in {source service}" to `originalUrl`. Links open in a new tab / the service's app (`target="_blank" rel="noopener noreferrer"`).
 - **Other services** (secondary, converted posts only): opens a `Sheet` listing every found link by service name.
-- **Pending posts**: no cover (neutral tile), the title line reads "Shared from {source service}", a quiet note "Other services unavailable", and the main button to the original link. The **author** additionally sees **Find on other services** → the same busy copy as posting; success replaces the card in place; still unavailable → inline "Still unavailable. Try again later."; `409` → the card refreshes to the current post.
+- **Pending posts**: no cover (neutral tile), the title line reads "Shared from {source service}", and the main button to the original link. Since conversion-retry.md §5, **every viewer** sees the notice "Couldn't convert this link to other services. Something went wrong on our side." and a **Try again** button → the same busy copy as posting; success replaces the card in place; still pending → the notice becomes "Still couldn't convert it. Try again in a little while."; `409` → the card refreshes to the current post. (Originally the author alone saw "Find on other services" under a quiet "Other services unavailable".)
 
 ### 5.4 States
 
 - **Loading:** the existing header skeleton plus three post-card skeletons.
 - **Empty:** "Share the first song" / "Paste a link from Spotify, Apple Music, YouTube, Tidal or Deezer." — the composer sits right above it.
 - **Feed load error:** `LoadError` "Couldn't load posts." with Try again (the header and composer stay usable). Load more failure → inline Try again under the list.
-- **Offline:** the existing banner pattern — "You're offline. Connect to post."; Post and Find on other services disabled; the loaded feed stays readable.
+- **Offline:** the existing banner pattern — "You're offline. Connect to post."; Post and Try again (formerly Find on other services) disabled; the loaded feed stays readable.
 
 ### 5.5 Community Settings
 
@@ -281,12 +281,12 @@ The removal confirmation (`communities-membership.md` §5.4) gains: "Their posts
 
 - **squigly.link down / slow / layout changed** → post saved as pending within ≤ 12 s; the user sees it in the feed, not an error.
 - **Wrong shape on a supported host** (playlist, artist, podcast, `open.spotify.com/track/abc`) → `422` before conversion, draft kept.
-- **Well-shaped but nonexistent link**: when squigly says "could not be found" → `422`, draft kept; when it says it "couldn't reach" the service (as for `open.spotify.com/track/0000000000000000000000`) → saved as pending; the author can retry or, in feature 2, delete it.
+- **Well-shaped but nonexistent link**: when squigly says "could not be found" → `422`, draft kept; when it says it "couldn't reach" the service (as for `open.spotify.com/track/0000000000000000000000`) → saved as pending; any viewer can retry it (conversion-retry.md §4) and the author can, in feature 2, delete it.
 - **A third simultaneous post** waits in the `p-limit` queue; its 12 s budget includes the wait, so under a burst late requests become pending instead of hanging.
 - **The user navigates away mid-conversion** → the server finishes and saves the post; it appears on the next visit.
 - **The poster is removed while their request is in flight** → the insert fails the membership re-check inside the transaction → `404`; nothing is saved.
 - **The community is deleted mid-conversion** → `404`; nothing saved.
-- **Two taps on Find on other services** → one conversion writes; the other returns the current post.
+- **Two taps on Try again** (or two viewers at once) → one conversion writes; the other returns the current post.
 - **Duplicate song** in the same community → allowed (friends may re-recommend).
 - **Scraped values** with a non-https link, a foreign host, or an over-long string → dropped (§4.2 step 6); never rendered as a `javascript:` URL.
 - **Cover image fails to load** (hot-linked from the service's CDN) → placeholder tile.

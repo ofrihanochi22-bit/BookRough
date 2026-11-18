@@ -3405,7 +3405,7 @@ cd frontend && npx vitest run src/pages/Friends src/components/SendRecommendatio
 
 ### Step 6.1z2 — The admin deletes a user or a community (Phase 6 — UC-19 and UC-21 amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #84)
 Branch: feat/admin-delete
 Spec: docs/features/admin-delete.md
 
@@ -3480,6 +3480,49 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/ad
 
 ```bash
 cd frontend && npx vitest run src/pages/Admin src/pages/Notifications src/api/invalidation
+```
+
+### Step 6.1z3 — Conversion failure notice and Try again for every viewer (Phase 6 — UC-11 and UC-20 amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/conversion-retry
+Spec: docs/features/conversion-retry.md
+
+Goal: a link that fails to convert says so plainly and offers a real Try again, and the scraper bug that made one Apple Music link fail every time is fixed.
+
+What I did:
+
+- **The bug (production, 2026-11-18):** recommendation `8d7a85ae…` (`music.apple.com/us/song/tsitsushka/1483168329`) stayed pending through three retries, each ending after ~9 s with `"no answer"`. squigly.link converts it in under 3 s but opens the result at a **short-code** address (`squigly.link/edWSMP`). The scraper only waited for `/song/…` or `/album/…`, so it timed out. Popular songs still get the long address, which is why most links worked.
+- `backend/src/services/linkScraper.service.ts`: `RESULT_PAGE_URL` also accepts one alphanumeric segment (`/edWSMP`, with an optional slash, query or hash). The short-code page carries the same JSON-LD, `og:` tags and service links, so `parseResultPage` is unchanged.
+- `backend/src/services/post.service.ts` `retryConversion`: the author-only `403` is gone. Anyone who can see the post may retry: a community member, or the sender or recipient of a direct recommendation (developer's choice A). The response computes `canDelete` from the caller's role, so an admin who retries keeps their delete action. No limit beyond the existing `conversion` rate-limit tier (choice A).
+- `frontend/src/hooks/useRetryConversion.ts` + `components/PostCard.tsx`: a pending card shows every viewer "Couldn't convert this link to other services. Something went wrong on our side." and a **Try again** button (was "Find on other services", author only). A retry that is still pending replaces the notice with "Still couldn't convert it. Try again in a little while.". The button stays available. A network failure gives "Couldn't try again. Check your connection.", and a `429`/`5xx` gives "Couldn't try again right now." (the toast names the reason).
+- Docs: the new spec; `posts-feed.md`, `direct-recommendations.md` and `posts-delete.md` amended to match; the E2E outage test and its fixtures README use the new copy.
+- `/code-review` (high): the "check your connection" message on `429`/`5xx` (fixed) and stale lines in `posts-feed.md` (fixed). Two items were not changed, and one is left as a follow-up: My List and Public Profile still show a pending post without the notice. Stage 3 also found that the retry response dropped an admin's `canDelete` (fixed). `/security-review`: nothing at confidence 8 or above.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/`, sign in, open a community and paste `https://music.apple.com/us/song/tsitsushka/1483168329`. It converts (Thy Catafalque, "Tsitsushka") instead of saving as pending.
+2. To see the failure state, stop your network just before posting, or share a link while squigly.link is unreachable. The card shows the notice and **Try again** for you and for another member. Press it: the button reads "Finding this track on other services…", then either the converted card or "Still couldn't convert it…".
+3. In production, the one pending post (`8d7a85ae…`) converts on its first Try again after this deploys.
+
+```bash
+cd backend && npx vitest run src/services/linkScraper src/services/post.service
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/posts src/routes/recommendations src/routes/linkOnlyPosts
+```
+
+```bash
+cd frontend && npx vitest run src/components/PostCard src/components/CommunityFeed src/pages/Recommendations
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

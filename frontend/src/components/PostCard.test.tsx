@@ -6,6 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
 import { CONVERTING_COPY } from '../lib/postText';
+import {
+  PENDING_NOTICE,
+  RETRY_ERROR_NOTICE,
+  RETRY_FAILED_NOTICE,
+  STILL_PENDING_NOTICE,
+} from '../hooks/useRetryConversion';
 import { type StreamingService, useAuthStore } from '../stores/auth';
 import {
   httpError,
@@ -166,49 +172,60 @@ describe('PostCard author (find-people.md §5.3)', () => {
 });
 
 describe('PostCard — pending', () => {
-  it('says other services are unavailable and links to the original; others cannot retry', () => {
+  const TRY_AGAIN = 'Try again to convert this link';
+
+  it('says conversion failed, links to the original, and offers Try again to a non-author', () => {
     // Act
     renderCard(makePendingPost());
 
     // Assert
     expect(screen.getByText('Shared from Spotify')).toBeInTheDocument();
-    expect(screen.getByText('Other services unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(PENDING_NOTICE);
     expect(screen.getByRole('link', { name: 'Open in Spotify' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Other services' })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Find on other services' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
   });
 
-  it('lets the author retry: the designed wait, then the converted post', async () => {
+  it('offers Try again to the author too', () => {
+    // Act
+    renderCard(makePendingPost({ isMine: true }));
+
+    // Assert
+    expect(screen.getByRole('status')).toHaveTextContent(PENDING_NOTICE);
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it('lets a viewer retry: the designed wait, then the converted post', async () => {
     // Arrange
     let resolve: (value: unknown) => void = () => undefined;
     retryConversion.mockReturnValue(new Promise((r) => (resolve = r)));
-    const post = makePendingPost({ isMine: true });
+    const post = makePendingPost();
     const { onUpdated } = renderCard(post);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN }));
 
     // Assert
     expect(screen.getByRole('button', { name: CONVERTING_COPY })).toBeDisabled();
-    const converted = makePost({ id: post.id, isMine: true });
+    const converted = makePost({ id: post.id });
     resolve(converted);
     await vi.waitFor(() => expect(onUpdated).toHaveBeenCalledWith(converted));
     expect(retryConversion).toHaveBeenCalledWith(post.id);
   });
 
-  it('says so when it is still unavailable', async () => {
+  it('replaces the notice when it is still pending, and Try again stays available', async () => {
     // Arrange
     const post = makePendingPost({ isMine: true });
     retryConversion.mockResolvedValue(post);
     renderCard(post);
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN }));
 
     // Assert
-    expect(await screen.findByText('Still unavailable. Try again later.')).toBeInTheDocument();
+    expect(await screen.findByText(STILL_PENDING_NOTICE)).toBeInTheDocument();
+    expect(screen.queryByText(PENDING_NOTICE)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
   });
 
   it.each([404, 409])('asks the feed to reload on %i', async (status) => {
@@ -217,32 +234,35 @@ describe('PostCard — pending', () => {
     const { onStale } = renderCard(makePendingPost({ isMine: true }));
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN }));
 
     // Assert
     await vi.waitFor(() => expect(onStale).toHaveBeenCalled());
   });
 
-  it('shows a network failure, and cannot retry offline', async () => {
+  it.each([
+    ['a network failure', networkError(), RETRY_FAILED_NOTICE],
+    ['a server error', httpError(500, 'x'), RETRY_ERROR_NOTICE],
+    ['the rate limit', httpError(429, 'x'), RETRY_ERROR_NOTICE],
+  ])('says it could not try again on %s', async (_label, error, notice) => {
     // Arrange
-    retryConversion.mockRejectedValue(networkError());
-    renderCard(makePendingPost({ isMine: true }));
+    retryConversion.mockRejectedValue(error);
+    renderCard(makePendingPost());
 
     // Act
-    await userEvent.click(screen.getByRole('button', { name: 'Find on other services' }));
+    await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN }));
 
     // Assert
-    expect(
-      await screen.findByText("Couldn't try again. Check your connection."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(notice)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
   });
 
-  it('disables retry offline', () => {
+  it('disables Try again offline', () => {
     // Act
-    renderCard(makePendingPost({ isMine: true }), 'SPOTIFY', false);
+    renderCard(makePendingPost(), 'SPOTIFY', false);
 
     // Assert
-    expect(screen.getByRole('button', { name: 'Find on other services' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeDisabled();
   });
 });
 

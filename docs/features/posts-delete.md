@@ -62,7 +62,7 @@ All responses use the CLAUDE.md §4 envelope.
 
 ### `PublicPost.canDelete`
 
-`canDelete: boolean` joins `PublicPost` (`utils/publicPost.ts`): true when the viewer is the author or an admin/owner of the community. `GET /posts` computes it from the role `requireMember` already read; `POST /posts` and the retry return it as `true` (the caller is the author). The client never mirrors the role rule.
+`canDelete: boolean` joins `PublicPost` (`utils/publicPost.ts`): true when the viewer is the author or an admin/owner of the community. `GET /posts` computes it from the role `requireMember` already read; `POST /posts` returns it as `true` (the caller is the author); the retry computes it from the caller's role, since any viewer may retry (conversion-retry.md §4). The client never mirrors the role rule.
 
 ## 5. Screens & components
 
