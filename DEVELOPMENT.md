@@ -3484,7 +3484,7 @@ cd frontend && npx vitest run src/pages/Admin src/pages/Notifications src/api/in
 
 ### Step 6.1z3 — Conversion failure notice and Try again for every viewer (Phase 6 — UC-11 and UC-20 amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Merged (PR #85)
 Branch: feat/conversion-retry
 Spec: docs/features/conversion-retry.md
 
@@ -3495,7 +3495,7 @@ What I did:
 - **The bug (production, 2026-11-18):** recommendation `8d7a85ae…` (`music.apple.com/us/song/tsitsushka/1483168329`) stayed pending through three retries, each ending after ~9 s with `"no answer"`. squigly.link converts it in under 3 s but opens the result at a **short-code** address (`squigly.link/edWSMP`). The scraper only waited for `/song/…` or `/album/…`, so it timed out. Popular songs still get the long address, which is why most links worked.
 - `backend/src/services/linkScraper.service.ts`: `RESULT_PAGE_URL` also accepts one alphanumeric segment (`/edWSMP`, with an optional slash, query or hash). The short-code page carries the same JSON-LD, `og:` tags and service links, so `parseResultPage` is unchanged.
 - `backend/src/services/post.service.ts` `retryConversion`: the author-only `403` is gone. Anyone who can see the post may retry: a community member, or the sender or recipient of a direct recommendation (developer's choice A). The response computes `canDelete` from the caller's role, so an admin who retries keeps their delete action. No limit beyond the existing `conversion` rate-limit tier (choice A).
-- `frontend/src/hooks/useRetryConversion.ts` + `components/PostCard.tsx`: a pending card shows every viewer "Couldn't convert this link to other services. Something went wrong on our side." and a **Try again** button (was "Find on other services", author only). A retry that is still pending replaces the notice with "Still couldn't convert it. Try again in a little while.". The button stays available. A network failure gives "Couldn't try again. Check your connection.", and a `429`/`5xx` gives "Couldn't try again right now." (the toast names the reason).
+- `frontend/src/hooks/useRetryConversion.ts` + `components/PostCard.tsx`: a pending card shows every viewer "Couldn't convert this link to other services. Something went wrong on our side." and a **Try again** button (was "Find on other services", author only). A retry that is still pending replaces the notice with "Still couldn't convert it. Try again in a little while.". The button stays available. A network failure gives "Couldn't try again. Check your connection.", and a `429`/`5xx` gives "Couldn't try again right now." (no toast: the request skips it — corrected in Step 6.1z4).
 - Docs: the new spec; `posts-feed.md`, `direct-recommendations.md` and `posts-delete.md` amended to match; the E2E outage test and its fixtures README use the new copy.
 - `/code-review` (high): the "check your connection" message on `429`/`5xx` (fixed) and stale lines in `posts-feed.md` (fixed). Two items were not changed, and one is left as a follow-up: My List and Public Profile still show a pending post without the notice. Stage 3 also found that the retry response dropped an admin's `canDelete` (fixed). `/security-review`: nothing at confidence 8 or above.
 
@@ -3523,6 +3523,41 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/po
 
 ```bash
 cd frontend && npx vitest run src/components/PostCard src/components/CommunityFeed src/pages/Recommendations
+```
+
+### Step 6.1z4 — The conversion failure notice on My List and Public Profile (Phase 6 — UC-11, UC-12 and UC-5 amended)
+
+Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Branch: feat/pending-notice-lists
+Spec: docs/features/pending-notice-lists.md
+
+Goal: the two screens that list pending posts with their own cards explain the failure too, the follow-up left by Step 6.1z3.
+
+What I did:
+
+- `frontend/src/components/SavedPostCard.tsx` + `pages/MyList.tsx` (developer's choice A: like `PostCard`): a pending saved song shows "Couldn't convert this link to other services. Something went wrong on our side." and a **Try again** chip beside "Open in …". The outcomes match the post card: converted → the card shows the song in place (title, artist, "Open in" your service), still pending → "Still couldn't convert it…", no answer → "Check your connection", `429`/`5xx` → "Couldn't try again right now.", `404`/`409` → the list reloads. My List keeps the answered posts in its local changes, so loaded pages and removals survive.
+- **After leaving a community** the notice shows without Try again: the server answers `404` there, so the button could never succeed (`canRetrySaved` in `lib/savedPosts.ts`).
+- `frontend/src/pages/PublicProfile.tsx` (developer's choice A: notice only): a pending rating row adds "Couldn't convert this link to other services." with no button. The whole row is a link to Post Detail, where Try again lives.
+- `frontend/src/components/TryAgainChip.tsx`: the Try again chip, moved out of `PostCard` so both cards share it. `PENDING_SHORT_NOTICE` added to `hooks/useRetryConversion.ts`.
+- Docs: the new spec. `conversion-retry.md` §5 and the hook's comment said a toast names the cause of a `429`/`5xx`, but the request skips the toast. Both are corrected.
+- `/code-review` (high), 6 findings: the toast claim (fixed), the retry rule written inline (fixed: `canRetrySaved`) and the spec status row ticked too early (fixed). Not changed: the notice markup repeated from `PostCard` (three lines), a `409` reloading the whole list (as the rating sheet already does), and the left-community notice offering no action (the spec's choice). No `/security-review`: frontend only, no new input, endpoint or permission.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/`, sign in, and save a song whose conversion failed (to get one, stop your network just before posting, as in Step 6.1z3).
+2. Open **My List**: the card shows the notice and **Try again**. Press it: "Finding this track on other services…", then the converted song in place, or "Still couldn't convert it…".
+3. Rate that pending song, then open your own profile from another account in the same community: the rating row shows "Shared from …" and "Couldn't convert this link to other services.", without a button. Tap it to reach Post Detail, which has Try again.
+
+```bash
+cd frontend && npx vitest run src/pages/MyList src/pages/PublicProfile src/lib/savedPosts src/components/PostCard
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

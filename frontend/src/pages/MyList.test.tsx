@@ -4,6 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SavedPost } from '../api/bookmarks';
+import type * as PostsApi from '../api/posts';
+import {
+  PENDING_NOTICE,
+  RETRY_ERROR_NOTICE,
+  RETRY_FAILED_NOTICE,
+  STILL_PENDING_NOTICE,
+} from '../hooks/useRetryConversion';
 import { useAuthStore } from '../stores/auth';
 import {
   httpError,
@@ -29,6 +36,11 @@ const { ratePost } = vi.hoisted(() => ({ ratePost: vi.fn() }));
 vi.mock('../api/ratings', () => ({ ratePost }));
 const { markTutorialSeen } = vi.hoisted(() => ({ markTutorialSeen: vi.fn() }));
 vi.mock('../api/users', () => ({ markTutorialSeen }));
+const { retryConversion } = vi.hoisted(() => ({ retryConversion: vi.fn() }));
+vi.mock('../api/posts', async (importOriginal) => ({
+  ...(await importOriginal<typeof PostsApi>()),
+  retryConversion,
+}));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 const COMMUNITY = { id: '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40', name: 'Friday Jazz' };
@@ -497,5 +509,140 @@ describe('MyList — the list tip', () => {
     // Assert
     await screen.findByText('Song 1');
     expect(screen.queryByText(TIP)).not.toBeInTheDocument();
+  });
+});
+
+describe('MyList — a pending post (pending-notice-lists.md §5.1)', () => {
+  const TRY_AGAIN = 'Try again to convert this link';
+  const pending = () => makePendingPost({ id: 'post-1', isBookmarked: true });
+
+  function listPending(overrides: Partial<SavedPost> = {}) {
+    listBookmarks.mockResolvedValue({
+      items: [saved(1, { post: pending(), ...overrides })],
+      nextCursor: null,
+    });
+  }
+
+  it('says conversion failed and offers Try again', async () => {
+    // Arrange
+    listPending();
+
+    // Act
+    renderList();
+
+    // Assert
+    expect(await screen.findByText(PENDING_NOTICE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it('offers Try again on a direct recommendation', async () => {
+    // Arrange
+    listPending({ community: null, isMember: false });
+
+    // Act
+    renderList();
+
+    // Assert
+    expect(await screen.findByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it('shows the converted song in place after a successful retry', async () => {
+    // Arrange
+    listPending();
+    retryConversion.mockResolvedValue(
+      makePost({ id: 'post-1', title: 'Song 1', isBookmarked: true }),
+    );
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText('Song 1')).toBeInTheDocument();
+    expect(retryConversion).toHaveBeenCalledWith('post-1');
+    expect(screen.getByRole('link', { name: 'Open in Deezer' })).toBeInTheDocument();
+    expect(screen.queryByText(PENDING_NOTICE)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: TRY_AGAIN })).not.toBeInTheDocument();
+  });
+
+  it('says so when it is still pending, and Try again stays available', async () => {
+    // Arrange
+    listPending();
+    retryConversion.mockResolvedValue(pending());
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText(STILL_PENDING_NOTICE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it('asks to check the connection when the server does not answer', async () => {
+    // Arrange
+    listPending();
+    retryConversion.mockRejectedValue(networkError());
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText(RETRY_FAILED_NOTICE)).toBeInTheDocument();
+  });
+
+  it('says it could not try again on a server error', async () => {
+    // Arrange
+    listPending();
+    retryConversion.mockRejectedValue(httpError(500, 'Something went wrong.'));
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText(RETRY_ERROR_NOTICE)).toBeInTheDocument();
+    expect(screen.queryByText(RETRY_FAILED_NOTICE)).not.toBeInTheDocument();
+  });
+
+  it('reloads the list when the post was already converted (409)', async () => {
+    // Arrange
+    listBookmarks
+      .mockResolvedValueOnce({ items: [saved(1, { post: pending() })], nextCursor: null })
+      .mockResolvedValueOnce({ items: [saved(1)], nextCursor: null });
+    retryConversion.mockRejectedValue(httpError(409, 'Already converted.'));
+    renderList();
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText('Song 1')).toBeInTheDocument();
+    expect(listBookmarks).toHaveBeenCalledTimes(2);
+  });
+
+  it('disables Try again offline', async () => {
+    // Arrange
+    setOnline(false);
+    listPending();
+
+    // Act
+    renderList();
+
+    // Assert
+    expect(await screen.findByRole('button', { name: TRY_AGAIN })).toBeDisabled();
+  });
+
+  it('explains but offers no Try again after leaving the community', async () => {
+    // Arrange
+    listPending({ isMember: false });
+
+    // Act
+    renderList();
+
+    // Assert
+    expect(await screen.findByText(PENDING_NOTICE)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: TRY_AGAIN })).not.toBeInTheDocument();
   });
 });

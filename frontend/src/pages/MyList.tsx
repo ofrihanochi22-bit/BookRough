@@ -7,6 +7,7 @@ import {
   type SavedPost,
   type SavedPostsPage,
 } from '../api/bookmarks';
+import type { PublicPost } from '../api/posts';
 import { RatingSheet } from '../components/RatingSheet';
 import { SavedPostCard } from '../components/SavedPostCard';
 import { Tip } from '../components/Tip';
@@ -32,6 +33,8 @@ interface LocalChanges {
   page: SavedPostsPage;
   /** Removed here (or being removed): hidden from whichever list holds them. */
   removed: string[];
+  /** Posts a Try again answered for, by id (pending-notice-lists.md §5.1). */
+  updated: Record<string, PublicPost>;
   more: SavedPost[];
   nextCursor: string | null;
 }
@@ -40,7 +43,7 @@ const EMPTY_TITLE = 'Nothing saved yet';
 const EMPTY_BODY = "Tap the bookmark on a friend's song to save it here.";
 
 function fresh(page: SavedPostsPage): LocalChanges {
-  return { page, removed: [], more: [], nextCursor: page.nextCursor };
+  return { page, removed: [], updated: {}, more: [], nextCursor: page.nextCursor };
 }
 
 /**
@@ -65,9 +68,12 @@ export function MyList() {
   const changes =
     first.status === 'ready' ? (local?.page === first.data ? local : fresh(first.data)) : null;
   const items = changes
-    ? [...changes.page.items, ...changes.more].filter(
-        (item) => !changes.removed.includes(item.post.id),
-      )
+    ? [...changes.page.items, ...changes.more]
+        .filter((item) => !changes.removed.includes(item.post.id))
+        .map((item) => {
+          const post = changes.updated[item.post.id];
+          return post ? { ...item, post } : item;
+        })
     : [];
   // Above the first saved card that has Rate & Review.
   const listTipPostId = showListTip ? items.find(canRateSaved)?.post.id : undefined;
@@ -105,6 +111,13 @@ export function MyList() {
     }
     if (changes) {
       update(changes.page, (current) => ({ removed: [...current.removed, postId] }));
+    }
+  }
+
+  /** A Try again answered: the card shows the post it got back, in place. */
+  function retried(post: PublicPost) {
+    if (changes) {
+      update(changes.page, (current) => ({ updated: { ...current.updated, [post.id]: post } }));
     }
   }
 
@@ -168,6 +181,8 @@ export function MyList() {
               online={online}
               onRemove={remove}
               onRate={setRating}
+              onUpdated={retried}
+              onStale={first.reload}
             />
           </Fragment>
         ))}

@@ -9,3 +9,12 @@ import type { SavedPost } from '../api/bookmarks';
 export function canRateSaved(saved: SavedPost): boolean {
   return saved.isMember || saved.post.direct?.isFriend === true;
 }
+
+/**
+ * Whether a pending saved song offers Try again (pending-notice-lists.md §5.1):
+ * a direct recommendation, or a community post while the viewer is a member.
+ * After leaving, the server answers 404, so the button could never succeed.
+ */
+export function canRetrySaved(saved: SavedPost): boolean {
+  return saved.post.conversionPending && (saved.community === null || saved.isMember);
+}

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProfileRating, ProfileUser } from '../api/profiles';
+import { PENDING_SHORT_NOTICE } from '../hooks/useRetryConversion';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
 import { httpError, makeSession, makeUser, networkError, resetAuthStore } from '../test/fixtures';
@@ -114,7 +115,7 @@ describe('PublicProfile', () => {
     expect(await screen.findByRole('button', { name: 'Respond' })).toBeEnabled();
   });
 
-  it('reads "Shared from …" for a pending post', async () => {
+  it('reads "Shared from …" and the failure notice for a pending post, without a button', async () => {
     // Arrange
     getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
     listProfileRatings.mockResolvedValue({
@@ -127,6 +128,22 @@ describe('PublicProfile', () => {
 
     // Assert
     expect(await screen.findByText('Shared from Apple Music')).toBeInTheDocument();
+    expect(screen.getByText(PENDING_SHORT_NOTICE)).toBeInTheDocument();
+    // Try again lives on Post Detail; the row is one link (pending-notice-lists.md §5.2).
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+  });
+
+  it('shows no failure notice for a converted post', async () => {
+    // Arrange
+    getProfile.mockResolvedValue({ user: DANA, friendship: 'NONE' });
+    listProfileRatings.mockResolvedValue({ items: [rating(1)], nextCursor: null });
+
+    // Act
+    renderProfile();
+
+    // Assert
+    expect(await screen.findByText('Song 1')).toBeInTheDocument();
+    expect(screen.queryByText(PENDING_SHORT_NOTICE)).not.toBeInTheDocument();
   });
 
   it('appends the next page with Load more', async () => {
