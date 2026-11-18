@@ -104,6 +104,7 @@ describe('SendRecommendationSheet', () => {
     // Assert
     expect(await screen.findByText('Add a friend first')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search');
+    expect(screen.getByText(/Find people with/)).toHaveTextContent('Find people with Search.');
     expect(screen.queryByLabelText('Song or album link')).not.toBeInTheDocument();
   });
 
