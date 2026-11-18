@@ -74,7 +74,7 @@ None.
 - Converted → the card is replaced in place (unchanged).
 - Still pending → the notice text becomes **"Still couldn't convert it. Try again in a little while."**, shown in the notice's place (not a separate grey line) and announced (`role="status"`). The button stays available.
 - No answer from the server (network failure) → the notice text becomes **"Couldn't try again. Check your connection."**
-- An error answer (`429`, `5xx`) → **"Couldn't try again right now."**; the axios interceptor's toast says which (e.g. the rate-limit message).
+- An error answer (`429`, `5xx`) → **"Couldn't try again right now."** The request skips the global toast, so no toast names the cause (corrected in pending-notice-lists.md).
 - `404` / `409` → the list reloads (unchanged).
 - Offline → button disabled, dashed, as today.
 

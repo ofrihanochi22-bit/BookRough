@@ -6,10 +6,12 @@ import { type PublicPost, retryConversion } from '../api/posts';
 /** What a pending post says before any retry (conversion-retry.md §5). */
 export const PENDING_NOTICE =
   "Couldn't convert this link to other services. Something went wrong on our side.";
+/** The Public Profile ratings row, which has no button (pending-notice-lists.md §5.2). */
+export const PENDING_SHORT_NOTICE = "Couldn't convert this link to other services.";
 export const STILL_PENDING_NOTICE = "Still couldn't convert it. Try again in a little while.";
 /** No answer from the server at all. */
 export const RETRY_FAILED_NOTICE = "Couldn't try again. Check your connection.";
-/** The server answered with an error (429, 5xx); the interceptor's toast says which. */
+/** The server answered with an error (429, 5xx). The request skips the global toast, so this line is all the viewer sees. */
 export const RETRY_ERROR_NOTICE = "Couldn't try again right now.";
 
 /**

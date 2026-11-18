@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom';
 
 import type { SavedPost } from '../api/bookmarks';
-import { canRateSaved } from '../lib/savedPosts';
+import type { PublicPost } from '../api/posts';
+import { useRetryConversion } from '../hooks/useRetryConversion';
+import { canRateSaved, canRetrySaved } from '../lib/savedPosts';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
+import { TryAgainChip } from './TryAgainChip';
 import { Button } from './ui/Button';
 import { KIND_TAG, OPEN_IN_PILL } from './ui/chip';
 import { CoverArt } from './ui/CoverArt';
@@ -16,6 +19,10 @@ interface SavedPostCardProps {
   onRemove: (postId: string) => void;
   /** Opens the rating sheet; members only (rate-post.md §5.1). */
   onRate: (saved: SavedPost) => void;
+  /** A retry answered with the post, converted or still pending. */
+  onUpdated: (post: PublicPost) => void;
+  /** A retry found the post gone or already converted: reload the list. */
+  onStale: () => void;
 }
 
 /** "Shared by … in … · Saved …" or "Sent by … · Saved …". */
@@ -65,6 +72,10 @@ function CannotRateLine({ saved }: { saved: SavedPost }) {
  * The post card's shape (ui-redesign.md §5.9) —
  * a 116px side thumbnail, title, artist and kind tag — with Rate & Review as
  * the sticker pill, "Open in …" as the accent pill and Remove as a chip.
+ *
+ * A pending post says why and offers Try again, as on the post card
+ * (pending-notice-lists.md §5.1) — not after the viewer left its community,
+ * where the server would answer 404 and the button could never succeed.
  */
 export function SavedPostCard({
   saved,
@@ -72,8 +83,11 @@ export function SavedPostCard({
   online,
   onRemove,
   onRate,
+  onUpdated,
+  onStale,
 }: SavedPostCardProps) {
   const { post } = saved;
+  const { retrying, notice, retry } = useRetryConversion(post, onUpdated, onStale);
   const main = mainLink(post, viewerService);
   const kind = kindLabel(post.kind);
 
@@ -83,9 +97,14 @@ export function SavedPostCard({
         <CoverArt url={post.coverArtUrl} size={116} />
         <div className="flex min-w-0 flex-col justify-center gap-1.5">
           {post.conversionPending ? (
-            <p className="font-display text-lg leading-tight font-bold break-words">
-              {pendingTitle(post)}
-            </p>
+            <>
+              <p className="font-display text-lg leading-tight font-bold break-words">
+                {pendingTitle(post)}
+              </p>
+              <p role="status" className="text-xs text-danger">
+                {notice}
+              </p>
+            </>
           ) : (
             <>
               <p className="font-display text-lg leading-tight font-bold break-words">
@@ -117,6 +136,9 @@ export function SavedPostCard({
         <a href={main.url} target="_blank" rel="noopener noreferrer" className={OPEN_IN_PILL}>
           {main.text}
         </a>
+        {canRetrySaved(saved) && (
+          <TryAgainChip online={online} retrying={retrying} onClick={retry} />
+        )}
         <Button
           variant="secondary"
           offline={!online}

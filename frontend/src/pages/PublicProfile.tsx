@@ -26,6 +26,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { PENDING_SHORT_NOTICE } from '../hooks/useRetryConversion';
 import { cacheKeys } from '../lib/cacheKeys';
 import { displayTitle, pendingTitle, relativeTime } from '../lib/postLinks';
 import { PROFILE_FAILED, RATINGS_LOAD_FAILED, ratingsEmptyHint } from '../lib/profileCopy';
@@ -232,6 +233,8 @@ export function PublicProfile() {
 /**
  * One rating (ui-redesign.md §5.6): a `surface` card linking to
  * Post Detail, a 64px cover with a small sticker disc carrying the score.
+ * A pending post says so, without a button: Try again lives on Post Detail
+ * (pending-notice-lists.md §5.2).
  */
 function RatingRow({ rating }: { rating: ProfileRating }) {
   const { post } = rating;
@@ -249,7 +252,10 @@ function RatingRow({ rating }: { rating: ProfileRating }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {post.conversionPending ? (
-          <p className="font-display font-bold">{pendingTitle(post)}</p>
+          <>
+            <p className="font-display font-bold">{pendingTitle(post)}</p>
+            <p className="text-xs text-danger">{PENDING_SHORT_NOTICE}</p>
+          </>
         ) : (
           <>
             <p className="truncate font-display font-bold">{displayTitle(post)}</p>

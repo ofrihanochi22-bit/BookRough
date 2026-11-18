@@ -5,12 +5,12 @@ import type { PublicPost } from '../api/posts';
 import { useRetryConversion } from '../hooks/useRetryConversion';
 import { badgeText } from '../lib/friendCopy';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
-import { CONVERTING_COPY } from '../lib/postText';
 import { commentCountLine, ratingSummaryLine } from '../lib/ratingCopy';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import { BookmarkButton } from './BookmarkButton';
 import { EditCommentSheet } from './EditCommentSheet';
 import { PersonLink } from './PersonLink';
+import { TryAgainChip } from './TryAgainChip';
 import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postCardParts';
 
 export type { PostCardProps } from './postCardParts';
@@ -322,16 +322,7 @@ export function PostCard({
           </button>
         )}
         {post.conversionPending && (
-          <button
-            type="button"
-            className={`${CHIP} ${online ? '' : 'border-dashed text-muted'}`}
-            disabled={!online || retrying}
-            aria-busy={retrying || undefined}
-            aria-label={retrying ? undefined : 'Try again to convert this link'}
-            onClick={retry}
-          >
-            {retrying ? CONVERTING_COPY : 'Try again'}
-          </button>
+          <TryAgainChip online={online} retrying={retrying} onClick={retry} />
         )}
         {detailPath && (
           <Link to={detailPath} className={CHIP}>
