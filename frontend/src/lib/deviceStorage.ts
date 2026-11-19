@@ -20,11 +20,3 @@ export function writeDeviceValue(key: string, value: string): void {
     // Remembered for this visit only.
   }
 }
-
-export function removeDeviceValue(key: string): void {
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    // Nothing to remove when storage is unavailable.
-  }
-}

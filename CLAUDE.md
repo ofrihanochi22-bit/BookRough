@@ -84,12 +84,18 @@ This file is the working contract between the developer and Claude. Read it befo
 ├── backend/
 │   ├── prisma/             ← schema.prisma, migrations
 │   ├── src/
-│   │   ├── routes/         ← thin HTTP route definitions
+│   │   ├── routes/         ← thin HTTP route definitions (+ their *.integration.test.ts)
 │   │   ├── controllers/    ← Zod validation + service calls
 │   │   ├── services/       ← business logic, no req/res
 │   │   ├── middleware/     ← auth, error handler
-│   │   ├── utils/          ← AppError, response wrappers, logger
-│   │   └── index.ts        ← Express bootstrap
+│   │   ├── utils/          ← AppError, response wrappers, logger, public mappers
+│   │   ├── config/         ← environment parsing
+│   │   ├── db/             ← Prisma client, migrate-on-start
+│   │   ├── ops/            ← CI-run scripts (pruneDeployments.ts)
+│   │   ├── test/           ← test setup and helpers, not tests
+│   │   ├── types/          ← ambient type declarations
+│   │   ├── app.ts          ← Express app
+│   │   └── index.ts        ← bootstrap
 │   ├── package.json
 │   └── tsconfig.json
 ├── frontend/
@@ -98,24 +104,33 @@ This file is the working contract between the developer and Claude. Read it befo
 │   │   ├── components/     ← reusable UI
 │   │   ├── stores/         ← Zustand stores
 │   │   ├── api/            ← axios client + per-resource API modules
+│   │   ├── hooks/          ← React hooks
+│   │   ├── lib/            ← pure helpers, no React
+│   │   ├── pwa/            ← service-worker configuration
+│   │   ├── test/           ← test setup and helpers, not tests
 │   │   └── App.tsx
 │   ├── public/             ← PWA manifest + icon set (see §16)
+│   ├── scripts/            ← hand-run tools (render-icons.mjs), never in the build
 │   ├── index.html
 │   └── vite.config.ts
 ├── e2e/                    ← Playwright end-to-end suite, its own package (§10)
 ├── docs/
 │   ├── <spec>.docx         ← foundational specs: .docx + parallel .md (see §14.1)
 │   ├── <spec>.md
-│   └── features/           ← per-feature specs, Markdown only (see §14.2, §15)
-│       ├── _TEMPLATE.md
-│       └── <feature>.md
-├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E and the Docker image) — see §10
+│   ├── features/           ← per-feature specs, Markdown only (see §14.2, §15)
+│   │   ├── _TEMPLATE.md
+│   │   └── <feature>.md
+│   └── manual-tests/       ← manual test session logs, Markdown only
+├── docker/postgres-init/   ← creates music_app_test_db in the local Postgres
+├── .github/workflows/      ← pr.yml (gates merge) + main.yml (adds E2E and the Docker image), both calling ci.yml — see §10
+├── .claude/skills/         ← project skills (/vercel-usage, /vercel-image-cleanup — §16)
 ├── .husky/                 ← pre-commit (lint-staged) + commit-msg (commitlint)
 ├── docker-compose.yml      ← local Postgres only; never a deployment artifact
 ├── vercel.json             ← production routing: /api/* to the backend container, the rest to the Vite build (§16)
 ├── package.json            ← root: quality tooling only, not an npm workspace
 ├── CLAUDE.md               ← you are here
 ├── DEVELOPMENT.md          ← step-by-step roadmap (UPDATE THIS)
+├── HANDOFF.md              ← where the project stands, for picking it up after a break
 └── README.md
 ```
 
@@ -318,7 +333,7 @@ Bad-path tests are not optional padding — for this project they are the point.
 
 ### CI gates (GitHub Actions)
 
-Two workflows:
+Two workflows. The five shared jobs are defined once in the reusable `ci.yml`, which both call, so they show as `checks / <job>`:
 
 **`pr.yml` — runs on every pull request. All five jobs must be green to merge:**
 

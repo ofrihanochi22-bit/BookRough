@@ -1879,7 +1879,7 @@ cd frontend && npm run test:unit                         # 61 files, 80% floor
 
 ### Step 6.1c — Visible sign-out (Phase 6 — UC-3, manual-test note N8)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #46)
 Branch: feat/visible-sign-out
 Spec: docs/features/visible-sign-out.md
 
@@ -1944,7 +1944,7 @@ cd frontend && npm run test:unit
 
 ### Step 6.1d — Notification center (Phase 6 — UC-21, manual-test notes N1 and N2)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #47)
 Branch: feat/notifications
 Spec: docs/features/notifications.md
 
@@ -2014,7 +2014,7 @@ cd frontend && npx vitest run src/pages/Notifications.test.tsx src/components/Ta
 
 ### Step 6.1e — Edit a post's comment (Phase 6 — UC-11 and UC-20 amended, manual-test note N7)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #48)
 Branch: feat/edit-post-comment
 Spec: docs/features/edit-post-comment.md
 
@@ -2083,7 +2083,7 @@ cd frontend && npx vitest run src/components/EditCommentSheet.test.tsx src/compo
 
 ### Step 6.1f — Separate Sign in from Create account (Phase 6 — UC-1 and UC-2 amended, manual-test note N9)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #49)
 Branch: feat/sign-in-sign-up
 Spec: docs/features/sign-in-sign-up.md
 
@@ -2160,7 +2160,7 @@ cd frontend && npx vitest run src/components/GoogleSignIn.test.tsx src/pages/Wel
 
 ### Step 6.1g — Tell a member when they're made an admin or the owner (Phase 6 — UC-14 and UC-21 amended, manual-test note N5)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #51)
 Branch: feat/role-notifications
 Spec: docs/features/role-notifications.md
 
@@ -2282,7 +2282,7 @@ cd frontend && npx vitest run src/pages/Profile.test.tsx src/pages/Admin.test.ts
 
 ### Step 6.1i — Discussion threads on a post (Phase 6 — a new UC-22, manual-test note N3)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #53)
 Branch: feat/discussion-threads
 Spec: docs/features/discussion-threads.md
 
@@ -2876,7 +2876,7 @@ cd e2e && npx playwright test
 
 ### Step 6.1q — Onboarding tutorial, manual-test note N4 (Phase 6 — UC-1; UC-12 and UC-13 explained)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #61)
 Branch: feat/onboarding-tutorial
 Spec: docs/features/onboarding-tutorial.md
 
@@ -2934,7 +2934,7 @@ cd frontend && npx vitest run src/components/Walkthrough.test.tsx src/stores/aut
 
 ### Step 6.1r — PWA icons from the cassette logo (Phase 6 — UC-1, presentation only)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #63)
 Branch: feat/pwa-icons-cassette
 Spec: docs/features/pwa-icons-cassette.md
 
@@ -2978,7 +2978,7 @@ node frontend/scripts/render-icons.mjs
 
 ### Step 6.1s — No white box behind the Google button (Phase 6 — UC-1, a bug fix; improvement round point 1)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #65)
 Branch: fix/google-button-white-box
 Spec: none (a bug fix; no spec describes the button's backdrop)
 
@@ -3017,7 +3017,7 @@ cd frontend && npx vitest run src/components/GoogleCredentialButton.test.tsx
 
 ### Step 6.1t — A friend's name in the invite list no longer leaves the form (Phase 6 — UC-9, a bug fix; improvement round point 4)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #66)
 Branch: fix/invite-friend-rows
 Spec: `docs/features/invite-friends.md` §5.1 (amended)
 
@@ -3056,7 +3056,7 @@ cd frontend && npx vitest run src/components/FriendPicker.test.tsx src/pages/Cre
 
 ### Step 6.1u — Selected avatar tiles and service rows are outlined, not filled (Phase 6 — UC-1 and UC-4, presentation only; improvement round point 3)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #67)
 Branch: fix/avatar-choice-selected-tile
 Spec: `docs/features/ui-redesign.md` §5.13, `docs/features/onboarding.md` §6, `docs/features/profile-settings.md` §5 (amended)
 
@@ -3097,7 +3097,7 @@ cd frontend && npx vitest run src/pages/CompleteProfile src/pages/Profile
 
 ### Step 6.1v — No em dash in user-facing copy (Phase 6 — UC-1, UC-4, UC-12 and UC-13 copy only; improvement round point 2)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #68)
 Branch: fix/copy-no-em-dash
 Spec: `docs/features/onboarding-tutorial.md` §5, `docs/features/onboarding.md` §6 (quoted copy updated)
 
@@ -3299,7 +3299,7 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/tu
 
 ### Step 6.1z — Admin → Overview: storage and app health on one page (Phase 6 — UC-19 amended)
 
-Status: 🟡 PR open, waiting for the developer's word to merge
+Status: ✅ Done (merged as PR #81)
 Branch: feat/admin-overview
 Spec: `docs/features/admin-overview.md`
 
@@ -3357,7 +3357,7 @@ cd frontend && npx vitest run src/pages/AdminOverview src/pages/Admin src/lib/ov
 
 ### Step 6.1z1 — Lint guard against raw SQL built from text (Phase 6 — every UC that reads or writes the database; a follow-up to a SQL injection audit)
 
-Status: 🟡 Done; PR open, waiting to merge
+Status: ✅ Done (merged as PR #82)
 Branch: chore/ban-unsafe-raw-sql
 
 Goal: the backend must stay closed to SQL injection without anyone remembering to keep it that way.
@@ -3527,7 +3527,7 @@ cd frontend && npx vitest run src/components/PostCard src/components/CommunityFe
 
 ### Step 6.1z4 — The conversion failure notice on My List and Public Profile (Phase 6 — UC-11, UC-12 and UC-5 amended)
 
-Status: 🟡 Built, reviewed and tested; PR open, waiting to merge
+Status: ✅ Done (merged as PR #86)
 Branch: feat/pending-notice-lists
 Spec: docs/features/pending-notice-lists.md
 
@@ -3558,6 +3558,38 @@ cd frontend && npm run dev
 
 ```bash
 cd frontend && npx vitest run src/pages/MyList src/pages/PublicProfile src/lib/savedPosts src/components/PostCard
+```
+
+### Step 6.1z5 — Repository tidy-up (Phase 6 — housekeeping, no UC behaviour changes)
+
+Status: 🟡 Built and checked; PR open, waiting to merge
+Branch: chore/repo-tidy-up
+
+Goal: act on a whole-repo audit (stray files, unused code, leftovers from withdrawn decisions, rogue code, docs drift). The audit found no leftovers from withdrawn decisions, no `console.log`, TODO or commented-out code, no `req`/`res` in services, no unused dependency, and every raw SQL site justified. The developer approved six items.
+
+What I did:
+
+- `docs/manual-tests/2026-11-12-fixes.md`: the 2026-11-12 improvement-round log, every row done, moved from an untracked root file next to the earlier session log.
+- `HANDOFF.md`: refreshed to `main` = `f6593cb`. Production is back up, the dashboard steps done on 2026-11-11 are ticked, the PRs since #35 are summarised, the open list is now the production checks (6.4 P2–P7, 6.2 O1–O9, Neon P10), and §5 records the token expiry (2027-05-15).
+- `CLAUDE.md` §3: the tree now lists the folders that exist (`backend/src/{config,db,ops,test,types}`, `frontend/src/{hooks,lib,pwa,test}`, `frontend/scripts`, `docs/manual-tests`, `docker/postgres-init`, `.claude/skills`, `HANDOFF.md`). §10 says the five shared jobs live in the reusable `ci.yml`.
+- `frontend/src/lib/deviceStorage.ts`: removed `removeDeviceValue`, which nothing called (found by `npx knip`, checked by hand).
+- `docs/tables.docx`: added the "former table 8 (`password_resets`) has been removed" note that `tables.md` has carried since PR #19, so the pair matches again (§14.1).
+- `DEVELOPMENT.md`: Step 6.4's test command ran the deleted `src/ops/pruneImages.test.ts`, now `pruneDeployments.test.ts`; fifteen step statuses still said "PR open" after merging (6.1c–g, 6.1i, 6.1q–v, 6.1z, 6.1z1, 6.1z4) and now name their PRs.
+
+How to view & test:
+
+No screen changes. Open `HANDOFF.md`, `CLAUDE.md` §3 and `docs/tables.docx` (end of the document) to read the changes.
+
+```bash
+npm run lint && npm run typecheck
+```
+
+```bash
+cd frontend && npm run test:unit
+```
+
+```bash
+cd backend && npm run test:coverage
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
@@ -3791,7 +3823,7 @@ Tests:
 ```bash
 cd backend && npm run test:coverage
 cd backend && npx vitest run -c vitest.integration.config.ts src/routes/rateLimits.integration.test.ts
-cd backend && npx vitest run src/utils/safeError.test.ts src/ops/pruneImages.test.ts src/services/linkScraper.service.test.ts
+cd backend && npx vitest run src/utils/safeError.test.ts src/ops/pruneDeployments.test.ts src/services/linkScraper.service.test.ts
 cd frontend && npm run test:unit
 npm test --prefix e2e
 ```
