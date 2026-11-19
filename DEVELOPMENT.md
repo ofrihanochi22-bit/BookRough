@@ -3562,7 +3562,7 @@ cd frontend && npx vitest run src/pages/MyList src/pages/PublicProfile src/lib/s
 
 ### Step 6.1z5 — Repository tidy-up (Phase 6 — housekeeping, no UC behaviour changes)
 
-Status: 🟡 Built and checked; PR open, waiting to merge
+Status: ✅ Done (merged as PR #87)
 Branch: chore/repo-tidy-up
 
 Goal: act on a whole-repo audit (stray files, unused code, leftovers from withdrawn decisions, rogue code, docs drift). The audit found no leftovers from withdrawn decisions, no `console.log`, TODO or commented-out code, no `req`/`res` in services, no unused dependency, and every raw SQL site justified. The developer approved six items.
@@ -3575,6 +3575,7 @@ What I did:
 - `frontend/src/lib/deviceStorage.ts`: removed `removeDeviceValue`, which nothing called (found by `npx knip`, checked by hand).
 - `docs/tables.docx`: added the "former table 8 (`password_resets`) has been removed" note that `tables.md` has carried since PR #19, so the pair matches again (§14.1).
 - `DEVELOPMENT.md`: Step 6.4's test command ran the deleted `src/ops/pruneImages.test.ts`, now `pruneDeployments.test.ts`; fifteen step statuses still said "PR open" after merging (6.1c–g, 6.1i, 6.1q–v, 6.1z, 6.1z1, 6.1z4) and now name their PRs.
+- **Fix, 2026-11-19 (`fix/recommendations-seen-test-race`):** the post-merge `main.yml` run of PR #87 failed `test:unit` on one flaky frontend test. `Recommendations.test.tsx` › "switches to Sent…" cleared the `markRecommendationsSeen` spy as soon as "Nothing here yet" appeared, but Received marks itself seen in an effect that can run just after that, so the call landed after the clear. The test now waits for that first call before clearing. Test only; no app change. Check: `cd frontend && npx vitest run src/pages/Recommendations.test.tsx`.
 
 How to view & test:
 

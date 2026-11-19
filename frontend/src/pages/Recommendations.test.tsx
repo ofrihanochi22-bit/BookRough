@@ -163,6 +163,9 @@ describe('Recommendations', () => {
     );
     renderScreen();
     await screen.findByText('Nothing here yet');
+    // Received marks itself seen in an effect that can run just after the
+    // empty state appears; wait for it, so clearing the spy cannot race it.
+    await waitFor(() => expect(api.markRecommendationsSeen).toHaveBeenCalledTimes(1));
     api.markRecommendationsSeen.mockClear();
 
     // Act
