@@ -1,10 +1,9 @@
-import express, { type RequestHandler } from 'express';
+import type { RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { sessionUser } from '../middleware/requireAuth.js';
 import {
   adminRemovePhoto,
-  AVATAR_LIMITS,
   AVATAR_MESSAGES,
   findAvatar,
   removeOwnAvatar,
@@ -13,18 +12,6 @@ import {
 import { AppError } from '../utils/AppError.js';
 import { sessionPayload } from '../utils/publicUser.js';
 import { success } from '../utils/response.js';
-
-/** docs/features/avatar-upload.md §4. */
-const IMAGE_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
-
-/**
- * The raw image body, on the upload route only. Its cap is a little above the
- * real 2 MB limit, so the service — not the parser — says "too large" in our words.
- */
-export const avatarBody = express.raw({
-  type: IMAGE_TYPES,
-  limit: AVATAR_LIMITS.maxUploadBytes + 64 * 1024,
-});
 
 const userIdSchema = z.string().uuid();
 

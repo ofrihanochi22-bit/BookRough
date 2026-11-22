@@ -27,7 +27,7 @@ const app = createApp();
 
 const INVALID =
   'This invite link is invalid or has expired. Please request a new link from the Community Admin.';
-const PREVIEW_KEYS = ['alreadyMember', 'communityId', 'memberCount', 'name'];
+const PREVIEW_KEYS = ['alreadyMember', 'communityId', 'memberCount', 'name', 'photoUrl'];
 
 async function onboardedUser(googleSub: string, displayName: string) {
   const user = await prisma.user.create({
@@ -182,6 +182,7 @@ describe('GET /api/invites/:token', () => {
     expect(preview).toEqual({
       communityId,
       name: 'Friday Jazz',
+      photoUrl: null,
       memberCount: 1,
       alreadyMember: false,
     });

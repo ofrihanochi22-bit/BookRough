@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
+
+import { resolveApiUrl } from '../../api/client';
 
 import { avatarHue } from './avatarParts';
 
@@ -14,6 +16,12 @@ interface CommunityCoverProps {
    */
   label?: 'h1' | 'text';
   detail?: ReactNode;
+  /**
+   * The community's uploaded photo (community-photo.md §5.1): it takes the reel
+   * window's place. Null, or an image that fails to load (a signed-out viewer
+   * gets 401), keeps the generated cassette.
+   */
+  photoUrl?: string | null;
 }
 
 /** The stripe band's two tones: the community's own hue, or neutral greys before it exists. */
@@ -49,16 +57,49 @@ function ReelWindow({ className }: { className: string }) {
   );
 }
 
+/** The photo in the reel window's place — decorative, like the reels (the name is printed). */
+function CoverPhoto({
+  url,
+  className,
+  onError,
+}: {
+  url: string;
+  className: string;
+  onError: () => void;
+}) {
+  return (
+    <img
+      src={resolveApiUrl(url)}
+      alt=""
+      data-testid="cover-photo"
+      onError={onError}
+      className={`object-cover ${className}`}
+    />
+  );
+}
+
 /**
- * The generated community cover (CLAUDE.md §8) is a cassette (ui-redesign.md
+ * The community cover (CLAUDE.md §8) is a cassette (ui-redesign.md
  * §3.5): a `tape` label with a stripe band in the community's deterministic
  * hue — from the same generator as user avatars — the name in the heading face
  * (two lines, then an ellipsis) and two reels. In light mode the label gets a
  * 2px `tape-ink` outline. Decorative — the screen prints the name — unless the
  * caller passes `label`, which makes the cassette's own label the name's text.
+ * A community's uploaded photo, when it has one, replaces the reels.
  */
-export function CommunityCover({ id, name, variant, label, detail }: CommunityCoverProps) {
+export function CommunityCover({
+  id,
+  name,
+  variant,
+  label,
+  detail,
+  photoUrl,
+}: CommunityCoverProps) {
   const hue = id ? avatarHue(id) : null;
+  // Keyed by URL, so a new upload gets its own chance to load.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const photo = photoUrl && photoUrl !== failedUrl ? photoUrl : null;
+  const onPhotoError = () => setFailedUrl(photoUrl ?? null);
   const frame =
     'overflow-hidden rounded-xl bg-tape text-tape-ink ring-2 ring-tape-ink ring-inset dark:ring-0';
 
@@ -70,9 +111,13 @@ export function CommunityCover({ id, name, variant, label, detail }: CommunityCo
         className={`flex h-11 w-full flex-col ${frame} rounded-lg`}
       >
         <StripeBand hue={hue} className="h-3" />
-        <div className="flex flex-1 items-center justify-center">
-          <ReelWindow className="w-9" />
-        </div>
+        {photo ? (
+          <CoverPhoto url={photo} className="min-h-0 w-full flex-1" onError={onPhotoError} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center">
+            <ReelWindow className="w-9" />
+          </div>
+        )}
       </div>
     );
   }
@@ -104,7 +149,15 @@ export function CommunityCover({ id, name, variant, label, detail }: CommunityCo
             </p>
           )}
         </div>
-        <ReelWindow className={banner ? 'w-24 shrink-0' : 'w-16 shrink-0'} />
+        {photo ? (
+          <CoverPhoto
+            url={photo}
+            className={`aspect-square shrink-0 rounded-lg ${banner ? 'w-24' : 'w-16'}`}
+            onError={onPhotoError}
+          />
+        ) : (
+          <ReelWindow className={banner ? 'w-24 shrink-0' : 'w-16 shrink-0'} />
+        )}
       </div>
     </div>
   );

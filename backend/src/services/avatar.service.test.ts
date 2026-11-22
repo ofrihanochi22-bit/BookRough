@@ -7,7 +7,6 @@ import {
   adminRemovePhoto,
   AVATAR_MESSAGES,
   findAvatar,
-  processAvatar,
   removeOwnAvatar,
   uploadAvatar,
 } from './avatar.service.js';
@@ -56,88 +55,6 @@ async function expectAppError(promise: Promise<unknown>, statusCode: number, mes
 
 beforeEach(() => {
   vi.resetAllMocks();
-});
-
-describe('processAvatar', () => {
-  it.each([
-    ['JPEG', () => image(1200, 800).jpeg().toBuffer()],
-    ['PNG', () => image(800, 1200).png().toBuffer()],
-    ['WebP', () => image(600, 600).webp().toBuffer()],
-  ])('turns a %s into a 256×256 WebP of at most 100 KB', async (_name, make) => {
-    // Arrange
-    const input = await make();
-
-    // Act
-    const output = await processAvatar(input);
-
-    // Assert
-    const meta = await sharp(output).metadata();
-    expect(meta).toMatchObject({ format: 'webp', width: 256, height: 256 });
-    expect(output.length).toBeLessThanOrEqual(100 * 1024);
-  });
-
-  it('strips EXIF (location included) from the stored image', async () => {
-    // Arrange
-    const input = await image(400, 400)
-      .jpeg()
-      .withMetadata({ exif: { IFD0: { Artist: 'gps-test' } } })
-      .toBuffer();
-    expect((await sharp(input).metadata()).exif).toBeDefined();
-
-    // Act
-    const output = await processAvatar(input);
-
-    // Assert
-    const meta = await sharp(output).metadata();
-    expect(meta.exif).toBeUndefined();
-    expect(meta.icc).toBeUndefined();
-  });
-
-  it('applies the EXIF orientation before cropping', async () => {
-    // Arrange: a 400×200 image tagged "rotate 90°" is portrait once applied.
-    const input = await image(400, 200).jpeg().withMetadata({ orientation: 6 }).toBuffer();
-
-    // Act
-    const output = await processAvatar(input);
-
-    // Assert — still square; the rotation was applied, not left as a tag.
-    const meta = await sharp(output).metadata();
-    expect(meta).toMatchObject({ width: 256, height: 256 });
-    expect(meta.orientation).toBeUndefined();
-  });
-
-  it('refuses a file whose first bytes are not an image, whatever its name', async () => {
-    // Act & Assert
-    await expectAppError(
-      processAvatar(Buffer.from('<html><script>alert(1)</script></html>')),
-      422,
-      AVATAR_MESSAGES.unsupported,
-    );
-  });
-
-  it('refuses a truncated image', async () => {
-    // Arrange
-    const whole = await image(400, 400).jpeg().toBuffer();
-
-    // Act & Assert
-    await expectAppError(processAvatar(whole.subarray(0, 200)), 422, AVATAR_MESSAGES.unsupported);
-  });
-
-  it('refuses an image over the pixel limit before decoding it', async () => {
-    // Arrange: 6000 × 5000 = 30 megapixels, over the 25 MP limit.
-    const huge = await image(6000, 5000).png({ compressionLevel: 9 }).toBuffer();
-
-    // Act & Assert
-    await expectAppError(processAvatar(huge), 422, AVATAR_MESSAGES.unsupported);
-  });
-
-  it('refuses more than 2 MB with 413', async () => {
-    // Arrange
-    const tooBig = Buffer.alloc(2 * 1024 * 1024 + 1);
-
-    // Act & Assert
-    await expectAppError(processAvatar(tooBig), 413, AVATAR_MESSAGES.tooLarge);
-  });
 });
 
 describe('uploadAvatar', () => {

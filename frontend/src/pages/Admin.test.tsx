@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
   listAdminCommunities: vi.fn(),
   removeUserPhoto: vi.fn(),
+  removeAdminCommunityPhoto: vi.fn(),
   fetchUserDeletionPreview: vi.fn(),
   deleteAdminUser: vi.fn(),
   deleteAdminCommunity: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('../api/admin', () => ({
   listAdminUsers: api.listAdminUsers,
   listAdminCommunities: api.listAdminCommunities,
   removeUserPhoto: api.removeUserPhoto,
+  removeAdminCommunityPhoto: api.removeAdminCommunityPhoto,
   fetchUserDeletionPreview: api.fetchUserDeletionPreview,
   deleteAdminUser: api.deleteAdminUser,
   deleteAdminCommunity: api.deleteAdminCommunity,
@@ -54,6 +56,7 @@ function adminCommunity(overrides: Partial<AdminCommunity> = {}): AdminCommunity
   return {
     id: '22222222-2222-4222-8222-222222222222',
     name: 'Friday Jazz',
+    photoUrl: null,
     memberCount: 5,
     createdAt: '2026-10-03T09:00:00.000Z',
     owner: { id: '11111111-1111-4111-8111-111111111111', displayName: 'Mia' },
@@ -307,6 +310,66 @@ describe('Users tab — Remove photo', () => {
 
     // Assert
     expect(api.toastError).toHaveBeenCalledWith('User not found.');
+    expect(screen.getByRole('dialog', { name: 'Remove photo?' })).toBeInTheDocument();
+  });
+});
+
+/** docs/features/community-photo.md §5.4. */
+describe('Communities tab — Remove photo', () => {
+  const PHOTO = '/api/communities/22222222-2222-4222-8222-222222222222/photo?v=1';
+
+  beforeEach(() => signedIn(true));
+
+  it('confirms, removes the photo, updates the row and toasts', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity({ photoUrl: PHOTO })]);
+    api.removeAdminCommunityPhoto.mockResolvedValue(adminCommunity({ photoUrl: null }));
+    renderAt('/admin/communities');
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }));
+    const sheet = screen.getByRole('dialog', { name: 'Remove photo?' });
+    expect(
+      within(sheet).getByText(
+        `Remove ${isolate('Friday Jazz')}'s photo? Its members will see the generated cover instead.`,
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Remove photo' }));
+
+    // Assert
+    expect(api.removeAdminCommunityPhoto).toHaveBeenCalledWith(
+      '22222222-2222-4222-8222-222222222222',
+    );
+    expect(api.toastSuccess).toHaveBeenCalledWith('Photo removed');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+  });
+
+  it('offers nothing for a community without a photo', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity()]);
+
+    // Act
+    renderAt('/admin/communities');
+
+    // Assert
+    expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove photo' })).not.toBeInTheDocument();
+  });
+
+  it('toasts the server message and keeps the sheet when removing fails', async () => {
+    // Arrange
+    api.listAdminCommunities.mockResolvedValue([adminCommunity({ photoUrl: PHOTO })]);
+    api.removeAdminCommunityPhoto.mockRejectedValue(httpError(404, 'Community not found.'));
+    renderAt('/admin/communities');
+
+    // Act
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove photo' }));
+    const sheet = screen.getByRole('dialog', { name: 'Remove photo?' });
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Remove photo' }));
+
+    // Assert
+    expect(api.toastError).toHaveBeenCalledWith('Community not found.');
     expect(screen.getByRole('dialog', { name: 'Remove photo?' })).toBeInTheDocument();
   });
 });

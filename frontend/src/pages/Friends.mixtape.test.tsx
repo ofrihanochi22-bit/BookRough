@@ -47,7 +47,7 @@ const YAEL = view('yael', 'Yael Ben');
 
 function invitation(): MyInvitation {
   return {
-    community: { id: 'jazz', name: 'Friday Jazz', memberCount: 3 },
+    community: { id: 'jazz', name: 'Friday Jazz', photoUrl: null, memberCount: 3 },
     invitedBy: { id: 'dana', displayName: 'Dana Levi', profilePictureUrl: null },
     sentAt: '2026-10-06T10:00:00.000Z',
   };

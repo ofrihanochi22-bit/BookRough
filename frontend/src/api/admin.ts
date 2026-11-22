@@ -1,6 +1,6 @@
 import { api, type SuccessBody } from './client';
 import type { StreamingService } from '../stores/auth';
-import { AVATAR_KEYS, DELETION_KEYS } from '../lib/cacheKeys';
+import { AVATAR_KEYS, cacheKeys as K, DELETION_KEYS } from '../lib/cacheKeys';
 import { invalidate } from '../lib/requestCache';
 
 /** Mirrors the backend's AdminUser (docs/features/admin-panel.md §4.2). */
@@ -19,6 +19,7 @@ export interface AdminUser {
 export interface AdminCommunity {
   id: string;
   name: string;
+  photoUrl: string | null;
   memberCount: number;
   createdAt: string;
   owner: { id: string; displayName: string | null } | null;
@@ -40,6 +41,16 @@ export async function removeUserPhoto(userId: string): Promise<AdminUser> {
   );
   invalidate([...AVATAR_KEYS]);
   return response.data.data.user;
+}
+
+/** The site admin removes a community's photo (community-photo.md D2). */
+export async function removeAdminCommunityPhoto(communityId: string): Promise<AdminCommunity> {
+  const response = await api.delete<SuccessBody<{ community: AdminCommunity }>>(
+    `/admin/communities/${encodeURIComponent(communityId)}/photo`,
+    { skipErrorToast: true },
+  );
+  invalidate([K.communities, K.community(communityId), K.feed(communityId)]);
+  return response.data.data.community;
 }
 
 /** Mirrors the backend's UserDeletionPreview (docs/features/admin-delete.md §4). */

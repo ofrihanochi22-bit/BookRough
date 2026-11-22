@@ -8,7 +8,15 @@ import { signSessionToken } from '../utils/jwt.js';
 
 const app = createApp();
 
-const PUBLIC_COMMUNITY_KEYS = ['createdAt', 'description', 'id', 'memberCount', 'myRole', 'name'];
+const PUBLIC_COMMUNITY_KEYS = [
+  'createdAt',
+  'description',
+  'id',
+  'memberCount',
+  'myRole',
+  'name',
+  'photoUrl',
+];
 
 async function onboardedUser(googleSub: string, displayName: string) {
   const user = await prisma.user.create({

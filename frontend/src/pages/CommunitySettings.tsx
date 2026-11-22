@@ -18,6 +18,7 @@ import {
   type CommunityMember,
 } from '../api/membership';
 import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
+import { CommunityPhotoSection } from '../components/CommunityPhotoSection';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { InvitePanel } from '../components/InvitePanel';
 import { PersonLink } from '../components/PersonLink';
@@ -224,6 +225,16 @@ export function CommunitySettings() {
 
       {data && (
         <div className="flex flex-col gap-8 pb-8">
+          {isAdmin(data.community.myRole) && (
+            <Section title="Photo">
+              <CommunityPhotoSection
+                community={data.community}
+                disabled={!online}
+                onChanged={refresh}
+              />
+            </Section>
+          )}
+
           {isAdmin(data.community.myRole) && (
             <DetailsSection
               key={detailsVersion}
