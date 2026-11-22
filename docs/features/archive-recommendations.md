@@ -40,23 +40,20 @@ Today every direct recommendation a user receives stays in **Received** forever,
 
 ## 3. Data model changes
 
-Migration: `npx prisma migrate dev --create-only --name rename_hidden_to_archived`, its SQL replaced by hand with one statement, because Prisma would generate a drop and an add, losing every hidden row:
-
-```sql
-ALTER TABLE "posts" RENAME COLUMN "recipient_hidden_at" TO "recipient_archived_at";
-```
+None in the database. The Prisma field is renamed, and the column keeps its name:
 
 ```prisma
-/// The recipient archived it: out of Received, in their archive (archive-recommendations.md).
-/// Never serialised: the sender must not learn of it.
-recipientArchivedAt DateTime? @map("recipient_archived_at") @db.Timestamptz(3)
+/// The recipient archived it: out of Received, into their archive. Never
+/// serialised: the sender must not learn it. The column keeps its old name so a
+/// running older deployment never breaks (archive-recommendations.md §3).
+recipientArchivedAt DateTime? @map("recipient_hidden_at") @db.Timestamptz(3)
 ```
 
-- Every row hidden before the migration keeps its timestamp, so it's archived (answer 3).
-- No new index. Received and the archive both read by `recipient_id`, newest first, through the existing `(recipient_id, created_at desc, id desc)` index; `recipient_archived_at` is a filter on rows the index already narrows to one user.
-- Drift checked with `prisma migrate diff` afterwards, and the hand-written objects (`posts_one_target`, `posts_not_self`, `posts_one_source`, `posts_link_only_unconverted`) confirmed present.
+- Every item hidden before this feature has its timestamp in that column, so it's archived (answer 3).
+- No migration, on purpose. A `RENAME COLUMN` would break the previous production deployment, still serving during the switch and kept as the rollback target: Prisma names every column of `posts` in its selects, so each post query there would fail. `prisma migrate diff` reports no difference.
+- No new index. Received and the archive both read by `recipient_id`, newest first, through the existing `(recipient_id, created_at desc, id desc)` index; the archive time is a filter on rows the index already narrows to one user.
 - The column stays out of every client payload: `toPublicPost`'s field-by-field rule is unchanged, and its comment is renamed.
-- `docs/tables.md` (+ `.docx`): `recipient_hidden_at` becomes `recipient_archived_at`, with the new meaning. No new table: still seventeen.
+- `docs/tables.md` (+ `.docx`): `recipient_hidden_at` keeps its name, with the new meaning. No new table: still seventeen.
 
 ## 4. API
 
@@ -65,7 +62,7 @@ All under `recommendationsRouter`, with auth and an onboarded user, like the res
 ### `GET /api/recommendations/archived?before=<cursor>`
 
 - **Request:** query `{ before?: string (max 200) }`, `.strict()`, the cursor format of Received.
-- **Behaviour:** where the caller is the recipient and `recipient_archived_at` is not null. Newest first by when the item was **sent**, `PAGE_SIZE` per page, the same keyset as Received. The same `toPublicPost` with rating summaries and friends as Received.
+- **Behaviour:** where the caller is the recipient and the archive time (`recipient_hidden_at`) is not null. Newest first by when the item was **sent**, `PAGE_SIZE` per page, the same keyset as Received. The same `toPublicPost` with rating summaries and friends as Received.
 - **Success:** `200 { posts: PublicPost[], nextCursor: string | null }`, the shape of Received.
 - **Errors:** `422` an unknown query key or a malformed cursor; `401` unauthenticated; `403` not onboarded.
 
@@ -79,7 +76,7 @@ All under `recommendationsRouter`, with auth and an onboarded user, like the res
 Replaces `PUT /:postId/hidden`, with the same rules.
 
 - **Request:** `postId` as a UUID. No body.
-- **Behaviour:** `requirePostAccess`, then the recipient check. Sets `recipient_archived_at` to now where it's null, so it's idempotent and a second archive keeps the first time. Logs "Recommendation archived" with `userId` and `postId`.
+- **Behaviour:** `requirePostAccess`, then the recipient check. Sets the archive time to now where it's null, so it's idempotent and a second archive keeps the first time. Logs "Recommendation archived" with `userId` and `postId`.
 - **Success:** `200 { data: null }`, also when it was already archived.
 - **Errors:**
   - `404` a malformed post id;
@@ -90,7 +87,7 @@ Replaces `PUT /:postId/hidden`, with the same rules.
 
 ### `DELETE /api/recommendations/:postId/archived`
 
-- **Behaviour:** Unarchive and Undo. Sets `recipient_archived_at` to null. Idempotent: an item that isn't archived answers `200`. Allowed after unfriending, like archiving. Logs "Recommendation unarchived".
+- **Behaviour:** Unarchive and Undo. Sets the archive time to null. Idempotent: an item that isn't archived answers `200`. Allowed after unfriending, like archiving. Logs "Recommendation unarchived".
 - **Success / errors:** as for PUT, with "Only the recipient can unarchive this." for the sender.
 
 ### Removed: `PUT /api/recommendations/:postId/hidden`
@@ -99,7 +96,7 @@ An installed app still running the old shell gets `404` from it until it reloads
 
 ### Unchanged
 
-- `GET /received` and `GET /unseen-count` filter on `recipient_archived_at: null` in place of `recipient_hidden_at: null`.
+- `GET /received` and `GET /unseen-count` filter on `recipientArchivedAt: null`, the same column as before.
 - `GET /sent` ignores the column, as it ignored the hide.
 
 ## 5. Screens & components
@@ -163,7 +160,7 @@ Screen 2.5 gains the Archived row, the archive view and the Archive button, and 
 **Integration (`recommendations.integration.test.ts`)**
 
 - ✅ `200` for the archive list, its count, PUT and DELETE, with the item leaving Received and coming back.
-- ✅ A row hidden before the migration (written as `recipient_archived_at`) is in the archive.
+- ✅ A row hidden before this feature (written straight to `recipient_hidden_at`) is in the archive.
 - ❌ `422`: an unknown query key or a bad cursor on the archive list.
 - ❌ `401` on all four without a session.
 - ❌ `403` on all four for a not-onboarded user; `403` on PUT and DELETE by the sender.
@@ -191,12 +188,12 @@ None.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                      | Reason                                                                                          |
-| ---------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 2026-11-22 | Received only (answer 1)                                                                      | It's the one list where handled items pile up; My List and Communities already drop rated items |
-| 2026-11-22 | Manual only, no automatic archive on rating (answer 2)                                        | Developer's choice                                                                              |
-| 2026-11-22 | Archive replaces Hide, and hidden items become archived (answer 3)                            | One button with an undo, in place of two similar ones on a phone card                           |
-| 2026-11-22 | An "Archived · N" row inside Received, not a fourth pill (answer 4)                           | Three pills already fill a 375 px row (community-unchecked.md §9)                               |
-| 2026-11-22 | Rename `recipient_hidden_at` to `recipient_archived_at` by hand-written SQL, not a new column | Keeps every hidden row with no data step, and the name says what it means now                   |
-| 2026-11-22 | No confirmation sheet on Archive; a toast with Undo instead                                   | It can be undone, as D1's Mark checked                                                          |
-| 2026-11-22 | The archive is ordered by when the item was sent, not when it was archived                    | Reuses Received's keyset and index; no new index or cursor format                               |
+| Date       | Decision                                                                                           | Reason                                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-22 | Received only (answer 1)                                                                           | It's the one list where handled items pile up; My List and Communities already drop rated items                         |
+| 2026-11-22 | Manual only, no automatic archive on rating (answer 2)                                             | Developer's choice                                                                                                      |
+| 2026-11-22 | Archive replaces Hide, and hidden items become archived (answer 3)                                 | One button with an undo, in place of two similar ones on a phone card                                                   |
+| 2026-11-22 | An "Archived · N" row inside Received, not a fourth pill (answer 4)                                | Three pills already fill a 375 px row (community-unchecked.md §9)                                                       |
+| 2026-11-22 | Keep the column `recipient_hidden_at` and rename only the Prisma field (`@map`), with no migration | `/code-review`: a `RENAME COLUMN` breaks the previous deployment, still serving during the switch and kept for rollback |
+| 2026-11-22 | No confirmation sheet on Archive; a toast with Undo instead                                        | It can be undone, as D1's Mark checked                                                                                  |
+| 2026-11-22 | The archive is ordered by when the item was sent, not when it was archived                         | Reuses Received's keyset and index; no new index or cursor format                                                       |

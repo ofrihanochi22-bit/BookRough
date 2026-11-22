@@ -12,7 +12,7 @@
 
 ---
 
-> **Amended by `archive-recommendations.md` (D2, UC-20, 2026-11-22).** Hide is now **Archive**, and it can be undone: the item leaves Received for the recipient's archive, opened from an "Archived · N" row at the top of Received, where Unarchive puts it back. `recipient_hidden_at` was renamed `recipient_archived_at`, so every hidden item is archived. §3.5's other rules hold: the sender isn't told, and the bookmark and rating stay.
+> **Amended by `archive-recommendations.md` (D2, UC-20, 2026-11-22).** Hide is now **Archive**, and it can be undone: the item leaves Received for the recipient's archive, opened from an "Archived · N" row at the top of Received, where Unarchive puts it back. The column `recipient_hidden_at` keeps its name (the Prisma field is now `recipientArchivedAt`), so every hidden item is archived. §3.5's other rules hold: the sender isn't told, and the bookmark and rating stay.
 
 > **Amended by `discussion-threads.md` (UC-22, 2026-11-09).** The two people may discuss a direct recommendation on Post Detail. Like rating, writing there needs current friendship; after unfriending, the discussion stays readable.
 
