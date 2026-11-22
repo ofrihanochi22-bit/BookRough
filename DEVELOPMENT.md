@@ -3771,7 +3771,7 @@ cd frontend && npx vitest run src/pages/Recommendations src/components/PostCard 
 
 ### Step 6.1z11 — A photo for a community, D5 (Phase 6 — UC-9 and UC-19 amended)
 
-Status: 🟡 In progress (PR open, waiting for the developer's word to merge)
+Status: ✅ Done (merged as PR #98)
 Branch: feat/community-photo
 Spec: docs/features/community-photo.md
 
