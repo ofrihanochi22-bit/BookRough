@@ -8,7 +8,7 @@
 | **Use cases** | UC-9 (create a community, and edit its details) and UC-19 (administration), amended             |
 | **Phase**     | 6 — Step 6.1z11 of `DEVELOPMENT.md`, from parked idea **D5** of the 2026-11-22 manual test (§0) |
 | **Branch**    | `feat/community-photo`                                                                          |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                              |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged                              |
 
 ---
 
