@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
 import { CONVERTING_COPY } from '../lib/postText';
@@ -23,6 +23,7 @@ import {
   networkError,
   resetAuthStore,
 } from '../test/fixtures';
+import { USER_AGENTS, emulateDevice, resetDevice } from '../test/userAgents';
 import { PostCard } from './PostCard';
 
 /** The card links to Post Detail, so it renders inside a router. */
@@ -119,6 +120,24 @@ describe('PostCard — converted', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual(['Spotify', 'Apple Music', 'Deezer']);
+  });
+
+  it('in the installed iOS app, asks over Other services and leaves it open on Cancel', async () => {
+    // Arrange (open-in-safari.md §5.4)
+    emulateDevice(USER_AGENTS.iphoneSafari, { maxTouchPoints: 5, standalone: true });
+    onTestFinished(resetDevice);
+    renderCard(makePost());
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+    const services = screen.getByRole('dialog', { name: 'Other services' });
+
+    // Act
+    await userEvent.click(within(services).getByRole('link', { name: 'Deezer' }));
+    const asked = screen.getByRole('dialog', { name: 'Open in browser?' });
+    await userEvent.click(within(asked).getByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog', { name: 'Open in browser?' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Other services' })).toBeInTheDocument();
   });
 
   it('replaces a cover that fails to load with the placeholder', () => {

@@ -3635,6 +3635,35 @@ cd frontend && npx vitest run src/externalLinks src/lib/bidi src/components/Exte
 cd backend && npx vitest run src/services/community.service && npm run test:integration -- communities
 ```
 
+### Step 6.1z8 — Open in Safari from the installed iPhone app (Phase 6 — UC-11, UC-12, UC-20 presentation)
+
+Status: 🟡 In review (PR open; the iPhone check M1–M3 runs after the merge, by the developer's choice)
+Branch: feat/open-in-safari
+Spec: docs/features/open-in-safari.md
+
+Goal: in the installed PWA on the iPhone, iOS opens an external link in a window over BookRough, and closing it stops the song (Step 6.1z7, D3). Now a tap first asks **"Open in browser?"** and can hand the link to full Safari, so the music keeps playing while the user goes back to BookRough. This is an alternative to the parked in-app player (D6).
+
+What I did:
+
+- `frontend/src/lib/openInSafari.ts`: `isIosStandalone` (iPhone or iPad, running as the installed app; reuses `isIos` from `installHint.ts`), `safariUrl` (`https://…` → `x-safari-https://…`, `null` for anything but http(s)), and `openInSafari`, which navigates and, if the app has not been hidden or lost focus within 2 s, reports that Safari didn't open.
+- `frontend/src/components/OpenInBrowserSheet.tsx`: the sheet, built on `Sheet`, with **Open in Safari**, **Copy link** and **Cancel**. Copy link toasts "Link copied. Paste it in Safari."; if the clipboard is refused it shows the link, selected, to copy by hand. "Safari didn't open. Try Copy link instead." is toasted when the scheme does nothing.
+- `frontend/src/components/ExternalLink.tsx`: in the installed iOS app a tap is intercepted and opens the sheet; everywhere else (Safari tabs, Android, desktop) the link still opens in a new tab. The `href` is unchanged, so a long-press still shows the real address. This covers all three external links: "Open in …" on post cards and My List cards, and the Other services sheet (where the new sheet opens on top and Cancel leaves Other services open).
+- **Decision reversed:** manual-test-fixes-1122.md §5.2 had rejected the undocumented `x-safari-https://` scheme. The developer chose it, asked on every tap with Copy link always beside it; recorded in the new spec's §8.
+- `/code-review` (high), 4 findings: the failure toast could fire while an iOS prompt covered the page (fixed: `blur` and `pagehide` also count as a hand-off), a redundant `dir="ltr"` (removed), Escape closing both nested sheets (accepted in spec §6), and missing tests (written). No `/security-review`: no authentication, permission, endpoint or new external service. The links are the same server-supplied service URLs as before, and `safariUrl` refuses anything but http(s), so a `javascript:` address can never be navigated to.
+- Tests: `lib/openInSafari.test.ts` (16), `OpenInBrowserSheet.test.tsx` (8), `ExternalLink.test.tsx` (5), and one nested-sheet case in `PostCard.test.tsx`. Frontend line coverage 98.5%.
+
+How to view & test:
+
+```bash
+cd frontend && npx vitest run src/lib/openInSafari src/components/OpenInBrowserSheet src/components/ExternalLink src/components/PostCard src/externalLinks
+```
+
+In a desktop browser nothing changes: run `cd backend && npm run dev` and `cd frontend && npm run dev`, open `http://localhost:5173/`, and **Open in …** still opens a new tab with no question. The sheet appears only in the installed iOS app, so it is checked on the developer's iPhone after the merge (spec §7):
+
+1. **M1.** From the home-screen app, tap **Open in Bandcamp** on a post → "Open in browser?" → **Open in Safari**. Safari opens the album. Play it, switch back to BookRough: the song keeps playing. If Safari doesn't open, the app says "Safari didn't open. Try Copy link instead." — then a follow-up removes the Open in Safari button.
+2. **M2.** Same, with **Copy link**: paste it in Safari, same result.
+3. **M3.** In Safari (not installed), the link opens in a new tab with no question.
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

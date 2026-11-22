@@ -78,6 +78,7 @@ Loading, empty and error states are unchanged.
 - **Safari:** the link opens in a **new tab**, which Safari brings to the front. The BookRough tab stays behind it, in the tab switcher. Playing on Bandcamp and switching back to BookRough works. The developer first read the front tab as "the browser left the site"; it hadn't.
 - **The installed PWA:** iOS has no tabs there. It opens the link in a browser window over BookRough, and the audio lives in that window, so closing it with **Done** stops the song. A website can't make iOS open the link in full Safari instead. The undocumented `x-safari-https://` scheme can, but it is rejected: Apple can drop it in any update. When the service's own app is installed (Spotify, YouTube, Bandcamp), iOS may hand the link to that app, which keeps playing in the background.
 - So **listening while scrolling in the installed PWA** needs an in-app player. That is the parked future feature **D6** (§2).
+- **Amended 2026-11-22:** the rejection of `x-safari-https://` was reversed by [open-in-safari.md](open-in-safari.md). In the installed iOS app a tap now asks "Open in browser?" and can hand the link to full Safari, with Copy link always beside it.
 
 ### 5.3 D4 — Home
 
