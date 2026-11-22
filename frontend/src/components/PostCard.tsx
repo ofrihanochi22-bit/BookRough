@@ -122,25 +122,26 @@ function Cover({
 function PostActionsSheet({
   online,
   onClose,
-  onHide,
+  archive,
   onEdit,
   onDelete,
 }: {
   online: boolean;
   onClose: () => void;
-  onHide?: () => void;
+  /** Archive on Received, Unarchive in the archive (archive-recommendations.md §5). */
+  archive?: { label: string; onSelect: () => void };
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const actions: SheetAction[] = [];
-  if (onHide) {
+  if (archive) {
     actions.push({
-      label: 'Hide',
+      label: archive.label,
       disabled: !online,
-      onSelect: onHide,
+      onSelect: archive.onSelect,
       icon: (
         <LineIcon>
-          <path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 9 4.5 10 6-.4.7-1.4 2-2.8 3.3M6.5 7.6C4.6 8.9 3.4 10.6 2 12c1 1.5 5 6 10 6 1.6 0 3-.4 4.3-1" />
+          <path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4" />
         </LineIcon>
       ),
     });
@@ -189,7 +190,8 @@ export function PostCard({
   onBookmarkChanged,
   linkToDetail = true,
   onRate,
-  onHide,
+  onArchive,
+  onUnarchive,
   onCheck,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
@@ -206,7 +208,10 @@ export function PostCard({
   const Title = large ? 'h1' : 'p';
   // The author edits their comment; a direct item only while still friends (edit-post-comment.md §5.1).
   const canEdit = post.isMine && (!post.direct || post.direct.isFriend);
-  const hasMenu = canEdit || post.canDelete || onHide !== undefined;
+  const archiveAction = onArchive
+    ? { label: 'Archive', run: onArchive }
+    : onUnarchive && { label: 'Unarchive', run: onUnarchive };
+  const hasMenu = canEdit || post.canDelete || archiveAction !== undefined;
   const person = post.direct && post.isMine ? post.direct.recipient : post.author;
   const kind = kindLabel(post.kind);
 
@@ -362,7 +367,12 @@ export function PostCard({
         <PostActionsSheet
           online={online}
           onClose={() => setMenuOpen(false)}
-          onHide={onHide && fromMenu(() => onHide(post))}
+          archive={
+            archiveAction && {
+              label: archiveAction.label,
+              onSelect: fromMenu(() => archiveAction.run(post)),
+            }
+          }
           onEdit={canEdit ? fromMenu(() => setEditing(true)) : undefined}
           onDelete={post.canDelete ? fromMenu(() => setDeleting(true)) : undefined}
         />

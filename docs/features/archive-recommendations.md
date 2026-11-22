@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-|               |                                                                    |
-| ------------- | ------------------------------------------------------------------ |
-| **Use cases** | UC-20 amended (the Received list of the Recommendations screen)    |
-| **Phase**     | 6 — parked idea D2 from the 2026-11-22 manual test                 |
-| **Branch**    | `feat/archive-recommendations`                                     |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+|               |                                                                                 |
+| ------------- | ------------------------------------------------------------------------------- |
+| **Use cases** | UC-20 amended (the Received list of the Recommendations screen)                 |
+| **Phase**     | 6 — parked idea D2 from the 2026-11-22 manual test                              |
+| **Branch**    | `feat/archive-recommendations`                                                  |
+| **Status**    | ☑ Spec approved (2026-11-22) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
 
 ---
 

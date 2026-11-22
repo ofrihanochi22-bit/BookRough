@@ -13,7 +13,7 @@ function bookmark(members: Array<{ role: CommunityRole }>): BookmarkWithPost {
       authorId: 'author-1',
       communityId: 'community-1',
       recipientId: null,
-      recipientHiddenAt: null,
+      recipientArchivedAt: null,
       originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
       sourceService: 'SPOTIFY',
       linkPlatform: null,

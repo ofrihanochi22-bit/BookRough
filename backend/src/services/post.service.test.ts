@@ -735,7 +735,7 @@ describe('editComment', () => {
         conversionPending: false,
         createdAt: new Date('2026-11-01T10:00:00.000Z'),
         updatedAt: new Date('2026-11-08T10:00:00.000Z'),
-        recipientHiddenAt: null,
+        recipientArchivedAt: null,
         author: { id: USER.id, displayName: 'Ofri', profilePictureUrl: null },
         recipient: fields.recipientId
           ? { id: RECIPIENT, displayName: 'Noam', profilePictureUrl: null }

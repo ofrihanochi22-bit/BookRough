@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `archive-recommendations.md` (D2, UC-20, 2026-11-22).** Hide is now **Archive**, and it can be undone: the item leaves Received for the recipient's archive, opened from an "Archived · N" row at the top of Received, where Unarchive puts it back. `recipient_hidden_at` was renamed `recipient_archived_at`, so every hidden item is archived. §3.5's other rules hold: the sender isn't told, and the bookmark and rating stay.
+
 > **Amended by `discussion-threads.md` (UC-22, 2026-11-09).** The two people may discuss a direct recommendation on Post Detail. Like rating, writing there needs current friendship; after unfriending, the discussion stays readable.
 
 > **Amended by `edit-post-comment.md` (N7, 2026-11-08).** §2's "Editing the sender's comment" is now in scope: the sender may edit it while the two are friends, like a rating edit.
@@ -135,7 +137,7 @@ Sending needs an `ACCEPTED` friendship, and so do the two things that reach the 
 ### 3.5 Hide and delete
 
 - **The sender** deletes for both (UC-18's flow): the rating and bookmark go with it.
-- **The recipient** hides for themselves. Hiding sets `recipient_hidden_at` and removes the item from Received and from the unseen count, nothing else (developer's choice): the bookmark and rating stay, the item still opens from My List or a direct link, and the sender keeps seeing the item and rating. There is no undo. The recipient cannot delete.
+- **The recipient** hides for themselves. Hiding sets `recipient_hidden_at` and removes the item from Received and from the unseen count, nothing else (developer's choice): the bookmark and rating stay, the item still opens from My List or a direct link, and the sender keeps seeing the item and rating. There is no undo. The recipient cannot delete. _(Superseded by `archive-recommendations.md`: hiding is now an archive that can be undone.)_
 
 ## 4. API
 
