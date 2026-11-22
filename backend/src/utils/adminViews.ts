@@ -1,6 +1,7 @@
 import type { StreamingService } from '@prisma/client';
 
 import { isUploadedAvatarUrl } from './avatarUrl.js';
+import { communityPhotoUrl } from './communityPhotoUrl.js';
 
 /**
  * The admin area's only shapes (docs/features/admin-panel.md §4). Field by
@@ -22,6 +23,7 @@ export interface AdminUser {
 export interface AdminCommunity {
   id: string;
   name: string;
+  photoUrl: string | null;
   memberCount: number;
   createdAt: string;
   owner: { id: string; displayName: string | null } | null;
@@ -67,9 +69,24 @@ export function toAdminUser(user: {
   };
 }
 
+/** What Prisma must select for `toAdminCommunity` — and nothing more. */
+export const adminCommunitySelect = {
+  id: true,
+  name: true,
+  photoUpdatedAt: true,
+  createdAt: true,
+  _count: { select: { members: true } },
+  members: {
+    where: { role: 'OWNER' },
+    take: 1,
+    select: { user: { select: { id: true, displayName: true } } },
+  },
+} as const;
+
 export function toAdminCommunity(community: {
   id: string;
   name: string;
+  photoUpdatedAt: Date | null;
   createdAt: Date;
   _count: { members: number };
   members: { user: { id: string; displayName: string | null } }[];
@@ -78,6 +95,7 @@ export function toAdminCommunity(community: {
   return {
     id: community.id,
     name: community.name,
+    photoUrl: communityPhotoUrl(community.id, community.photoUpdatedAt),
     memberCount: community._count.members,
     createdAt: community.createdAt.toISOString(),
     owner: owner ? { id: owner.id, displayName: owner.displayName } : null,

@@ -8,6 +8,7 @@ import {
   users,
 } from '../controllers/admin.controller.js';
 import { adminDeleteAvatar } from '../controllers/avatar.controller.js';
+import { adminDeletePhoto } from '../controllers/communityPhoto.controller.js';
 import { adminSnapshot, overview } from '../controllers/ops.controller.js';
 import { adminSettings, changeSettings } from '../controllers/settings.controller.js';
 import { requireAppAdmin } from '../middleware/requireAppAdmin.js';
@@ -35,3 +36,10 @@ adminRouter.get(
 );
 adminRouter.delete('/users/:userId', requireAuth, requireAppAdmin, removeUser);
 adminRouter.delete('/communities/:communityId', requireAuth, requireAppAdmin, removeCommunity);
+// Remove a community's photo (community-photo.md D2).
+adminRouter.delete(
+  '/communities/:communityId/photo',
+  requireAuth,
+  requireAppAdmin,
+  adminDeletePhoto,
+);

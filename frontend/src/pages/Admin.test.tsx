@@ -54,6 +54,7 @@ function adminCommunity(overrides: Partial<AdminCommunity> = {}): AdminCommunity
   return {
     id: '22222222-2222-4222-8222-222222222222',
     name: 'Friday Jazz',
+    photoUrl: null,
     memberCount: 5,
     createdAt: '2026-10-03T09:00:00.000Z',
     owner: { id: '11111111-1111-4111-8111-111111111111', displayName: 'Mia' },

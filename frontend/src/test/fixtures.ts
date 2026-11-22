@@ -37,6 +37,7 @@ export function makeCommunity(overrides: Partial<PublicCommunity> = {}): PublicC
     id: '0b7f6c2e-9d4a-4c1e-8a35-5f2d9e1b7c40',
     name: 'Friday Jazz',
     description: null,
+    photoUrl: null,
     memberCount: 1,
     myRole: 'ADMIN',
     createdAt: '2026-10-03T09:00:00.000Z',

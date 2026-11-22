@@ -128,25 +128,29 @@ model User {
 
 /// docs/features/communities-create.md §3.
 ///
-/// There is no cover image column: covers are always generated from the name
-/// and id (CLAUDE.md §8).
+/// The cover is generated from the name and id, unless an admin uploaded a
+/// photo (docs/features/community-photo.md §3).
 model Community {
-  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Shown as typed. Not unique — communities are found by invite, never by name.
-  name          String                @db.VarChar(100)
+  name           String                @db.VarChar(100)
   /// Plain text with line breaks; null when the creator left it blank.
-  description   String?
+  description    String?
   /// The community's one invite link (docs/features/communities-invites.md §3).
   /// Created on first request, replaced on reset. A secret: never logged, never
   /// in PublicCommunity.
-  inviteToken   String?               @unique @map("invite_token") @db.VarChar(64)
-  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  members       CommunityMember[]
-  bans          CommunityBan[]
-  posts         Post[]
-  invitations   CommunityInvitation[]
-  notifications Notification[]
+  inviteToken    String?               @unique @map("invite_token") @db.VarChar(64)
+  /// When the photo was last uploaded; null = the generated cover. Written with
+  /// the community_photos row in one transaction; the `?v=` of its URL.
+  photoUpdatedAt DateTime?             @map("photo_updated_at") @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  members        CommunityMember[]
+  bans           CommunityBan[]
+  posts          Post[]
+  invitations    CommunityInvitation[]
+  notifications  Notification[]
+  photo          CommunityPhoto?
 
   @@map("communities")
 }
@@ -465,6 +469,18 @@ model UserAvatar {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_avatars")
+}
+
+/// A community's uploaded photo — docs/features/community-photo.md §3. Only
+/// the server's 256×256 WebP re-encode, never the uploaded bytes; its own
+/// table keeps the bytes out of every `communities` read.
+model CommunityPhoto {
+  communityId String    @id @map("community_id") @db.Uuid
+  image       Bytes
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@map("community_photos")
 }
 
 /// A post's discussion — docs/features/discussion-threads.md §3 (UC-22).

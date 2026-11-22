@@ -77,7 +77,12 @@ function ChooseCommunity({
             className="flex min-h-14 w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left font-medium"
           >
             <div className="w-14 shrink-0">
-              <CommunityCover id={community.id} name={community.name} variant="thumb" />
+              <CommunityCover
+                id={community.id}
+                name={community.name}
+                variant="thumb"
+                photoUrl={community.photoUrl}
+              />
             </div>
             <span className="min-w-0 truncate">
               <bdi>{community.name}</bdi>
