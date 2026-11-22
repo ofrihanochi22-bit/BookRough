@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
 import { makeAdmin } from '../support/database';
-import { onboardedAccount } from '../support/flows';
+import { isolated, onboardedAccount } from '../support/flows';
 
 /**
  * Admin settings golden loop — docs/features/admin-panel.md §7 (Part 2).
@@ -37,7 +37,7 @@ test('an admin changes the settings; a friend sees the banner and a visitor the 
 
     // Assert — saved, recorded, and applied to the admin's own app at once.
     await expect(page.getByText('Settings saved')).toBeVisible();
-    await expect(page.getByText(`turned on the banner: “${notice}”`)).toBeVisible();
+    await expect(page.getByText(`turned on the banner: “${isolated(notice)}”`)).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-accent', 'green');
 
     // Assert — a friend signing in sees the banner.

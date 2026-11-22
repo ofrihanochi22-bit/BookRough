@@ -3595,7 +3595,7 @@ cd backend && npm run test:coverage
 
 ### Step 6.1z7 — Manual-test fixes of 2026-11-22: Hebrew text direction, new-tab links, alphabetical Home (Phase 6 — UC-9, UC-10, UC-11, UC-12, UC-21, UC-22 presentation; UC-9 list order)
 
-Status: 🟡 PR open
+Status: ✅ Done (merged as PR #91)
 Branch: fix/manual-test-1122
 Spec: docs/features/manual-test-fixes-1122.md
 
@@ -3609,6 +3609,7 @@ What I did:
 - Docs: the new spec; `communities-create.md` §4, §6.4 and its scenarios amended; `docs/frontend screens.md` and `.docx` (Home's order, and the user-text direction line); `CLAUDE.md` §8.
 - Tests: `frontend/src/test/bidi.ts` (`plain`, `readsAs`, `named`) lets tests read text split by `<bdi>` or carrying isolate marks; about 45 existing assertions were updated for it, and the E2E assertions that read names in toasts and notifications use `isolated()` from `e2e/support/flows.ts`.
 - `/code-review` (high), 7 findings, all fixed: the E2E assertions that would have broken on the isolate marks, the backend tests still asserting join order, `docs/frontend screens.md`/`.docx` and `communities-create.md` still saying "newest joined first", CLAUDE.md §8 not yet amended, a stale comment in `Dashboard.tsx`, the missing guard test, and the import order of the new helper. No `/security-review`: no authentication, permission, endpoint or external service changes. The one new input-adjacent change is a `dir` attribute.
+- **Fix, 2026-11-22 (`fix/e2e-banner-history-isolate`):** the post-merge `main.yml` run of PR #91 failed `test:e2e` on one assertion this PR missed. `admin-settings.spec.ts` read the settings history line `turned on the banner: “…”`, whose banner text is now isolated. It reads it through `isolated()` too. Test only; no app change. Production stayed on the previous deployment until this ran green.
 
 How to view & test:
 
