@@ -3666,7 +3666,7 @@ In a desktop browser nothing changes: run `cd backend && npm run dev` and `cd fr
 
 ### Step 6.1z9 — Unchecked community recommendations, D1 (Phase 6 — UC-20 amended, UC-11)
 
-Status: 🟡 In review (PR open)
+Status: ✅ Done (merged as PR #94)
 Branch: feat/community-unchecked
 Spec: docs/features/community-unchecked.md
 
