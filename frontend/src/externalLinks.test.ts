@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -7,34 +5,33 @@ import { describe, expect, it } from 'vitest';
  * link that leaves BookRough goes through `ExternalLink`, which always opens a
  * new tab. A raw `<a>` anywhere else fails here, so a future link can't forget.
  * Internal navigation uses React Router's `<Link>`, which this doesn't match.
+ * The sources are read through Vite's glob import, so no Node API is needed.
  */
 
-const SRC = __dirname;
-const ALLOWED = 'components/ExternalLink.tsx';
+const ALLOWED = './components/ExternalLink.tsx';
+
+const SOURCES = import.meta.glob<string>(['./**/*.{ts,tsx}', '!./**/*.test.{ts,tsx}'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 /** True when the source writes a raw anchor element. */
 function hasRawAnchor(source: string): boolean {
   return /<a[\s>]/.test(source);
 }
 
-function sourceFiles(): string[] {
-  return readdirSync(SRC, { recursive: true, encoding: 'utf8' })
-    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
-    .map((file) => relative(SRC, join(SRC, file)).replaceAll('\\', '/'));
-}
-
 describe('external links', () => {
   it('are written only in ExternalLink.tsx', () => {
     // Arrange
-    const files = sourceFiles();
+    const files = Object.keys(SOURCES);
 
     // Act
-    const offenders = files.filter(
-      (file) => file !== ALLOWED && hasRawAnchor(readFileSync(join(SRC, file), 'utf8')),
-    );
+    const offenders = files.filter((file) => file !== ALLOWED && hasRawAnchor(SOURCES[file]!));
 
     // Assert
     expect(files).toContain(ALLOWED);
+    expect(files.length).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
   });
 
