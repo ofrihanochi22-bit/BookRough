@@ -31,6 +31,7 @@ export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsP
         </div>
         <input
           id="community-name"
+          dir="auto"
           value={form.name}
           onChange={(event) => {
             form.setName(event.target.value);
@@ -59,6 +60,7 @@ export function CommunityDetailsFields({ form, onEdit }: CommunityDetailsFieldsP
         </div>
         <textarea
           id="community-description"
+          dir="auto"
           value={form.description}
           onChange={(event) => {
             form.setDescription(event.target.value);

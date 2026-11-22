@@ -94,7 +94,7 @@ export function CommunityCover({ id, name, variant, label, detail }: CommunityCo
               banner ? 'text-2xl' : 'text-lg'
             }`}
           >
-            {name.trim() || '♪'}
+            <bdi>{name.trim() || '♪'}</bdi>
           </Name>
           {detail && (
             <p className="text-sm">

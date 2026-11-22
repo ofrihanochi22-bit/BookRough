@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount, openSearch } from '../support/flows';
+import { friendPage, isolated, onboardedAccount, openSearch } from '../support/flows';
 import { completeProfile, dashboardHeading, signIn } from '../support/flows';
 import { newGoogleAccount } from '../support/googleStandIn';
 
@@ -41,7 +41,9 @@ test('friends send a song directly, each on their own service, and rate it', asy
   await openSearch(receiver);
   await tab(receiver, 'Friends, 1 waiting').click();
   await receiver.getByRole('button', { name: `Accept ${sender.displayName}` }).click();
-  await expect(receiver.getByText(`You're now friends with ${sender.displayName}.`)).toBeVisible();
+  await expect(
+    receiver.getByText(`You're now friends with ${isolated(sender.displayName)}.`),
+  ).toBeVisible();
 
   // Act — the sender sends a song from the friend's profile.
   await page.reload();
@@ -50,7 +52,7 @@ test('friends send a song directly, each on their own service, and rate it', asy
   await sheet.getByLabel('Song or album link').fill(KNOWN_TRACK);
   await sheet.getByLabel(/Comment/).fill('Reminds me of our trip');
   await sheet.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByText(`Sent to ${receiverAccount.displayName}`)).toBeVisible();
+  await expect(page.getByText(`Sent to ${isolated(receiverAccount.displayName)}`)).toBeVisible();
 
   // Assert — the receiver is notified on the Home tab (notifications.md §5.3: the
   // Friends badge counts only what waits for an answer), and finds the song in

@@ -24,7 +24,7 @@ function PersonIdentity({ user, label, avatarSize = 32 }: PersonIdentityProps) {
         size={avatarSize}
         decorative
       />
-      <span className="min-w-0 truncate">{label ?? user.displayName}</span>
+      <span className="min-w-0 truncate">{label ?? <bdi>{user.displayName}</bdi>}</span>
     </>
   );
 }

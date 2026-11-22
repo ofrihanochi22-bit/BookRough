@@ -15,6 +15,7 @@ import {
 import { type StreamingService, useAuthStore } from '../stores/auth';
 import {
   httpError,
+  makeLinkOnlyPost,
   makePendingPost,
   makePost,
   makeSession,
@@ -610,5 +611,90 @@ describe('PostCard — editing the comment (edit-post-comment.md §5)', () => {
 
     // Assert
     expect(screen.queryByText('· edited')).not.toBeInTheDocument();
+  });
+});
+
+describe('PostCard — user text and links (manual-test-fixes-1122.md §5)', () => {
+  it('lays out the title, artist and comment in their own direction, and isolates the author', () => {
+    // Act
+    renderCard(
+      makePost({
+        title: 'שיר לשבת',
+        artist: 'אריק איינשטיין',
+        comment: 'הקלאסיקות של פעם, בלי פשרות.',
+        author: { id: 'a1', displayName: 'דנה', profilePictureUrl: null },
+      }),
+    );
+
+    // Assert
+    expect(screen.getByText('שיר לשבת').closest('p')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('אריק איינשטיין')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('הקלאסיקות של פעם, בלי פשרות.')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('דנה').tagName).toBe('BDI');
+  });
+
+  it('keeps English text left-to-right: no dir="rtl" anywhere on the card', () => {
+    // Act
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={makePost({ comment: 'An English comment.' })}
+          viewerService="SPOTIFY"
+          online
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(container.querySelector('[dir="rtl"]')).toBeNull();
+    expect(container.querySelector('[dir="ltr"]')).toBeNull();
+  });
+
+  it('opens the main service button in a new tab', () => {
+    // Act
+    renderCard(makePost());
+
+    // Assert
+    const open = screen.getByRole('link', { name: 'Open in Apple Music' });
+    expect(open).toHaveAttribute('target', '_blank');
+    expect(open).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it("opens a link-only post's button in a new tab", () => {
+    // Act
+    renderCard(
+      makeLinkOnlyPost({
+        originalUrl: 'https://artist.bandcamp.com/album/x',
+        platform: 'BANDCAMP',
+        kind: 'ALBUM',
+      }),
+    );
+
+    // Assert
+    const open = screen.getByRole('link', { name: /Bandcamp/ });
+    expect(open).toHaveAttribute('href', 'https://artist.bandcamp.com/album/x');
+    expect(open).toHaveAttribute('target', '_blank');
+  });
+
+  it('opens every Other services link in a new tab', async () => {
+    // Arrange
+    renderCard(makePost());
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+
+    // Assert
+    const links = within(screen.getByRole('dialog', { name: 'Other services' })).getAllByRole(
+      'link',
+    );
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
   });
 });

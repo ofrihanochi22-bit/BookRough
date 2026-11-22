@@ -37,7 +37,7 @@ test('a post reaches a member through the bell, and their rating reaches the aut
   await nav(friend).getByRole('link', { name: /^Home/ }).click();
   await expect(nav(friend).getByRole('link', { name: 'Home, 1 unread' })).toBeVisible();
   await friend.getByRole('link', { name: 'Notifications, 1 unread' }).click();
-  await friend.getByRole('link', { name: /posted in Notify Club/ }).click();
+  await friend.getByRole('link', { name: /posted in \u2068?Notify Club\u2069?/ }).click();
   await expect(friend.getByRole('heading', { name: 'Notify Club' })).toBeVisible();
   await expect(nav(friend).getByRole('link', { name: 'Home', exact: true })).toBeVisible();
 

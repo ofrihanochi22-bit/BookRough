@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { httpError, makePost, networkError } from '../test/fixtures';
 import { HideRecommendationSheet } from './HideRecommendationSheet';
+import { isolate } from '../lib/bidi';
 
 const { hideRecommendation, toastSuccess } = vi.hoisted(() => ({
   hideRecommendation: vi.fn(),
@@ -35,7 +36,9 @@ describe('HideRecommendationSheet', () => {
     const { onHidden } = renderSheet();
 
     // Act
-    expect(screen.getByText("Hide this from Received? Dana won't be told.")).toBeInTheDocument();
+    expect(
+      screen.getByText(`Hide this from Received? ${isolate('Dana')} won't be told.`),
+    ).toBeInTheDocument();
     await user.click(confirm());
 
     // Assert

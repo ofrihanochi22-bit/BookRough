@@ -79,7 +79,8 @@ describe('FriendPicker (invite-friends.md §5.1)', () => {
       selected: new Set(),
       onToggle,
     });
-    const name = screen.getByText('Dov');
+    // The name's text sits in a <bdi> inside the name span (manual-test-fixes-1122.md §5.1).
+    const name = screen.getByText('Dov').parentElement as HTMLElement;
     const avatar = name.previousElementSibling as HTMLElement;
 
     // Act

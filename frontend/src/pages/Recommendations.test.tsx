@@ -18,6 +18,7 @@ import {
   setOnline,
 } from '../test/fixtures';
 import { Recommendations } from './Recommendations';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   listReceived: vi.fn(),
@@ -316,7 +317,9 @@ describe('Recommendations', () => {
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
-    expect(await screen.findByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(
+      await screen.findByText(`You're no longer friends with ${isolate('Dana')}`),
+    ).toBeInTheDocument();
     expect(toastError).toHaveBeenCalledWith('You can only rate songs from friends.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -332,7 +335,9 @@ describe('Recommendations', () => {
 
     // Assert
     const card = (await screen.findByText('Song 1')).closest('article')!;
-    expect(within(card).getByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(
+      within(card).getByText(`You're no longer friends with ${isolate('Dana')}`),
+    ).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /Listen Later/ })).toBeEnabled();
   });
@@ -399,7 +404,7 @@ describe('Recommendations', () => {
     // Assert
     expect(
       within(sheet).getByText(
-        "Delete this recommendation? Dana will lose it too, with any rating. They won't be notified.",
+        `Delete this recommendation? ${isolate('Dana')} will lose it too, with any rating. They won't be notified.`,
       ),
     ).toBeInTheDocument();
 

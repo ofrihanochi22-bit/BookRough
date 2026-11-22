@@ -51,17 +51,32 @@ export async function createCommunity(user: User, input: NewCommunity): Promise<
   return toPublicCommunity(community, 1, CommunityRole.OWNER);
 }
 
-/** The caller's communities, the one they joined most recently first. */
+/**
+ * The order of Home's list (manual-test-fixes-1122.md §4): a fixed ICU
+ * collator, so every environment sorts the same whatever the database's
+ * collation. Case and accents are ignored, numbers sort by value, and Latin
+ * comes before Hebrew.
+ */
+const byName = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+
+/** Two communities in Home's order: by name, then by id when the names compare equal. */
+export function compareCommunities(
+  a: { id: string; name: string },
+  b: { id: string; name: string },
+): number {
+  return byName.compare(a.name, b.name) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+/** The caller's communities, alphabetically by name. */
 export async function listMyCommunities(user: User): Promise<PublicCommunity[]> {
   const memberships = await prisma.communityMember.findMany({
     where: { userId: user.id },
-    orderBy: [{ joinedAt: 'desc' }, { communityId: 'asc' }],
     include: { community: { include: withMemberCount } },
   });
 
-  return memberships.map(({ community, role }) =>
-    toPublicCommunity(community, community._count.members, role),
-  );
+  return memberships
+    .map(({ community, role }) => toPublicCommunity(community, community._count.members, role))
+    .sort(compareCommunities);
 }
 
 /**

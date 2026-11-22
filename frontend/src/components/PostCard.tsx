@@ -9,6 +9,7 @@ import { commentCountLine, ratingSummaryLine } from '../lib/ratingCopy';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import { BookmarkButton } from './BookmarkButton';
 import { EditCommentSheet } from './EditCommentSheet';
+import { ExternalLink } from './ExternalLink';
 import { PersonLink } from './PersonLink';
 import { TryAgainChip } from './TryAgainChip';
 import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postCardParts';
@@ -221,7 +222,7 @@ export function PostCard({
         {post.direct && <span className="text-xs text-muted">{post.isMine ? 'To' : 'From'}</span>}
         <PersonLink
           user={person}
-          label={post.isMine && !post.direct ? 'You' : person.displayName}
+          label={post.isMine && !post.direct ? 'You' : undefined}
           className="min-w-0 text-sm font-semibold"
         />
         <time dateTime={post.createdAt} className="shrink-0 text-xs text-muted">
@@ -265,7 +266,10 @@ export function PostCard({
         <div className="flex min-w-0 flex-col justify-center gap-1.5">
           {post.conversionPending ? (
             <>
-              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
+              <Title
+                dir="auto"
+                className={`font-display leading-tight font-bold break-words ${titleSize}`}
+              >
                 {pendingTitle(post)}
               </Title>
               <p role="status" className="text-xs text-danger">
@@ -274,14 +278,21 @@ export function PostCard({
             </>
           ) : (
             <>
-              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
+              <Title
+                dir="auto"
+                className={`font-display leading-tight font-bold break-words ${titleSize}`}
+              >
                 {detailPath ? (
                   <Link to={detailPath}>{displayTitle(post)}</Link>
                 ) : (
                   displayTitle(post)
                 )}
               </Title>
-              {post.artist && <p className="text-sm break-words text-muted">{post.artist}</p>}
+              {post.artist && (
+                <p dir="auto" className="text-sm break-words text-muted">
+                  {post.artist}
+                </p>
+              )}
               {kind && <p className={KIND_TAG}>{kind}</p>}
             </>
           )}
@@ -290,6 +301,7 @@ export function PostCard({
 
       {post.comment && (
         <p
+          dir="auto"
           className={`rounded-[10px] px-3.5 py-2.5 text-sm whitespace-pre-line break-words ${TAPE_PAPER}`}
         >
           {post.comment}
@@ -313,9 +325,9 @@ export function PostCard({
         ))}
 
       <div className="flex flex-wrap items-center gap-2">
-        <a href={main.url} target="_blank" rel="noopener noreferrer" className={OPEN_IN_PILL}>
+        <ExternalLink href={main.url} className={OPEN_IN_PILL}>
           {main.text}
-        </a>
+        </ExternalLink>
         {!post.conversionPending && !post.platform && (
           <button type="button" className={CHIP} onClick={() => setShowingLinks(true)}>
             Other services

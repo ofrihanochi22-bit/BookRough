@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount, openSearch } from '../support/flows';
+import { friendPage, isolated, onboardedAccount, openSearch } from '../support/flows';
 
 /**
  * Phase 5 golden loop, "friends bring each other into communities" —
@@ -30,7 +30,9 @@ test('a friend is invited on the create form and joins from the Friends tab', as
   await openSearch(guest);
   await tab(guest, 'Friends, 1 waiting').click();
   await guest.getByRole('button', { name: `Accept ${owner.displayName}` }).click();
-  await expect(guest.getByText(`You're now friends with ${owner.displayName}.`)).toBeVisible();
+  await expect(
+    guest.getByText(`You're now friends with ${isolated(owner.displayName)}.`),
+  ).toBeVisible();
 
   // Act — A creates a community and ticks B.
   await tab(page, 'Home').click();
@@ -49,12 +51,14 @@ test('a friend is invited on the create form and joins from the Friends tab', as
   await tab(guest, 'Home').click();
   await tab(guest, 'Friends, 1 waiting').click();
   const invitations = guest.getByRole('region', { name: 'Invitations' });
-  await expect(invitations.getByText(`${owner.displayName} invited you · 1 member`)).toBeVisible();
+  await expect(
+    invitations.getByText(`${isolated(owner.displayName)} invited you · 1 member`),
+  ).toBeVisible();
   await invitations.getByRole('button', { name: 'Join Invited Club' }).click();
 
   // Assert — B lands in the community, which now has two members.
   await expect(guest.getByRole('heading', { name: 'Invited Club' })).toBeVisible();
-  await expect(guest.getByText('You joined Invited Club.')).toBeVisible();
+  await expect(guest.getByText(`You joined ${isolated('Invited Club')}.`)).toBeVisible();
   await expect(tab(guest, 'Friends')).toBeVisible();
 
   await guest.context().close();

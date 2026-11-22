@@ -7,6 +7,7 @@ import { canRateSaved, canRetrySaved } from '../lib/savedPosts';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
+import { ExternalLink } from './ExternalLink';
 import { TryAgainChip } from './TryAgainChip';
 import { Button } from './ui/Button';
 import { KIND_TAG, OPEN_IN_PILL } from './ui/chip';
@@ -32,17 +33,19 @@ function SourceLine({ saved }: { saved: SavedPost }) {
     <p className="text-xs text-muted">
       {community ? (
         <>
-          Shared by {post.author.displayName} in{' '}
+          Shared by <bdi>{post.author.displayName}</bdi> in{' '}
           {saved.isMember ? (
             <Link to={`/communities/${community.id}`} className="font-medium underline">
-              {community.name}
+              <bdi>{community.name}</bdi>
             </Link>
           ) : (
-            <span className="font-medium">{community.name}</span>
+            <bdi className="font-medium">{community.name}</bdi>
           )}
         </>
       ) : (
-        <>Sent by {post.author.displayName}</>
+        <>
+          Sent by <bdi>{post.author.displayName}</bdi>
+        </>
       )}{' '}
       · Saved <time dateTime={saved.savedAt}>{relativeTime(saved.savedAt)}</time>
     </p>
@@ -54,7 +57,9 @@ function CannotRateLine({ saved }: { saved: SavedPost }) {
   return (
     <p className="text-xs text-muted">
       {saved.community ? (
-        <>You&apos;re no longer in {saved.community.name}</>
+        <>
+          You&apos;re no longer in <bdi>{saved.community.name}</bdi>
+        </>
       ) : (
         noLongerFriends(saved.post.author.displayName)
       )}
@@ -98,7 +103,7 @@ export function SavedPostCard({
         <div className="flex min-w-0 flex-col justify-center gap-1.5">
           {post.conversionPending ? (
             <>
-              <p className="font-display text-lg leading-tight font-bold break-words">
+              <p dir="auto" className="font-display text-lg leading-tight font-bold break-words">
                 {pendingTitle(post)}
               </p>
               <p role="status" className="text-xs text-danger">
@@ -107,10 +112,14 @@ export function SavedPostCard({
             </>
           ) : (
             <>
-              <p className="font-display text-lg leading-tight font-bold break-words">
+              <p dir="auto" className="font-display text-lg leading-tight font-bold break-words">
                 {displayTitle(post)}
               </p>
-              {post.artist && <p className="text-sm break-words text-muted">{post.artist}</p>}
+              {post.artist && (
+                <p dir="auto" className="text-sm break-words text-muted">
+                  {post.artist}
+                </p>
+              )}
               {kind && <p className={KIND_TAG}>{kind}</p>}
             </>
           )}
@@ -133,9 +142,9 @@ export function SavedPostCard({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <a href={main.url} target="_blank" rel="noopener noreferrer" className={OPEN_IN_PILL}>
+        <ExternalLink href={main.url} className={OPEN_IN_PILL}>
           {main.text}
-        </a>
+        </ExternalLink>
         {canRetrySaved(saved) && (
           <TryAgainChip online={online} retrying={retrying} onClick={retry} />
         )}

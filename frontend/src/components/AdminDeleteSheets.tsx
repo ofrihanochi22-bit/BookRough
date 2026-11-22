@@ -11,6 +11,7 @@ import {
   type UserDeletionPreview,
 } from '../api/admin';
 import { useRequest } from '../hooks/useRequest';
+import { isolate } from '../lib/bidi';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
 import { Spinner } from './ui/Spinner';
@@ -178,15 +179,23 @@ export function DeleteUserSheet({
                 <li key={community.id}>
                   {community.outcome === 'TRANSFER' ? (
                     <>
-                      <strong>{community.name}</strong> passes to{' '}
                       <strong>
-                        {community.newOwner?.displayName ?? 'a member not finished signing up'}
+                        <bdi>{community.name}</bdi>
+                      </strong>{' '}
+                      passes to{' '}
+                      <strong>
+                        <bdi>
+                          {community.newOwner?.displayName ?? 'a member not finished signing up'}
+                        </bdi>
                       </strong>
                       .
                     </>
                   ) : (
                     <>
-                      <strong>{community.name}</strong> will be deleted.
+                      <strong>
+                        <bdi>{community.name}</bdi>
+                      </strong>{' '}
+                      will be deleted.
                     </>
                   )}
                 </li>
@@ -212,7 +221,9 @@ export function DeleteCommunitySheet({
     () => deleteAdminCommunity(community.id),
     (alreadyGone) => {
       toast.success(
-        alreadyGone ? 'That community was already deleted.' : `${community.name} was deleted.`,
+        alreadyGone
+          ? 'That community was already deleted.'
+          : `${isolate(community.name)} was deleted.`,
       );
       onClose();
       onDeleted();
@@ -234,7 +245,11 @@ export function DeleteCommunitySheet({
       busy={busy}
     >
       <p className="text-sm">
-        Delete <strong>{community.name}</strong>? {members} This can&apos;t be undone.
+        Delete{' '}
+        <strong>
+          <bdi>{community.name}</bdi>
+        </strong>
+        ? {members} This can&apos;t be undone.
       </p>
     </ConfirmDeleteSheet>
   );

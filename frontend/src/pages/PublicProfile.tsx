@@ -135,7 +135,9 @@ export function PublicProfile() {
               />
             </span>
             <div className="min-w-0">
-              <h1 className={`break-words ${MIXTAPE_H1}`}>{user.displayName}</h1>
+              <h1 className={`break-words ${MIXTAPE_H1}`}>
+                <bdi>{user.displayName}</bdi>
+              </h1>
               <p className="text-sm text-muted">
                 Listens on {streamingServiceLabel(user.preferredService)}
               </p>
@@ -253,20 +255,28 @@ function RatingRow({ rating }: { rating: ProfileRating }) {
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {post.conversionPending ? (
           <>
-            <p className="font-display font-bold">{pendingTitle(post)}</p>
+            <p dir="auto" className="font-display font-bold">
+              {pendingTitle(post)}
+            </p>
             <p className="text-xs text-danger">{PENDING_SHORT_NOTICE}</p>
           </>
         ) : (
           <>
-            <p className="truncate font-display font-bold">{displayTitle(post)}</p>
-            <p className="truncate text-sm text-muted">{post.artist}</p>
+            <p dir="auto" className="truncate font-display font-bold">
+              {displayTitle(post)}
+            </p>
+            <p dir="auto" className="truncate text-sm text-muted">
+              {post.artist}
+            </p>
           </>
         )}
         {rating.comment && (
-          <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
+          <p dir="auto" className="whitespace-pre-line break-words text-sm">
+            {rating.comment}
+          </p>
         )}
         <p className="text-xs text-muted">
-          in {rating.community.name} ·{' '}
+          in <bdi>{rating.community.name}</bdi> ·{' '}
           <time dateTime={rating.createdAt}>{relativeTime(rating.createdAt)}</time>
         </p>
       </div>

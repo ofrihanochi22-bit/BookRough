@@ -9,6 +9,7 @@ import { PROFILE_FAILED, RATINGS_LOAD_FAILED } from '../lib/profileCopy';
 import { useAuthStore } from '../stores/auth';
 import { httpError, makeSession, makeUser, networkError, resetAuthStore } from '../test/fixtures';
 import { PublicProfile } from './PublicProfile';
+import { isolate } from '../lib/bidi';
 
 const { getProfile, listProfileRatings } = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -194,7 +195,9 @@ describe('PublicProfile', () => {
     // Assert
     expect(await screen.findByText('No ratings to show')).toBeInTheDocument();
     expect(
-      screen.getByText("You'll see Dana Levi's ratings from the communities you share."),
+      screen.getByText(
+        `You'll see ${isolate('Dana Levi')}'s ratings from the communities you share.`,
+      ),
     ).toBeInTheDocument();
   });
 

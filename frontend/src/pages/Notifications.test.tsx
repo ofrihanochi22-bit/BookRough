@@ -7,6 +7,8 @@ import type { PublicNotification } from '../api/notifications';
 import { useNotifications } from '../stores/notifications';
 import { setOnline } from '../test/fixtures';
 import { Notifications } from './Notifications';
+import { named } from '../test/bidi';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   listNotifications: vi.fn(),
@@ -170,7 +172,7 @@ describe('Notifications — rows', () => {
     renderScreen();
 
     // Act
-    const row = await screen.findByRole('link', { name: new RegExp(text) });
+    const row = await screen.findByRole('link', { name: named(new RegExp(text)) });
     await userEvent.click(row);
 
     // Assert
@@ -209,7 +211,7 @@ describe('Notifications — rows', () => {
     await userEvent.click(row);
 
     // Assert
-    expect(row).toHaveTextContent('Jazz was removed by an admin.');
+    expect(row).toHaveTextContent(`${isolate('Jazz')} was removed by an admin.`);
     expect(row).not.toHaveTextContent('Dana');
     expect(screen.queryByRole('link', { name: /removed/ })).not.toBeInTheDocument();
     expect(api.markNotificationRead).toHaveBeenCalledWith('n1');

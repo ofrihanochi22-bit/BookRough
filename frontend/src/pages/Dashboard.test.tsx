@@ -385,3 +385,26 @@ describe('Home with the client cache (client-cache.md §5)', () => {
     expect(within(loading).getByText(LOADING_HINT_TEXT)).toBeInTheDocument();
   });
 });
+
+describe('Dashboard — order (manual-test-fixes-1122.md §4)', () => {
+  it('shows the communities in the order the server sends, English and Hebrew names isolated', async () => {
+    // Arrange — the server sorts; the screen must not reorder.
+    listMyCommunities.mockResolvedValue([
+      makeCommunity({ id: 'a', name: 'Indie Rock Night' }),
+      makeCommunity({ id: 'b', name: 'Jazz & Coffee' }),
+      makeCommunity({ id: 'c', name: 'מזרחית ותיקה' }),
+    ]);
+
+    // Act
+    renderDashboard();
+
+    // Assert
+    await screen.findByRole('link', { name: /Indie Rock Night/ });
+    const names = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.startsWith('/communities/'))
+      .filter((link) => link.getAttribute('href') !== '/communities/new')
+      .map((link) => link.querySelector('bdi')?.textContent);
+    expect(names).toEqual(['Indie Rock Night', 'Jazz & Coffee', 'מזרחית ותיקה']);
+  });
+});

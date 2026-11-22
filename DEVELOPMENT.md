@@ -3593,6 +3593,47 @@ cd frontend && npm run test:unit
 cd backend && npm run test:coverage
 ```
 
+### Step 6.1z7 — Manual-test fixes of 2026-11-22: Hebrew text direction, new-tab links, alphabetical Home (Phase 6 — UC-9, UC-10, UC-11, UC-12, UC-21, UC-22 presentation; UC-9 list order)
+
+Status: 🟡 PR open
+Branch: fix/manual-test-1122
+Spec: docs/features/manual-test-fixes-1122.md
+
+Goal: three items from the manual test session of 2026-11-22 on the iPhone, in one PR at the developer's request: F1 (a Hebrew description's final period showed on the wrong side), D3 (external links open in a new tab) and D4 (Home lists communities alphabetically).
+
+What I did:
+
+- **F1, user text keeps its own direction** (approved by the developer as an exception to CLAUDE.md §8, which now records it). A paragraph of user text gets `dir="auto"`: community descriptions, post comments, reviews, thread comments, song titles and artists, on cards, Post Detail, My List, Public Profile and the rating sheet. A name in a row, on a cassette label or inside an English sentence is wrapped in `<bdi>`: person rows (`PersonLink`), `CommunityCover`, Search, Friends, Community Settings, Admin lists and delete sheets, "Shared by … in …" on My List, the Share and Send-a-song sheets. Sentences built as strings (toasts, notification lines, sheet titles and bodies, the settings history) wrap the user part with `isolate()` from the new `frontend/src/lib/bidi.ts`, which adds the Unicode isolate marks U+2068/U+2069. Free-text inputs get `dir="auto"` (community name and description, display name, comments, reviews, the admin banner and tagline, Search). The UI stays English and left-to-right.
+- **D3, external links:** the three links that leave the app (the "Open in …" button on post cards and My List cards, and the Other services sheet) already opened a new tab. They now go through one component, `frontend/src/components/ExternalLink.tsx`, and `frontend/src/externalLinks.test.ts` fails if a raw `<a>` appears anywhere else. Checked on the developer's iPhone: in Safari the link opens in a new tab in front of BookRough, which stays behind it, so a Bandcamp song keeps playing. In the installed PWA, iOS opens the link in a window over the app, and closing it stops the song; a site can't change that. An in-app player is parked as future feature **D6**.
+- **D4, alphabetical Home:** `listMyCommunities` in `backend/src/services/community.service.ts` sorts with an `Intl.Collator('en', { sensitivity: 'base', numeric: true })`, ties broken by id (`compareCommunities`). Case and accents are ignored, numbers sort by value, and English comes before Hebrew (the developer's choice). The Share sheet's community list follows, since it uses the same endpoint.
+- Docs: the new spec; `communities-create.md` §4, §6.4 and its scenarios amended; `docs/frontend screens.md` and `.docx` (Home's order, and the user-text direction line); `CLAUDE.md` §8.
+- Tests: `frontend/src/test/bidi.ts` (`plain`, `readsAs`, `named`) lets tests read text split by `<bdi>` or carrying isolate marks; about 45 existing assertions were updated for it, and the E2E assertions that read names in toasts and notifications use `isolated()` from `e2e/support/flows.ts`.
+- `/code-review` (high), 7 findings, all fixed: the E2E assertions that would have broken on the isolate marks, the backend tests still asserting join order, `docs/frontend screens.md`/`.docx` and `communities-create.md` still saying "newest joined first", CLAUDE.md §8 not yet amended, a stale comment in `Dashboard.tsx`, the missing guard test, and the import order of the new helper. No `/security-review`: no authentication, permission, endpoint or external service changes. The one new input-adjacent change is a `dir` attribute.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/`, sign in, and create two communities: "Zebra Club", then "מזרחית ותיקה" with the description "הקלאסיקות של פעם, בלי פשרות.", then "Alpha Club".
+2. **Home** lists Alpha Club, Zebra Club, then מזרחית ותיקה, whatever the order you joined in.
+3. Open מזרחית ותיקה: the description reads right-to-left, aligned right, with its period at the end of the sentence (the left end). Type Hebrew in a post comment: the box follows the text's direction, and the posted comment reads right-to-left on the card.
+4. On a post card, tap **Open in …** and **Other services** → any service: each opens in a new tab and BookRough stays open in its own tab.
+5. On the iPhone (Safari and the installed app), repeat steps 3–4 against a preview or production build.
+
+```bash
+cd frontend && npx vitest run src/externalLinks src/lib/bidi src/components/ExternalLink src/components/PostCard src/pages/Community.test src/pages/Dashboard src/pages/MyList src/pages/PostDetail src/pages/CreateCommunity
+```
+
+```bash
+cd backend && npx vitest run src/services/community.service && npm run test:integration -- communities
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

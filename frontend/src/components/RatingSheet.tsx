@@ -233,10 +233,14 @@ export function RatingSheet({
     <Sheet title={title} onClose={onClose} dismissible={!busy}>
       <form aria-label={title} className="flex flex-col gap-4" onSubmit={submit}>
         <div>
-          <p className="break-words font-medium">
+          <p dir="auto" className="break-words font-medium">
             {post.conversionPending ? pendingTitle(post) : displayTitle(post)}
           </p>
-          {post.artist && <p className="break-words text-sm text-muted">{post.artist}</p>}
+          {post.artist && (
+            <p dir="auto" className="break-words text-sm text-muted">
+              {post.artist}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -267,6 +271,7 @@ export function RatingSheet({
           </div>
           <textarea
             id="rating-comment"
+            dir="auto"
             rows={3}
             value={comment}
             readOnly={busy}
