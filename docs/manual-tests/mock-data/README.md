@@ -2,7 +2,7 @@
 
 A repeatable set of fake users, communities, posts and interactions, injected into the **local** dev database around the two real test accounts, so a manual test session can see how BookRough looks and behaves with a realistic amount of data. Everything it adds can be removed at the end of the session, leaving the real accounts as they were.
 
-Status: **built** on 2026-11-22 (`chore/mock-data-seed`). Generated: 14 users, 23 friendships, 8 communities, 29 memberships, 1 ban, 1 invitation, 84 posts (68 community + 16 direct), 123 ratings, 23 comments, 16 bookmarks, 83 notifications.
+Status: **built** on 2026-11-22 (`chore/mock-data-seed`). Generated: 14 users, 23 friendships, 8 communities, 29 memberships, 1 ban, 1 invitation, 83 posts (67 community + 16 direct), 123 ratings, 23 comments, 16 bookmarks, 83 notifications.
 
 ---
 
@@ -71,7 +71,7 @@ A has 6 mock friends, B has 6 (plus each other, if that friendship already exist
 - C1 has one ban (Roni, banned by A), so Settings & Members shows a blocked list.
 - C5 has a pending invitation to A from Noam. C6–C8 are communities neither real user belongs to; C8 is empty (its empty state).
 
-### 3.3 Posts — 68 community posts + 16 direct recommendations
+### 3.3 Posts — 67 community posts + 16 direct recommendations
 
 - Real songs and albums (artist and title correct), spread across genres to match each community.
 - Mix of shapes: mostly converted tracks, some albums, 2 link-only (one Bandcamp, one SoundCloud), 1 YouTube video, 2 with `conversion_pending` (the "other services unavailable" note).
@@ -113,7 +113,7 @@ Rows that A or B created during the session that touch no mock row (for example,
 
 ## 6. Production log
 
-| Date       | Action                                                            | Result  |
-| ---------- | ----------------------------------------------------------------- | ------- |
-| 2026-11-22 | `seed.sql` on Neon `production` through the connector (README §1) | pending |
-| —          | `remove.sql` before the site goes to real users                   | pending |
+| Date       | Action                                                            | Result                                                                                                   |
+| ---------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 2026-11-22 | `seed.sql` on Neon `production` through the connector (README §1) | done: 14 users, 8 communities, 83 posts, 123 ratings, 23 comments, 83 notifications; real rows untouched |
+| —          | `remove.sql` before the site goes to real users                   | pending                                                                                                  |
