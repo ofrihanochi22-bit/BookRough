@@ -3722,7 +3722,7 @@ cd frontend && npx vitest run src/pages/Recommendations src/pages/PostDetail src
 
 ### Step 6.1z10 — Archive received recommendations, D2 (Phase 6 — UC-20 amended)
 
-Status: 🟡 In progress (PR open, waiting for the developer's word to merge)
+Status: ✅ Done (merged as PR #96)
 Branch: feat/archive-recommendations
 Spec: docs/features/archive-recommendations.md
 
