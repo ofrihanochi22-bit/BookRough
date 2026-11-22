@@ -141,6 +141,9 @@ describe('CommunitySettings — what each role sees', () => {
       expect(screen.queryByRole('button', { name: absent })).not.toBeInTheDocument();
     }
     expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument();
+    // No Photo section for a plain member (community-photo.md §5.2).
+    expect(screen.queryByRole('heading', { name: 'Photo' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Upload a photo')).not.toBeInTheDocument();
   });
 
   it('an admin sees details, invite and member actions — but no Delete and no Make owner', async () => {
@@ -153,6 +156,8 @@ describe('CommunitySettings — what each role sees', () => {
 
     // Assert
     expect(screen.getByLabelText('Name')).toHaveValue('Friday Jazz');
+    expect(screen.getByRole('heading', { name: 'Photo' })).toBeInTheDocument();
+    expect(screen.getByText('Upload a photo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Invite friends' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Make admin' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove from community' })).toBeInTheDocument();

@@ -134,7 +134,7 @@
 - **Step-by-step scenario (Success):**
   - The user taps the "Create Community" button.
   - The system presents a creation form.
-  - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
+  - The user inputs the Community Name and Description. The cover graphic is generated from the name and id; an Admin may add a photo here, or later in Community Settings (amended 2026-11-22, `docs/features/community-photo.md`).
   - The system presents the user's friends list, allowing them to select friends to invite.
   - The user submits the form.
   - The backend creates the Community and makes the creator its Owner. The selected friends each receive an invitation on their Friends tab, which they accept (joining as Members) or decline; nobody is added without saying yes. Admins can invite more friends later from the community's Invite friends panel (`docs/features/invite-friends.md`).
@@ -297,6 +297,8 @@
 > **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody — the one exception is removing a user's photo, which returns them to the generated avatar (`docs/features/avatar-upload.md`) — and the settings list is fixed in code.
 >
 > **Amended — Admin → Overview** (`docs/features/admin-overview.md`, 2026-11-17). The area's first tab is a read-only overview of the application's health: the storage limits that could get it blocked (Vercel's three storage meters, read by the `/vercel-usage` skill, and the database's own size against its plan limit), the deployments and registry images that exist and when each kind was last deleted (posted by the `prune-deployments` job and the `/vercel-image-cleanup` skill), and live counts of users, communities, posts, ratings, comments and anonymous daily app opens. Each block says where its data came from and how old it is, and a reading older than 48 hours is marked Stale. Its one control is Refresh, which re-reads what is stored; it triggers no scrape and takes no action.
+>
+> **Amended — Community photos** (`docs/features/community-photo.md`, 2026-11-22). The administrator can also remove a community's photo from the communities list, behind a confirmation, which returns it to the generated cover; it is recorded as a log line, like a deletion. A community's own Admins upload, replace and remove its photo (UC-9). No new UC number.
 
 ### UC-20: User Sends a Recommendation to a Friend
 

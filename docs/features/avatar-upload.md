@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `community-photo.md` (D5, 2026-11-22).** "Community cover uploads, which stay generated" (§2, out of scope) is reversed: a community's admins can upload a photo. The server's re-encode moved to `services/squareImage.ts` (`processSquareImage`) and the raw body parser to `middleware/imageBody.ts`, shared by both uploads with no change in behaviour.
+
 ## 0. Where this comes from
 
 Note **N10** of the manual test session (`docs/manual-tests/2026-11-04.md` §7). The developer asked whether users can pick a photo from their own device. For fewer than 100 users, with every image compressed into a small round avatar, Claude's assessment was: yes, and cheaply (roughly 100 × 20–30 KB ≈ 3 MB).
