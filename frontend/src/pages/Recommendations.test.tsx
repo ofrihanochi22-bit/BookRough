@@ -24,7 +24,10 @@ const api = vi.hoisted(() => ({
   listReceived: vi.fn(),
   listSent: vi.fn(),
   markRecommendationsSeen: vi.fn(),
-  hideRecommendation: vi.fn(),
+  archiveRecommendation: vi.fn(),
+  unarchiveRecommendation: vi.fn(),
+  listArchived: vi.fn(),
+  countArchived: vi.fn(),
   sendRecommendation: vi.fn(),
   countUnseenRecommendations: vi.fn(),
   countUnchecked: vi.fn(),
@@ -107,6 +110,7 @@ beforeEach(() => {
   api.listReceived.mockResolvedValue(page([]));
   api.listSent.mockResolvedValue(page([]));
   api.countUnchecked.mockResolvedValue(0);
+  api.countArchived.mockResolvedValue(0);
   api.listUnchecked.mockResolvedValue({ items: [], nextCursor: null });
   api.markRecommendationsSeen.mockResolvedValue(undefined);
 });
@@ -266,7 +270,7 @@ describe('Recommendations', () => {
     );
     expect(screen.getByRole('button', { name: 'Send a song' })).toBeDisabled();
     expect(within(card).getByRole('button', { name: /Rate & Review/ })).toBeDisabled();
-    expect(within(card).getByRole('button', { name: 'Hide' })).toBeDisabled();
+    expect(within(card).getByRole('button', { name: 'Archive' })).toBeDisabled();
     expect(within(card).getByRole('button', { name: /Listen Later/ })).toBeDisabled();
   });
 
@@ -349,27 +353,7 @@ describe('Recommendations', () => {
     expect(within(card).getByRole('button', { name: /Listen Later/ })).toBeEnabled();
   });
 
-  it('Hide confirms, then the card leaves Received', async () => {
-    // Arrange
-    const user = userEvent.setup();
-    api.listReceived.mockResolvedValue(page([inbound(1)]));
-    api.hideRecommendation.mockResolvedValue(undefined);
-    renderScreen();
-
-    // Act
-    const card = (await screen.findByText('Song 1')).closest('article')!;
-    await user.click(within(card).getByRole('button', { name: 'Post options' }));
-    await user.click(within(card).getByRole('button', { name: 'Hide' }));
-    await user.click(
-      within(screen.getByRole('dialog', { name: 'Hide' })).getByRole('button', { name: 'Hide' }),
-    );
-
-    // Assert
-    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument();
-    expect(api.hideRecommendation).toHaveBeenCalledWith('in-1');
-  });
-
-  it('the recipient is offered no delete, and the sender no hide', async () => {
+  it('the recipient is offered no delete, and the sender no archive', async () => {
     // Arrange
     const user = userEvent.setup();
     api.listReceived.mockResolvedValue(page([inbound(1)]));
@@ -389,7 +373,8 @@ describe('Recommendations', () => {
     await user.click(within(sent).getByRole('button', { name: 'Post options' }));
 
     // Assert
-    expect(within(sent).queryByRole('button', { name: 'Hide' })).toBeNull();
+    expect(within(sent).queryByRole('button', { name: 'Archive' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hide' })).toBeNull();
     expect(within(sent).getByRole('button', { name: 'Delete post' })).toBeInTheDocument();
   });
 

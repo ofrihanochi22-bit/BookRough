@@ -8,7 +8,7 @@
 | **Use cases** | UC-20 amended (the Received list of the Recommendations screen)                 |
 | **Phase**     | 6 — parked idea D2 from the 2026-11-22 manual test                              |
 | **Branch**    | `feat/archive-recommendations`                                                  |
-| **Status**    | ☑ Spec approved (2026-11-22) · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved (2026-11-22) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 
