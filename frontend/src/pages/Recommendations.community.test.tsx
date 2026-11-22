@@ -25,7 +25,10 @@ const api = vi.hoisted(() => ({
   listReceived: vi.fn(),
   listSent: vi.fn(),
   markRecommendationsSeen: vi.fn(),
-  hideRecommendation: vi.fn(),
+  archiveRecommendation: vi.fn(),
+  unarchiveRecommendation: vi.fn(),
+  listArchived: vi.fn(),
+  countArchived: vi.fn(),
   sendRecommendation: vi.fn(),
   countUnseenRecommendations: vi.fn(),
   countUnchecked: vi.fn(),
@@ -97,6 +100,7 @@ beforeEach(() => {
   api.listReceived.mockResolvedValue({ posts: [], nextCursor: null });
   api.markRecommendationsSeen.mockResolvedValue(undefined);
   api.countUnchecked.mockResolvedValue(0);
+  api.countArchived.mockResolvedValue(0);
   api.listUnchecked.mockResolvedValue(pageOf([]));
   api.markChecked.mockResolvedValue(undefined);
   api.unmarkChecked.mockResolvedValue(undefined);

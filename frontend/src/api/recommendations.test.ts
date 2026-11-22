@@ -9,7 +9,10 @@ import {
   checkInBackground,
   countUnchecked,
   countUnseenRecommendations,
-  hideRecommendation,
+  archiveRecommendation,
+  countArchived,
+  listArchived,
+  unarchiveRecommendation,
   listReceived,
   listSent,
   listUnchecked,
@@ -94,16 +97,39 @@ describe('recommendations API module', () => {
     expect(seen[0]?.url).toBe('/recommendations/seen');
   });
 
-  it('hideRecommendation PUTs on the encoded id', async () => {
+  it('archiveRecommendation PUTs and unarchiveRecommendation DELETEs on the encoded id', async () => {
     // Arrange
     const seen = respondWith(ok(null));
 
     // Act
-    await hideRecommendation('a/b');
+    await archiveRecommendation('a/b');
+    await unarchiveRecommendation('a/b');
 
     // Assert
-    expect(seen[0]?.method).toBe('put');
-    expect(seen[0]?.url).toBe('/recommendations/a%2Fb/hidden');
+    expect(seen.map((call) => [call.method, call.url])).toEqual([
+      ['put', '/recommendations/a%2Fb/archived'],
+      ['delete', '/recommendations/a%2Fb/archived'],
+    ]);
+  });
+
+  it('listArchived sends the cursor only when there is one; countArchived unwraps the count', async () => {
+    // Arrange
+    const seen = respondWith(ok({ posts: [], nextCursor: null }));
+
+    // Act
+    await listArchived();
+    await listArchived('c1');
+
+    // Assert
+    expect(seen[0]?.url).toBe('/recommendations/archived');
+    expect(seen[0]?.params).toBeUndefined();
+    expect(seen[1]?.params).toEqual({ before: 'c1' });
+
+    // Arrange
+    respondWith(ok({ count: 3 }));
+
+    // Act & Assert
+    expect(await countArchived()).toBe(3);
   });
 });
 

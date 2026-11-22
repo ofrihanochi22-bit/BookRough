@@ -28,8 +28,10 @@ export interface PostCardProps {
   linkToDetail?: boolean;
   /** On Received: rate a direct recommendation here (direct-recommendations.md §5.2). */
   onRate?: (post: PublicPost) => void;
-  /** On Received: open the Hide confirmation. */
-  onHide?: (post: PublicPost) => void;
+  /** On Received: Archive, in the ⋯ menu (archive-recommendations.md §5). */
+  onArchive?: (post: PublicPost) => void;
+  /** In the archive: Unarchive, in the ⋯ menu. */
+  onUnarchive?: (post: PublicPost) => void;
   /** On From communities: the "Mark checked" chip (community-unchecked.md §5). */
   onCheck?: (post: PublicPost) => void;
 }

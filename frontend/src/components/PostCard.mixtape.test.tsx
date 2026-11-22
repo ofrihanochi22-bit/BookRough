@@ -243,7 +243,7 @@ describe('PostCard — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
     const sheet = screen.getByRole('dialog', { name: 'Post options' });
     expect(within(sheet).getByRole('button', { name: 'Delete post' })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Edit comment' })).not.toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Hide' })).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
   });
 
   it('has no ⋯ when there is nothing to do', () => {
@@ -254,9 +254,9 @@ describe('PostCard — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
     expect(screen.queryByRole('button', { name: 'Post options' })).not.toBeInTheDocument();
   });
 
-  it('lists Hide, Edit comment and Delete post, and Cancel closes it', async () => {
+  it('lists Archive, Edit comment and Delete post, and Cancel closes it', async () => {
     // Arrange
-    renderCard(makePost({ isMine: true, canDelete: true }), { onHide: vi.fn() });
+    renderCard(makePost({ isMine: true, canDelete: true }), { onArchive: vi.fn() });
     await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
     const sheet = screen.getByRole('dialog', { name: 'Post options' });
 
@@ -265,7 +265,7 @@ describe('PostCard — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
       within(sheet)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual([expect.stringContaining('×'), 'Hide', 'Edit comment', 'Delete post', 'Cancel']);
+    ).toEqual([expect.stringContaining('×'), 'Archive', 'Edit comment', 'Delete post', 'Cancel']);
 
     // Act
     await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
@@ -295,18 +295,37 @@ describe('PostCard — the ⋯ action sheet (ui-redesign.md §5.0)', () => {
     expect(screen.getByRole('dialog', { name: /comment/i })).toBeInTheDocument();
   });
 
-  it('calls onHide from the Hide row', async () => {
+  it('calls onArchive from the Archive row', async () => {
     // Arrange
-    const onHide = vi.fn();
+    const onArchive = vi.fn();
     const post = receivedDirect();
-    renderCard(post, { onHide });
+    renderCard(post, { onArchive });
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Archive' }));
 
     // Assert
-    expect(onHide).toHaveBeenCalledWith(post);
+    expect(onArchive).toHaveBeenCalledWith(post);
+  });
+
+  it('calls onUnarchive from the Unarchive row, and shows no Archive row', async () => {
+    // Arrange
+    const onUnarchive = vi.fn();
+    const post = receivedDirect();
+    renderCard(post, { onUnarchive });
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Post options' }));
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Unarchive' }));
+
+    // Assert
+    expect(onUnarchive).toHaveBeenCalledWith(post);
   });
 
   it('disables the rows offline', async () => {

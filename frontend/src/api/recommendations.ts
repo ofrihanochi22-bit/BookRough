@@ -55,8 +55,32 @@ export async function markRecommendationsSeen(): Promise<void> {
   invalidate([]);
 }
 
-export async function hideRecommendation(postId: string): Promise<void> {
-  await api.put(`/recommendations/${encodeURIComponent(postId)}/hidden`, undefined, quiet);
+/** The archive — docs/features/archive-recommendations.md §4. */
+export async function listArchived(before?: string): Promise<PostsPage> {
+  const response = await api.get<SuccessBody<PostsPage>>('/recommendations/archived', {
+    ...quiet,
+    params: before ? { before } : undefined,
+  });
+  return response.data.data;
+}
+
+export async function countArchived(): Promise<number> {
+  const response = await api.get<SuccessBody<{ count: number }>>(
+    '/recommendations/archived/count',
+    quiet,
+  );
+  return response.data.data.count;
+}
+
+/** Idempotent; the recipient only. Received, the archive and its count all change. */
+export async function archiveRecommendation(postId: string): Promise<void> {
+  await api.put(`/recommendations/${encodeURIComponent(postId)}/archived`, undefined, quiet);
+  invalidate([P.recs]);
+}
+
+/** Unarchive, and the Undo of Archive. Idempotent. */
+export async function unarchiveRecommendation(postId: string): Promise<void> {
+  await api.delete(`/recommendations/${encodeURIComponent(postId)}/archived`, quiet);
   invalidate([P.recs]);
 }
 
