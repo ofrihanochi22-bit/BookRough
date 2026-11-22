@@ -5,15 +5,18 @@ import toast from 'react-hot-toast';
 
 import { getPost, type PostsPage, type PublicPost } from '../api/posts';
 import {
+  archiveRecommendation,
+  countArchived,
   countUnchecked,
+  listArchived,
   listReceived,
   listSent,
   listUnchecked,
   markChecked,
   markRecommendationsSeen,
+  unarchiveRecommendation,
   unmarkChecked,
 } from '../api/recommendations';
-import { HideRecommendationSheet } from '../components/HideRecommendationSheet';
 import { PostCard } from '../components/PostCard';
 import { RatingSheet } from '../components/RatingSheet';
 import { SendRecommendationSheet } from '../components/SendRecommendationSheet';
@@ -30,6 +33,12 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
 import { cacheKeys } from '../lib/cacheKeys';
 import {
+  ARCHIVE_EMPTY_BODY,
+  ARCHIVE_EMPTY_TITLE,
+  ARCHIVE_FAILED,
+  ARCHIVE_LOAD_FAILED,
+  ARCHIVED,
+  archivedRow,
   CHECK_FAILED,
   CHECKED,
   COMMUNITY_EMPTY_BODY,
@@ -38,24 +47,37 @@ import {
   communityPill,
   LOAD_FAILED,
   OFFLINE,
+  UNARCHIVE_FAILED,
+  UNARCHIVED,
   UNDO_FAILED,
 } from '../lib/recommendationCopy';
 import { type StreamingService, useAuthStore } from '../stores/auth';
 
 import { useFriendRequests } from '../stores/friendRequests';
 
-type View = 'received' | 'sent' | 'community';
+/** The three pills, plus the archive, which opens from inside Received. */
+type Pill = 'received' | 'sent' | 'community';
+type View = Pill | 'archived';
 
 const EMPTY_TITLE: Record<View, string> = {
   received: 'Nothing here yet',
   sent: "You haven't sent anything",
   community: COMMUNITY_EMPTY_TITLE,
+  archived: ARCHIVE_EMPTY_TITLE,
 };
 
 const EMPTY_BODY: Record<View, string> = {
   received: 'Songs your friends send you appear here.',
   sent: 'Send a friend a song from the button above.',
   community: COMMUNITY_EMPTY_BODY,
+  archived: ARCHIVE_EMPTY_BODY,
+};
+
+const LOAD_FAILED_COPY: Record<View, string> = {
+  received: LOAD_FAILED,
+  sent: LOAD_FAILED,
+  community: COMMUNITY_LOAD_FAILED,
+  archived: ARCHIVE_LOAD_FAILED,
 };
 
 interface Community {
@@ -63,7 +85,7 @@ interface Community {
   name: string;
 }
 
-/** A page of any of the three lists; only From communities names each post's community. */
+/** A page of any of the four lists; only From communities names each post's community. */
 interface ListPage extends PostsPage {
   communities: Record<string, Community>;
 }
@@ -88,18 +110,42 @@ const LOADERS: Record<View, (before?: string) => Promise<ListPage>> = {
   received: withoutCommunities(listReceived),
   sent: withoutCommunities(listSent),
   community: loadCommunity,
+  archived: withoutCommunities(listArchived),
 };
 
 const CACHE_KEYS: Record<View, string> = {
   received: cacheKeys.recsReceived,
   sent: cacheKeys.recsSent,
   community: cacheKeys.recsCommunity,
+  archived: cacheKeys.recsArchived,
 };
+
+/** A toast with an Undo button, as Mark checked and Archive show it. */
+function undoToast(message: string, onUndo: () => void) {
+  toast(
+    (shown) => (
+      <span className="flex items-center gap-3">
+        {message}
+        <button
+          type="button"
+          className="min-h-11 px-2 font-semibold underline"
+          onClick={() => {
+            toast.dismiss(shown.id);
+            onUndo();
+          }}
+        >
+          Undo
+        </button>
+      </span>
+    ),
+    { duration: 6000 },
+  );
+}
 
 /** Changes made on this list since its first page loaded. */
 interface LocalChanges {
   page: ListPage;
-  /** Hidden, deleted, checked or found gone here. */
+  /** Archived, unarchived, deleted, checked or found gone here. */
   removed: string[];
   replaced: Record<string, PublicPost>;
   more: PublicPost[];
@@ -123,11 +169,11 @@ interface RecommendationListProps {
   view: View;
   online: boolean;
   viewerService: StreamingService | null;
-  /** From communities changed here: its count is stale. */
+  /** This list's count (From communities, or the archive) is stale. */
   onCountChanged: () => void;
 }
 
-/** One of the three lists, newest first, with Load more and its own loading states. */
+/** One of the four lists, newest first, with Load more and its own loading states. */
 function RecommendationList({
   view,
   online,
@@ -141,7 +187,6 @@ function RecommendationList({
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [rating, setRating] = useState<PublicPost | null>(null);
-  const [hiding, setHiding] = useState<PublicPost | null>(null);
 
   const loaded = first.status === 'ready' ? first.data : null;
   const changes = loaded ? (local?.page === loaded ? local : fresh(loaded)) : null;
@@ -190,10 +235,10 @@ function RecommendationList({
     }
   }
 
-  /** Undo of Mark checked: the post goes back on the server and in place here. */
-  async function undo(postId: string) {
+  /** Undo of Mark checked or Archive: the post goes back on the server and in place here. */
+  async function undo(postId: string, write: (postId: string) => Promise<void>) {
     try {
-      await unmarkChecked(postId);
+      await write(postId);
       restore(postId);
     } catch {
       toast.error(UNDO_FAILED);
@@ -201,40 +246,51 @@ function RecommendationList({
     onCountChanged();
   }
 
-  /** Mark checked (community-unchecked.md §5): the card goes at once, with Undo. */
-  async function check(post: PublicPost) {
+  /**
+   * The card goes at once and the write follows; it comes back if the write
+   * fails. A 404 means the post is gone for the caller, so leaving it out is
+   * right. Returns whether the write landed.
+   */
+  async function removeWith(
+    post: PublicPost,
+    write: (postId: string) => Promise<void>,
+    failed: string,
+  ): Promise<boolean> {
     remove(post.id);
     try {
-      await markChecked(post.id);
+      await write(post.id);
     } catch (caught) {
-      // Gone for the caller (deleted, or they were removed): leaving it out is right.
       if (!(isAxiosError(caught) && caught.response?.status === 404)) {
         restore(post.id);
-        toast.error(CHECK_FAILED);
-        return;
+        toast.error(failed);
+        return false;
       }
       onCountChanged();
-      return;
+      return false;
     }
     onCountChanged();
-    toast(
-      (shown) => (
-        <span className="flex items-center gap-3">
-          {CHECKED}
-          <button
-            type="button"
-            className="min-h-11 px-2 font-semibold underline"
-            onClick={() => {
-              toast.dismiss(shown.id);
-              void undo(post.id);
-            }}
-          >
-            Undo
-          </button>
-        </span>
-      ),
-      { duration: 6000 },
-    );
+    return true;
+  }
+
+  /** Mark checked (community-unchecked.md §5): the card goes at once, with Undo. */
+  async function check(post: PublicPost) {
+    if (await removeWith(post, markChecked, CHECK_FAILED)) {
+      undoToast(CHECKED, () => void undo(post.id, unmarkChecked));
+    }
+  }
+
+  /** Archive (archive-recommendations.md §5): out of Received at once, with Undo. */
+  async function archive(post: PublicPost) {
+    if (await removeWith(post, archiveRecommendation, ARCHIVE_FAILED)) {
+      undoToast(ARCHIVED, () => void undo(post.id, unarchiveRecommendation));
+    }
+  }
+
+  /** Unarchive: back in Received. Archiving it again is the undo, so no button. */
+  async function unarchive(post: PublicPost) {
+    if (await removeWith(post, unarchiveRecommendation, UNARCHIVE_FAILED)) {
+      toast.success(UNARCHIVED);
+    }
   }
 
   /** The sheet ends for several reasons; the server says what the card is now. */
@@ -303,10 +359,7 @@ function RecommendationList({
       )}
 
       {first.status === 'error' && (
-        <LoadError
-          message={fromCommunities ? COMMUNITY_LOAD_FAILED : LOAD_FAILED}
-          onRetry={first.reload}
-        />
+        <LoadError message={LOAD_FAILED_COPY[view]} onRetry={first.reload} />
       )}
 
       {changes && posts.length === 0 && (
@@ -336,7 +389,8 @@ function RecommendationList({
               onStale={first.reload}
               onDeleted={remove}
               onBookmarkChanged={bookmarkChanged}
-              {...(view === 'received' && { onRate: setRating, onHide: setHiding })}
+              {...(view === 'received' && { onRate: setRating, onArchive: archive })}
+              {...(view === 'archived' && { onRate: setRating, onUnarchive: unarchive })}
               {...(fromCommunities && { onRate: setRating, onCheck: check })}
             />
           </div>
@@ -368,17 +422,6 @@ function RecommendationList({
           }}
         />
       )}
-
-      {hiding && (
-        <HideRecommendationSheet
-          post={hiding}
-          onClose={() => setHiding(null)}
-          onHidden={(postId) => {
-            setHiding(null);
-            remove(postId);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -392,11 +435,16 @@ function RecommendationList({
 export function Recommendations() {
   const online = useOnlineStatus();
   const viewerService = useAuthStore((state) => state.user?.preferredService ?? null);
-  const [view, setView] = useState<View>('received');
+  const [pill, setPill] = useState<Pill>('received');
+  // The archive opens from Received; switching pills or leaving the screen closes it.
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const view: View = pill === 'received' && archiveOpen ? 'archived' : pill;
   const [sending, setSending] = useState(false);
   // A send reloads Sent, so the list always matches the server.
   const [sends, setSends] = useState(0);
   const unchecked = useRequest(countUnchecked, { key: cacheKeys.recsCommunityCount });
+  const archivedCount = useRequest(countArchived, { key: cacheKeys.recsArchivedCount });
+  const archived = archivedCount.status === 'ready' ? archivedCount.data : 0;
   const views = [
     { value: 'received', label: 'Received' },
     { value: 'sent', label: 'Sent' },
@@ -422,14 +470,41 @@ export function Recommendations() {
           </p>
         )}
 
-        <PillTrack label="Which list" options={views} value={view} onChange={setView} />
+        <PillTrack
+          label="Which list"
+          options={views}
+          value={pill}
+          onChange={(next) => {
+            setPill(next);
+            setArchiveOpen(false);
+          }}
+        />
+
+        {view === 'received' && archived > 0 && (
+          <Button variant="secondary" onClick={() => setArchiveOpen(true)} className="w-full">
+            {archivedRow(archived)}
+          </Button>
+        )}
+
+        {view === 'archived' && (
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setArchiveOpen(false)}
+              className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-muted"
+            >
+              ← Received
+            </button>
+            <h2 className="text-lg font-semibold">Archived</h2>
+          </div>
+        )}
 
         <RecommendationList
           key={view === 'sent' ? `sent-${sends}` : view}
           view={view}
           online={online}
           viewerService={viewerService}
-          onCountChanged={unchecked.reload}
+          onCountChanged={view === 'community' ? unchecked.reload : archivedCount.reload}
         />
       </div>
 

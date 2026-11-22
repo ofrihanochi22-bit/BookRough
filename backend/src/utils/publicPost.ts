@@ -69,7 +69,7 @@ export function postInclude(viewerId: string) {
 /**
  * Field by field, never a spread: a column added to `posts` later must not
  * reach a client until someone adds it here on purpose. `communityId`,
- * `authorId`, `recipientId`, `recipientHiddenAt` and `updatedAt` are
+ * `authorId`, `recipientId`, `recipientArchivedAt` and `updatedAt` are
  * deliberately absent. `friendIds` holds who the viewer is friends with now.
  */
 export function toPublicPost(

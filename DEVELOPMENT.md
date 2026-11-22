@@ -3720,6 +3720,55 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/co
 cd frontend && npx vitest run src/pages/Recommendations src/pages/PostDetail src/components/PostCard src/components/ExternalLink src/components/OpenInBrowserSheet src/api/recommendations
 ```
 
+### Step 6.1z10 — Archive received recommendations, D2 (Phase 6 — UC-20 amended)
+
+Status: 🟡 In progress (PR open, waiting for the developer's word to merge)
+Branch: feat/archive-recommendations
+Spec: docs/features/archive-recommendations.md
+
+Goal: until now every direct recommendation stayed in Received forever, and Hide removed one for good (parked idea D2, manual test of 2026-11-22, test 7). Now **Archive** replaces Hide: it moves an item out of Received by hand, with Undo, into an archive opened from an "Archived · N" row at the top of Received, where **Unarchive** puts it back.
+
+What I did:
+
+- **Schema:** no migration. The Prisma field `recipientHiddenAt` is now `recipientArchivedAt`, mapped onto the same column `recipient_hidden_at`, so every item hidden until now is archived. A first draft renamed the column; `/code-review` caught that a rename breaks the previous production deployment, still serving during the switch and kept for rollback, so it was dropped (spec §3, §9).
+- **Backend** (`services/recommendation.service.ts`, controller, `routes/recommendations.ts`):
+  - `listArchived` (Received's keyset and order) and `countArchived`.
+  - `archiveRecommendation` and `unarchiveRecommendation`, through one `requireRecipient` check: a community post, a missing post or a third party is `404`; the sender is `403` ("Only the recipient can archive this." / "… unarchive this."). Both are idempotent and allowed after unfriending.
+  - Routes `GET /archived`, `GET /archived/count`, `PUT` and `DELETE /:postId/archived`. `PUT /:postId/hidden` is removed (`404`).
+- **Frontend:**
+  - `Recommendations.tsx`: Archive in the card's ⋯ menu, with no confirmation. The card leaves at once with an "Archived" toast and **Undo**; a failure brings it back with an error toast, and a `404` leaves it out quietly. The "Archived · N" row shows only while the count is above 0. The archive view has "← Received", the title "Archived", the same cards with **Unarchive** ("Back in Received"), an empty state ("Nothing archived"), a load error with Try again, and Load more. Switching pills closes it.
+  - The Undo toast and the remove-then-write logic are now shared by Mark checked (D1) and Archive.
+  - `PostCard`: `onHide` became `onArchive` / `onUnarchive`. `HideRecommendationSheet` and its copy are deleted.
+- **Docs:** `tables` (the column's new meaning), `use cases` (UC-20 amended) and `frontend screens` (2.5), both `.md` and `.docx`. An amendment note in `direct-recommendations.md`. `CLAUDE.md` §9 records the UC-20 amendment.
+- **`/code-review` (medium), 3 findings:**
+  - Fixed: the column rename (above).
+  - Fixed in Stage 4: the old Hide tests no longer compiled.
+  - No change needed: the Received pill does close the archive (`PillTrack` always calls `onChange`).
+- **`/security-review`:** clean. Both writes sit behind `requirePostAccess` and the recipient check, the archive and its count read only the caller's own rows, no raw SQL was added, and the archive time is never serialised.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/`, signed in as someone a friend has sent a song to:
+
+1. **Friends → Recommendations → Received.** Open a card's ⋯ menu and press **Archive**. The card goes, and the toast offers **Undo**. Press it: the card comes back.
+2. Archive it again. An **Archived · 1** row appears at the top of Received. Press it: the archive shows the card.
+3. In the archive, ⋯ → **Unarchive**. The toast says "Back in Received", and the archive shows "Nothing archived". Press **← Received**: the card is back.
+4. As the sender, **Sent** still shows the item and its rating; nothing tells them it was archived.
+5. Offline, Archive and Unarchive are disabled.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/recommendation.service
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations src/routes/linkOnlyPosts
+cd frontend && npx vitest run src/pages/Recommendations src/components/PostCard src/api/recommendations src/api/invalidation
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

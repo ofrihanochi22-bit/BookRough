@@ -263,7 +263,7 @@
 ### UC-18: User Deletes a Post (Song Recommendation)
 
 - **Description:** The original author of a music recommendation permanently removes their post from a Community feed. A Community's Admins and its Owner can delete any post in that Community the same way — a member's, a fellow Admin's, the Owner's, or a former member's (`docs/features/posts-delete.md`).
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community. A direct recommendation is deleted by its sender only, for both people; its recipient hides it instead (UC-20).
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community. A direct recommendation is deleted by its sender only, for both people; its recipient archives it instead (UC-20).
 - **Post-conditions:** The Post record, including its associated ratings array, is permanently deleted from the database and removed from the Community's posts array.
 - **Trigger:** The user taps the "Delete Post" option within the specific post's context menu.
 - **Step-by-step scenario (Success):**
@@ -310,10 +310,10 @@
   - The user taps "Send". The backend converts the link exactly as for a post, while the user sees "Finding this track on other services…".
   - The system saves the item and shows "Sent to {name}". It appears under Sent.
   - The recipient sees a notification (UC-21), opens Recommendations, and finds it under Received. Its main button opens the service they chose, falling back to the original link.
-  - The recipient can rate it there, save it to My List, or hide it. The sender sees the rating under Sent and on Post Detail.
+  - The recipient can rate it there, save it to My List, or archive it, and unarchive it later from the archive at the top of Received. The sender sees the rating under Sent and on Post Detail.
 - **Fail description (Alternative Scenario):** The recipient is not a friend — a stranger, a pending request in either direction, or someone who unfriended the sender, even during the conversion. The system refuses with "You can only send songs to friends.", saves nothing, and keeps the draft. A link that is invalid is refused as in UC-11, and Bandcamp, SoundCloud and live YouTube videos are shared without conversion exactly as there (`docs/features/link-only-posts.md`). If the conversion cannot run, the item is still saved with the original link and a quiet "Other services unavailable" note, and the sender can tap "Find on other services" later.
 
-> **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient hides an item for themselves only, and the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md.
+> **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient archives an item for themselves only, and can unarchive it; the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md and docs/features/archive-recommendations.md.
 
 > **Amended — From communities** (docs/features/community-unchecked.md, 2026-11-22). The Recommendations screen has a third list, "Communities": other members' posts, across every community the user is in, that the user has not checked yet. A post counts from the later of joining its community and the feature's launch. Opening its link or Post Detail, rating it, saving it, or "Mark checked" (with Undo) takes it off the list; it stays in its community's feed. The bell and the Recommendations row's count are unchanged. No new UC number.
 

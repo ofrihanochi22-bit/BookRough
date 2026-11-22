@@ -305,6 +305,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-19 and UC-21 were amended** so the admin can delete a user or a community, whose members are told with a `COMMUNITY_REMOVED` notification (docs/features/admin-delete.md). No new UC number.
 - **UC-19 was amended** with Admin → Overview: a read-only page of storage limits, deployments, images, last deletions and app counts, fed by the ops tools' snapshots and by Postgres (docs/features/admin-overview.md). No new UC number.
 - **UC-20 was amended** with a third Recommendations list, "Communities": other members' community posts the user hasn't checked yet (docs/features/community-unchecked.md). No new UC number.
+- **UC-20 was amended** again: the recipient archives a received item in place of hiding it, and can unarchive it from an archive at the top of Received (docs/features/archive-recommendations.md). No new UC number.
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---

@@ -40,7 +40,8 @@ import { markAllNotificationsRead, markNotificationRead } from './notifications'
 import { createPost, deletePost, editPostComment, retryConversion } from './posts';
 import { editRating, ratePost } from './ratings';
 import {
-  hideRecommendation,
+  archiveRecommendation,
+  unarchiveRecommendation,
   markChecked,
   markRecommendationsSeen,
   sendRecommendation,
@@ -204,15 +205,41 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   [
     'sendRecommendation',
     () => sendRecommendation('u2', { url: 'x' } as never),
-    ['recs:received', 'recs:sent', 'recs:community', 'recs:communityCount'],
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
   ],
   ['markRecommendationsSeen', () => markRecommendationsSeen(), []],
   ['markChecked', () => markChecked('p1'), ['recs:community', 'recs:communityCount']],
   ['unmarkChecked', () => unmarkChecked('p1'), ['recs:community', 'recs:communityCount']],
   [
-    'hideRecommendation',
-    () => hideRecommendation('p1'),
-    ['recs:received', 'recs:sent', 'recs:community', 'recs:communityCount'],
+    'archiveRecommendation',
+    () => archiveRecommendation('p1'),
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
+  ],
+  [
+    'unarchiveRecommendation',
+    () => unarchiveRecommendation('p1'),
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
   ],
   ['updateAdminSettings', () => updateAdminSettings({} as never), []],
   ['updateProfile', () => updateProfile({} as never), AVATARS],

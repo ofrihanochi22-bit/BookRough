@@ -10,7 +10,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     authorId: 'author-1',
     communityId: 'community-1',
     recipientId: null,
-    recipientHiddenAt: null,
+    recipientArchivedAt: null,
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
     linkPlatform: null,
@@ -171,7 +171,7 @@ describe('toPublicPost', () => {
   it('🔒 never sends the raw recipient or hidden columns', () => {
     // Act
     const view = toPublicPost(
-      post({ recipientId: 'recipient-1', recipientHiddenAt: new Date() }),
+      post({ recipientId: 'recipient-1', recipientArchivedAt: new Date() }),
       'viewer-1',
       false,
       NO_RATINGS,
@@ -179,6 +179,6 @@ describe('toPublicPost', () => {
 
     // Assert
     expect(view).not.toHaveProperty('recipientId');
-    expect(view).not.toHaveProperty('recipientHiddenAt');
+    expect(view).not.toHaveProperty('recipientArchivedAt');
   });
 });

@@ -561,20 +561,20 @@ describe('a link-only post everywhere posts are read', () => {
     expect(profile.body.data.items[0].post).toMatchObject({ platform: 'SOUNDCLOUD', kind: 'SET' });
   });
 
-  it('hides and deletes like any post', async () => {
+  it('archives and deletes like any post', async () => {
     // Arrange
     const w = await world();
     const direct = await share(w, 'direct recommendation', { url: BANDCAMP });
     const id = direct.body.data.post.id as string;
 
     // Act
-    const hidden = await request(app)
-      .put(`/api/recommendations/${id}/hidden`)
+    const archived = await request(app)
+      .put(`/api/recommendations/${id}/archived`)
       .set('Cookie', w.noam.cookie);
     const deleted = await request(app).delete(`/api/posts/${id}`).set('Cookie', w.dana.cookie);
 
     // Assert
-    expect(hidden.status).toBe(200);
+    expect(archived.status).toBe(200);
     expect(deleted.status).toBe(200);
     expect(await prisma.post.count()).toBe(0);
   });

@@ -9,12 +9,15 @@ import {
   unmarkChecked,
 } from '../services/communityChecks.service.js';
 import {
+  archiveRecommendation,
+  countArchived,
   countUnseen,
-  hideRecommendation,
+  listArchived,
   listReceived,
   listSent,
   markSeen,
   sendRecommendation,
+  unarchiveRecommendation,
 } from '../services/recommendation.service.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
@@ -81,10 +84,39 @@ export const seen: RequestHandler = async (req, res, next) => {
   }
 };
 
-/** PUT /api/recommendations/:postId/hidden — the recipient only. */
-export const hide: RequestHandler = async (req, res, next) => {
+/** GET /api/recommendations/archived?before=<cursor> (archive-recommendations.md §4) */
+export const archived: RequestHandler = async (req, res, next) => {
   try {
-    await hideRecommendation(sessionUser(req), parsePostId(req.params.postId));
+    const { before } = parseQuery(listQuerySchema, req.query);
+    res.status(200).json(success(await listArchived(sessionUser(req), before)));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** GET /api/recommendations/archived/count — the "Archived · N" row. */
+export const archivedCount: RequestHandler = async (req, res, next) => {
+  try {
+    res.status(200).json(success({ count: await countArchived(sessionUser(req)) }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** PUT /api/recommendations/:postId/archived — the recipient only; idempotent. */
+export const archive: RequestHandler = async (req, res, next) => {
+  try {
+    await archiveRecommendation(sessionUser(req), parsePostId(req.params.postId));
+    res.status(200).json(success(null));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** DELETE /api/recommendations/:postId/archived — Unarchive and Undo; idempotent. */
+export const unarchive: RequestHandler = async (req, res, next) => {
+  try {
+    await unarchiveRecommendation(sessionUser(req), parsePostId(req.params.postId));
     res.status(200).json(success(null));
   } catch (error) {
     next(error);

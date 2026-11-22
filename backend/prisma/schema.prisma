@@ -203,9 +203,10 @@ model Post {
   communityId          String?           @map("community_id") @db.Uuid
   /// The friend a direct recommendation was sent to.
   recipientId          String?           @map("recipient_id") @db.Uuid
-  /// The recipient removed it from Received. Never serialised: the sender must
-  /// not learn it. It affects Received only (§3.5).
-  recipientHiddenAt    DateTime?         @map("recipient_hidden_at") @db.Timestamptz(3)
+  /// The recipient archived it: out of Received, into their archive. Never
+  /// serialised: the sender must not learn it. The column keeps its old name so a
+  /// running older deployment never breaks (archive-recommendations.md §3).
+  recipientArchivedAt  DateTime?         @map("recipient_hidden_at") @db.Timestamptz(3)
   /// Exactly as pasted (trimmed). Always present — the fallback link.
   originalUrl          String            @map("original_url") @db.VarChar(2048)
   /// The service a converted link came from. Null on a link-only post.
