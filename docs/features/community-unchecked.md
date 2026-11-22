@@ -8,7 +8,7 @@
 | **Use cases** | UC-20 amended (the Recommendations screen), UC-11 (community posts)             |
 | **Phase**     | 6 — parked idea D1 from the 2026-11-22 manual test                              |
 | **Branch**    | `feat/community-unchecked`                                                      |
-| **Status**    | ☑ Spec approved (2026-11-22) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved (2026-11-22) · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged |
 
 ---
 
