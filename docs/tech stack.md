@@ -96,6 +96,10 @@ Tools used to **build** the project. Nothing here ships, and nothing here is req
 
 **python-docx** - generates the `.docx` mirrors from their Markdown sources, which is how the dual-file rule (CLAUDE.md section 14.1) is actually kept. Installed outside the repository, not a project dependency. Note that neither LibreOffice nor pandoc is installed on the developer's machine, so the generated `.docx` files are verified structurally and by content, **not** by visual rendering.
 
+**iTunes Search API (Apple, public)** - looked up the title, artist, cover and Apple Music link of the 84 songs in the manual-test mock data, once, on 2026-11-22; the results are stored in `backend/scripts/mock-data/songs.json`, so seeding never calls it (docs/manual-tests/mock-data/README.md). Free, no key, no account. Nothing in the app uses it; without it, a new mock song is typed in by hand.
+
+**Neon connector (MCP)** - lets Claude run SQL on the project's Neon branches without ever seeing the connection string: read-only checks of production, and on 2026-11-22 the one-off mock-data seed and, before launch, its removal (docs/manual-tests/mock-data/README.md §1). Authorised by the owner on claude.ai with ADMIN on the project; its destructive tools are run only on the developer's explicit word. Without it, the same SQL would be pasted into the Neon console's SQL editor by the developer.
+
 **GitHub Integration connector - installed on the account, not usable from here.** The owner has it connected on claude.ai, where it works normally. It is **not exposed to Claude Code desktop sessions** and cannot be enabled from one, so every GitHub operation in this project goes through the `gh` CLI instead. This is a surface limitation, not a missing connector - worth knowing if you ever work on this repository from claude.ai in a browser rather than from the desktop app.
 
 No matching skill exists in the account either. The `gh` CLI covers the need: `gh api` reaches the full GitHub REST and GraphQL API, so nothing a connector would provide is out of reach.
