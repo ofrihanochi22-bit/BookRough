@@ -103,3 +103,43 @@ describe('ExternalLink in the installed iOS app (open-in-safari.md §5.2)', () =
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
+
+describe('ExternalLink onOpen (community-unchecked.md §5)', () => {
+  afterEach(() => {
+    resetDevice();
+  });
+
+  it('calls onOpen on a tap in the browser', () => {
+    // Arrange
+    const onOpen = vi.fn();
+    render(
+      <ExternalLink href="https://bandcamp.com/album/x" onOpen={onOpen}>
+        Open
+      </ExternalLink>,
+    );
+
+    // Act
+    clickLink(screen.getByRole('link', { name: 'Open' }));
+
+    // Assert
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it('in the installed iOS app, waits for the answer: not on the tap, not on Cancel', async () => {
+    // Arrange
+    emulateDevice(USER_AGENTS.iphoneSafari, { maxTouchPoints: 5, standalone: true });
+    const onOpen = vi.fn();
+    render(
+      <ExternalLink href="https://bandcamp.com/album/x" onOpen={onOpen}>
+        Open
+      </ExternalLink>,
+    );
+
+    // Act
+    clickLink(screen.getByRole('link', { name: 'Open' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+});

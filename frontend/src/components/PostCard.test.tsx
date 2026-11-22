@@ -40,6 +40,8 @@ const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess,
   }));
 vi.mock('../api/posts', () => ({ retryConversion, deletePost, editPostComment: vi.fn() }));
 vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark }));
+const { checkInBackground } = vi.hoisted(() => ({ checkInBackground: vi.fn() }));
+vi.mock('../api/recommendations', () => ({ checkInBackground }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 function renderCard(
@@ -715,5 +717,87 @@ describe('PostCard — user text and links (manual-test-fixes-1122.md §5)', () 
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     }
+  });
+});
+
+describe('PostCard — From communities (community-unchecked.md §5)', () => {
+  it('opening the main link checks the post in the background', async () => {
+    // Arrange
+    const post = makePost();
+    renderCard(post);
+
+    // Act
+    fireEvent.click(screen.getByRole('link', { name: /Open in/ }));
+
+    // Assert
+    expect(checkInBackground).toHaveBeenCalledWith(post);
+  });
+
+  it('opening a link in Other services checks it too', async () => {
+    // Arrange
+    const post = makePost();
+    renderCard(post);
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+
+    // Act
+    const sheet = screen.getByRole('dialog');
+    fireEvent.click(within(sheet).getAllByRole('link')[0]!);
+
+    // Assert
+    expect(checkInBackground).toHaveBeenCalledWith(post);
+  });
+
+  it('shows Mark checked only when the list offers it, disabled offline', async () => {
+    // Arrange
+    const post = makePost();
+    const onCheck = vi.fn();
+    const { rerender } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          viewerService="SPOTIFY"
+          online
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+          onCheck={onCheck}
+          onRate={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Mark checked' }));
+    rerender(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          viewerService="SPOTIFY"
+          online={false}
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+          onCheck={onCheck}
+          onRate={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(onCheck).toHaveBeenCalledWith(post);
+    expect(screen.getByRole('button', { name: 'Mark checked' })).toBeDisabled();
+    // A community post can be rated here: there is no friendship to lose.
+    expect(screen.getByRole('button', { name: /Rate & Review/ })).toBeInTheDocument();
+    expect(screen.queryByText(/no longer friends/)).not.toBeInTheDocument();
+  });
+
+  it('has no Mark checked elsewhere', () => {
+    // Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Mark checked' })).not.toBeInTheDocument();
   });
 });

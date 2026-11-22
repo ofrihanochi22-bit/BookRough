@@ -3664,6 +3664,62 @@ In a desktop browser nothing changes: run `cd backend && npm run dev` and `cd fr
 2. **M2.** Same, with **Copy link**: paste it in Safari, same result.
 3. **M3.** In Safari (not installed), the link opens in a new tab with no question.
 
+### Step 6.1z9 — Unchecked community recommendations, D1 (Phase 6 — UC-20 amended, UC-11)
+
+Status: 🟡 In review (PR open)
+Branch: feat/community-unchecked
+Spec: docs/features/community-unchecked.md
+
+Goal: until now a community post showed only in its own community's feed (parked idea D1, manual test of 2026-11-22, test 7). Now Recommendations has a third list, **Communities**: other members' posts, across every community the user is in, that the user hasn't checked yet.
+
+What I did:
+
+- **Schema** (migration `add_community_post_checks`): a new table `community_post_checks` (`user_id`, `post_id`, `checked_at`; PK on the pair, both FKs cascade). A new column `users.community_checks_since` (`NOT NULL DEFAULT now()`) is the clean start: the migration gives every existing user the moment it ran, so nobody's list is flooded at launch.
+- **Backend:**
+  - `services/communityChecks.service.ts`: `listUnchecked` and `countUnchecked`. They use raw SQL, because the rule compares `posts.created_at` with `community_members.joined_at`, and Prisma can't express that. The rule: someone else's post, in a community the user is in now, from the later of joining and the clean start, not checked. Then `findMany` with `postInclude`, so admins keep Delete as in the feed.
+  - Also `markChecked` / `unmarkChecked` (idempotent; a direct recommendation, a non-member or a missing post is `404`; the user's own post is a no-op) and `recordCheck`.
+  - `ratePost` (in its transaction) and `saveBookmark` now record the check. `removeBookmark` doesn't undo it.
+  - Four routes on `recommendationsRouter`: `GET /community`, `GET /community/count`, and `PUT` / `DELETE /community/:postId/checked`.
+- **Frontend:**
+  - `Recommendations.tsx`: the third pill, "Communities · N". Each card sits under "in {community}", which links to the community, and has **Mark checked**. The card leaves at once, with a "Marked as checked" toast and **Undo**. Rating or saving from the list removes the card too. The list has an empty state ("You're all caught up"), a load error with Try again, Load more, and Mark checked disabled offline.
+  - `PostCard` and `OpenInBrowserSheet` / `ExternalLink`: opening the main link or an Other services link checks someone else's community post in the background. In the installed iPhone app this happens only once "Open in Safari" or "Copy link" is chosen, not on Cancel.
+  - `PostDetail`: opening a post checks it, once per visit.
+  - `PostCard`'s Rate & Review now also shows on a community post (it used to assume a direct item).
+- **Unchanged:** the bell and the Friends tab's Recommendations count stay as they were (Stage 1 answer 4). There's no history of checked posts; D2 is still parked.
+- **Docs:** `tables`, `use cases` (UC-20 amended) and `frontend screens` (2.5), both `.md` and `.docx`. `CLAUDE.md` §6 now says seventeen tables, and §9 records the UC-20 amendment.
+- **`/code-review` (high), 5 findings:**
+  - Fixed: a Received or Sent page persisted by the previous version would have crashed the screen (no `communities` field).
+  - Fixed: the "in {community}" link was under 44px.
+  - Fixed: admins had no Delete on this list.
+  - Fixed: the iPhone link check ran even on Cancel.
+  - Accepted (spec §9): Undo after switching pills shows the post again only at the next visit.
+- **`/security-review`:** clean. The raw SQL is parameterised. Writes are limited to the caller's own rows, behind `requirePostAccess`. Nothing new is serialised beyond the community's id and name.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev        # applies add_community_post_checks
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/`, signed in as a member of a community that has at least one other member:
+
+1. As the other member, post a song in that community.
+2. As you, go to **Friends → Recommendations → Communities**. The pill reads "Communities · 1", and the card shows "in {community}".
+3. Press **Mark checked**. The card goes, and the toast offers **Undo**. Press it: the card comes back.
+4. Press **Open in …** on the card, then come back and reopen the tab: the post is gone. The same happens after **Rate & Review**, saving to **Listen Later**, or opening the post.
+5. Your own posts, direct recommendations, and posts from before you joined the community (or before the migration) never appear.
+6. The bell and the Recommendations count on Friends behave exactly as before.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/communityChecks src/services/rating src/services/bookmark
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/communityChecks
+cd frontend && npx vitest run src/pages/Recommendations src/pages/PostDetail src/components/PostCard src/components/ExternalLink src/components/OpenInBrowserSheet src/api/recommendations
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

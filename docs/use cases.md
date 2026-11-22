@@ -315,6 +315,8 @@
 
 > **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient hides an item for themselves only, and the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md.
 
+> **Amended — From communities** (docs/features/community-unchecked.md, 2026-11-22). The Recommendations screen has a third list, "Communities": other members' posts, across every community the user is in, that the user has not checked yet. A post counts from the later of joining its community and the feature's launch. Opening its link or Post Detail, rating it, saving it, or "Mark checked" (with Undo) takes it off the list; it stays in its community's feed. The bell and the Recommendations row's count are unchanged. No new UC number.
+
 ### UC-21: User Receives Notifications
 
 - **Description:** A user is told, inside the app, when something concerns them: a new post in one of their communities (grouped per community while unread), a direct recommendation (UC-20), the first rating of their post (UC-13), a friend request or an accepted one (UC-6, UC-7), an invitation to a community (UC-9), being made an admin or the owner of one (UC-14), or a reply to them in a discussion (UC-22). There is no push and no email.

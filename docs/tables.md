@@ -17,6 +17,7 @@ Stores the core authentication and profile data.
 - **walkthrough_seen_at** (TIMESTAMP, Nullable): When the onboarding walkthrough was finished or skipped; null means it is still to show. Reaches only the user themself, as a "still to show" flag in the session (`docs/features/onboarding-tutorial.md`).
 - **save_tip_seen_at** (TIMESTAMP, Nullable): When the save tip in a community feed was dismissed or acted on. Same rules.
 - **list_tip_seen_at** (TIMESTAMP, Nullable): When the My List tip was dismissed or acted on. Same rules.
+- **community_checks_since** (TIMESTAMP, Not Null, Default Current Time): The clean start of "From communities": only community posts created from this moment on can be unchecked. The migration that added it set it for every existing user, and a new user gets their sign-up time (`docs/features/community-unchecked.md` §3). Never sent to a client.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Not Null): Set on every write. Added in Phase 1; the admin area will use it.
 
@@ -206,8 +207,17 @@ The anonymous count of app opens (UC-19 amended, `docs/features/admin-overview.m
 - **signed_out** (INTEGER, Default 0): opens without one.
 - (The hand-written CHECK `daily_app_opens_nonneg` keeps both counts non-negative; invisible to Prisma.)
 
+### 17. community_post_checks Table
+
+The community posts a user has checked (UC-20 amended, `docs/features/community-unchecked.md` §3). One row per user and post, written by opening a post's link or Post Detail, by rating or saving it, or by "Mark checked"; Undo deletes it. Never written for a direct recommendation or the user's own post.
+
+- **user_id** (UUID, Foreign Key referencing users(id), cascade on delete).
+- **post_id** (UUID, Foreign Key referencing posts(id), cascade on delete): a deleted post takes its checks with it.
+- **checked_at** (TIMESTAMP, Default Current Time): kept for debugging; never read by the app.
+- (Primary key on user_id and post_id, so checking twice is one row; indexed on post_id for the cascade.)
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is sixteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
+> **The schema is seventeen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.
