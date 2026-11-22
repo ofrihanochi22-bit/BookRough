@@ -3744,6 +3744,7 @@ What I did:
   - Fixed: the column rename (above).
   - Fixed in Stage 4: the old Hide tests no longer compiled.
   - No change needed: the Received pill does close the archive (`PillTrack` always calls `onChange`).
+- **`/security-review`:** clean. Both writes sit behind `requirePostAccess` and the recipient check, the archive and its count read only the caller's own rows, no raw SQL was added, and the archive time is never serialised.
 
 How to view & test:
 
