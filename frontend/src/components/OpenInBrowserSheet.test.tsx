@@ -19,8 +19,9 @@ function stubClipboard(writeText: (text: string) => Promise<void>) {
 
 function renderSheet(href = LINK) {
   const onClose = vi.fn();
-  render(<OpenInBrowserSheet href={href} onClose={onClose} />);
-  return { onClose };
+  const onChosen = vi.fn();
+  render(<OpenInBrowserSheet href={href} onClose={onClose} onChosen={onChosen} />);
+  return { onClose, onChosen };
 }
 
 describe('OpenInBrowserSheet (open-in-safari.md §5.3)', () => {
@@ -92,7 +93,7 @@ describe('OpenInBrowserSheet (open-in-safari.md §5.3)', () => {
   it('Copy link copies the original address, toasts and closes', async () => {
     // Arrange
     const writeText = vi.fn().mockResolvedValue(undefined);
-    const { onClose } = renderSheet();
+    const { onClose, onChosen } = renderSheet();
     stubClipboard(writeText);
 
     // Act
@@ -100,6 +101,7 @@ describe('OpenInBrowserSheet (open-in-safari.md §5.3)', () => {
 
     // Assert
     expect(writeText).toHaveBeenCalledWith(LINK);
+    expect(onChosen).toHaveBeenCalledOnce();
     expect(toastSuccess).toHaveBeenCalledWith(COPIED);
     expect(onClose).toHaveBeenCalledOnce();
     expect(open).not.toHaveBeenCalled();
@@ -127,13 +129,14 @@ describe('OpenInBrowserSheet (open-in-safari.md §5.3)', () => {
 
   it('Cancel closes and opens nothing', async () => {
     // Arrange
-    const { onClose } = renderSheet();
+    const { onClose, onChosen } = renderSheet();
 
     // Act
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     // Assert
     expect(onClose).toHaveBeenCalledOnce();
+    expect(onChosen).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
   });
 

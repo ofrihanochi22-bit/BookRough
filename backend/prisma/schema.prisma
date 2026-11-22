@@ -99,6 +99,10 @@ model User {
   saveTipSeenAt           DateTime?             @map("save_tip_seen_at") @db.Timestamptz(3)
   /// When the list tip (My List) was dismissed or acted on.
   listTipSeenAt           DateTime?             @map("list_tip_seen_at") @db.Timestamptz(3)
+  /// The clean start of "From communities": only community posts from this
+  /// moment on can be unchecked. The migration set it for existing users.
+  /// Never sent to a client (docs/features/community-unchecked.md §3).
+  communityChecksSince    DateTime              @default(now()) @map("community_checks_since") @db.Timestamptz(3)
   memberships             CommunityMember[]
   bans                    CommunityBan[]        @relation("BannedUser")
   bansIssued              CommunityBan[]        @relation("BannedBy")
@@ -117,6 +121,7 @@ model User {
   comments                Comment[]             @relation("CommentAuthor")
   commentsRepliedTo       Comment[]             @relation("CommentReplyTo")
   opsSnapshots            OpsSnapshot[]
+  communityPostChecks     CommunityPostCheck[]
 
   @@map("users")
 }
@@ -230,6 +235,7 @@ model Post {
   ratings              Rating[]
   notifications        Notification[]
   comments             Comment[]
+  communityPostChecks  CommunityPostCheck[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
@@ -427,6 +433,22 @@ model Notification {
   @@index([postId])
   @@index([communityId])
   @@map("notifications")
+}
+
+/// A community post the user has checked — docs/features/community-unchecked.md §3
+/// (UC-20 amended). One row per (user, post); never for a direct recommendation
+/// or the user's own post (the service's rule).
+model CommunityPostCheck {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  /// Deleting a post cascades to its checks by post id.
+  @@index([postId])
+  @@map("community_post_checks")
 }
 
 /// A user's uploaded photo — docs/features/avatar-upload.md §3 (UC-4).

@@ -20,7 +20,11 @@ import {
  */
 
 const { db, tx, notifyRating, warn } = vi.hoisted(() => {
-  const tx = { rating: { create: vi.fn() }, bookmark: { deleteMany: vi.fn() } };
+  const tx = {
+    rating: { create: vi.fn() },
+    bookmark: { deleteMany: vi.fn() },
+    communityPostCheck: { createMany: vi.fn() },
+  };
   return {
     tx,
     db: {
@@ -70,6 +74,7 @@ beforeEach(() => {
   db.$transaction.mockImplementation((callback: (client: typeof tx) => unknown) => callback(tx));
   tx.rating.create.mockResolvedValue(CREATED);
   tx.bookmark.deleteMany.mockResolvedValue({ count: 1 });
+  tx.communityPostCheck.createMany.mockResolvedValue({ count: 1 });
 });
 
 describe('ratePost', () => {
@@ -83,6 +88,11 @@ describe('ratePost', () => {
     });
     expect(tx.bookmark.deleteMany).toHaveBeenCalledWith({
       where: { userId: USER.id, postId: POST_ID },
+    });
+    // Rating checks a community post, in the same transaction (community-unchecked.md §4).
+    expect(tx.communityPostCheck.createMany).toHaveBeenCalledWith({
+      data: [{ userId: USER.id, postId: POST_ID }],
+      skipDuplicates: true,
     });
     expect(notifyRating).toHaveBeenCalledWith({
       authorId: AUTHOR,

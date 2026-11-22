@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { PublicPost } from '../api/posts';
+import { checkInBackground } from '../api/recommendations';
 import { useRetryConversion } from '../hooks/useRetryConversion';
 import { badgeText } from '../lib/friendCopy';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
@@ -189,6 +190,7 @@ export function PostCard({
   linkToDetail = true,
   onRate,
   onHide,
+  onCheck,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -311,7 +313,8 @@ export function PostCard({
       {onRate &&
         !post.isMine &&
         post.myScore === null &&
-        (post.direct?.isFriend ? (
+        // A community post has no friendship to lose (community-unchecked.md §5).
+        (!post.direct || post.direct.isFriend ? (
           <Button
             variant="rating"
             offline={!online}
@@ -325,7 +328,11 @@ export function PostCard({
         ))}
 
       <div className="flex flex-wrap items-center gap-2">
-        <ExternalLink href={main.url} className={OPEN_IN_PILL}>
+        <ExternalLink
+          href={main.url}
+          className={OPEN_IN_PILL}
+          onOpen={() => checkInBackground(post)}
+        >
           {main.text}
         </ExternalLink>
         {!post.conversionPending && !post.platform && (
@@ -335,6 +342,11 @@ export function PostCard({
         )}
         {post.conversionPending && (
           <TryAgainChip online={online} retrying={retrying} onClick={retry} />
+        )}
+        {onCheck && (
+          <button type="button" className={CHIP} disabled={!online} onClick={() => onCheck(post)}>
+            Mark checked
+          </button>
         )}
         {detailPath && (
           <Link to={detailPath} className={CHIP}>

@@ -9,6 +9,7 @@ import { type SavedPost, toSavedPost } from '../utils/savedPost.js';
 import { isAdminRole } from './communityAccess.js';
 import { friendsOnPosts } from './friendship.js';
 import { decodeCursor, encodeCursor, PAGE_SIZE, POST_NOT_FOUND } from './post.service.js';
+import { recordCheck } from './communityChecks.service.js';
 import { requirePostAccess } from './postAccess.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
 
@@ -42,6 +43,8 @@ export async function saveBookmark(user: User, postId: string): Promise<void> {
       data: [{ userId: user.id, postId }],
       skipDuplicates: true,
     });
+    // Saving checks a community post; unsaving does not undo it (community-unchecked.md §4).
+    await recordCheck(prisma, user.id, post, postId);
   } catch (error) {
     // The post was deleted between the check and the insert.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {

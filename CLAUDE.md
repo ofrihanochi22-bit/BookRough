@@ -216,9 +216,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Sixteen tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Seventeen tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -236,6 +236,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `comments` holds the discussion on a post (UC-22): a post comment, or a reply in one flat thread under a review (`rating_id`) or a post comment (`parent_id`). The hand-written CHECKs `comments_one_thread` and `comments_body_or_deleted` in the `add_comments` migration, and the partial unique index `notifications_one_open_reply_group` in `add_comment_reply_group` (the target of the reply-grouping upsert), are invisible to Prisma (docs/features/discussion-threads.md §3).
 
 - `ops_snapshots` holds what the ops tools read (Vercel's storage meters, the deployments, the registry images) for Admin → Overview, kept 90 days; `daily_app_opens` is one row per UTC day of anonymous app-open counts, with no column that refers to a person. Their CHECKs `ops_snapshots_deleted_nonneg` and `daily_app_opens_nonneg`, in the `add_ops_overview` migration, are invisible to Prisma (docs/features/admin-overview.md §3).
+
+- `community_post_checks` holds the community posts a user has checked, one row per user and post; `users.community_checks_since` is the clean start before which no post counts as unchecked (docs/features/community-unchecked.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API. Three nullable timestamps — `walkthrough_seen_at`, `save_tip_seen_at`, `list_tip_seen_at` — record the onboarding tutorial, and reach only the user themself as `tutorial` flags in the session (docs/features/onboarding-tutorial.md).
@@ -302,6 +304,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-22 is new**: discussing a recommendation — comments on a post and replies in a flat thread under a review or a comment, with the person replied to notified (docs/features/discussion-threads.md).
 - **UC-19 and UC-21 were amended** so the admin can delete a user or a community, whose members are told with a `COMMUNITY_REMOVED` notification (docs/features/admin-delete.md). No new UC number.
 - **UC-19 was amended** with Admin → Overview: a read-only page of storage limits, deployments, images, last deletions and app counts, fed by the ops tools' snapshots and by Postgres (docs/features/admin-overview.md). No new UC number.
+- **UC-20 was amended** with a third Recommendations list, "Communities": other members' community posts the user hasn't checked yet (docs/features/community-unchecked.md). No new UC number.
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---

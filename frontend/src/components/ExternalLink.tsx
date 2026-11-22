@@ -7,6 +7,8 @@ interface ExternalLinkProps {
   href: string;
   className?: string;
   children: ReactNode;
+  /** The link was opened (community-unchecked.md §5); in the iOS app, only once the question is answered. */
+  onOpen?: () => void;
 }
 
 /** Read on each tap, not at load (open-in-safari.md §5.2). */
@@ -22,14 +24,16 @@ function inInstalledIosApp(): boolean {
  * (docs/features/open-in-safari.md). The only place in the app that writes a
  * raw `<a href>`; `externalLinks.test.ts` keeps it that way.
  */
-export function ExternalLink({ href, className, children }: ExternalLinkProps) {
+export function ExternalLink({ href, className, children, onOpen }: ExternalLinkProps) {
   const [asking, setAsking] = useState(false);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (inInstalledIosApp()) {
       event.preventDefault();
       setAsking(true);
+      return;
     }
+    onOpen?.();
   }
 
   return (
@@ -43,7 +47,9 @@ export function ExternalLink({ href, className, children }: ExternalLinkProps) {
       >
         {children}
       </a>
-      {asking && <OpenInBrowserSheet href={href} onClose={() => setAsking(false)} />}
+      {asking && (
+        <OpenInBrowserSheet href={href} onClose={() => setAsking(false)} onChosen={onOpen} />
+      )}
     </>
   );
 }

@@ -10,12 +10,22 @@ import { Sheet } from './ui/Sheet';
  * iOS app, where iOS's own window would stop the music when closed
  * (docs/features/open-in-safari.md §5.3).
  */
-export function OpenInBrowserSheet({ href, onClose }: { href: string; onClose: () => void }) {
+export function OpenInBrowserSheet({
+  href,
+  onClose,
+  onChosen,
+}: {
+  href: string;
+  onClose: () => void;
+  /** Safari or Copy link was chosen; Cancel calls only `onClose`. */
+  onChosen?: () => void;
+}) {
   const safari = safariUrl(href);
   const [copyFailed, setCopyFailed] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
   function openSafari() {
+    onChosen?.();
     if (safari) {
       openInSafari(safari, () => toast.error(SAFARI_DID_NOT_OPEN));
     }
@@ -25,6 +35,7 @@ export function OpenInBrowserSheet({ href, onClose }: { href: string; onClose: (
   async function copy() {
     try {
       await navigator.clipboard.writeText(href);
+      onChosen?.();
       toast.success(COPIED);
       onClose();
     } catch {

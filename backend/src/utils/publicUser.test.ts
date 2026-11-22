@@ -21,6 +21,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     walkthroughSeenAt: null,
     saveTipSeenAt: null,
     listTipSeenAt: null,
+    communityChecksSince: new Date(0),
     preferredService: 'SPOTIFY',
     role: 'ADMIN',
     createdAt: new Date('2026-10-01T10:00:00.000Z'),

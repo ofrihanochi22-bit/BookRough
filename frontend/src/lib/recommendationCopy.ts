@@ -23,3 +23,17 @@ export function hideBody(name: string): string {
 export function deleteDirectBody(name: string): string {
   return `Delete this recommendation? ${isolate(name)} will lose it too, with any rating. They won't be notified.`;
 }
+
+/** From communities — docs/features/community-unchecked.md §5. */
+export const COMMUNITY_EMPTY_TITLE = "You're all caught up";
+export const COMMUNITY_EMPTY_BODY =
+  'New posts from your communities appear here until you check them.';
+export const COMMUNITY_LOAD_FAILED = "Couldn't load posts from your communities.";
+export const CHECKED = 'Marked as checked';
+export const CHECK_FAILED = "Couldn't mark it checked.";
+export const UNDO_FAILED = "Couldn't undo. Check your connection and try again.";
+
+/** The pill's label: short enough for a third of a 375px screen. */
+export function communityPill(count: number): string {
+  return count > 0 ? `Communities · ${count}` : 'Communities';
+}

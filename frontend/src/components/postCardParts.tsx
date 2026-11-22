@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 import { deletePost, type PublicPost } from '../api/posts';
+import { checkInBackground } from '../api/recommendations';
 import { allLinks } from '../lib/postLinks';
 import { deleteDirectBody } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
@@ -29,6 +30,8 @@ export interface PostCardProps {
   onRate?: (post: PublicPost) => void;
   /** On Received: open the Hide confirmation. */
   onHide?: (post: PublicPost) => void;
+  /** On From communities: the "Mark checked" chip (community-unchecked.md §5). */
+  onCheck?: (post: PublicPost) => void;
 }
 
 const linkButton =
@@ -113,7 +116,11 @@ export function OtherServicesSheet({ post, onClose }: { post: PublicPost; onClos
       <ul className="flex flex-col gap-2">
         {allLinks(post).map((link) => (
           <li key={link.service}>
-            <ExternalLink href={link.url} className={`${linkButton} w-full border border-line`}>
+            <ExternalLink
+              href={link.url}
+              className={`${linkButton} w-full border border-line`}
+              onOpen={() => checkInBackground(post)}
+            >
               {link.label}
             </ExternalLink>
           </li>
