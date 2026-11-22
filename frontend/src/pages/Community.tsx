@@ -82,7 +82,9 @@ export function Community() {
           <CommunityCover id={ready.id} name={ready.name} variant="banner" label="h1" />
           <div className="flex flex-col gap-2">
             {ready.description && (
-              <p className="whitespace-pre-line break-words text-sm">{ready.description}</p>
+              <p dir="auto" className="whitespace-pre-line break-words text-sm">
+                {ready.description}
+              </p>
             )}
             <p className="text-xs text-muted">{membershipLine(ready)}</p>
           </div>

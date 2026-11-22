@@ -7,6 +7,7 @@ import type { AdminCommunity, AdminUser } from '../api/admin';
 import { App } from '../App';
 import { useAuthStore } from '../stores/auth';
 import { httpError, makeSession, networkError, resetAuthStore } from '../test/fixtures';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   listAdminUsers: vi.fn(),
@@ -211,7 +212,9 @@ describe('Communities tab', () => {
 
     // Assert
     expect(await screen.findByText('2 communities')).toBeInTheDocument();
-    expect(screen.getByText('5 members · Created 3 Oct 2026 · Owner: Mia')).toBeInTheDocument();
+    expect(
+      screen.getByText(`5 members · Created 3 Oct 2026 · Owner: ${isolate('Mia')}`),
+    ).toBeInTheDocument();
     expect(screen.getByText('1 member · Created 3 Oct 2026 · No owner')).toBeInTheDocument();
   });
 
@@ -525,7 +528,7 @@ describe('Communities tab — Delete', () => {
 
     // Assert
     expect(api.deleteAdminCommunity).toHaveBeenCalledWith('22222222-2222-4222-8222-222222222222');
-    expect(api.toastSuccess).toHaveBeenCalledWith('Friday Jazz was deleted.');
+    expect(api.toastSuccess).toHaveBeenCalledWith(`${isolate('Friday Jazz')} was deleted.`);
     expect(await screen.findByText('No communities yet.')).toBeInTheDocument();
   });
 

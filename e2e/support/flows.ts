@@ -5,6 +5,13 @@ import { newGoogleAccount, stubGoogle } from './googleStandIn';
 /** Steps shared by the golden loops. Each asserts the screen it starts on. */
 
 /**
+ * A name as the app prints it inside an English sentence built as a string —
+ * wrapped in the Unicode isolate marks, so a Hebrew name keeps its direction
+ * (docs/features/manual-test-fixes-1122.md §5.1).
+ */
+export const isolated = (name: string) => `\u2068${name}\u2069`;
+
+/**
  * Welcome's Sign in / Create account switch, then its one Google button
  * (docs/features/sign-in-sign-up.md). A new account is created; `signin` is for
  * an account that already exists.

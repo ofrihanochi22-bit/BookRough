@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { listMyCommunities, type PublicCommunity } from '../api/communities';
 import { useRequest } from '../hooks/useRequest';
+import { isolate } from '../lib/bidi';
 import { cacheKeys } from '../lib/cacheKeys';
 import {
   COMMUNITIES_LOAD_FAILED,
@@ -78,7 +79,9 @@ function ChooseCommunity({
             <div className="w-14 shrink-0">
               <CommunityCover id={community.id} name={community.name} variant="thumb" />
             </div>
-            <span className="min-w-0 truncate">{community.name}</span>
+            <span className="min-w-0 truncate">
+              <bdi>{community.name}</bdi>
+            </span>
           </button>
         </li>
       ))}
@@ -122,7 +125,7 @@ export function ShareSheet({ online, onClose }: ShareSheetProps) {
     const { community } = step;
     return (
       <Sheet
-        title={community.name}
+        title={isolate(community.name)}
         onClose={onClose}
         onBack={() => setStep({ name: 'communities' })}
         dismissible={!busy}

@@ -24,6 +24,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
 import { useRequest } from '../hooks/useRequest';
+import { isolate } from '../lib/bidi';
 import { memberCountLabel } from '../lib/communityCopy';
 import { formatDate } from '../lib/overviewCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
@@ -147,7 +148,7 @@ function UserRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`truncate font-medium ${user.displayName ? '' : 'text-muted'}`}>
-            {user.displayName ?? 'Not finished signing up'}
+            <bdi>{user.displayName ?? 'Not finished signing up'}</bdi>
           </span>
           {user.isAdmin && (
             <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-ink">
@@ -272,14 +273,16 @@ function CommunityRow({
 }) {
   const [deleting, setDeleting] = useState(false);
   const owner = community.owner
-    ? `Owner: ${community.owner.displayName ?? 'Not finished signing up'}`
+    ? `Owner: ${community.owner.displayName ? isolate(community.owner.displayName) : 'Not finished signing up'}`
     : 'No owner';
 
   return (
     <li className={ROW}>
       <Avatar id={community.id} name={community.name} size={40} decorative />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{community.name}</p>
+        <p className="truncate font-medium">
+          <bdi>{community.name}</bdi>
+        </p>
         <p className="truncate text-xs text-muted">
           {[
             memberCountLabel(community.memberCount),

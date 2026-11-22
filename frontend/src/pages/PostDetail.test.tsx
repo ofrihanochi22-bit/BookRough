@@ -664,3 +664,14 @@ describe('PostDetail — discussion (discussion-threads.md §7)', () => {
     expect(within(row).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
   });
 });
+
+describe('PostDetail — reviews in their own direction (manual-test-fixes-1122.md §5.1)', () => {
+  it('lays out each review by its own text', async () => {
+    // Act
+    renderDetail();
+
+    // Assert
+    const review = await screen.findByText(/Still gives me chills/);
+    expect(review).toHaveAttribute('dir', 'auto');
+  });
+});

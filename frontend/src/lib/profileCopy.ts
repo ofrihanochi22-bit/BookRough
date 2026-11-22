@@ -1,3 +1,5 @@
+import { isolate } from './bidi';
+
 /** Copy for Search and Public Profile — docs/features/find-people.md §5. */
 export const SEARCH_HINT = 'Find friends by their display name.';
 export const SEARCH_EMPTY = 'No users found matching this search. Try a different name.';
@@ -8,5 +10,5 @@ export const PROFILE_FAILED = "Couldn't load this profile.";
 export const RATINGS_LOAD_FAILED = "Couldn't load ratings.";
 
 export function ratingsEmptyHint(name: string): string {
-  return `You'll see ${name}'s ratings from the communities you share.`;
+  return `You'll see ${isolate(name)}'s ratings from the communities you share.`;
 }

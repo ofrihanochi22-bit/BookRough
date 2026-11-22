@@ -279,7 +279,9 @@ export function Friends() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{invitation.community.name}</p>
+                      <p className="truncate text-sm font-medium">
+                        <bdi>{invitation.community.name}</bdi>
+                      </p>
                       <p className="truncate text-xs text-muted">
                         {invitedBy(
                           invitation.invitedBy?.displayName ?? null,

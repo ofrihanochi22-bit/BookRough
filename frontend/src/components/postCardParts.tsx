@@ -6,6 +6,7 @@ import { deletePost, type PublicPost } from '../api/posts';
 import { allLinks } from '../lib/postLinks';
 import { deleteDirectBody } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
+import { ExternalLink } from './ExternalLink';
 import { Button } from './ui/Button';
 import { Sheet } from './ui/Sheet';
 
@@ -112,14 +113,9 @@ export function OtherServicesSheet({ post, onClose }: { post: PublicPost; onClos
       <ul className="flex flex-col gap-2">
         {allLinks(post).map((link) => (
           <li key={link.service}>
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${linkButton} w-full border border-line`}
-            >
+            <ExternalLink href={link.url} className={`${linkButton} w-full border border-line`}>
               {link.label}
-            </a>
+            </ExternalLink>
           </li>
         ))}
       </ul>

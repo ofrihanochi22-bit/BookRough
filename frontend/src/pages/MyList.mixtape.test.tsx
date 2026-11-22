@@ -14,6 +14,7 @@ import {
   setOnline,
 } from '../test/fixtures';
 import { MyList } from './MyList';
+import { readsAs } from '../test/bidi';
 
 const { listBookmarks, removeBookmark } = vi.hoisted(() => ({
   listBookmarks: vi.fn(),
@@ -102,7 +103,7 @@ describe('My List (ui-redesign.md §5.9)', () => {
     renderList();
 
     // Assert
-    expect(await screen.findByText("You're no longer in Friday Jazz")).toBeInTheDocument();
+    expect(await screen.findByText(readsAs("You're no longer in Friday Jazz"))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
   });
 

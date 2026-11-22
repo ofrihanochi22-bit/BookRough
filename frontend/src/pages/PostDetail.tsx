@@ -138,7 +138,7 @@ export function PostDetail() {
                   <ScoreSticker score={rating.score} className="size-10 -rotate-6 text-base" />
                   <PersonLink
                     user={rating.rater}
-                    label={rating.isMine ? 'You' : rating.rater.displayName}
+                    label={rating.isMine ? 'You' : undefined}
                     className="text-sm font-medium"
                   />
 
@@ -147,7 +147,9 @@ export function PostDetail() {
                   </time>
                 </div>
                 {rating.comment && (
-                  <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
+                  <p dir="auto" className="whitespace-pre-line break-words text-sm">
+                    {rating.comment}
+                  </p>
                 )}
                 {rating.isMine && post?.direct?.isFriend !== false && (
                   <button
