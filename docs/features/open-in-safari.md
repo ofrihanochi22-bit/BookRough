@@ -8,7 +8,7 @@
 | **Use cases** | UC-11, UC-12, UC-20 (presentation only: how a post's links open)   |
 | **Phase**     | 6                                                                  |
 | **Branch**    | `feat/open-in-safari`                                              |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged |
 
 ---
 
@@ -112,7 +112,7 @@ The links there sit inside a `Sheet`. The new sheet opens on top of it (rendered
 
 - `externalLinks.test.ts` still passes: the only raw `<a>` stays in `ExternalLink.tsx`.
 
-**Manual (after merge, developer's choice, §8)**
+**Manual (after merge, developer's choice, §8)** — all three passed on the developer's iPhone, in the installed production app, on 2026-11-23: the `x-safari-https://` scheme opened full Safari and the music kept playing.
 
 - M1. In the installed app on the developer's iPhone: tap "Open in Bandcamp", choose Open in Safari. Safari opens the album; play it, switch back to BookRough; the song keeps playing.
 - M2. Same, with Copy link: paste in Safari, same result.

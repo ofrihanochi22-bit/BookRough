@@ -3637,7 +3637,7 @@ cd backend && npx vitest run src/services/community.service && npm run test:inte
 
 ### Step 6.1z8 — Open in Safari from the installed iPhone app (Phase 6 — UC-11, UC-12, UC-20 presentation)
 
-Status: 🟡 In review (PR open; the iPhone check M1–M3 runs after the merge, by the developer's choice)
+Status: ✅ Done (merged as PR #93; iPhone checks M1–M3 passed in production on 2026-11-23)
 Branch: feat/open-in-safari
 Spec: docs/features/open-in-safari.md
 
