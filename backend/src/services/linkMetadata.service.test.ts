@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchLinkMetadata,
   fetchYoutubeMetadata,
+  bandcampItemId,
   MAX_JSON_BYTES,
   ogTags,
   REQUEST_TIMEOUT_MS,
@@ -228,6 +229,7 @@ describe('fetchLinkMetadata — Bandcamp', () => {
       title: 'A LA SALA',
       artist: 'Khruangbin',
       coverArtUrl: 'https://f4.bcbits.com/img/a4088322578_5.jpg',
+      itemId: null,
     });
     expect(fetchMock.mock.calls[0]![0]).toBe('https://khruangbin.bandcamp.com/album/a-la-sala');
   });
@@ -262,6 +264,7 @@ describe('fetchLinkMetadata — Bandcamp', () => {
       title: 'Rock & Roll — Live \'99"',
       artist: null,
       coverArtUrl: null,
+      itemId: null,
     });
   });
 
@@ -286,6 +289,90 @@ describe('fetchLinkMetadata — Bandcamp', () => {
       outcome: 'missing',
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+});
+
+/** Bandcamp's own shape: JSON with its quotes escaped as entities. */
+function properties(value: unknown): string {
+  return `<meta name="bc-page-properties" content="${JSON.stringify(value).replace(/"/g, '&quot;')}">`;
+}
+
+describe('bandcampItemId', () => {
+  const ALBUM = 'https://khruangbin.bandcamp.com/album/a-la-sala';
+  const TRACK = 'https://khruangbin.bandcamp.com/track/may-ninth';
+
+  it.each([
+    [ALBUM, { item_type: 'a', item_id: 1836174753 }, '1836174753'],
+    [TRACK, { item_type: 't', item_id: 42, tralbum_page_version: 0 }, '42'],
+  ])('reads the id of %s when its item type matches', (url, value, expected) => {
+    // Arrange
+    const page = `<head><meta property="og:title" content="x">${properties(value)}</head>`;
+
+    // Act
+    const id = bandcampItemId(page, url);
+
+    // Assert
+    expect(id).toBe(expected);
+  });
+
+  it.each([
+    ['no tag at all', ALBUM, '<meta property="og:title" content="x">'],
+    ['a tag with no content', ALBUM, '<meta name="bc-page-properties">'],
+    ['broken JSON', ALBUM, '<meta name="bc-page-properties" content="{&quot;item_id">'],
+    ['JSON that is not an object', ALBUM, properties(7)],
+    ['a track id on an album link', ALBUM, properties({ item_type: 't', item_id: 42 })],
+    ['an album id on a track link', TRACK, properties({ item_type: 'a', item_id: 42 })],
+    ['a zero id', ALBUM, properties({ item_type: 'a', item_id: 0 })],
+    ['a negative id', ALBUM, properties({ item_type: 'a', item_id: -5 })],
+    ['a fractional id', ALBUM, properties({ item_type: 'a', item_id: 1.5 })],
+    ['an id given as text', ALBUM, properties({ item_type: 'a', item_id: '42' })],
+    ['an id past the safe integers', ALBUM, properties({ item_type: 'a', item_id: 2 ** 60 })],
+    [
+      'a link that is neither album nor track',
+      'https://a.bandcamp.com/music',
+      properties({ item_type: 'a', item_id: 42 }),
+    ],
+    ['an unparseable link', 'not a url', properties({ item_type: 'a', item_id: 42 })],
+  ])('is null for %s', (_case, url, page) => {
+    // Act
+    const id = bandcampItemId(page, url);
+
+    // Assert
+    expect(id).toBeNull();
+  });
+
+  it('is found through fetchLinkMetadata, which still returns the title and cover', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue(
+      html(BANDCAMP_HEAD + properties({ item_type: 'a', item_id: 1836174753 })),
+    );
+
+    // Act
+    const result = await fetchLinkMetadata('BANDCAMP', ALBUM, LATER());
+
+    // Assert
+    expect(result).toEqual({
+      outcome: 'found',
+      title: 'A LA SALA',
+      artist: 'Khruangbin',
+      coverArtUrl: 'https://f4.bcbits.com/img/a4088322578_5.jpg',
+      itemId: '1836174753',
+    });
+  });
+
+  it('misses an id that sits past the 64 KB the fetcher reads', async () => {
+    // Arrange
+    fetchMock.mockResolvedValue(
+      html(
+        BANDCAMP_HEAD + 'x'.repeat(70 * 1024) + properties({ item_type: 'a', item_id: 1836174753 }),
+      ),
+    );
+
+    // Act
+    const result = await fetchLinkMetadata('BANDCAMP', ALBUM, LATER());
+
+    // Assert
+    expect(result).toMatchObject({ outcome: 'found', title: 'A LA SALA', itemId: null });
   });
 });
 

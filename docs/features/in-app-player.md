@@ -8,7 +8,7 @@
 | **Use cases** | **UC-23 (new)**: User Listens to a Recommendation in the App                 |
 | **Phase**     | 6, Step 6.1z12. Begun while D5 was still open, a deliberate exception to §15 |
 | **Branch**    | `feat/in-app-player`                                                         |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged           |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged           |
 
 ---
 
@@ -49,8 +49,8 @@ In the installed iPhone app, a link opens in a browser window over BookRough, an
 
 - Prisma: `bandcampItemId String? @map("bandcamp_item_id") @db.VarChar(20)`. Kept as text, not `BigInt`, because it is an opaque identifier that is never added up, and a `bigint` does not serialise to JSON.
 - **Hand-written CHECK `posts_bandcamp_item_id_shape`** (invisible to Prisma; recorded in CLAUDE.md §6):
-  `bandcamp_item_id IS NULL OR (link_platform = 'BANDCAMP' AND bandcamp_item_id ~ '^[1-9][0-9]{0,19}$')`
-- Migration: `npx prisma migrate dev --name add_bandcamp_item_id`. Adds the column and the CHECK. Existing rows start null.
+  `bandcamp_item_id IS NULL OR (link_platform IS NOT DISTINCT FROM 'BANDCAMP' AND bandcamp_item_id ~ '^[1-9][0-9]{0,19}$')`
+- Migrations: `add_bandcamp_item_id` adds the column and the CHECK; existing rows start null. `fix_bandcamp_item_id_check` replaces the CHECK (§9): its first form compared `link_platform = 'BANDCAMP'`, which is NULL on a converted post and so let an id through.
 - **Never serialised as such.** `toPublicPost` turns it into `embed.url` (§4); the column itself is not a `PublicPost` key.
 
 ### Where the id comes from
@@ -180,7 +180,7 @@ The URLs ask for autoplay. Desktop browsers and Android usually honour it, becau
 - ✅ `POST /api/communities/:id/posts` with a Bandcamp album (fetcher mocked to return an id): `201`, `embed.url` is the Bandcamp album URL, and the row has `bandcamp_item_id`.
 - ✅ Same through `POST /api/recommendations`.
 - ✅ A SoundCloud post and a YouTube video post come back with their `embed`; a converted Spotify post with `embed: null` (feed `GET`).
-- ❌ The CHECK `posts_bandcamp_item_id_shape`: writing an id on a SoundCloud post, or a non-digit id, is refused by the database.
+- ❌ The CHECK `posts_bandcamp_item_id_shape`: writing an id on a SoundCloud post, on a converted post, a non-digit id or one with a leading zero is refused by the database.
 - ❌ 400 / 401 / 403 / 404 on these endpoints are unchanged; the existing tests stay green (no new endpoint, so no new error paths to cover).
 
 **Unit (frontend `lib/embeds.ts`)**
@@ -223,12 +223,13 @@ None at approval.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                     | Why                                                                                                             |
-| ---------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 2026-11-22 | Link-only posts only (A), not converted songs through YouTube Music (B) or 30 s previews (C) | Developer's choice. Keeps the slice small; the three embeds play full tracks to everyone.                       |
-| 2026-11-22 | One player docked at the bottom, above the router (A); no in-card player, no queue           | Developer's choice. Only a player outside the routes survives navigation, which is the point of D6.             |
-| 2026-11-22 | Bandcamp item id in a new column, plus a backfill (A)                                        | Developer's choice. The id is in the page already read at publish time; a live fetch per tap would add latency. |
-| 2026-11-22 | New UC-23 (A), not an amendment to UC-11                                                     | Developer's choice. Listening spans UC-11, UC-12 and UC-20; UC-11 is about posting.                             |
-| 2026-11-22 | No CSP change                                                                                | The site has no CSP (production-hardening.md §9), so the brief's `frame-src` step is not needed.                |
-| 2026-11-22 | Defaults: every device; offline disables Play here; background audio on iOS not guaranteed   | Recorded with the UC question; the developer did not object.                                                    |
-| 2026-11-22 | Built in parallel with D5 (community photo), merged only after D5                            | Developer's request; an explicit exception to CLAUDE.md §15 "one feature at a time".                            |
+| Date       | Decision                                                                                     | Why                                                                                                                                                                                                                                                           |
+| ---------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-22 | Link-only posts only (A), not converted songs through YouTube Music (B) or 30 s previews (C) | Developer's choice. Keeps the slice small; the three embeds play full tracks to everyone.                                                                                                                                                                     |
+| 2026-11-22 | One player docked at the bottom, above the router (A); no in-card player, no queue           | Developer's choice. Only a player outside the routes survives navigation, which is the point of D6.                                                                                                                                                           |
+| 2026-11-22 | Bandcamp item id in a new column, plus a backfill (A)                                        | Developer's choice. The id is in the page already read at publish time; a live fetch per tap would add latency.                                                                                                                                               |
+| 2026-11-22 | New UC-23 (A), not an amendment to UC-11                                                     | Developer's choice. Listening spans UC-11, UC-12 and UC-20; UC-11 is about posting.                                                                                                                                                                           |
+| 2026-11-22 | No CSP change                                                                                | The site has no CSP (production-hardening.md §9), so the brief's `frame-src` step is not needed.                                                                                                                                                              |
+| 2026-11-22 | Defaults: every device; offline disables Play here; background audio on iOS not guaranteed   | Recorded with the UC question; the developer did not object.                                                                                                                                                                                                  |
+| 2026-11-22 | Built in parallel with D5 (community photo), merged only after D5                            | Developer's request; an explicit exception to CLAUDE.md §15 "one feature at a time".                                                                                                                                                                          |
+| 2026-11-23 | The CHECK compares with `IS NOT DISTINCT FROM`, in a second migration                        | The Stage 4 test "an id on a converted post" passed the first CHECK: `NULL = 'BANDCAMP'` is NULL, and a NULL CHECK passes. The first migration had already run on the local and test databases, so it is corrected by a new one, never edited (CLAUDE.md §6). |

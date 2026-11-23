@@ -3823,6 +3823,77 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/co
 cd frontend && npx vitest run src/components/CommunityPhotoSection src/components/ui/CommunityCover src/pages/CreateCommunity src/pages/CommunitySettings src/pages/Admin src/api/invalidation
 ```
 
+### Step 6.1z12 — In-app player, D6 (Phase 6 — UC-23, new)
+
+Status: 🟡 In review (PR open; merge after the developer's word, then the production backfill and M1–M5)
+Branch: feat/in-app-player
+Spec: docs/features/in-app-player.md
+
+Goal: in the installed iPhone app, a link opens in a browser window over BookRough, and closing it stops the song (manual-test-fixes-1122.md §5.2). Step 6.1z8 can send the link to Safari, but that leaves the app. Now a Bandcamp, SoundCloud or YouTube video post has **Play here**, which opens the platform's official player in one bar docked at the bottom. It keeps playing while the user scrolls and changes screens (parked idea D6, manual test of 2026-11-22). The work began while D5 was still open, a deliberate exception to "one feature at a time" (CLAUDE.md §15); D5 was merged first, and its `main` is merged into this branch.
+
+What I did:
+
+- **Schema:**
+  - Migration `add_bandcamp_item_id` adds the nullable column `posts.bandcamp_item_id` and the hand-written CHECK `posts_bandcamp_item_id_shape`: digits only, and only on a Bandcamp post.
+  - Migration `fix_bandcamp_item_id_check` corrects that CHECK to `IS NOT DISTINCT FROM`. Its first form passed on a converted post, where `link_platform` is NULL; a Stage 4 test caught it.
+- **Backend:**
+  - `linkMetadata.service.ts`: `bandcampItemId()` reads the id from the `bc-page-properties` tag of the page it already fetches. It keeps the id only when it is a safe positive integer and its `item_type` matches the album or track link.
+  - `post.service.ts` stores the id on a new Bandcamp post.
+  - `services/embeds.ts`: `embedFor()` builds the player address from stored columns and fixed prefixes. The three players are `youtube-nocookie.com/embed/<id>`, `w.soundcloud.com/player/?url=<canonical, encoded>` and `bandcamp.com/EmbeddedPlayer/<album|track>=<id>`.
+  - `PublicPost` gains `embed: { platform, url } | null` on every endpoint that returns a post. The raw id is never serialised.
+- **Backfill:** `npm run backfill:bandcamp` (`src/ops/backfillBandcampIds.ts`) fills the id for older Bandcamp posts, one page at a time, through the same fetcher. It writes only that column and is safe to run again.
+- **Frontend:**
+  - `stores/player.ts` holds what is playing: one item at a time, cleared on sign-out or any 401.
+  - `MiniPlayer` is rendered once in `App`, beside the routes, so a route change never remounts its iframe.
+    - The iframe is sandboxed without `allow-top-navigation` and is created only after the tap.
+    - The bar sits above the tab bar and its raised Share button. Pages leave room for it, measured from the viewport's bottom edge, so the iPhone safe area is counted. `TabLayout` pads by that amount; a spacer does it on screens without a tab bar.
+  - `PlayHereButton` sits on `PostCard` and `SavedPostCard`. It reads **Playing** (disabled) on the card that is playing and **Offline** (disabled) offline.
+  - `lib/embeds.ts` allows only https, with no credentials or port, on the exact host for that platform.
+- **Docs:**
+  - `CLAUDE.md` §6 (the column and its CHECK) and §9 (UC-23).
+  - `use cases` (UC-23), `tech stack` §5 (the embed hosts) and `frontend screens` (Play here), each `.md` and `.docx`.
+- **`/code-review` (high), 5 findings, all fixed:**
+  - The bar covered the bottom of screens without a tab bar.
+  - The tab padding ignored the iPhone safe area.
+  - The embed hosts were not yet in `tech stack`.
+  - "Loading player…" was skipped when a post was replayed.
+  - The spec named Public Profile, which has no post cards.
+- **`/security-review`:** clean.
+  - Every variable part of an embed address is an 11-character video id, digits, or an encoded canonical SoundCloud link.
+  - The frontend re-checks the host.
+  - The page's JSON is read for two fields only.
+  - There are no new outbound fetches.
+  - `embed` adds nothing beyond `originalUrl`.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev
+cd backend && npm run backfill:bandcamp
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width, signed in, in a community with link-only posts. To make some, share `https://khruangbin.bandcamp.com/album/a-la-sala`, `https://soundcloud.com/forss/flickermood` and `https://www.youtube.com/watch?v=QrR_gm6RqCo`.
+
+1. Each of those cards shows **Play here** beside "Listen on …" / "Watch on YouTube". A Spotify post has none.
+2. **Play here** on the Bandcamp album opens the bar above the tab bar ("Loading player…", then Bandcamp's player). The card reads **Playing**.
+3. Open the post's Comments, then My List: the bar and the song stay. Scroll to the end of the feed: nothing is hidden under the bar.
+4. **Play here** on the YouTube video: the bar switches to it. ✕ closes it.
+5. With a song playing, open **Create community**: the form's Create button can be scrolled clear of the bar.
+6. Offline (DevTools → Network → Offline): **Play here** reads "Offline", disabled.
+7. Sign out while playing: the player is gone on Welcome.
+
+Production, after the merge (the developer runs it, because `DATABASE_URL` is a secret): in `backend`, set `DATABASE_URL` to Neon's production direct string in your shell, then run `npm run backfill:bandcamp`. It prints one line per post id and a total. Then follow M1–M5 in the spec on the iPhone: they record what iOS does with the screen locked or in another app, which no test here can show.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/embeds src/services/linkMetadata.service src/ops/backfillBandcampIds src/utils/publicPost
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/linkOnlyPosts
+cd frontend && npx vitest run src/lib/embeds src/components/MiniPlayer src/components/TabLayout
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
