@@ -7,7 +7,7 @@ import { coverageExclusions } from './vitest.shared.js';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['src/**/*.integration.test.ts', 'node_modules/**', 'dist/**'],
     setupFiles: ['src/test/setup.ts'],
     coverage: {

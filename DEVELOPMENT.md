@@ -3920,6 +3920,44 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/li
 cd frontend && npx vitest run src/lib/embeds src/components/MiniPlayer src/components/TabLayout
 ```
 
+### Step 6.1z13 — Burst load test for sending recommendations (Phase 6 — UC-20 and UC-11 under load)
+
+Status: 🟡 In progress (spec approved 2026-11-23; code and tests done, first run pending)
+Branch: chore/load-test
+Spec: docs/features/load-test.md
+
+Goal: measure what happens when 10, 20, 30, 40 and then 50 friends send a song within 5 seconds: latency, failures, lost posts, how many convert, memory, and whether the server stays responsive. The result is a report, not a pass/fail gate in CI.
+
+What I did:
+
+- `backend/scripts/load-test/` (new, hand-run, beside `mock-data/`):
+  - `run.ts` builds the backend image and runs it at a Hobby instance's size (`--memory 2g --cpus 1`, port 4100) against its own `music_app_loadtest_db`. It seeds 50 sender/recipient friend pairs with signed sessions, and sends each round of `POST /api/recommendations` spread evenly over 5 s. Alongside, it samples `docker stats` and `GET /api/health` every second. After each round it checks the database for every saved post, and it cools down until no Chromium is left. It always removes the container and drops the database, even on Ctrl+C or a crash.
+  - `analysis.ts` holds the schedule, the answer classification (converted / pending / failure kinds, including a breach of the 12 s ceiling), the percentiles and the round and run verdicts. `parse.ts` reads `docker stats` and the API's Pino lines, shifted by the container's clock offset. `report.ts` renders `report.html` with no scripts and nothing fetched. `database.ts` refuses any database but `music_app_loadtest_db`.
+  - Output goes to `backend/scripts/load-test/out/<time>/` (`report.html`, `results.json`), git-ignored by the existing `out/` rule.
+- `backend/package.json`: `npm run load-test`. `typecheck` now also checks `scripts/` (`scripts/tsconfig.json`), which CI never did before. `backend/vitest.config.ts` runs `scripts/**/*.test.ts` in the unit suite. Coverage still measures `src/` only.
+- Real conversions through squigly.link, at most 2 at once because of `p-limit(2)`. The E2E stand-in answers before the queue, so it can't test it (spec §2). No new dependency.
+- `/code-review` (medium), 8 findings: 6 fixed, and the 2 about missing tests and this entry were done in this PR. The fixes: the 84-link pool repeats links across a full run of 150, so each repeat is now marked and counted in the report (spec decisions log). The spec now describes the links the code sends. The squigly.link count is labelled as an estimate. A container that fails to start is now removed. Container-vs-host clock skew is corrected. The per-round console line no longer claims a final verdict. No `/security-review`: a local tool, with no endpoint, input or secret of the app's own changed.
+
+How to view & test:
+
+Start Docker Desktop first. The run takes about 5 minutes (plus the image build the first time) and sends real requests to squigly.link, so run it by hand only.
+
+```bash
+cd backend && npm run load-test
+```
+
+```bash
+cd backend && npm run load-test -- --rounds 10 --skip-build
+```
+
+The last lines print the verdict and the report's path. Open `report.html`: the verdict per round, the summary table, latency and memory charts, a timeline of each round's requests against the 12 s ceiling, and every failure.
+
+Tests:
+
+```bash
+cd backend && npx vitest run scripts/load-test
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
