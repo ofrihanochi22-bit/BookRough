@@ -3825,7 +3825,7 @@ cd frontend && npx vitest run src/components/CommunityPhotoSection src/component
 
 ### Step 6.1z12 — In-app player, D6 (Phase 6 — UC-23, new)
 
-Status: 🟡 In review (PR open; merge after the developer's word, then the production backfill and M1–M5)
+Status: ✅ Done (merged as PR #101; the production backfill and M1–M5 wait on the developer)
 Branch: feat/in-app-player
 Spec: docs/features/in-app-player.md
 
