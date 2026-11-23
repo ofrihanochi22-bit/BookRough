@@ -3593,6 +3593,32 @@ cd frontend && npm run test:unit
 cd backend && npm run test:coverage
 ```
 
+### Step 6.1z6 — The deploy gate holds when `checks` fails (Phase 6, a fix to Step 6.4)
+
+Status: 🟡 PR open (#89; spec approved 2026-11-23)
+Branch: fix/deploy-gate-skipped-checks
+Spec: docs/features/deploy-gate-skipped-checks.md
+
+Goal: a commit whose shared checks fail on `main` is never promoted to production.
+
+What I did:
+
+- **Cause, with evidence (spec §2):** PR #87's post-merge run (44533585501) failed `checks / test:unit`, so GitHub skipped `test:e2e` and `test:docker`. Vercel held the built deployment (`dpl_CMi8U7nLzTxa32pZNffLTWRWRd5y`) and released it 2 s after both checks concluded `skipped`. For `d3ef14d` and `c0df513`, where `test:e2e` failed, Vercel answered "Checks for Deployment have failed". So the Deployment Checks work, but treat `skipped` as passing.
+- `.github/workflows/main.yml`: `test:e2e` and `test:docker` now have `if: ${{ always() }}`, and their first step, "Stop if the shared checks did not pass", exits 1 when `needs.checks.result` is not `success` or the run was cancelled. They now conclude `failure`, which Vercel blocks, and still install no browsers and build no image on a red run.
+- `docs/features/production-hardening.md` §9: the fix recorded. No dashboard change.
+- `/code-review` (high), 5 findings, all fixed: a cancelled run could skip the guard step (it now has `cancelled() ||`), the check command needed `encoding='utf-8'` on Windows, the step name read backwards on failure, the spec said the old deployment still holds the production alias, and the spec's status row was ticked too early. No `/security-review`: CI condition only, no new input, secret or permission.
+
+How to view & test:
+
+No screen changes. `main.yml` runs only on `main`, so the checks come after the merge (spec §8):
+
+1. M1: the merge's run is green, both suites show "Stop if the shared checks did not pass" as skipped, and production is promoted after `test:e2e`.
+2. M2: the next red `checks` on `main` or at night shows both suites failed at that step, and the commit's Production deployment on GitHub says "Checks for Deployment have failed".
+
+```bash
+python -c "import yaml; d=yaml.safe_load(open('.github/workflows/main.yml', encoding='utf-8')); print(d['jobs']['test-e2e']['if'], d['jobs']['test-docker']['if'])"
+```
+
 ### Step 6.1z7 — Manual-test fixes of 2026-11-22: Hebrew text direction, new-tab links, alphabetical Home (Phase 6 — UC-9, UC-10, UC-11, UC-12, UC-21, UC-22 presentation; UC-9 list order)
 
 Status: ✅ Done (merged as PR #91)
