@@ -8,7 +8,7 @@
 | **Use cases** | No new UC. Operations: a fix to the `/vercel-image-cleanup` skill (Phase 6) |
 | **Phase**     | 6                                                                           |
 | **Branch**    | `fix/image-cleanup-hidden-tags`                                             |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged          |
 
 ---
 
@@ -31,14 +31,14 @@ Nothing was deleted, because the image also carried the rollback deployment's ta
 - **`read-images.js`** reads the "+N" in each row and returns, per image:
   - `hiddenTags` — N, or 0;
   - `tagsComplete` — `hiddenTags === 0`;
-  - `path` — the image page's path (`/bookrough/bookrough/images/api/image_…`, no query string), or `null` when the row has no link.
+- The image page is opened by **clicking the row**, found by one of its visible tags, as step 7 already does. The row is a `role=link` element that navigates by script and has no address to read (found while implementing; the spec first planned a `path` field).
 - **New `read-image-tags.js`**, run on an image's own page. It returns:
   - every tag listed under "Image tags";
   - the manifest digest (`sha256:` + 12 hex);
   - the count of tags.
 - **`SKILL.md`:**
   - A new step: for each image with `tagsComplete: false`, open its page, run `read-image-tags.js`, and use those tags for the plan and for the Overview snapshot. Check that the page's digest is the row's.
-  - **The rule gains a fourth keep:** an image whose full tag list could not be read (no link, digest mismatch, the script fails, or it returns fewer tags than the row showed) is kept, and the report says so.
+  - **The rule gains a fourth keep:** an image whose full tag list could not be read (the row won't open, digest mismatch, the script fails, or it returns fewer tags than the row showed) is kept, and the report says so.
   - Step 7's existing check on the image page stays.
 
 **Out of scope**
@@ -71,8 +71,8 @@ None in the app. The skill's report gains one line per image whose tags were rea
 
 The skill's scripts run in the developer's Chrome, not in a test suite: they aren't part of `backend/` or `frontend/`, and CI never runs them. They are verified by hand on the live registry, as before.
 
-- ✅ The current image (`c9f53bec3286`, "+1"): `read-images.js` returns `hiddenTags: 1`, `tagsComplete: false` and a path; `read-image-tags.js` on that page returns six tags, `f6121df1b4c6` among them, and the same digest.
-- ✅ An image with five or fewer tags (`ca0eaf9ffd98`): `hiddenTags: 0`, `tagsComplete: true`, and the plan needs no page visit.
+- ✅ The current image (`c9f53bec3286`, "+1"): `read-images.js` returns `hiddenTags: 1`, `tagsComplete: false`; `read-image-tags.js` on that page returns six tags, `f6121df1b4c6` among them, and the same digest. **Verified 2026-11-23.**
+- ✅ An image with five or fewer tags (`ca0eaf9ffd98`): `hiddenTags: 0`, `tagsComplete: true`, and the plan needs no page visit. **Verified 2026-11-23.**
 - ✅ A full cleanup run with these scripts plans to keep the "+1" image because of its hidden tag, even on a reading where the visible tags alone would not have kept it.
-- ❌ `read-image-tags.js` run on a page that isn't an image page returns `{ count: 0 }`, and the skill keeps the image.
+- ❌ `read-image-tags.js` run on a page that isn't an image page returns `{ count: 0 }`, and the skill keeps the image. **Verified 2026-11-23** on the repository list page.
 - ❌ A digest mismatch between row and page: the skill keeps the image and reports it.
