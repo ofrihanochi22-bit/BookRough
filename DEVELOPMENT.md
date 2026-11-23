@@ -3943,6 +3943,23 @@ cd backend && npx vitest run src/ops/pruneDeployments
 
 After the merge (spec §8): M1, the merge's own `prune-deployments` is green, with "waiting in Deployment Checks" lines first if it ran before the promotion. M2, the four production deployments left by the two failed runs are pruned to two.
 
+### Step 6.1z14 — Image cleanup keeps images reused by untagged deployments (Phase 6, a fix to the `/vercel-image-cleanup` skill)
+
+Status: 🟡 PR open
+Branch: fix/image-cleanup-reused-images
+
+Goal: `/vercel-image-cleanup` never deletes the image a remaining deployment may be running on.
+
+What I did:
+
+- **Cause:** on 2026-11-23, after PR #105, the remaining deployments were the live `ca0eaf9` and the rollback `f6121df`. `f6121df` changed only docs and reused the older image `c9f53bec` without the registry ever tagging it. The skill's rule (delete an image when none of its tags is a remaining deployment's commit) said to delete `c9f53bec`, which could have broken the rollback. That run deleted nothing.
+- `.claude/skills/vercel-image-cleanup/SKILL.md`: for each remaining deployment whose commit is not a tag of any image, keep the newest image published before that deployment was created. Stop and delete nothing if there is none, or the dates can't be read. Keep both images when the table's coarse ages can't tell them apart. Step 2 now records each deployment's `created` time, and the plan names which image is kept for which deployment. This replaces "stop when the live deployment has no image".
+- Skill text only: no code, no test. No `/code-review` or `/security-review`.
+
+How to view & test:
+
+Read the rule in `.claude/skills/vercel-image-cleanup/SKILL.md`. It is checked at the next `/vercel-image-cleanup` after a merge to `main`: the plan lists a "reused by an untagged deployment" row whenever a docs-only commit is live or the rollback target.
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
