@@ -5,10 +5,14 @@
 // opens the image's own page), and they render a moment after the page loads, so the script waits
 // up to 10 s for them. One image can carry several tags: a commit that does not change the backend
 // reuses the previous image, so the same image is tagged with every such commit's SHA (12 hex
-// characters on the page). Returns JSON { count, images: [{ row, tags, size, digest, published }] },
-// where `row` is the row's position in the table (0 = top, the newest). Each image also carries
-// `snapshot`, the entry the skill posts to Admin → Overview (null when its size or digest is
-// unreadable).
+// characters on the page). Returns JSON
+// { count, images: [{ row, tags, hiddenTags, tagsComplete, size, digest, published }] },
+// where `row` is the row's position in the table (0 = top, the newest). The table shows at most
+// five tags: `hiddenTags` counts the ones folded into "+N", and when it isn't 0 (`tagsComplete:
+// false`) the full list must be read on the image's own page with read-image-tags.js. The row has
+// no link address (it navigates by script), so the page is opened by clicking the row. Each
+// image also carries `snapshot`, the entry the skill posts to Admin → Overview (null when its size
+// or digest is unreadable; its `tags` are the visible ones only until replaced by the full list).
 /* global document -- runs in the browser page, not in Node */
 await (async () => {
   const sleep = (ms) => new Promise((resolve) => globalThis.setTimeout(resolve, ms));
@@ -40,9 +44,14 @@ await (async () => {
     const m = published.match(/^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/);
     return m ? new Date(Date.now() - Number(m[1]) * AGE[m[2]] * 1000).toISOString() : null;
   };
+  // The table shows at most five tags per image and folds the rest into "+N" ("+ N" in some
+  // renderings). Those hidden tags are read from the image's own page with read-image-tags.js
+  // (docs/features/image-cleanup-hidden-tags.md); until then the image's tags are incomplete.
   const images = rows.map((r, row) => {
     const text = r.innerText.replace(/\s+/g, ' ').trim();
     const tags = [...new Set(text.match(/\b[0-9a-f]{12}\b/g) || [])];
+    const hidden = text.match(/(?:^|\s)\+\s?(\d+)(?=\s)/);
+    const hiddenTags = hidden ? Number(hidden[1]) : 0;
     const size = (text.match(/[\d.,]+\s?(?:kB|MB|GB)/) || [''])[0];
     const digest = (text.match(/sha256:[0-9a-f]{12}/) || [''])[0];
     const published = (text.match(/\d+\s+\w+\s+ago|just now/) || [''])[0];
@@ -50,6 +59,8 @@ await (async () => {
     return {
       row,
       tags,
+      hiddenTags,
+      tagsComplete: hiddenTags === 0,
       size,
       digest,
       published,

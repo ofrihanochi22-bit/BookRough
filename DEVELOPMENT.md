@@ -3943,6 +3943,29 @@ cd backend && npx vitest run src/ops/pruneDeployments
 
 After the merge (spec §8): M1, the merge's own `prune-deployments` is green, with "waiting in Deployment Checks" lines first if it ran before the promotion. M2, the four production deployments left by the two failed runs are pruned to two.
 
+### Step 6.1z14 — Image cleanup reads every tag (Phase 6, a fix to the `/vercel-image-cleanup` skill)
+
+Status: 🟡 PR open
+Branch: fix/image-cleanup-hidden-tags
+Spec: docs/features/image-cleanup-hidden-tags.md
+
+Goal: `/vercel-image-cleanup` never plans to delete an image whose tags it hasn't fully read.
+
+What I did:
+
+- **Cause (spec §2):** the registry table shows at most five tags per image and folds the rest into "+N". `read-images.js` read only the visible ones. On 2026-11-23 that hid `f6121df1b4c6`, the live deployment's commit (PR #104), on the one image in the registry. Nothing was deleted, because the image also carried the rollback deployment's tag.
+- `.claude/skills/vercel-image-cleanup/read-images.js` now returns `hiddenTags` (the N in "+N") and `tagsComplete` per image.
+- New `.claude/skills/vercel-image-cleanup/read-image-tags.js` reads every tag under "Image tags" on an image's own page, plus its digest.
+- `SKILL.md`: a new step 4a opens the page of each image with hidden tags (by clicking its row, which has no link address) and plans with the full list. The rule gains a fourth keep: an image whose full tag list can't be read is kept.
+- The prune failure seen on the same runs is Step 6.1z13 (PR #105), not this step.
+- `/code-review` (low): no findings. No `/security-review`: the change is the skill's own scripts and instructions, read-only in the browser, with no app code, input, endpoint or secret. The keep rule only grows, and step 7's tag check before each delete is unchanged.
+
+How to view & test (in Claude in Chrome, against the live registry; the scripts are not in CI):
+
+1. Open `https://vercel.com/bookrough/bookrough/images/api` and run `read-images.js` with `javascript_tool`: an image showing "+1" reports `hiddenTags: 1, tagsComplete: false`.
+2. Click that row and run `read-image-tags.js`: it returns all its tags (six on 2026-11-23, `f6121df1b4c6` among them) and the row's digest.
+3. On `https://vercel.com/bookrough/bookrough/images` (not an image page), `read-image-tags.js` returns `count: 0`.
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)
