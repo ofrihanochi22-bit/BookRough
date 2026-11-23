@@ -8,7 +8,7 @@
 | **Use cases** | None directly: CI and deployment, Phase 6 (a fix to Step 6.4, production-hardening.md §3.7) |
 | **Phase**     | 6                                                                                           |
 | **Branch**    | `fix/deploy-gate-skipped-checks`                                                            |
-| **Status**    | ☐ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                          |
 
 ---
 
@@ -85,8 +85,9 @@ None.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                       | Reason                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 2026-11-22 | Cause: Vercel lets a `skipped` check through; `main.yml` skipped both suites on a red `checks` | §2: four commits, one per conclusion, and the 2 s gap between the skip and the promotion |
-| 2026-11-22 | Fix in `main.yml` (guard step), not in the dashboard                                           | Keeps the two existing Deployment Checks; no dashboard step for the developer            |
-| 2026-11-22 | `always()`, not `!cancelled()`                                                                 | A cancelled run must not leave the checks skipped either                                 |
+| Date       | Decision                                                                                       | Reason                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 2026-11-22 | Cause: Vercel lets a `skipped` check through; `main.yml` skipped both suites on a red `checks` | §2: four commits, one per conclusion, and the 2 s gap between the skip and the promotion           |
+| 2026-11-22 | Fix in `main.yml` (guard step), not in the dashboard                                           | Keeps the two existing Deployment Checks; no dashboard step for the developer                      |
+| 2026-11-22 | `always()`, not `!cancelled()`                                                                 | A cancelled run must not leave the checks skipped either                                           |
+| 2026-11-23 | Spec approved by the developer                                                                 | Stage 1 closed (CLAUDE.md §15); the fix was built first because the task asked for a spec or a fix |
