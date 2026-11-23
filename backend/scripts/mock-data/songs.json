@@ -1,0 +1,590 @@
+{
+  "indie01": {
+    "kind": "track",
+    "artist": "Arctic Monkeys",
+    "title": "Do I Wanna Know?",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/69/9c/b5/699cb5d6-115c-ff73-9d26-e57ea4350d72/887828031795.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/do-i-wanna-know/663097964?i=663097965"
+  },
+  "indie02": {
+    "kind": "track",
+    "artist": "The Strokes",
+    "title": "Reptilia",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/f7/e9/2a/f7e92a48-0e20-8286-bbbf-80bd85fbb1af/mzi.gcledsjj.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/reptilia/302987557?i=302987569"
+  },
+  "indie03": {
+    "kind": "track",
+    "artist": "Radiohead",
+    "title": "Weird Fishes / Arpeggi",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/weird-fishes-arpeggi/1109714933?i=1109715168"
+  },
+  "indie04": {
+    "kind": "track",
+    "artist": "Phoebe Bridgers",
+    "title": "Motion Sickness",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/20/4c/6e/204c6ef3-8e95-4cee-2256-202ca62aebed/60220.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/motion-sickness/1256607808?i=1256607810"
+  },
+  "indie05": {
+    "kind": "track",
+    "artist": "Vampire Weekend",
+    "title": "A-Punk",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/ee/47/fc/ee47fc7a-8320-acb2-4f40-d08c66b5de97/634904131869.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/a-punk/271489741?i=271489744"
+  },
+  "indie06": {
+    "kind": "track",
+    "artist": "Arcade Fire",
+    "title": "Wake Up",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/2b/09/6e/2b096e8c-ae65-fc42-a4b1-19abb4100433/886446576442.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/wake-up/1249417623?i=1249418625"
+  },
+  "indie07": {
+    "kind": "track",
+    "artist": "The National",
+    "title": "Bloodbuzz Ohio",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/70/29/1b/70291b51-8cc4-bb90-5192-7cb19d4be89e/652637302264.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/bloodbuzz-ohio/366968841?i=366968849"
+  },
+  "indie08": {
+    "kind": "track",
+    "artist": "Interpol",
+    "title": "Obstacle 1",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/be/ef/aa/beefaad1-64ba-1288-d2ce-95a5964a020b/744861054566.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/obstacle-1/1589272584?i=1589272590"
+  },
+  "indie09": {
+    "kind": "track",
+    "artist": "Tame Impala",
+    "title": "Let It Happen",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/a8/2e/b4/a82eb490-f30a-a321-461a-0383c88fec95/15UMGIM23316.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/let-it-happen/1440838039?i=1440838060"
+  },
+  "indie10": {
+    "kind": "track",
+    "artist": "Mitski",
+    "title": "Nobody",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/04/bc/5e/04bc5edd-006a-a5d9-0f63-effb5956e44b/656605145068.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/nobody/1373892692?i=1373892799"
+  },
+  "indie11": {
+    "kind": "track",
+    "artist": "Pixies",
+    "title": "Where Is My Mind?",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9e/b7/25/9eb725bc-977c-545b-4b6b-cea4a72656ec/652637240634.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/where-is-my-mind/1025318588?i=1025318629"
+  },
+  "indie12": {
+    "kind": "track",
+    "artist": "Bon Iver",
+    "title": "Skinny Love",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/21/2f/ea/212fea18-5fdc-ba4d-5dd7-1b07aaa88b67/656605211565.tif/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/skinny-love/947059824?i=947059829"
+  },
+  "indie13": {
+    "kind": "track",
+    "artist": "Alvvays",
+    "title": "Archie, Marry Me",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/90/78/52/907852ec-15c8-c6cb-c810-6912dd18577d/644110028297.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/archie-marry-me/1651310191?i=1651310198"
+  },
+  "indie14": {
+    "kind": "track",
+    "artist": "Fleet Foxes",
+    "title": "White Winter Hymnal",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/b5/13/5d/b5135d6b-97e1-19cb-4234-5f711b77972e/098787077766.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/white-winter-hymnal/281086394?i=281086428"
+  },
+  "indie15": {
+    "kind": "track",
+    "artist": "The Smiths",
+    "title": "There Is a Light That Never Goes Out",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/1a/e8/70/1ae870c3-b402-096b-c4c4-8022af5a2ed9/745099189662.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/there-is-a-light-that-never-goes-out/800092985?i=800157892"
+  },
+  "indie16": {
+    "kind": "track",
+    "artist": "Yeah Yeah Yeahs",
+    "title": "Maps",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/1c/9b/9a/1c9b9a3e-099c-b3d6-c3ce-4a270a2d221c/17UM1IM27260.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/maps/1440916724?i=1440917412"
+  },
+  "indie17": {
+    "kind": "track",
+    "artist": "MGMT",
+    "title": "Electric Feel",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/e5/06/cc/e506ccd5-56ec-3d4c-69f7-14900bea74f0/mzi.bbgsikee.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/electric-feel/273519664?i=273519677"
+  },
+  "indie18": {
+    "kind": "track",
+    "artist": "Wet Leg",
+    "title": "Chaise Longue",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/22/c5/a0/22c5a086-f246-98fd-c26e-2db44f39aef2/887829123284.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/chaise-longue/1569685744?i=1569685987"
+  },
+  "indie19": {
+    "kind": "track",
+    "artist": "Beach House",
+    "title": "Space Song",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/16/78/af/1678affa-4dba-50ab-bb3b-412153c8142f/098787112269_depressioncherrybeachhouse.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/space-song/1247704667?i=1247704673"
+  },
+  "indie20": {
+    "kind": "track",
+    "artist": "Japanese Breakfast",
+    "title": "Be Sweet",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/93/8b/8b/938b8b5d-1022-414f-995e-a25608fc68c3/17251.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/be-sweet/1553364590?i=1553364593"
+  },
+  "indie21": {
+    "kind": "track",
+    "artist": "Modest Mouse",
+    "title": "Float On",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/f9/02/da/f902dad6-7a7e-203a-5648-78e67d42b515/mzi.fcuuybmm.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/float-on/201257412?i=201257515"
+  },
+  "indie22": {
+    "kind": "track",
+    "artist": "Franz Ferdinand",
+    "title": "Take Me Out",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/83/c6/54/83c6541f-3b90-b46a-b46a-17bf8fd9af16/5034202113645.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/take-me-out/315843479?i=315844084"
+  },
+  "indie23": {
+    "kind": "album",
+    "artist": "Radiohead",
+    "title": "In Rainbows",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/dd/50/c7/dd50c790-99ac-d3d0-5ab8-e3891fb8fd52/634904032463.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/in-rainbows/1109714933"
+  },
+  "indie24": {
+    "kind": "album",
+    "artist": "The Strokes",
+    "title": "Comedown Machine",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/9c/ae/7a/9cae7a72-29ed-08aa-1b42-913776bbb6ec/886443855571.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/comedown-machine/601140186"
+  },
+  "indie25": {
+    "kind": "album",
+    "artist": "Big Thief",
+    "title": "Dragon New Warm Mountain I Believe In You",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/14/c8/ea/14c8ea65-2155-8d44-f0c5-6faa8f51f95d/191400040878.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/dragon-new-warm-mountain-i-believe-in-you/1591284600"
+  },
+  "jazz01": {
+    "kind": "track",
+    "artist": "Miles Davis",
+    "title": "So What (Mono Version)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/1a/02/77/1a02770a-a45e-ebed-6eff-5b87ce390dc4/886444350761.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/so-what-mono-version/754383858?i=754384961"
+  },
+  "jazz02": {
+    "kind": "track",
+    "artist": "John Coltrane",
+    "title": "Naima (2020 Remaster)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/9a/80/7c/9a807c65-0019-0e89-f423-a396f17df84d/603497847730.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/naima-2020-remaster/1502751229?i=1502751239"
+  },
+  "jazz03": {
+    "kind": "track",
+    "artist": "Bill Evans Trio",
+    "title": "Waltz for Debby",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music/v4/6c/7a/6a/6c7a6afd-0135-978b-97ae-9164d2a58a1a/888002806604.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/waltz-for-debby/684340223?i=684340433"
+  },
+  "jazz04": {
+    "kind": "track",
+    "artist": "Chet Baker",
+    "title": "My Funny Valentine",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/de/c7/79/dec77944-cd76-5f4c-7739-99fed8184539/00724382826255.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/my-funny-valentine/728250339?i=728250448"
+  },
+  "jazz05": {
+    "kind": "track",
+    "artist": "The Dave Brubeck Quartet",
+    "title": "Take Five",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/58/7b/3f/587b3fb5-adab-e2d9-992c-148aaa197b04/mzi.hcqymxwv.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/take-five/292800458?i=292800466"
+  },
+  "jazz06": {
+    "kind": "track",
+    "artist": "Kamasi Washington",
+    "title": "The Rhythm Changes",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music3/v4/ee/f3/42/eef342b0-6024-1bb3-15db-426aa5ee1eb8/kw_1400.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/the-rhythm-changes/975610456?i=975610471"
+  },
+  "jazz07": {
+    "kind": "track",
+    "artist": "Norah Jones",
+    "title": "Don't Know Why",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/a0/a0/8d/a0a08df2-390b-ad05-0d32-6673bcf7a2a9/13UABIM02784.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/dont-know-why/1624173298?i=1624173757"
+  },
+  "jazz08": {
+    "kind": "track",
+    "artist": "Thelonious Monk",
+    "title": "'Round Midnight",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/97/e1/c1/97e1c140-2264-41d8-ec84-281a0152c5a2/00602577697326.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/round-midnight/1459444209?i=1459444213"
+  },
+  "jazz09": {
+    "kind": "track",
+    "artist": "Herbie Hancock",
+    "title": "Cantaloupe Island",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/ff/e5/e4/ffe5e4b9-6d48-e8e1-533c-3923fd094e6b/00724382933151.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/cantaloupe-island/724379869?i=724380029"
+  },
+  "jazz10": {
+    "kind": "album",
+    "artist": "Miles Davis",
+    "title": "Kind of Blue",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music/7f/9f/d6/mzi.vtnaewef.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/kind-of-blue/268443092"
+  },
+  "mz01": {
+    "kind": "track",
+    "artist": "Zohar Argov",
+    "title": "הפרח בגני",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music117/v4/ce/d9/3b/ced93b45-4069-372b-14c9-ebc318de8710/Untitled.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%94%D7%A4%D7%A8%D7%97-%D7%91%D7%92%D7%A0%D7%99/1247281442?i=1247281785"
+  },
+  "mz02": {
+    "kind": "track",
+    "artist": "Ofra Haza",
+    "title": "Im Nin'alu (Played In Full Mix - 7\" Yemen Vocal)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/35/92/7a/35927aa4-dfd5-77df-5652-24ed374fc53a/7290114182980.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/im-ninalu-played-in-full-mix-7-yemen-vocal/1465450806?i=1465450808"
+  },
+  "mz03": {
+    "kind": "track",
+    "artist": "Zehava Ben",
+    "title": "טיפת מזל",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/4b/0c/df/4b0cdfb7-cf17-8790-6f4a-d07fc342586d/888831244103.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%98%D7%99%D7%A4%D7%AA-%D7%9E%D7%96%D7%9C/889572818?i=889572829"
+  },
+  "mz04": {
+    "kind": "track",
+    "artist": "Haim Moshe",
+    "title": "אהבת חיי",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/b9/8a/7f/b98a7f1f-a0c0-d4be-5bf9-9596f17fa34d/195081265308.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%90%D7%94%D7%91%D7%AA-%D7%97%D7%99%D7%99/1513371264?i=1513371265"
+  },
+  "mz05": {
+    "kind": "track",
+    "artist": "Eyal Golan",
+    "title": "מי שמאמין",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/77/f6/af/77f6af2c-1c8b-3484-e64d-b768b1405d02/7290013274359.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%9E%D7%99-%D7%A9%D7%9E%D7%90%D7%9E%D7%99%D7%9F/1190105806?i=1190105826"
+  },
+  "mz06": {
+    "kind": "track",
+    "artist": "Sarit Hadad",
+    "title": "למה לי",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/e7/7c/65/e77c657f-ecb6-431e-c9a3-cdfdd2da6c80/7290010321452.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%9C%D7%9E%D7%94-%D7%9C%D7%99/1219778683?i=1219778684"
+  },
+  "mz07": {
+    "kind": "track",
+    "artist": "Margalit Tzan׳ani",
+    "title": "ילד",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music3/v4/20/83/bc/2083bc7a-7134-f7a0-f592-ea89e8f8ba0b/889176464874.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%99%D7%9C%D7%93/958815893?i=958815920"
+  },
+  "mz08": {
+    "kind": "track",
+    "artist": "Moshe Perez",
+    "title": "ערק אשכוליות",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/48/fd/6a/48fd6a55-2409-eeaa-8bab-9513214a3aea/197189024832.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%A2%D7%A8%D7%A7-%D7%90%D7%A9%D7%9B%D7%95%D7%9C%D7%99%D7%95%D7%AA/1689932537?i=1689932563"
+  },
+  "gym01": {
+    "kind": "track",
+    "artist": "Eminem",
+    "title": "Lose Yourself",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/08/23/fc/0823fcd9-cb44-695b-32bf-b3bf51d9f800/00606949351229.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/lose-yourself/1440903339?i=1440903439"
+  },
+  "gym02": {
+    "kind": "track",
+    "artist": "Kanye West",
+    "title": "Stronger",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/39/25/2d/39252d65-2d50-b991-0962-f7a98a761271/00602517483507.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/stronger/1442845779?i=1442846328"
+  },
+  "gym03": {
+    "kind": "track",
+    "artist": "Survivor",
+    "title": "Eye of the Tiger",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/9f/13/3a/9f133a51-6be8-1a1c-ef9d-8ed8cebafdf1/888880750402.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/eye-of-the-tiger/456794422?i=456794433"
+  },
+  "gym04": {
+    "kind": "track",
+    "artist": "Daft Punk",
+    "title": "Harder Better Faster Stronger",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fd/4a/77/fd4a77db-0ebc-d043-41a2-f32fa1bb0fb4/dj.qrikkdwj.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/harder-better-faster-stronger/697194953?i=697195787"
+  },
+  "gym05": {
+    "kind": "track",
+    "artist": "The Prodigy",
+    "title": "Breathe",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/8e/37/6e/8e376ec9-d950-052a-54f5-e688785e4890/634904058661.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/breathe/574422728?i=574422934"
+  },
+  "gym06": {
+    "kind": "track",
+    "artist": "Dua Lipa",
+    "title": "Physical",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/6c/11/d6/6c11d681-aa3a-d59e-4c2e-f77e181026ab/190295092665.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/physical/1538003494?i=1538003644"
+  },
+  "gym07": {
+    "kind": "track",
+    "artist": "Rage Against the Machine",
+    "title": "Killing in the Name (Live at 2000 Democratic National Convention)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3b/7b/17/3b7b1762-04bc-a9e9-4f5c-93946b13b727/886448670452.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/killing-in-the-name-live-at-2000-democratic-national/1773340098?i=1773340317"
+  },
+  "gym08": {
+    "kind": "track",
+    "artist": "Calvin Harris",
+    "title": "Feel So Close (Radio Edit)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/13/6f/f5/136ff56b-5759-20fe-290e-ee1a7cc44091/884977912999.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/feel-so-close-radio-edit/561066537?i=561066670"
+  },
+  "lofi01": {
+    "kind": "track",
+    "artist": "Nujabes",
+    "title": "Feather (feat. Cise Starr & Akin Yai)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/ad/18/6b/ad186b39-cd19-fa4d-abe0-bf6860cd8d9d/POCS-30003_jkt.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/feather-feat-cise-starr-akin-yai/1078923064?i=1078923526"
+  },
+  "lofi02": {
+    "kind": "track",
+    "artist": "Khruangbin",
+    "title": "Maria También",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/31/43/fb/3143fb40-ef2f-559a-6c13-720b4cd63dde/5060391091372.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/maria-tambi%C3%A9n/1767463815?i=1767464033"
+  },
+  "lofi03": {
+    "kind": "track",
+    "artist": "Bonobo",
+    "title": "Kerala",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/be/f1/d0/bef1d063-ed73-bd7d-3899-2217762cdcda/5054429005721.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/kerala/1169245868?i=1169246072"
+  },
+  "lofi04": {
+    "kind": "track",
+    "artist": "Tycho",
+    "title": "Awake",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/7b/b8/d6/7bb8d640-dfdc-1473-3948-4060af9a3819/804297820828.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/awake/793928184?i=793928278"
+  },
+  "lofi05": {
+    "kind": "track",
+    "artist": "Nujabes",
+    "title": "Aruarian Dance",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/be/59/2b/be592b54-496f-bd59-9e46-49fa2f45a717/VICL-61411.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/aruarian-dance/1721842998?i=1721843001"
+  },
+  "hh01": {
+    "kind": "track",
+    "artist": "Kendrick Lamar",
+    "title": "HUMBLE.",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/94/28/36/94283609-93bb-db1c-e997-44e82c157e90/00602567261216.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/humble/1440907513?i=1440907873"
+  },
+  "hh02": {
+    "kind": "track",
+    "artist": "Nas",
+    "title": "N.Y. State of Mind",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/b9/eb/cc/b9ebccbc-5ba4-2cdb-5332-b065739abd9a/886444567619.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/n-y-state-of-mind/856131729?i=856131732"
+  },
+  "hh03": {
+    "kind": "track",
+    "artist": "Mac Miller",
+    "title": "Good News",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/31/fd/22/31fd22c4-2d0d-1821-ea7d-00ed2520ceee/093624905967.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/good-news/1501337739?i=1501337748"
+  },
+  "hh04": {
+    "kind": "track",
+    "artist": "A Tribe Called Quest",
+    "title": "Can I Kick It?",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/fe/f7/b6/fef7b64a-ac9d-92eb-1b04-455bff167929/mzi.mulqpwnk.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/can-i-kick-it/444480438?i=444480441"
+  },
+  "hh05": {
+    "kind": "track",
+    "artist": "Outkast",
+    "title": "Ms. Jackson (Radio Mix)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/d6/21/fb/d621fbde-c099-6794-7102-2692f10c4dbb/886448814283.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/ms-jackson-radio-mix/1536683935?i=1536684150"
+  },
+  "hh06": {
+    "kind": "album",
+    "artist": "Kendrick Lamar",
+    "title": "To Pimp a Butterfly",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/b5/a6/91/b5a69171-5232-3d5b-9c15-8963802f83dd/15UMGIM15814.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/to-pimp-a-butterfly/1440871877"
+  },
+  "cl01": {
+    "kind": "track",
+    "artist": "Claude Debussy",
+    "title": "Clair de Lune",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music5/v4/dd/a5/23/dda523ac-7e71-7ffb-9f0e-2334a9fc98f1/p1.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/clair-de-lune/962353463?i=962353470"
+  },
+  "cl02": {
+    "kind": "track",
+    "artist": "Yo-Yo Ma",
+    "title": "Cello Suite No. 1 in G Major, BWV 1007: I. Prélude",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/c2/9a/21/c29a2148-e8c1-e2bc-1da8-bcbe3350b28c/886447042472.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/cello-suite-no-1-in-g-major-bwv-1007-i-pr%C3%A9lude/1398580507?i=1398581234"
+  },
+  "cl03": {
+    "kind": "track",
+    "artist": "Max Richter",
+    "title": "On the Nature of Daylight (Piano Version)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/60/38/54/6038546e-bdbb-8a85-1f30-d7261a929ebe/24UMGIM98945.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/on-the-nature-of-daylight-piano-version/1775431937?i=1775432333"
+  },
+  "cl04": {
+    "kind": "track",
+    "artist": "Ludovico Einaudi",
+    "title": "Nuvole Bianche",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/04/00/67/040067ef-a876-c3c5-a4f9-547a8ad1dfd3/17UMGIM88404.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/nuvole-bianche/1440718502?i=1440718584"
+  },
+  "dm01": {
+    "kind": "track",
+    "artist": "Fleetwood Mac",
+    "title": "Dreams",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/2a/eb/dc/2aebdc18-c2c0-0fdd-fb85-07538a925700/603497925766.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/dreams/651879763?i=651880154"
+  },
+  "dm02": {
+    "kind": "track",
+    "artist": "Frank Ocean",
+    "title": "Pink + White",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/bb/45/68/bb4568f3-68cd-619d-fbcb-4e179916545d/BlondCover-Final.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/pink-white/1146195596?i=1146195714"
+  },
+  "dm03": {
+    "kind": "track",
+    "artist": "SZA",
+    "title": "Good Days",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/0e/5c/6e/0e5c6e76-928a-bb8c-ec7d-b323f6079f67/886449007394.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/good-days/1546390012?i=1546390013"
+  },
+  "dm04": {
+    "kind": "track",
+    "artist": "Khruangbin",
+    "title": "Time (You and I)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/94/a7/44/94a74465-1fe9-b897-a1ed-99b2e5b3b497/656605149363.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/time-you-and-i/1501585499?i=1501585505"
+  },
+  "dm05": {
+    "kind": "track",
+    "artist": "Talking Heads",
+    "title": "This Must Be the Place (Naive Melody) [2005 Remastered]",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/81/22/d3/8122d33b-2334-44a3-1990-b80d80dd522d/mzi.jmjoreqd.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/this-must-be-the-place-naive-melody-2005-remastered/124923817?i=124923201"
+  },
+  "dm06": {
+    "kind": "track",
+    "artist": "Lorde",
+    "title": "Ribs",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/96/a5/09/96a50916-169b-724c-b722-b8c474406352/13UAAIM68691.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/ribs/1440818584?i=1440818666"
+  },
+  "dm07": {
+    "kind": "track",
+    "artist": "Idan Raichel",
+    "title": "Mi'Ma'amakim (Live)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music128/v4/af/f8/c6/aff8c6a5-e65a-cd6d-f5d2-e24be0faaa1c/890846001404_cover.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/mimaamakim-live/1278490542?i=1278492388"
+  },
+  "dm08": {
+    "kind": "track",
+    "artist": "Arik Einstein",
+    "title": "אני ואתה",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/bf/ec/b1/bfecb129-3ccf-d381-ff73-fb6ada787f29/cover.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%90%D7%A0%D7%99-%D7%95%D7%90%D7%AA%D7%94/1570307693?i=1570308751"
+  },
+  "dm09": {
+    "kind": "track",
+    "artist": "kaveret",
+    "title": "יו יה",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/6a/d1/7b/6ad17b85-52c8-1bac-cbaf-d5eef3ffa932/7293372143762.png/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/%D7%99%D7%95-%D7%99%D7%94/584831996?i=584832175"
+  },
+  "dm10": {
+    "kind": "track",
+    "artist": "The Beatles",
+    "title": "Here Comes the Sun",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/df/db/61/dfdb615d-47f8-06e9-9533-b96daccc029f/18UMGIM31076.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/here-comes-the-sun/1441164426?i=1441164589"
+  },
+  "dm11": {
+    "kind": "track",
+    "artist": "H.E.R.",
+    "title": "Best Part (feat. Daniel Caesar)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/27/40/34/274034b3-42d9-ba59-b22c-dc4f57672ee0/886446799513.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/best-part-feat-daniel-caesar/1294890052?i=1294891012"
+  },
+  "dm12": {
+    "kind": "track",
+    "artist": "Childish Gambino",
+    "title": "V. 3005 (Beach Picnic Version)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/34/92/4c/34924c06-ec84-8919-2b9e-5408bb2d8cc5/0044003178335_Cover.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/v-3005-beach-picnic-version/1771723600?i=1771724285"
+  },
+  "dm13": {
+    "kind": "track",
+    "artist": "Sufjan Stevens",
+    "title": "Mystery of Love (From \"Call Me By Your Name\")",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/b9/8a/45/b98a450c-6583-5c61-449c-bfb85915ad42/886446888392.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/mystery-of-love-from-call-me-by-your-name/1318773796?i=1318774079"
+  },
+  "dm14": {
+    "kind": "track",
+    "artist": "Massive Attack",
+    "title": "Teardrop (2006 Remastered)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/5e/3b/49/5e3b491b-1528-8c61-35de-b2f7db4a46a0/00094635446555.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/teardrop-2006-remastered/725791316?i=725791405"
+  },
+  "dm15": {
+    "kind": "track",
+    "artist": "Radiohead",
+    "title": "No Surprises (Remastered)",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music125/v4/9c/f5/04/9cf50453-c311-5324-ffe3-805a811efd73/dj.besjjjpd.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/no-surprises-remastered/1239489060?i=1239489599"
+  },
+  "dm16": {
+    "kind": "track",
+    "artist": "Portishead",
+    "title": "Sour Times",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/c1/71/93/c1719342-df7d-e9c5-c87c-53dae5afb289/00042282855329.rgb.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/us/album/sour-times/1440653096?i=1440653101"
+  },
+  "pend01": {
+    "kind": "track",
+    "artist": "Men I Trust",
+    "title": "Show Me How",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/cf/57/39/cf5739e6-332a-e64c-bed0-b763893c0517/artwork.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/show-me-how/1719975687?i=1719975688"
+  },
+  "pend02": {
+    "kind": "track",
+    "artist": "Hiatus Kaiyote",
+    "title": "Nakamarra",
+    "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/f2/56/b1/f256b166-bdfb-2ee0-c9fb-ca6950129d98/artwork.jpg/1200x1200bb.jpg",
+    "apple": "https://music.apple.com/il/album/nakamarra/1692856313?i=1692856324"
+  }
+}

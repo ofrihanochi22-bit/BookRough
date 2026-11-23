@@ -42,3 +42,6 @@ Thumbs.db
 
 # /vercel-usage reading log (local; a reading must never leave an uncommitted change)
 .claude/vercel-usage-history.md
+
+# Mock data SQL written by backend/scripts/mock-data/seed.ts --write-sql
+backend/scripts/mock-data/out/
