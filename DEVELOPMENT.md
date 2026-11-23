@@ -3595,7 +3595,7 @@ cd backend && npm run test:coverage
 
 ### Step 6.1z6 — The deploy gate holds when `checks` fails (Phase 6, a fix to Step 6.4)
 
-Status: 🟡 PR open (#89; spec approved 2026-11-23)
+Status: ✅ Done (merged as PR #89; M1 passed 2026-11-23, M2 waits for the next red `checks` run)
 Branch: fix/deploy-gate-skipped-checks
 Spec: docs/features/deploy-gate-skipped-checks.md
 
