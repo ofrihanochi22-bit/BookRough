@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { readSessionSnapshot, saveSessionSnapshot } from '../lib/sessionSnapshot';
 import type { useAuthStore as AuthStore } from '../stores/auth';
@@ -44,6 +44,17 @@ async function launch() {
   );
 }
 
+/**
+ * The gate attaches its `online` listener in a passive effect, which React can
+ * run a moment after the screen it belongs to is already on the page. An event
+ * sent in that gap reaches no one, so a test waits for the listener first.
+ */
+let addListener: MockInstance<typeof window.addEventListener>;
+
+async function listeningForOnline() {
+  await vi.waitFor(() => expect(addListener).toHaveBeenCalledWith('online', expect.any(Function)));
+}
+
 function setVisibility(state: DocumentVisibilityState) {
   Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
 }
@@ -53,11 +64,13 @@ beforeEach(() => {
   window.localStorage.clear();
   setOnline(true);
   setVisibility('visible');
+  addListener = vi.spyOn(window, 'addEventListener');
 });
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  addListener.mockRestore();
 });
 
 describe('SessionGate — opening with no connection', () => {
@@ -108,6 +121,7 @@ describe('SessionGate — opening with no connection', () => {
     fetchSession.mockRejectedValueOnce(noResponse()).mockResolvedValueOnce(makeSession());
     await launch();
     await screen.findByRole('alert');
+    await listeningForOnline();
 
     // Act
     act(() => {
@@ -152,6 +166,7 @@ describe('SessionGate — confirming a saved session', () => {
     await launch();
     // vi.waitFor runs on Vitest's own timers, so it also works under fake ones.
     await vi.waitFor(() => expect(store().offline).toBe(true));
+    await listeningForOnline();
   }
 
   it('confirms when the connection returns', async () => {

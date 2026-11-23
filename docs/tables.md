@@ -17,6 +17,7 @@ Stores the core authentication and profile data.
 - **walkthrough_seen_at** (TIMESTAMP, Nullable): When the onboarding walkthrough was finished or skipped; null means it is still to show. Reaches only the user themself, as a "still to show" flag in the session (`docs/features/onboarding-tutorial.md`).
 - **save_tip_seen_at** (TIMESTAMP, Nullable): When the save tip in a community feed was dismissed or acted on. Same rules.
 - **list_tip_seen_at** (TIMESTAMP, Nullable): When the My List tip was dismissed or acted on. Same rules.
+- **community_checks_since** (TIMESTAMP, Not Null, Default Current Time): The clean start of "From communities": only community posts created from this moment on can be unchecked. The migration that added it set it for every existing user, and a new user gets their sign-up time (`docs/features/community-unchecked.md` §3). Never sent to a client.
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, Not Null): Set on every write. Added in Phase 1; the admin area will use it.
 
@@ -38,10 +39,11 @@ Stores the group details.
 - **name** (VARCHAR, Not Null): Name of the group.
 - **description** (TEXT, Nullable): Group bio or rules.
 - **invite_token** (VARCHAR(64), Unique, Nullable): the community's one invite link (UC-15). 128 random bits, base64url. Created the first time an Admin asks for the link; replaced when an Admin resets it, which kills the old link at once. No expiry. A secret: returned only to Admins, never logged, never in any other response.
+- **photo_updated_at** (TIMESTAMP, Nullable): when the community's photo was last uploaded; null means the generated cover. Written in one transaction with its `community_photos` row; it versions the photo's URL, `/api/communities/<id>/photo?v=<ms>` (`docs/features/community-photo.md` §3).
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, updated automatically on every change).
 
-No cover image column: covers are always generated from the name and id (CLAUDE.md §8). Names are not unique — communities are found by invite, never by name.
+The cover is generated from the name and id, unless an admin uploaded a photo (`community_photos`, since 2026-11-22, `docs/features/community-photo.md`). Names are not unique — communities are found by invite, never by name.
 
 ### 3. community_members Table (Junction Table)
 
@@ -69,7 +71,7 @@ The core entity for music recommendations, to a community or, with UC-20, to one
 - **author_id** (UUID, Foreign Key referencing users(id)).
 - **community_id** (UUID, Nullable, Foreign Key referencing communities(id)): Null on a direct recommendation.
 - **recipient_id** (UUID, Nullable, Foreign Key referencing users(id)): The friend a direct recommendation was sent to (UC-20). Exactly one of community_id and recipient_id is set, enforced by the hand-written CHECK posts_one_target; posts_not_self stops a send to yourself. Both are invisible to Prisma and to prisma migrate diff.
-- **recipient_hidden_at** (TIMESTAMP, Nullable): The recipient removed it from Received. Affects Received only, and is never sent to a client.
+- **recipient_hidden_at** (TIMESTAMP, Nullable): The recipient archived it: out of Received and in their archive until they unarchive it (the column kept its name when Hide became Archive, so every hidden item is archived; the Prisma field is recipientArchivedAt). Affects Received and the archive only, and is never sent to a client.
 - **original_url** (VARCHAR(2048), Not Null): The link the user pasted, trimmed. Always present — the fallback link every viewer can open.
 - **source_service** (ENUM `StreamingService`, Nullable): The service a converted link belongs to, derived from its host. Null on a link-only post.
 - **link_platform** (ENUM `LinkPlatform` — `BANDCAMP`, `SOUNDCLOUD`, `YOUTUBE`; Nullable): Set on a link-only post, which is never converted. Exactly one of source_service and link_platform is set, enforced by the hand-written CHECK posts_one_source; posts_link_only_unconverted keeps a link-only post never pending and without universal links. Both live in the add_link_only_posts migration and are invisible to Prisma and to prisma migrate diff.
@@ -206,8 +208,25 @@ The anonymous count of app opens (UC-19 amended, `docs/features/admin-overview.m
 - **signed_out** (INTEGER, Default 0): opens without one.
 - (The hand-written CHECK `daily_app_opens_nonneg` keeps both counts non-negative; invisible to Prisma.)
 
+### 17. community_post_checks Table
+
+The community posts a user has checked (UC-20 amended, `docs/features/community-unchecked.md` §3). One row per user and post, written by opening a post's link or Post Detail, by rating or saving it, or by "Mark checked"; Undo deletes it. Never written for a direct recommendation or the user's own post.
+
+- **user_id** (UUID, Foreign Key referencing users(id), cascade on delete).
+- **post_id** (UUID, Foreign Key referencing posts(id), cascade on delete): a deleted post takes its checks with it.
+- **checked_at** (TIMESTAMP, Default Current Time): kept for debugging; never read by the app.
+- (Primary key on user_id and post_id, so checking twice is one row; indexed on post_id for the cascade.)
+
+### 18. community_photos Table
+
+A community's uploaded photo (UC-9 and UC-19 amended, `docs/features/community-photo.md` §3). One row at most per community; uploaded, replaced and removed by its admins, and removable by the site admin. Kept apart from `communities` so the bytes are never read with a community.
+
+- **community_id** (UUID, Primary Key, Foreign Key referencing communities(id), cascade on delete).
+- **image** (BYTEA, Not Null): the server's own re-encode, through the same pipeline as `user_avatars` — a 256×256 WebP of at most 100 KB, no metadata. The uploaded bytes are never stored.
+- **updated_at** (TIMESTAMP, Not Null): set on every upload, and copied into `communities.photo_updated_at` in the same transaction.
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is sixteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
+> **The schema is eighteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`, `community_photos`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

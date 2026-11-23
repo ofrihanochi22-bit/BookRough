@@ -138,6 +138,7 @@ export function LinkCommentForm({
         </div>
         <textarea
           id={commentId}
+          dir="auto"
           rows={2}
           value={comment}
           readOnly={busy}

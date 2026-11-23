@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 
 import { getPost, type PostWithCommunity, type PublicPost } from '../api/posts';
 import { listPostRatings, type PublicPostRating } from '../api/ratings';
+import { checkInBackground } from '../api/recommendations';
 import { DiscussionSection, Thread } from '../components/Discussion';
 import { PostCard } from '../components/PostCard';
 import { RatingSheet } from '../components/RatingSheet';
@@ -52,6 +53,17 @@ export function PostDetail() {
   const [editing, setEditing] = useState<PublicPostRating | null>(null);
   // Access lost while here (the post deleted, or the viewer removed). Kept per id.
   const [goneId, setGoneId] = useState<string | null>(null);
+
+  // Opening a post checks it for From communities, once per visit
+  // (community-unchecked.md §5); a cached copy and its refresh are one visit.
+  const checkedId = useRef<string | null>(null);
+  const loadedPost = loaded.status === 'ready' ? loaded.data.post : null;
+  useEffect(() => {
+    if (loadedPost && checkedId.current !== loadedPost.id) {
+      checkedId.current = loadedPost.id;
+      checkInBackground(loadedPost);
+    }
+  }, [loadedPost]);
 
   if (goneId === postId || (loaded.status === 'error' && isNotFound(loaded.error))) {
     return <NotFound />;
@@ -138,7 +150,7 @@ export function PostDetail() {
                   <ScoreSticker score={rating.score} className="size-10 -rotate-6 text-base" />
                   <PersonLink
                     user={rating.rater}
-                    label={rating.isMine ? 'You' : rating.rater.displayName}
+                    label={rating.isMine ? 'You' : undefined}
                     className="text-sm font-medium"
                   />
 
@@ -147,7 +159,9 @@ export function PostDetail() {
                   </time>
                 </div>
                 {rating.comment && (
-                  <p className="whitespace-pre-line break-words text-sm">{rating.comment}</p>
+                  <p dir="auto" className="whitespace-pre-line break-words text-sm">
+                    {rating.comment}
+                  </p>
                 )}
                 {rating.isMine && post?.direct?.isFriend !== false && (
                   <button

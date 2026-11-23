@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
 import { makeSession, resetAuthStore } from '../test/fixtures';
 import { useNotifications } from '../stores/notifications';
+import { usePlayer } from '../stores/player';
 import { TabLayout } from './TabLayout';
 
 const { countFriendRequests } = vi.hoisted(() => ({ countFriendRequests: vi.fn() }));
@@ -265,5 +266,47 @@ describe('TabLayout — the walkthrough (onboarding-tutorial.md §5.1)', () => {
 
     // Assert
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('TabLayout and the docked player (in-app-player.md §5.2)', () => {
+  const PLAYING = {
+    postId: 'post-1',
+    platform: 'SOUNDCLOUD' as const,
+    url: 'https://w.soundcloud.com/player/?url=x',
+    title: 'Soulhack',
+  };
+
+  afterEach(() => {
+    usePlayer.setState({ current: null, space: 0, aboveTabBar: false });
+  });
+
+  it('puts the player above the tab bar while it is shown, and not after', () => {
+    // Arrange
+    const { unmount } = renderAt('/home');
+
+    // Act & Assert
+    expect(usePlayer.getState().aboveTabBar).toBe(true);
+    unmount();
+    expect(usePlayer.getState().aboveTabBar).toBe(false);
+  });
+
+  it('leaves room for an open player, and only then', () => {
+    // Arrange
+    renderAt('/home');
+    const frame = () => screen.getByRole('heading', { name: 'Home screen' }).parentElement!;
+    expect(frame().style.paddingBottom).toBe('');
+
+    // Act
+    act(() => {
+      usePlayer.setState({ current: PLAYING, space: 240 });
+    });
+
+    // Assert
+    expect(frame().style.paddingBottom).toBe('calc(240px + 0.5rem)');
+    act(() => {
+      usePlayer.getState().close();
+    });
+    expect(frame().style.paddingBottom).toBe('');
   });
 });

@@ -11,6 +11,12 @@ export const cacheKeys = {
   notifications: 'notifications',
   recsReceived: 'recs:received',
   recsSent: 'recs:sent',
+  /** From communities and its count (community-unchecked.md §5). */
+  recsCommunity: 'recs:community',
+  recsCommunityCount: 'recs:communityCount',
+  /** The archive and its count (archive-recommendations.md §5). */
+  recsArchived: 'recs:archived',
+  recsArchivedCount: 'recs:archivedCount',
   friends: 'friends',
   friendList: 'friendList',
   post: (id: string) => `post:${id}`,

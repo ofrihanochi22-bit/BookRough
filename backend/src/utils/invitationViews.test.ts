@@ -26,6 +26,7 @@ describe('invitation views', () => {
       community: {
         id: 'c1',
         name: 'Crew',
+        photoUpdatedAt: new Date('2026-11-22T12:00:00.000Z'),
         _count: { members: 3 },
         inviteToken: 'secret',
         description: 'private',
@@ -38,7 +39,12 @@ describe('invitation views', () => {
 
     // Assert
     expect(view).toEqual({
-      community: { id: 'c1', name: 'Crew', memberCount: 3 },
+      community: {
+        id: 'c1',
+        name: 'Crew',
+        photoUrl: '/api/communities/c1/photo?v=1795348800000',
+        memberCount: 3,
+      },
       invitedBy: { id: 'u1', displayName: 'Dana', profilePictureUrl: null },
       sentAt: '2026-10-06T10:00:00.000Z',
     });

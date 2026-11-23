@@ -298,7 +298,7 @@ const SOUNDCLOUD = 'https://soundcloud.com/forss/flickermood';
 const BANDCAMP = 'https://khruangbin.bandcamp.com/album/a-la-sala';
 const FOUND = { outcome: 'found', title: 'Flickermood', artist: 'Forss', coverArtUrl: null };
 
-const LINK_ONLY_NULLS = { sourceService: null, conversionPending: false };
+const LINK_ONLY_NULLS = { sourceService: null, conversionPending: false, bandcampItemId: null };
 
 describe('prepareSharedLink — Bandcamp and SoundCloud', () => {
   it.each([
@@ -325,6 +325,28 @@ describe('prepareSharedLink — Bandcamp and SoundCloud', () => {
     });
     expect(convertLink).not.toHaveBeenCalled();
     expect(fetchLinkMetadata).toHaveBeenCalledWith(platform, url, expect.any(Number));
+  });
+
+  it('stores the Bandcamp item id the page gave (in-app-player.md §3)', async () => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue({ ...FOUND, itemId: '1836174753' });
+
+    // Act
+    const data = await prepareSharedLink({ url: BANDCAMP });
+
+    // Assert
+    expect(data).toMatchObject({ linkPlatform: 'BANDCAMP', bandcampItemId: '1836174753' });
+  });
+
+  it('never stores an item id on a SoundCloud post, whatever the metadata says', async () => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue({ ...FOUND, itemId: '42' });
+
+    // Act
+    const data = await prepareSharedLink({ url: SOUNDCLOUD });
+
+    // Assert
+    expect(data).toMatchObject({ linkPlatform: 'SOUNDCLOUD', bandcampItemId: null });
   });
 
   it('saves without metadata when the platform cannot be read', async () => {
@@ -735,7 +757,7 @@ describe('editComment', () => {
         conversionPending: false,
         createdAt: new Date('2026-11-01T10:00:00.000Z'),
         updatedAt: new Date('2026-11-08T10:00:00.000Z'),
-        recipientHiddenAt: null,
+        recipientArchivedAt: null,
         author: { id: USER.id, displayName: 'Ofri', profilePictureUrl: null },
         recipient: fields.recipientId
           ? { id: RECIPIENT, displayName: 'Noam', profilePictureUrl: null }

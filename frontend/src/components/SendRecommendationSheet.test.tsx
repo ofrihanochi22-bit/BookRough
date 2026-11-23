@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONVERTING_COPY } from '../lib/postText';
 import { httpError, makePost, networkError } from '../test/fixtures';
 import { SendRecommendationSheet } from './SendRecommendationSheet';
+import { isolate } from '../lib/bidi';
 
 const { listFriends, sendRecommendation, toastSuccess } = vi.hoisted(() => ({
   listFriends: vi.fn(),
@@ -70,7 +71,7 @@ describe('SendRecommendationSheet', () => {
     // Assert
     expect(sendRecommendation).toHaveBeenCalledWith('noam-id', { url: TRACK, comment: 'Our trip' });
     expect(onSent).toHaveBeenCalledWith(post);
-    expect(toastSuccess).toHaveBeenCalledWith('Sent to Noam');
+    expect(toastSuccess).toHaveBeenCalledWith(`Sent to ${isolate('Noam')}`);
   });
 
   it('from a profile the friend is chosen, with no picker and no Change', async () => {

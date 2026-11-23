@@ -2,12 +2,17 @@ import { AxiosError, AxiosHeaders, type AxiosAdapter } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cacheSequence, getCached, setCached } from '../lib/requestCache';
-import { deleteAdminCommunity, deleteAdminUser, removeUserPhoto } from './admin';
+import {
+  deleteAdminCommunity,
+  deleteAdminUser,
+  removeAdminCommunityPhoto,
+  removeUserPhoto,
+} from './admin';
 import { logout, signInWithGoogle } from './auth';
 import { removeBookmark, saveBookmark } from './bookmarks';
 import { api } from './client';
 import { addComment, deleteComment, editComment } from './comments';
-import { createCommunity } from './communities';
+import { createCommunity, removeCommunityPhoto, uploadCommunityPhoto } from './communities';
 import {
   acceptFriendRequest,
   cancelFriendRequest,
@@ -34,7 +39,14 @@ import {
 import { markAllNotificationsRead, markNotificationRead } from './notifications';
 import { createPost, deletePost, editPostComment, retryConversion } from './posts';
 import { editRating, ratePost } from './ratings';
-import { hideRecommendation, markRecommendationsSeen, sendRecommendation } from './recommendations';
+import {
+  archiveRecommendation,
+  unarchiveRecommendation,
+  markChecked,
+  markRecommendationsSeen,
+  sendRecommendation,
+  unmarkChecked,
+} from './recommendations';
 import { updateAdminSettings } from './settings';
 import { chooseGooglePhoto, markTutorialSeen, updateProfile, uploadAvatar } from './users';
 
@@ -56,6 +68,8 @@ const UNIVERSE = [
   'notifications',
   'recs:received',
   'recs:sent',
+  'recs:community',
+  'recs:communityCount',
   'friends',
   'friendList',
   'post:p1',
@@ -69,6 +83,8 @@ const AVATARS = [
   'feed:c1',
   'recs:received',
   'recs:sent',
+  'recs:community',
+  'recs:communityCount',
   'friends',
   'friendList',
   'post:p1',
@@ -87,6 +103,8 @@ const POST_CHANGE = [
   'myList',
   'recs:received',
   'recs:sent',
+  'recs:community',
+  'recs:communityCount',
 ];
 const RATING = [
   'feed:c1',
@@ -94,11 +112,21 @@ const RATING = [
   'postRatings:p1',
   'recs:received',
   'recs:sent',
+  'recs:community',
+  'recs:communityCount',
   'profile:u1',
   'profileRatings:u1',
   'myList',
 ];
-const BOOKMARK = ['myList', 'feed:c1', 'post:p1', 'recs:received', 'recs:sent'];
+const BOOKMARK = [
+  'myList',
+  'feed:c1',
+  'post:p1',
+  'recs:received',
+  'recs:sent',
+  'recs:community',
+  'recs:communityCount',
+];
 
 const SESSION = {
   user: {
@@ -118,6 +146,10 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   // An admin's delete may touch any list (admin-delete.md): every key goes.
   ['deleteAdminUser', () => deleteAdminUser('u2'), UNIVERSE],
   ['deleteAdminCommunity', () => deleteAdminCommunity('c2'), UNIVERSE],
+  // A community's photo shows wherever its cover does (community-photo.md §5.1).
+  ['removeAdminCommunityPhoto', () => removeAdminCommunityPhoto('c1'), COMMUNITY],
+  ['uploadCommunityPhoto', () => uploadCommunityPhoto('c1', new Blob()), COMMUNITY],
+  ['removeCommunityPhoto', () => removeCommunityPhoto('c1'), COMMUNITY],
   ['saveBookmark', () => saveBookmark('p1'), BOOKMARK],
   ['removeBookmark', () => removeBookmark('p1'), BOOKMARK],
   [
@@ -148,7 +180,15 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   [
     'deleteCommunity',
     () => deleteCommunity('c1'),
-    [...COMMUNITY, 'notifications', 'myList', 'recs:received', 'recs:sent'],
+    [
+      ...COMMUNITY,
+      'notifications',
+      'myList',
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+    ],
   ],
   ['markNotificationRead', () => markNotificationRead('n1'), ['notifications']],
   ['markAllNotificationsRead', () => markAllNotificationsRead(), ['notifications']],
@@ -165,10 +205,42 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   [
     'sendRecommendation',
     () => sendRecommendation('u2', { url: 'x' } as never),
-    ['recs:received', 'recs:sent'],
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
   ],
   ['markRecommendationsSeen', () => markRecommendationsSeen(), []],
-  ['hideRecommendation', () => hideRecommendation('p1'), ['recs:received', 'recs:sent']],
+  ['markChecked', () => markChecked('p1'), ['recs:community', 'recs:communityCount']],
+  ['unmarkChecked', () => unmarkChecked('p1'), ['recs:community', 'recs:communityCount']],
+  [
+    'archiveRecommendation',
+    () => archiveRecommendation('p1'),
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
+  ],
+  [
+    'unarchiveRecommendation',
+    () => unarchiveRecommendation('p1'),
+    [
+      'recs:received',
+      'recs:sent',
+      'recs:community',
+      'recs:communityCount',
+      'recs:archived',
+      'recs:archivedCount',
+    ],
+  ],
   ['updateAdminSettings', () => updateAdminSettings({} as never), []],
   ['updateProfile', () => updateProfile({} as never), AVATARS],
   ['uploadAvatar', () => uploadAvatar(new Blob()), AVATARS],

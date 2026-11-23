@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import type { PublicPost } from '../api/posts';
 import { CONVERTING_COPY } from '../lib/postText';
@@ -15,6 +15,7 @@ import {
 import { type StreamingService, useAuthStore } from '../stores/auth';
 import {
   httpError,
+  makeLinkOnlyPost,
   makePendingPost,
   makePost,
   makeSession,
@@ -22,6 +23,7 @@ import {
   networkError,
   resetAuthStore,
 } from '../test/fixtures';
+import { USER_AGENTS, emulateDevice, resetDevice } from '../test/userAgents';
 import { PostCard } from './PostCard';
 
 /** The card links to Post Detail, so it renders inside a router. */
@@ -38,6 +40,8 @@ const { retryConversion, deletePost, saveBookmark, removeBookmark, toastSuccess,
   }));
 vi.mock('../api/posts', () => ({ retryConversion, deletePost, editPostComment: vi.fn() }));
 vi.mock('../api/bookmarks', () => ({ saveBookmark, removeBookmark }));
+const { checkInBackground } = vi.hoisted(() => ({ checkInBackground: vi.fn() }));
+vi.mock('../api/recommendations', () => ({ checkInBackground }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: toastError } }));
 
 function renderCard(
@@ -118,6 +122,24 @@ describe('PostCard — converted', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual(['Spotify', 'Apple Music', 'Deezer']);
+  });
+
+  it('in the installed iOS app, asks over Other services and leaves it open on Cancel', async () => {
+    // Arrange (open-in-safari.md §5.4)
+    emulateDevice(USER_AGENTS.iphoneSafari, { maxTouchPoints: 5, standalone: true });
+    onTestFinished(resetDevice);
+    renderCard(makePost());
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+    const services = screen.getByRole('dialog', { name: 'Other services' });
+
+    // Act
+    await userEvent.click(within(services).getByRole('link', { name: 'Deezer' }));
+    const asked = screen.getByRole('dialog', { name: 'Open in browser?' });
+    await userEvent.click(within(asked).getByRole('button', { name: 'Cancel' }));
+
+    // Assert
+    expect(screen.queryByRole('dialog', { name: 'Open in browser?' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Other services' })).toBeInTheDocument();
   });
 
   it('replaces a cover that fails to load with the placeholder', () => {
@@ -610,5 +632,172 @@ describe('PostCard — editing the comment (edit-post-comment.md §5)', () => {
 
     // Assert
     expect(screen.queryByText('· edited')).not.toBeInTheDocument();
+  });
+});
+
+describe('PostCard — user text and links (manual-test-fixes-1122.md §5)', () => {
+  it('lays out the title, artist and comment in their own direction, and isolates the author', () => {
+    // Act
+    renderCard(
+      makePost({
+        title: 'שיר לשבת',
+        artist: 'אריק איינשטיין',
+        comment: 'הקלאסיקות של פעם, בלי פשרות.',
+        author: { id: 'a1', displayName: 'דנה', profilePictureUrl: null },
+      }),
+    );
+
+    // Assert
+    expect(screen.getByText('שיר לשבת').closest('p')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('אריק איינשטיין')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('הקלאסיקות של פעם, בלי פשרות.')).toHaveAttribute('dir', 'auto');
+    expect(screen.getByText('דנה').tagName).toBe('BDI');
+  });
+
+  it('keeps English text left-to-right: no dir="rtl" anywhere on the card', () => {
+    // Act
+    const { container } = render(
+      <MemoryRouter>
+        <PostCard
+          post={makePost({ comment: 'An English comment.' })}
+          viewerService="SPOTIFY"
+          online
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(container.querySelector('[dir="rtl"]')).toBeNull();
+    expect(container.querySelector('[dir="ltr"]')).toBeNull();
+  });
+
+  it('opens the main service button in a new tab', () => {
+    // Act
+    renderCard(makePost());
+
+    // Assert
+    const open = screen.getByRole('link', { name: 'Open in Apple Music' });
+    expect(open).toHaveAttribute('target', '_blank');
+    expect(open).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it("opens a link-only post's button in a new tab", () => {
+    // Act
+    renderCard(
+      makeLinkOnlyPost({
+        originalUrl: 'https://artist.bandcamp.com/album/x',
+        platform: 'BANDCAMP',
+        kind: 'ALBUM',
+      }),
+    );
+
+    // Assert
+    const open = screen.getByRole('link', { name: /Bandcamp/ });
+    expect(open).toHaveAttribute('href', 'https://artist.bandcamp.com/album/x');
+    expect(open).toHaveAttribute('target', '_blank');
+  });
+
+  it('opens every Other services link in a new tab', async () => {
+    // Arrange
+    renderCard(makePost());
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+
+    // Assert
+    const links = within(screen.getByRole('dialog', { name: 'Other services' })).getAllByRole(
+      'link',
+    );
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    }
+  });
+});
+
+describe('PostCard — From communities (community-unchecked.md §5)', () => {
+  it('opening the main link checks the post in the background', async () => {
+    // Arrange
+    const post = makePost();
+    renderCard(post);
+
+    // Act
+    fireEvent.click(screen.getByRole('link', { name: /Open in/ }));
+
+    // Assert
+    expect(checkInBackground).toHaveBeenCalledWith(post);
+  });
+
+  it('opening a link in Other services checks it too', async () => {
+    // Arrange
+    const post = makePost();
+    renderCard(post);
+    await userEvent.click(screen.getByRole('button', { name: 'Other services' }));
+
+    // Act
+    const sheet = screen.getByRole('dialog');
+    fireEvent.click(within(sheet).getAllByRole('link')[0]!);
+
+    // Assert
+    expect(checkInBackground).toHaveBeenCalledWith(post);
+  });
+
+  it('shows Mark checked only when the list offers it, disabled offline', async () => {
+    // Arrange
+    const post = makePost();
+    const onCheck = vi.fn();
+    const { rerender } = render(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          viewerService="SPOTIFY"
+          online
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+          onCheck={onCheck}
+          onRate={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: 'Mark checked' }));
+    rerender(
+      <MemoryRouter>
+        <PostCard
+          post={post}
+          viewerService="SPOTIFY"
+          online={false}
+          onUpdated={vi.fn()}
+          onStale={vi.fn()}
+          onDeleted={vi.fn()}
+          onBookmarkChanged={vi.fn()}
+          onCheck={onCheck}
+          onRate={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Assert
+    expect(onCheck).toHaveBeenCalledWith(post);
+    expect(screen.getByRole('button', { name: 'Mark checked' })).toBeDisabled();
+    // A community post can be rated here: there is no friendship to lose.
+    expect(screen.getByRole('button', { name: /Rate & Review/ })).toBeInTheDocument();
+    expect(screen.queryByText(/no longer friends/)).not.toBeInTheDocument();
+  });
+
+  it('has no Mark checked elsewhere', () => {
+    // Act
+    renderCard(makePost());
+
+    // Assert
+    expect(screen.queryByRole('button', { name: 'Mark checked' })).not.toBeInTheDocument();
   });
 });

@@ -73,7 +73,9 @@ function ChooseFriend({ onPick }: { onPick: (friend: MemberUser) => void }) {
               size={32}
               decorative
             />
-            <span className="min-w-0 break-words">{user.displayName}</span>
+            <span className="min-w-0 break-words">
+              <bdi>{user.displayName}</bdi>
+            </span>
           </button>
         </li>
       ))}
@@ -149,7 +151,7 @@ export function SendRecommendationSheet({
         <div className={`${choosing ? 'hidden' : 'flex'} flex-col gap-4`}>
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 break-words text-sm">
-              To <span className="font-medium">{picked.displayName}</span>
+              To <bdi className="font-medium">{picked.displayName}</bdi>
             </p>
             {!friend && (
               <Button variant="secondary" disabled={busy} onClick={() => setChoosing(true)}>

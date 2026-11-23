@@ -2,7 +2,12 @@ import type { Community, User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../utils/AppError.js';
-import { createCommunity, getCommunity, listMyCommunities } from './community.service.js';
+import {
+  compareCommunities,
+  createCommunity,
+  getCommunity,
+  listMyCommunities,
+} from './community.service.js';
 import { COMMUNITY_TEXT_MESSAGES } from './communityText.js';
 
 const { communityDb, memberDb } = vi.hoisted(() => ({
@@ -26,6 +31,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     walkthroughSeenAt: null,
     saveTipSeenAt: null,
     listTipSeenAt: null,
+    communityChecksSince: new Date(0),
     preferredService: 'SPOTIFY',
     role: 'USER',
     createdAt: new Date(),
@@ -40,6 +46,7 @@ function makeCommunity(overrides: Partial<Community> = {}): Community {
     name: 'Friday Jazz',
     description: null,
     inviteToken: null,
+    photoUpdatedAt: null,
     createdAt: new Date('2026-10-03T09:00:00.000Z'),
     updatedAt: new Date('2026-10-03T09:00:00.000Z'),
     ...overrides,
@@ -125,11 +132,12 @@ describe('createCommunity', () => {
 });
 
 describe('listMyCommunities', () => {
-  it("returns the caller's communities with counts and roles, newest joined first", async () => {
-    // Arrange
+  it("returns the caller's communities with counts and roles, alphabetically by name", async () => {
+    // Arrange — the query returns them in join order; the service sorts.
     memberDb.findMany.mockResolvedValue([
-      membership('MEMBER', makeCommunity({ id: 'newer', name: 'Newer' }), 4),
-      membership('ADMIN', makeCommunity({ id: 'older', name: 'Older' }), 1),
+      membership('MEMBER', makeCommunity({ id: 'c-older', name: 'older' }), 4),
+      membership('ADMIN', makeCommunity({ id: 'c-bravo', name: 'Bravo' }), 1),
+      membership('OWNER', makeCommunity({ id: 'c-alpha', name: 'alpha' }), 2),
     ]);
 
     // Act
@@ -137,14 +145,33 @@ describe('listMyCommunities', () => {
 
     // Assert
     expect(memberDb.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'user-1' },
-        orderBy: [{ joinedAt: 'desc' }, { communityId: 'asc' }],
-      }),
+      expect.objectContaining({ where: { userId: 'user-1' } }),
     );
     expect(result.map(({ id, memberCount, myRole }) => ({ id, memberCount, myRole }))).toEqual([
-      { id: 'newer', memberCount: 4, myRole: 'MEMBER' },
-      { id: 'older', memberCount: 1, myRole: 'ADMIN' },
+      { id: 'c-alpha', memberCount: 2, myRole: 'OWNER' },
+      { id: 'c-bravo', memberCount: 1, myRole: 'ADMIN' },
+      { id: 'c-older', memberCount: 4, myRole: 'MEMBER' },
+    ]);
+  });
+
+  it('sorts digits first, then Latin, then Hebrew in alphabet order', async () => {
+    // Arrange
+    memberDb.findMany.mockResolvedValue(
+      ['מזרחית ותיקה', 'Indie Rock Night', 'אהבה', '90s Mix', 'Jazz & Coffee'].map((name, i) =>
+        membership('MEMBER', makeCommunity({ id: `c-${i}`, name }), 1),
+      ),
+    );
+
+    // Act
+    const result = await listMyCommunities(makeUser());
+
+    // Assert
+    expect(result.map(({ name }) => name)).toEqual([
+      '90s Mix',
+      'Indie Rock Night',
+      'Jazz & Coffee',
+      'אהבה',
+      'מזרחית ותיקה',
     ]);
   });
 
@@ -180,5 +207,39 @@ describe('getCommunity', () => {
 
     // Act & Assert
     await expectAppError(getCommunity(makeUser(), 'community-1'), 404, 'Community not found.');
+  });
+});
+
+describe('compareCommunities', () => {
+  it('sorts numbers by value', () => {
+    // Arrange
+    const names = ['Mix 10', 'Mix 2', 'Mix 1'].map((name) => ({ id: name, name }));
+
+    // Act
+    const sorted = [...names].sort(compareCommunities).map(({ name }) => name);
+
+    // Assert
+    expect(sorted).toEqual(['Mix 1', 'Mix 2', 'Mix 10']);
+  });
+
+  it('ignores case and accents', () => {
+    // Act / Assert
+    expect(compareCommunities({ id: 'a', name: 'Café' }, { id: 'b', name: 'cafe' })).toBeLessThan(
+      0,
+    );
+    expect(
+      compareCommunities({ id: 'a', name: 'zebra' }, { id: 'b', name: 'Apple' }),
+    ).toBeGreaterThan(0);
+  });
+
+  it('breaks a tie between equal names by id, so the order is stable', () => {
+    // Arrange
+    const first = { id: 'c-1', name: 'Indie' };
+    const second = { id: 'c-2', name: 'indie' };
+
+    // Act / Assert
+    expect(compareCommunities(first, second)).toBeLessThan(0);
+    expect(compareCommunities(second, first)).toBeGreaterThan(0);
+    expect(compareCommunities(first, { ...first })).toBe(0);
   });
 });

@@ -89,8 +89,13 @@ const unseen = async (who: Person) =>
   (await get(who, '/api/recommendations/unseen-count')).body.data.count as number;
 const seen = (who: Person) =>
   request(app).post('/api/recommendations/seen').set('Cookie', who.cookie);
-const hide = (who: Person, postId: string) =>
-  request(app).put(`/api/recommendations/${postId}/hidden`).set('Cookie', who.cookie);
+const archive = (who: Person, postId: string) =>
+  request(app).put(`/api/recommendations/${postId}/archived`).set('Cookie', who.cookie);
+const unarchive = (who: Person, postId: string) =>
+  request(app).delete(`/api/recommendations/${postId}/archived`).set('Cookie', who.cookie);
+const archivedList = (who: Person, query = '') => get(who, `/api/recommendations/archived${query}`);
+const archivedCount = async (who: Person) =>
+  (await get(who, '/api/recommendations/archived/count')).body.data.count as number;
 const rate = (who: Person, postId: string, score = 8) =>
   request(app).post(`/api/posts/${postId}/ratings`).set('Cookie', who.cookie).send({ score });
 const editRating = (who: Person, postId: string) =>
@@ -441,11 +446,11 @@ describe('the Received and Sent lists', () => {
     expect(onboarding.status).toBe(403);
   });
 
-  it('🔒 sends only the public keys, and no raw recipient or hidden columns', async () => {
+  it('🔒 sends only the public keys, and no raw recipient or archive columns', async () => {
     // Arrange
     const { dana, noam } = await trio();
     const postId = await sent(dana, noam);
-    await hide(noam, postId);
+    await archive(noam, postId);
 
     // Act
     const [item] = (await sentList(dana)).body.data.posts as Array<Record<string, unknown>>;
@@ -454,6 +459,7 @@ describe('the Received and Sent lists', () => {
     const body = JSON.stringify(item);
     expect(body).not.toContain('recipientId');
     expect(body).not.toContain('Hidden');
+    expect(body).not.toContain('Archived');
     expect(body).not.toContain('SeenAt');
     expect(Object.keys(item!.direct as object).sort()).toEqual(['isFriend', 'recipient']);
     expect(Object.keys((item!.direct as { recipient: object }).recipient).sort()).toEqual([
@@ -465,7 +471,7 @@ describe('the Received and Sent lists', () => {
 });
 
 describe('the unseen count', () => {
-  it('counts what arrived since Received was opened, and ignores hidden items', async () => {
+  it('counts what arrived since Received was opened, and ignores archived items', async () => {
     // Arrange
     const { dana, noam } = await trio();
     await sent(dana, noam);
@@ -478,7 +484,7 @@ describe('the unseen count', () => {
 
     const postId = await sent(dana, noam);
     expect(await unseen(noam)).toBe(1);
-    await hide(noam, postId);
+    await archive(noam, postId);
     expect(await unseen(noam)).toBe(0);
   });
 
@@ -505,8 +511,8 @@ describe('the unseen count', () => {
   });
 });
 
-describe('PUT /api/recommendations/:postId/hidden', () => {
-  it('takes it out of Received only: the bookmark and rating stay, and the sender sees no change', async () => {
+describe('PUT /api/recommendations/:postId/archived', () => {
+  it('moves it from Received to the archive only: the bookmark and rating stay, and the sender sees no change', async () => {
     // Arrange
     const { dana, noam } = await trio();
     const postId = await sent(dana, noam);
@@ -515,15 +521,17 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
     await rate(noam, other, 3);
 
     // Act
-    const hidden = await hide(noam, postId);
-    const again = await hide(noam, postId);
-    const hiddenRated = await hide(noam, other);
+    const archived = await archive(noam, postId);
+    const again = await archive(noam, postId);
+    const archivedRated = await archive(noam, other);
 
     // Assert
-    expect(hidden.status).toBe(200);
+    expect(archived.status).toBe(200);
     expect(again.status).toBe(200);
-    expect(hiddenRated.status).toBe(200);
+    expect(archivedRated.status).toBe(200);
     expect(ids(await received(noam))).toEqual([]);
+    expect(ids(await archivedList(noam))).toEqual([other, postId]);
+    expect(await archivedCount(noam)).toBe(2);
     const myList = await get(noam, '/api/users/me/bookmarks');
     expect(myList.body.data.items.map((item: { post: { id: string } }) => item.post.id)).toEqual([
       postId,
@@ -534,6 +542,35 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
     expect(senderView.body.data.posts[0].ratingSummary).toEqual({ average: 3, count: 1 });
   });
 
+  it('a second archive keeps the first time', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+    await archive(noam, postId);
+    const first = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+
+    // Act
+    await archive(noam, postId);
+
+    // Assert
+    const second = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+    expect(second.recipientArchivedAt).toEqual(first.recipientArchivedAt);
+  });
+
+  it('an item hidden before this feature is in the archive', async () => {
+    // Arrange: written straight to the old column, as Hide left it.
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+    await prisma.$executeRaw`UPDATE "posts" SET "recipient_hidden_at" = now() WHERE "id" = ${postId}::uuid`;
+
+    // Act
+    const archived = await archivedList(noam);
+
+    // Assert
+    expect(ids(archived)).toEqual([postId]);
+    expect(ids(await received(noam))).toEqual([]);
+  });
+
   it('is allowed after unfriending', async () => {
     // Arrange
     const { dana, noam } = await trio();
@@ -541,7 +578,7 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
     await unfriend(dana, noam);
 
     // Act
-    const response = await hide(noam, postId);
+    const response = await archive(noam, postId);
 
     // Assert
     expect(response.status).toBe(200);
@@ -553,13 +590,65 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
     const postId = await sent(dana, noam);
 
     // Act
-    const response = await hide(dana, postId);
+    const response = await archive(dana, postId);
 
     // Assert
     expect(response.status).toBe(403);
-    expect(response.body.message).toBe('Only the recipient can hide this.');
+    expect(response.body.message).toBe('Only the recipient can archive this.');
+  });
+});
+
+describe('DELETE /api/recommendations/:postId/archived', () => {
+  it('puts it back in Received, and is a no-op when it is not archived', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+    await archive(noam, postId);
+
+    // Act
+    const restored = await unarchive(noam, postId);
+    const again = await unarchive(noam, postId);
+
+    // Assert
+    expect(restored.status).toBe(200);
+    expect(again.status).toBe(200);
+    expect(ids(await received(noam))).toEqual([postId]);
+    expect(ids(await archivedList(noam))).toEqual([]);
+    expect(await archivedCount(noam)).toBe(0);
   });
 
+  it('is allowed after unfriending', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+    await archive(noam, postId);
+    await unfriend(dana, noam);
+
+    // Act
+    const response = await unarchive(noam, postId);
+
+    // Assert
+    expect(response.status).toBe(200);
+  });
+
+  it('returns 403 to the sender', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+
+    // Act
+    const response = await unarchive(dana, postId);
+
+    // Assert
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe('Only the recipient can unarchive this.');
+  });
+});
+
+describe.each([
+  { name: 'PUT', write: archive },
+  { name: 'DELETE', write: unarchive },
+])('$name /api/recommendations/:postId/archived refusals', ({ write }) => {
   it('returns 404 to a third party, for an unknown or malformed id, and for a community post', async () => {
     // Arrange
     const { dana, noam, zed } = await trio();
@@ -575,10 +664,10 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
 
     // Act
     const responses = await Promise.all([
-      hide(zed, postId),
-      hide(dana, UNKNOWN_UUID),
-      hide(dana, 'nope'),
-      hide(dana, communityPost.body.data.post.id as string),
+      write(zed, postId),
+      write(dana, UNKNOWN_UUID),
+      write(dana, 'nope'),
+      write(dana, communityPost.body.data.post.id as string),
     ]);
 
     // Assert
@@ -590,12 +679,97 @@ describe('PUT /api/recommendations/:postId/hidden', () => {
     const fresh = await person('fresh', null);
 
     // Act
-    const signedOut = await request(app).put(`/api/recommendations/${UNKNOWN_UUID}/hidden`);
-    const onboarding = await hide(fresh, UNKNOWN_UUID);
+    const signedOut = await request(app)
+      .put(`/api/recommendations/${UNKNOWN_UUID}/archived`)
+      .then(async (put) => [
+        put,
+        await request(app).delete(`/api/recommendations/${UNKNOWN_UUID}/archived`),
+      ]);
+    const onboarding = await write(fresh, UNKNOWN_UUID);
 
     // Assert
-    expect(signedOut.status).toBe(401);
+    expect(signedOut.map((response) => response.status)).toEqual([401, 401]);
     expect(onboarding.status).toBe(403);
+  });
+});
+
+describe('GET /api/recommendations/archived and its count', () => {
+  it('pages newest sent first, with no repeat', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postIds: string[] = [];
+    for (let n = 0; n < 21; n += 1) {
+      postIds.push(await sent(dana, noam));
+    }
+    for (const postId of postIds) {
+      await archive(noam, postId);
+    }
+
+    // Act
+    const first = await archivedList(noam);
+    const cursor = first.body.data.nextCursor as string;
+    const second = await archivedList(noam, `?before=${encodeURIComponent(cursor)}`);
+
+    // Assert
+    expect(ids(first)).toEqual([...postIds].reverse().slice(0, 20));
+    expect(ids(second)).toEqual([postIds[0]]);
+    expect(second.body.data.nextCursor).toBeNull();
+    expect(await archivedCount(noam)).toBe(21);
+  });
+
+  it("holds only the caller's own archive", async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+    await archive(noam, postId);
+
+    // Act & Assert
+    expect(ids(await archivedList(dana))).toEqual([]);
+    expect(await archivedCount(dana)).toBe(0);
+  });
+
+  it('returns 422 for an unknown query key or a malformed cursor', async () => {
+    // Arrange
+    const { noam } = await trio();
+
+    // Act
+    const unknownKey = await archivedList(noam, '?page=2');
+    const badCursor = await archivedList(noam, '?before=nope');
+
+    // Assert
+    expect(unknownKey.status).toBe(422);
+    expect(badCursor.status).toBe(422);
+  });
+
+  it('returns 401 and 403 on the list and the count', async () => {
+    // Arrange
+    const fresh = await person('fresh', null);
+
+    // Act
+    const responses = await Promise.all([
+      request(app).get('/api/recommendations/archived'),
+      request(app).get('/api/recommendations/archived/count'),
+      archivedList(fresh),
+      get(fresh, '/api/recommendations/archived/count'),
+    ]);
+
+    // Assert
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 403, 403]);
+  });
+
+  it('the removed PUT /:postId/hidden answers 404', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    const postId = await sent(dana, noam);
+
+    // Act
+    const response = await request(app)
+      .put(`/api/recommendations/${postId}/hidden`)
+      .set('Cookie', noam.cookie);
+
+    // Assert
+    expect(response.status).toBe(404);
+    expect(ids(await received(noam))).toEqual([postId]);
   });
 });
 

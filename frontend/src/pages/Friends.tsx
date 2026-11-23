@@ -276,10 +276,13 @@ export function Friends() {
                         id={invitation.community.id}
                         name={invitation.community.name}
                         variant="thumb"
+                        photoUrl={invitation.community.photoUrl}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{invitation.community.name}</p>
+                      <p className="truncate text-sm font-medium">
+                        <bdi>{invitation.community.name}</bdi>
+                      </p>
                       <p className="truncate text-xs text-muted">
                         {invitedBy(
                           invitation.invitedBy?.displayName ?? null,

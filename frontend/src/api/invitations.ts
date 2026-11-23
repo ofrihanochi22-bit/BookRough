@@ -12,7 +12,7 @@ export interface InviteCandidate {
 }
 
 export interface MyInvitation {
-  community: { id: string; name: string; memberCount: number };
+  community: { id: string; name: string; photoUrl: string | null; memberCount: number };
   /** Null once the inviter's account is gone. */
   invitedBy: MemberUser | null;
   sentAt: string;

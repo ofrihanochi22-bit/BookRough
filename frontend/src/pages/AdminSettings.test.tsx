@@ -8,6 +8,7 @@ import { App } from '../App';
 import { DEFAULT_TAGLINE, SETTINGS_MESSAGES } from '../lib/appSettings';
 import { useAuthStore } from '../stores/auth';
 import { httpError, makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   fetchAdminSettings: vi.fn(),
@@ -156,7 +157,7 @@ describe('Settings tab — saving', () => {
     expect(api.updateAdminSettings).toHaveBeenCalledWith({ accentColor: 'green' });
     expect(api.toastSuccess).toHaveBeenCalledWith('Settings saved');
     expect(
-      await screen.findByText('Ofri changed the accent colour from Purple to Green'),
+      await screen.findByText(`${isolate('Ofri')} changed the accent colour from Purple to Green`),
     ).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Green' })).toBeChecked();
     expect(saveButton()).toBeDisabled();

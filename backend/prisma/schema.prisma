@@ -99,6 +99,10 @@ model User {
   saveTipSeenAt           DateTime?             @map("save_tip_seen_at") @db.Timestamptz(3)
   /// When the list tip (My List) was dismissed or acted on.
   listTipSeenAt           DateTime?             @map("list_tip_seen_at") @db.Timestamptz(3)
+  /// The clean start of "From communities": only community posts from this
+  /// moment on can be unchecked. The migration set it for existing users.
+  /// Never sent to a client (docs/features/community-unchecked.md §3).
+  communityChecksSince    DateTime              @default(now()) @map("community_checks_since") @db.Timestamptz(3)
   memberships             CommunityMember[]
   bans                    CommunityBan[]        @relation("BannedUser")
   bansIssued              CommunityBan[]        @relation("BannedBy")
@@ -117,31 +121,36 @@ model User {
   comments                Comment[]             @relation("CommentAuthor")
   commentsRepliedTo       Comment[]             @relation("CommentReplyTo")
   opsSnapshots            OpsSnapshot[]
+  communityPostChecks     CommunityPostCheck[]
 
   @@map("users")
 }
 
 /// docs/features/communities-create.md §3.
 ///
-/// There is no cover image column: covers are always generated from the name
-/// and id (CLAUDE.md §8).
+/// The cover is generated from the name and id, unless an admin uploaded a
+/// photo (docs/features/community-photo.md §3).
 model Community {
-  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Shown as typed. Not unique — communities are found by invite, never by name.
-  name          String                @db.VarChar(100)
+  name           String                @db.VarChar(100)
   /// Plain text with line breaks; null when the creator left it blank.
-  description   String?
+  description    String?
   /// The community's one invite link (docs/features/communities-invites.md §3).
   /// Created on first request, replaced on reset. A secret: never logged, never
   /// in PublicCommunity.
-  inviteToken   String?               @unique @map("invite_token") @db.VarChar(64)
-  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  members       CommunityMember[]
-  bans          CommunityBan[]
-  posts         Post[]
-  invitations   CommunityInvitation[]
-  notifications Notification[]
+  inviteToken    String?               @unique @map("invite_token") @db.VarChar(64)
+  /// When the photo was last uploaded; null = the generated cover. Written with
+  /// the community_photos row in one transaction; the `?v=` of its URL.
+  photoUpdatedAt DateTime?             @map("photo_updated_at") @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  members        CommunityMember[]
+  bans           CommunityBan[]
+  posts          Post[]
+  invitations    CommunityInvitation[]
+  notifications  Notification[]
+  photo          CommunityPhoto?
 
   @@map("communities")
 }
@@ -194,9 +203,10 @@ model Post {
   communityId          String?           @map("community_id") @db.Uuid
   /// The friend a direct recommendation was sent to.
   recipientId          String?           @map("recipient_id") @db.Uuid
-  /// The recipient removed it from Received. Never serialised: the sender must
-  /// not learn it. It affects Received only (§3.5).
-  recipientHiddenAt    DateTime?         @map("recipient_hidden_at") @db.Timestamptz(3)
+  /// The recipient archived it: out of Received, into their archive. Never
+  /// serialised: the sender must not learn it. The column keeps its old name so a
+  /// running older deployment never breaks (archive-recommendations.md §3).
+  recipientArchivedAt  DateTime?         @map("recipient_hidden_at") @db.Timestamptz(3)
   /// Exactly as pasted (trimmed). Always present — the fallback link.
   originalUrl          String            @map("original_url") @db.VarChar(2048)
   /// The service a converted link came from. Null on a link-only post.
@@ -204,6 +214,10 @@ model Post {
   /// Set on a link-only post, which is never converted. Exactly one of this
   /// and `sourceService` is set (`posts_one_source`, hand-written).
   linkPlatform         LinkPlatform?     @map("link_platform")
+  /// Bandcamp's numeric album or track id, for its embedded player. Only on a
+  /// Bandcamp post (`posts_bandcamp_item_id_shape`, hand-written). Never
+  /// serialised: it reaches clients only as `embed.url` (in-app-player.md §3).
+  bandcampItemId       String?           @map("bandcamp_item_id") @db.VarChar(20)
   kind                 PostKind?
   songTitle            String?           @map("song_title") @db.VarChar(300)
   songArtist           String?           @map("song_artist") @db.VarChar(300)
@@ -230,6 +244,7 @@ model Post {
   ratings              Rating[]
   notifications        Notification[]
   comments             Comment[]
+  communityPostChecks  CommunityPostCheck[]
 
   /// The feed: newest first in one community, keyset-paginated.
   @@index([communityId, createdAt(sort: Desc), id(sort: Desc)])
@@ -429,6 +444,22 @@ model Notification {
   @@map("notifications")
 }
 
+/// A community post the user has checked — docs/features/community-unchecked.md §3
+/// (UC-20 amended). One row per (user, post); never for a direct recommendation
+/// or the user's own post (the service's rule).
+model CommunityPostCheck {
+  userId    String   @map("user_id") @db.Uuid
+  postId    String   @map("post_id") @db.Uuid
+  checkedAt DateTime @default(now()) @map("checked_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  /// Deleting a post cascades to its checks by post id.
+  @@index([postId])
+  @@map("community_post_checks")
+}
+
 /// A user's uploaded photo — docs/features/avatar-upload.md §3 (UC-4).
 ///
 /// Always the server's own re-encode (256×256 WebP, metadata stripped), never
@@ -443,6 +474,18 @@ model UserAvatar {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_avatars")
+}
+
+/// A community's uploaded photo — docs/features/community-photo.md §3. Only
+/// the server's 256×256 WebP re-encode, never the uploaded bytes; its own
+/// table keeps the bytes out of every `communities` read.
+model CommunityPhoto {
+  communityId String    @id @map("community_id") @db.Uuid
+  image       Bytes
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@map("community_photos")
 }
 
 /// A post's discussion — docs/features/discussion-threads.md §3 (UC-22).

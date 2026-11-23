@@ -7,6 +7,7 @@ import type { CommunityRole } from '../api/communities';
 import { useAuthStore } from '../stores/auth';
 import { makeCommunity, makeSession, makeUser, setOnline } from '../test/fixtures';
 import { CommunitySettings } from './CommunitySettings';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   getCommunity: vi.fn(),
@@ -127,7 +128,7 @@ describe('Community Settings (ui-redesign.md §5.16)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Actions for Mia' }));
 
     // Assert
-    const sheet = screen.getByRole('dialog', { name: 'Mia' });
+    const sheet = screen.getByRole('dialog', { name: isolate('Mia') });
     expect(within(sheet).getByRole('button', { name: 'Make admin' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Make owner' })).toBeInTheDocument();
     const remove = within(sheet).getByRole('button', { name: 'Remove from community' });

@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `community-photo.md` (D5, 2026-11-22).** §3's "A later upload feature re-adds it" happened as a separate table, `community_photos`, plus `communities.photo_updated_at`. The create form has an optional photo, uploaded after the community exists; the cover shows it in place of the reels.
+
 > **Amended by `notifications.md` (UC-21, 2026-11-08).** The Dashboard header holds a notifications bell beside Sign out, and the Home tab carries a badge with the unread count (§6.3, §6.4).
 
 ## 0. How Phase 2 was re-sliced
@@ -162,7 +164,7 @@ Built field by field in `utils/publicCommunity.ts`. `updatedAt` and membership r
 ### `GET /api/communities`
 
 - **Auth:** required.
-- **Behaviour:** the caller's communities only. There is no endpoint that lists communities the caller is not in. Ordered by the caller's `joined_at`, newest first.
+- **Behaviour:** the caller's communities only. There is no endpoint that lists communities the caller is not in. Ordered alphabetically by name, English before Hebrew (amended 2026-11-22 by `manual-test-fixes-1122.md` §4; was the caller's `joined_at`, newest first).
 - **Success:** `200` `{ communities: PublicCommunity[] }` — an empty array is a normal answer.
 - **Errors:** `401` not signed in.
 - No pagination: a friend-group user belongs to a handful of communities. Revisit if anyone passes ~100.
@@ -211,6 +213,7 @@ Four tabs — Home, Search, My List, Profile (developer's choice, option B) — 
 - **Empty:** headline "Start your first community", one line "A community is where your friends share music.", and a **Create community** button. (The floating button is hidden in the empty state so there is exactly one call to action.)
 - **Error:** inline "Couldn't load your communities." with **Try again**; no blank screen.
 - Tapping a card opens `/communities/:id`.
+- **Order (amended 2026-11-22, `manual-test-fixes-1122.md` §4, D4):** alphabetical by name, as the server returns them, English names before Hebrew ones. It was newest joined first.
 
 ### 6.5 Create Community (`pages/CreateCommunity.tsx`)
 
@@ -268,7 +271,7 @@ One shared screen with a title and one line per tab: Search — "Find friends on
 - ✅ `displayName.ts` existing tests stay green after the `textRules` refactor.
 - ✅ `createCommunity` creates the community and an ADMIN membership; returns `memberCount: 1`, `myRole: ADMIN`.
 - ❌ `createCommunity` invalid name → `AppError 422`; invalid description → `422`; un-onboarded user → `403`.
-- ✅ `listMyCommunities`: only the caller's communities, newest joined first; empty array when none.
+- ✅ `listMyCommunities`: only the caller's communities, alphabetically (newest joined first until 2026-11-22); empty array when none.
 - ✅ `getCommunity` for a member.
 - ❌ `getCommunity`: missing id → `404`; non-member → `404`.
 - ✅ `toPublicCommunity` returns exactly the six public fields (key-set equality).
@@ -281,7 +284,7 @@ One shared screen with a title and one line per tab: Search — "Find friends on
 - ❌ `422` missing name; empty name; whitespace-only name; 41-grapheme name; forbidden character; description too long; unknown key; name not a string.
 - ❌ `401` no cookie.
 - ❌ `403` user who has not finished onboarding.
-- ✅ `GET /communities` returns only the caller's communities, newest joined first, with correct `memberCount`.
+- ✅ `GET /communities` returns only the caller's communities, alphabetically (newest joined first until 2026-11-22), with correct `memberCount`.
 - ✅ `GET /communities` with none → `200` and `[]`.
 - ❌ `GET /communities` `401`.
 - ✅ `GET /communities/:id` as a member → `200`.

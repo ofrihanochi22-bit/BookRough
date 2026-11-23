@@ -83,6 +83,7 @@ export function CommentComposer({
       <textarea
         id={fieldId}
         rows={2}
+        dir="auto"
         value={body}
         readOnly={busy}
         maxLength={4000}
@@ -161,11 +162,13 @@ function CommentItem({
       <div className="flex items-center gap-2">
         <PersonLink
           user={comment.author}
-          label={comment.isMine ? 'You' : comment.author.displayName}
+          label={comment.isMine ? 'You' : undefined}
           className="text-sm font-medium"
         />
         {showReplyTo && (
-          <span className="text-xs text-muted">↩ to {comment.replyTo!.displayName}</span>
+          <span className="text-xs text-muted">
+            ↩ to <bdi>{comment.replyTo!.displayName}</bdi>
+          </span>
         )}
         <time dateTime={comment.createdAt} className="text-xs text-muted">
           {relativeTime(comment.createdAt)}
@@ -226,7 +229,9 @@ function CommentItem({
           }}
         />
       ) : (
-        <p className="whitespace-pre-line break-words text-sm">{comment.body}</p>
+        <p dir="auto" className="whitespace-pre-line break-words text-sm">
+          {comment.body}
+        </p>
       )}
       {onReply && canWrite && !editing && (
         <button

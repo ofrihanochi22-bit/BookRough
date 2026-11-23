@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { httpError, makeCommunity, makePost, networkError } from '../test/fixtures';
 import { ShareSheet } from './ShareSheet';
+import { isolate } from '../lib/bidi';
 
 const { listMyCommunities, createPost, listFriends, sendRecommendation } = vi.hoisted(() => ({
   listMyCommunities: vi.fn(),
@@ -117,7 +118,7 @@ describe('ShareSheet (ui-redesign.md §5.0b)', () => {
     await chooseJazz();
 
     // Assert
-    expect(sheet()).toHaveAccessibleName('Friday Jazz');
+    expect(sheet()).toHaveAccessibleName(isolate('Friday Jazz'));
     expect(screen.getByRole('form', { name: 'Share a song' })).toBeInTheDocument();
     expect(screen.getByLabelText('Share a song or album')).toBeInTheDocument();
   });

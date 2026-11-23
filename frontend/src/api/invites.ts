@@ -11,6 +11,8 @@ export interface Invite {
 export interface InvitePreview {
   communityId: string;
   name: string;
+  /** Loads only for a signed-in viewer; the cover falls back otherwise (community-photo.md D3). */
+  photoUrl: string | null;
   memberCount: number;
   alreadyMember: boolean;
 }

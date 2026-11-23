@@ -7,6 +7,7 @@ import type { Friendship } from '../api/friends';
 import { ACTION_FAILED, REQUEST_SENT } from '../lib/friendCopy';
 import { httpError, networkError } from '../test/fixtures';
 import { FriendButton } from './FriendButton';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   sendFriendRequest: vi.fn(),
@@ -100,7 +101,7 @@ describe('FriendButton', () => {
 
     // Assert
     expect(screen.getByText('✓ Friends')).toBeInTheDocument();
-    expect(api.toastSuccess).toHaveBeenCalledWith("You're now friends with Dana.");
+    expect(api.toastSuccess).toHaveBeenCalledWith(`You're now friends with ${isolate('Dana')}.`);
     expect(api.countFriendRequests).toHaveBeenCalled();
   });
 
@@ -127,7 +128,7 @@ describe('FriendButton', () => {
     // Act
     await userEvent.click(button('Respond'));
     expect(screen.getByRole('dialog', { name: 'Friend request' })).toHaveTextContent(
-      'Dana sent you a friend request.',
+      `${isolate('Dana')} sent you a friend request.`,
     );
     await userEvent.click(button('Accept'));
 
@@ -194,7 +195,7 @@ describe('FriendButton', () => {
 
     // Assert
     expect(api.removeFriend).toHaveBeenCalledWith(DANA);
-    expect(api.toastSuccess).toHaveBeenCalledWith('Removed Dana from your friends.');
+    expect(api.toastSuccess).toHaveBeenCalledWith(`Removed ${isolate('Dana')} from your friends.`);
     expect(button('Add Friend')).toBeInTheDocument();
   });
 
@@ -206,7 +207,7 @@ describe('FriendButton', () => {
     await userEvent.click(button('✓ Friends'));
     expect(sheetActions('Remove friend?')).toEqual(['Cancel', 'Remove friend']);
     expect(screen.getByRole('dialog', { name: 'Remove friend?' })).toHaveTextContent(
-      "Remove Dana from your friends? They won't be notified.",
+      `Remove ${isolate('Dana')} from your friends? They won't be notified.`,
     );
 
     rerender(<Harness key="received" initial="REQUEST_RECEIVED" />);

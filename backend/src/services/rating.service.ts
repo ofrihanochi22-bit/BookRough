@@ -13,6 +13,7 @@ import { type RatingSummary, summarize } from '../utils/ratingSummary.js';
 import { ALREADY_RATED } from './bookmark.service.js';
 import { POST_NOT_FOUND } from './communityAccess.js';
 import { areFriends } from './friendship.js';
+import { recordCheck } from './communityChecks.service.js';
 import { type PostAccess, requirePostAccess } from './postAccess.js';
 import { checkPostComment } from './postText.js';
 import { notifyRating } from './notification.service.js';
@@ -83,6 +84,8 @@ export async function ratePost(
         data: { postId, userId: user.id, score, comment: comment.value },
       });
       await tx.bookmark.deleteMany({ where: { userId: user.id, postId } });
+      // Rating checks a community post (community-unchecked.md §4).
+      await recordCheck(tx, user.id, post, postId);
       return created;
     });
   } catch (error) {

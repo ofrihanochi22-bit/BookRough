@@ -83,6 +83,7 @@ export function EditCommentSheet({
           </div>
           <textarea
             id="edit-comment"
+            dir="auto"
             rows={3}
             value={comment}
             readOnly={busy}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { PublicPost } from '../api/posts';
+import { checkInBackground } from '../api/recommendations';
 import { useRetryConversion } from '../hooks/useRetryConversion';
 import { badgeText } from '../lib/friendCopy';
 import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '../lib/postLinks';
@@ -9,6 +10,8 @@ import { commentCountLine, ratingSummaryLine } from '../lib/ratingCopy';
 import { noLongerFriends } from '../lib/recommendationCopy';
 import { BookmarkButton } from './BookmarkButton';
 import { EditCommentSheet } from './EditCommentSheet';
+import { ExternalLink } from './ExternalLink';
+import { PlayHereButton } from './PlayHereButton';
 import { PersonLink } from './PersonLink';
 import { TryAgainChip } from './TryAgainChip';
 import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postCardParts';
@@ -120,25 +123,26 @@ function Cover({
 function PostActionsSheet({
   online,
   onClose,
-  onHide,
+  archive,
   onEdit,
   onDelete,
 }: {
   online: boolean;
   onClose: () => void;
-  onHide?: () => void;
+  /** Archive on Received, Unarchive in the archive (archive-recommendations.md §5). */
+  archive?: { label: string; onSelect: () => void };
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const actions: SheetAction[] = [];
-  if (onHide) {
+  if (archive) {
     actions.push({
-      label: 'Hide',
+      label: archive.label,
       disabled: !online,
-      onSelect: onHide,
+      onSelect: archive.onSelect,
       icon: (
         <LineIcon>
-          <path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 9 4.5 10 6-.4.7-1.4 2-2.8 3.3M6.5 7.6C4.6 8.9 3.4 10.6 2 12c1 1.5 5 6 10 6 1.6 0 3-.4 4.3-1" />
+          <path d="M3 4h18v4H3zM5 8v12h14V8M10 12h4" />
         </LineIcon>
       ),
     });
@@ -187,7 +191,9 @@ export function PostCard({
   onBookmarkChanged,
   linkToDetail = true,
   onRate,
-  onHide,
+  onArchive,
+  onUnarchive,
+  onCheck,
 }: PostCardProps) {
   const [showingLinks, setShowingLinks] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -203,7 +209,10 @@ export function PostCard({
   const Title = large ? 'h1' : 'p';
   // The author edits their comment; a direct item only while still friends (edit-post-comment.md §5.1).
   const canEdit = post.isMine && (!post.direct || post.direct.isFriend);
-  const hasMenu = canEdit || post.canDelete || onHide !== undefined;
+  const archiveAction = onArchive
+    ? { label: 'Archive', run: onArchive }
+    : onUnarchive && { label: 'Unarchive', run: onUnarchive };
+  const hasMenu = canEdit || post.canDelete || archiveAction !== undefined;
   const person = post.direct && post.isMine ? post.direct.recipient : post.author;
   const kind = kindLabel(post.kind);
 
@@ -221,7 +230,7 @@ export function PostCard({
         {post.direct && <span className="text-xs text-muted">{post.isMine ? 'To' : 'From'}</span>}
         <PersonLink
           user={person}
-          label={post.isMine && !post.direct ? 'You' : person.displayName}
+          label={post.isMine && !post.direct ? 'You' : undefined}
           className="min-w-0 text-sm font-semibold"
         />
         <time dateTime={post.createdAt} className="shrink-0 text-xs text-muted">
@@ -265,7 +274,10 @@ export function PostCard({
         <div className="flex min-w-0 flex-col justify-center gap-1.5">
           {post.conversionPending ? (
             <>
-              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
+              <Title
+                dir="auto"
+                className={`font-display leading-tight font-bold break-words ${titleSize}`}
+              >
                 {pendingTitle(post)}
               </Title>
               <p role="status" className="text-xs text-danger">
@@ -274,14 +286,21 @@ export function PostCard({
             </>
           ) : (
             <>
-              <Title className={`font-display leading-tight font-bold break-words ${titleSize}`}>
+              <Title
+                dir="auto"
+                className={`font-display leading-tight font-bold break-words ${titleSize}`}
+              >
                 {detailPath ? (
                   <Link to={detailPath}>{displayTitle(post)}</Link>
                 ) : (
                   displayTitle(post)
                 )}
               </Title>
-              {post.artist && <p className="text-sm break-words text-muted">{post.artist}</p>}
+              {post.artist && (
+                <p dir="auto" className="text-sm break-words text-muted">
+                  {post.artist}
+                </p>
+              )}
               {kind && <p className={KIND_TAG}>{kind}</p>}
             </>
           )}
@@ -290,6 +309,7 @@ export function PostCard({
 
       {post.comment && (
         <p
+          dir="auto"
           className={`rounded-[10px] px-3.5 py-2.5 text-sm whitespace-pre-line break-words ${TAPE_PAPER}`}
         >
           {post.comment}
@@ -299,7 +319,8 @@ export function PostCard({
       {onRate &&
         !post.isMine &&
         post.myScore === null &&
-        (post.direct?.isFriend ? (
+        // A community post has no friendship to lose (community-unchecked.md §5).
+        (!post.direct || post.direct.isFriend ? (
           <Button
             variant="rating"
             offline={!online}
@@ -313,9 +334,14 @@ export function PostCard({
         ))}
 
       <div className="flex flex-wrap items-center gap-2">
-        <a href={main.url} target="_blank" rel="noopener noreferrer" className={OPEN_IN_PILL}>
+        <ExternalLink
+          href={main.url}
+          className={OPEN_IN_PILL}
+          onOpen={() => checkInBackground(post)}
+        >
           {main.text}
-        </a>
+        </ExternalLink>
+        <PlayHereButton post={post} />
         {!post.conversionPending && !post.platform && (
           <button type="button" className={CHIP} onClick={() => setShowingLinks(true)}>
             Other services
@@ -323,6 +349,11 @@ export function PostCard({
         )}
         {post.conversionPending && (
           <TryAgainChip online={online} retrying={retrying} onClick={retry} />
+        )}
+        {onCheck && (
+          <button type="button" className={CHIP} disabled={!online} onClick={() => onCheck(post)}>
+            Mark checked
+          </button>
         )}
         {detailPath && (
           <Link to={detailPath} className={CHIP}>
@@ -338,7 +369,12 @@ export function PostCard({
         <PostActionsSheet
           online={online}
           onClose={() => setMenuOpen(false)}
-          onHide={onHide && fromMenu(() => onHide(post))}
+          archive={
+            archiveAction && {
+              label: archiveAction.label,
+              onSelect: fromMenu(() => archiveAction.run(post)),
+            }
+          }
           onEdit={canEdit ? fromMenu(() => setEditing(true)) : undefined}
           onDelete={post.canDelete ? fromMenu(() => setDeleting(true)) : undefined}
         />

@@ -24,7 +24,8 @@ const log = createLogger('recommendation.service');
 
 export const FRIENDS_ONLY = 'You can only send songs to friends.';
 export const SELF_SEND = "You can't send a song to yourself.";
-export const RECIPIENT_ONLY = 'Only the recipient can hide this.';
+export const RECIPIENT_ONLY_ARCHIVE = 'Only the recipient can archive this.';
+export const RECIPIENT_ONLY_UNARCHIVE = 'Only the recipient can unarchive this.';
 
 export interface NewRecommendation extends NewPost {
   recipientId: string;
@@ -115,12 +116,32 @@ async function listRecommendations(
   };
 }
 
-/** GET /recommendations/received — sent to the caller, minus what they hid (§3.5). */
+/** GET /recommendations/received — sent to the caller, minus what they archived. */
 export function listReceived(user: User, before?: string): Promise<RecommendationPage> {
-  return listRecommendations(user, { recipientId: user.id, recipientHiddenAt: null }, before);
+  return listRecommendations(user, { recipientId: user.id, recipientArchivedAt: null }, before);
 }
 
-/** GET /recommendations/sent — a recipient's hide changes nothing here. */
+/**
+ * GET /recommendations/archived — the caller's archive, ordered like Received
+ * by when each item was sent (docs/features/archive-recommendations.md §4).
+ */
+export function listArchived(user: User, before?: string): Promise<RecommendationPage> {
+  return listRecommendations(
+    user,
+    { recipientId: user.id, recipientArchivedAt: { not: null } },
+    before,
+  );
+}
+
+/** GET /recommendations/archived/count — the "Archived · N" row on Received. */
+export async function countArchived(user: User): Promise<number> {
+  requireOnboarded(user);
+  return prisma.post.count({
+    where: { recipientId: user.id, recipientArchivedAt: { not: null } },
+  });
+}
+
+/** GET /recommendations/sent — a recipient's archive changes nothing here. */
 export function listSent(user: User, before?: string): Promise<RecommendationPage> {
   return listRecommendations(user, { authorId: user.id, recipientId: { not: null } }, before);
 }
@@ -132,7 +153,7 @@ export async function countUnseen(user: User): Promise<number> {
   return prisma.post.count({
     where: {
       recipientId: user.id,
-      recipientHiddenAt: null,
+      recipientArchivedAt: null,
       ...(seenAt && { createdAt: { gt: seenAt } }),
     },
   });
@@ -148,22 +169,42 @@ export async function markSeen(user: User): Promise<void> {
 }
 
 /**
- * PUT /recommendations/:postId/hidden — the recipient removes an item from
- * Received, nothing else: the bookmark and rating stay, and the sender is not
- * told (§3.5). Idempotent, and allowed after unfriending.
+ * The caller must be the item's recipient: a community post, a missing post or
+ * a third party's item is "not found" (the shared access rule), and the sender,
+ * who can see it, is refused.
  */
-export async function hideRecommendation(user: User, postId: string): Promise<void> {
+async function requireRecipient(user: User, postId: string, refusal: string): Promise<void> {
   requireOnboarded(user);
   const access = await requirePostAccess(user, postId);
   if (access.scope === 'COMMUNITY') {
     throw new AppError(POST_NOT_FOUND, 404);
   }
   if (!access.isRecipient) {
-    throw new AppError(RECIPIENT_ONLY, 403);
+    throw new AppError(refusal, 403);
   }
+}
+
+/**
+ * PUT /recommendations/:postId/archived — the recipient moves an item out of
+ * Received, nothing else: the bookmark and rating stay, and the sender is not
+ * told. Idempotent (a second archive keeps the first time), and allowed after
+ * unfriending (docs/features/archive-recommendations.md §4).
+ */
+export async function archiveRecommendation(user: User, postId: string): Promise<void> {
+  await requireRecipient(user, postId, RECIPIENT_ONLY_ARCHIVE);
   await prisma.post.updateMany({
-    where: { id: postId, recipientHiddenAt: null },
-    data: { recipientHiddenAt: new Date() },
+    where: { id: postId, recipientArchivedAt: null },
+    data: { recipientArchivedAt: new Date() },
   });
-  log.info({ userId: user.id, postId }, 'Recommendation hidden');
+  log.info({ userId: user.id, postId }, 'Recommendation archived');
+}
+
+/** DELETE /recommendations/:postId/archived — Unarchive and Undo. Idempotent. */
+export async function unarchiveRecommendation(user: User, postId: string): Promise<void> {
+  await requireRecipient(user, postId, RECIPIENT_ONLY_UNARCHIVE);
+  await prisma.post.updateMany({
+    where: { id: postId, recipientArchivedAt: { not: null } },
+    data: { recipientArchivedAt: null },
+  });
+  log.info({ userId: user.id, postId }, 'Recommendation unarchived');
 }

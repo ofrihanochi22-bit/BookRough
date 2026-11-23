@@ -229,12 +229,12 @@ describe('my invitations', () => {
     expect(query.orderBy).toEqual({ createdAt: 'desc' });
     expect(invitations).toEqual([
       {
-        community: { id: COMMUNITY, name: 'Crew', memberCount: 3 },
+        community: { id: COMMUNITY, name: 'Crew', photoUrl: null, memberCount: 3 },
         invitedBy: person('dana', 'Dana'),
         sentAt: at.toISOString(),
       },
       {
-        community: { id: 'c2', name: 'Club', memberCount: 1 },
+        community: { id: 'c2', name: 'Club', photoUrl: null, memberCount: 1 },
         invitedBy: null,
         sentAt: at.toISOString(),
       },

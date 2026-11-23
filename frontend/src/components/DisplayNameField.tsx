@@ -34,6 +34,7 @@ export function DisplayNameField({ value, onChange, status, submitVerb }: Displa
       </div>
       <input
         id="display-name"
+        dir="auto"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         maxLength={200}

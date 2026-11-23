@@ -103,6 +103,7 @@ function InviteContent({ token }: { token: string }) {
                   id={preview.data.communityId}
                   name={preview.data.name}
                   variant="banner"
+                  photoUrl={preview.data.photoUrl}
                   label="h1"
                 />
               </div>
