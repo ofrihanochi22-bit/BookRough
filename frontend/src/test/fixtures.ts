@@ -58,6 +58,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
     direct: null,
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
+    embed: null,
     platform: null,
     kind: 'TRACK',
     title: 'Bohemian Rhapsody',

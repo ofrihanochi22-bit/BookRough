@@ -8,6 +8,7 @@ import { displayTitle, kindLabel, mainLink, pendingTitle, relativeTime } from '.
 import { noLongerFriends } from '../lib/recommendationCopy';
 import type { StreamingService } from '../stores/auth';
 import { ExternalLink } from './ExternalLink';
+import { PlayHereButton } from './PlayHereButton';
 import { TryAgainChip } from './TryAgainChip';
 import { Button } from './ui/Button';
 import { KIND_TAG, OPEN_IN_PILL } from './ui/chip';
@@ -145,6 +146,7 @@ export function SavedPostCard({
         <ExternalLink href={main.url} className={OPEN_IN_PILL}>
           {main.text}
         </ExternalLink>
+        <PlayHereButton post={post} />
         {canRetrySaved(saved) && (
           <TryAgainChip online={online} retrying={retrying} onClick={retry} />
         )}

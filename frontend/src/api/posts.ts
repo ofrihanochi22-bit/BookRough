@@ -19,6 +19,11 @@ export type PostKind = 'TRACK' | 'ALBUM' | 'VIDEO' | 'SET';
 export type LinkPlatform = 'BANDCAMP' | 'SOUNDCLOUD' | 'YOUTUBE';
 
 /** Mirrors the backend's PublicPost (docs/features/posts-feed.md §4). */
+export interface PostEmbed {
+  platform: LinkPlatform;
+  url: string;
+}
+
 export interface PublicPost {
   id: string;
   author: { id: string; displayName: string; profilePictureUrl: string | null };
@@ -34,6 +39,8 @@ export interface PublicPost {
   title: string | null;
   artist: string | null;
   coverArtUrl: string | null;
+  /** A link-only post's embedded player; null otherwise (in-app-player.md §4). */
+  embed: PostEmbed | null;
   links: Partial<Record<StreamingService, string>>;
   comment: string | null;
   /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */

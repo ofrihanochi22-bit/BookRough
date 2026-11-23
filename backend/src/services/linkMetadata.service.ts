@@ -21,7 +21,14 @@ import { cleanScrapedText as cleanText } from './textRules.js';
 const log = createLogger('linkMetadata');
 
 export type MetadataResult =
-  | { outcome: 'found'; title: string; artist: string | null; coverArtUrl: string | null }
+  | {
+      outcome: 'found';
+      title: string;
+      artist: string | null;
+      coverArtUrl: string | null;
+      /** Bandcamp only: the item id its embedded player needs (in-app-player.md §3). */
+      itemId?: string | null;
+    }
   | { outcome: 'missing' }
   | { outcome: 'gone' };
 
@@ -241,6 +248,52 @@ export function ogTags(html: string): Map<string, string> {
   return tags;
 }
 
+const BANDCAMP_ITEM_ID = /^[1-9][0-9]{0,19}$/;
+
+/**
+ * The album or track id from a Bandcamp page's `bc-page-properties` meta tag
+ * (in-app-player.md §3), read as text like `ogTags`. Kept only when it is a
+ * positive integer of at most 20 digits and its `item_type` matches the link:
+ * `a` for an `/album/` link, `t` for a `/track/` link. Null otherwise.
+ */
+export function bandcampItemId(html: string, url: string): string | null {
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const expectedType = path.startsWith('/album/') ? 'a' : path.startsWith('/track/') ? 't' : null;
+  if (!expectedType) {
+    return null;
+  }
+  for (const [tag] of html.matchAll(/<meta\s[^>]{0,2000}>/gi)) {
+    if (!/\bname\s*=\s*"bc-page-properties"/i.test(tag)) {
+      continue;
+    }
+    const content = /\bcontent\s*=\s*"([^"]*)"/i.exec(tag)?.[1];
+    if (content === undefined) {
+      return null;
+    }
+    let properties: unknown;
+    try {
+      properties = JSON.parse(decodeEntities(content));
+    } catch {
+      return null;
+    }
+    if (!properties || typeof properties !== 'object') {
+      return null;
+    }
+    const { item_type: type, item_id: id } = properties as Record<string, unknown>;
+    if (type !== expectedType || typeof id !== 'number' || !Number.isSafeInteger(id)) {
+      return null;
+    }
+    const digits = String(id);
+    return BANDCAMP_ITEM_ID.test(digits) ? digits : null;
+  }
+  return null;
+}
+
 async function bandcamp(url: string, deadline: number): Promise<MetadataResult> {
   const started = Date.now();
   const body = await boundedGet(url, budget(deadline), MAX_PAGE_BYTES);
@@ -271,6 +324,7 @@ async function bandcamp(url: string, deadline: number): Promise<MetadataResult> 
     title,
     artist,
     coverArtUrl: coverUrl('BANDCAMP', tags.get('og:image')),
+    itemId: bandcampItemId(body!.text, url),
   };
 }
 

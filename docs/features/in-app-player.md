@@ -3,12 +3,12 @@
 > Produced in Stage 1 of the feature session (CLAUDE.md §15). Approved by the developer before implementation starts.
 > Markdown only — feature specs have no `.docx` companion (CLAUDE.md §14.2).
 
-|               |                                                                                               |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| **Use cases** | **UC-23 (new)**: User Listens to a Recommendation in the App                                  |
-| **Phase**     | 6, Step 6.1z12 (D5 takes 6.1z11). Built while D5 is still open, a deliberate exception to §15 |
-| **Branch**    | `feat/in-app-player`                                                                          |
-| **Status**    | ☐ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged                            |
+|               |                                                                              |
+| ------------- | ---------------------------------------------------------------------------- |
+| **Use cases** | **UC-23 (new)**: User Listens to a Recommendation in the App                 |
+| **Phase**     | 6, Step 6.1z12. Begun while D5 was still open, a deliberate exception to §15 |
+| **Branch**    | `feat/in-app-player`                                                         |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged           |
 
 ---
 
