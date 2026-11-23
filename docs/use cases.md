@@ -345,3 +345,16 @@
   - The reply appears in the review's thread, and Dana's bell shows "Noam replied to you on Blue".
   - Dana opens it, lands on the post, and replies back in the same thread.
 - **Fail description (Alternative Scenario):** An empty comment or one over 500 characters is refused before sending. Offline, Send and Reply are disabled with "You're offline. Connect to comment." A reply to a comment deleted meanwhile is refused with "That comment is gone." After unfriending, a direct recommendation's discussion stays readable but takes no new comments. A deleted comment with replies reads "Comment deleted" and keeps its thread. Specified in docs/features/discussion-threads.md.
+
+### UC-23: User Listens to a Recommendation in the App
+
+- **Description:** A user plays a Bandcamp, SoundCloud or YouTube video recommendation inside BookRough, in the platform's own player, and keeps scrolling, rating and commenting while it plays. Recommendations converted to the streaming services (UC-11) keep their "Open in …" button only.
+- **Pre-conditions:** The user is logged in, has finished onboarding, can see the post, and is online. The post is a Bandcamp, SoundCloud or YouTube video post whose player address could be built.
+- **Post-conditions:** One player is docked at the bottom of the screen and stays there across every screen until the user closes it, plays another post, or signs out. Nothing is saved on the server.
+- **Trigger:** "Play here" beside the post's "Listen on …" or "Watch on YouTube" button, in a community feed, Recommendations, Post Detail or My List.
+- **Step-by-step scenario (Success):**
+  - Noam opens Friday Jazz and taps "Play here" on Dana's Bandcamp album.
+  - A player opens at the bottom of the screen; the card's button reads "Playing".
+  - Noam scrolls on, opens another post and rates it; the album keeps playing.
+  - He taps "Play here" on a SoundCloud set; the player switches to it. He closes it with ✕.
+- **Fail description (Alternative Scenario):** Offline, "Play here" is disabled and reads "Offline". A deleted, private or embed-blocked item shows the platform's own message inside the player, and the post's main button still opens it. On iPhone the platform's player may need its own play button tapped, and locking the screen or switching apps may stop the sound: iOS and the platform decide that, not BookRough. Specified in docs/features/in-app-player.md.

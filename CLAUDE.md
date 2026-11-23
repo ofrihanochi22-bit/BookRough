@@ -241,6 +241,8 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 
 - `community_post_checks` holds the community posts a user has checked, one row per user and post; `users.community_checks_since` is the clean start before which no post counts as unchecked (docs/features/community-unchecked.md §3).
 
+- `posts.bandcamp_item_id` holds a Bandcamp post's album or track id for its embedded player, read from the page at publish time and never serialised except inside `embed.url`; the hand-written CHECK `posts_bandcamp_item_id_shape` in the `add_bandcamp_item_id` migration (digits only, and only on a Bandcamp post) is invisible to Prisma (docs/features/in-app-player.md §3).
+
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API. Three nullable timestamps — `walkthrough_seen_at`, `save_tip_seen_at`, `list_tip_seen_at` — record the onboarding tutorial, and reach only the user themself as `tutorial` flags in the session (docs/features/onboarding-tutorial.md).
 - `app_settings` holds the admin area's three presentation settings (one row per setting ever changed; a missing row is the default) and `setting_changes` their history, which outlives the admin's account (docs/features/admin-panel.md §3.2).
@@ -304,6 +306,7 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 - **UC-21 is new**: the in-app notification center — new community posts, direct recommendations, ratings, friend requests and invitations (docs/features/notifications.md). No push, no email.
 - **UC-22 is new**: discussing a recommendation — comments on a post and replies in a flat thread under a review or a comment, with the person replied to notified (docs/features/discussion-threads.md).
+- **UC-23 is new**: listening to a recommendation inside the app — "Play here" on a Bandcamp, SoundCloud or YouTube video post opens the platform's official player in one bar docked above the router, so the song keeps playing across screens; converted songs are out of scope, and background audio on iOS is not guaranteed (docs/features/in-app-player.md).
 - **UC-19 and UC-21 were amended** so the admin can delete a user or a community, whose members are told with a `COMMUNITY_REMOVED` notification (docs/features/admin-delete.md). No new UC number.
 - **UC-9 and UC-19 were amended** for community photos: admins upload one on Create Community or in Settings, and the site admin can remove it (docs/features/community-photo.md). No new UC number.
 - **UC-19 was amended** with Admin → Overview: a read-only page of storage limits, deployments, images, last deletions and app counts, fed by the ops tools' snapshots and by Postgres (docs/features/admin-overview.md). No new UC number.

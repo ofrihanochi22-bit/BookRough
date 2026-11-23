@@ -21,7 +21,7 @@ export function TabLayout() {
   // Once per account, over the first tab screen reached after onboarding
   // (onboarding-tutorial.md §5.1). Closing it clears the flag in the store.
   const showWalkthrough = useAuthStore((state) => state.tutorial.walkthrough);
-  const playerHeight = usePlayer((state) => (state.current ? state.height : 0));
+  const playerSpace = usePlayer((state) => (state.current ? state.space : 0));
   const setAboveTabBar = usePlayer((state) => state.setAboveTabBar);
 
   // The docked player sits above the tab bar while one is shown (in-app-player.md §5.2).
@@ -40,8 +40,9 @@ export function TabLayout() {
   return (
     <div
       className="min-h-full pb-20"
-      // Room for the open player too, so it hides nothing.
-      style={playerHeight ? { paddingBottom: `calc(5rem + ${playerHeight}px)` } : undefined}
+      // Room for the open player, measured from the viewport's bottom edge so it
+      // already counts the tab bar and the safe area: it hides nothing.
+      style={playerSpace ? { paddingBottom: `calc(${playerSpace}px + 0.5rem)` } : undefined}
     >
       <AnnouncementBanner />
       <Outlet />

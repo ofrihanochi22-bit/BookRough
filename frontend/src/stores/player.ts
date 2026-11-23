@@ -13,24 +13,27 @@ export interface NowPlaying {
 
 interface PlayerState {
   current: NowPlaying | null;
-  /** The open bar's height in px, so the tab layout can leave room for it. */
-  height: number;
+  /**
+   * How far the open bar reaches up from the bottom of the viewport, in px
+   * (its height plus whatever sits under it), so pages can leave that much room.
+   */
+  space: number;
   /** A tab bar is on screen: the bar sits above it. */
   aboveTabBar: boolean;
   /** Replaces whatever is playing: one player at a time. */
   play: (item: NowPlaying) => void;
   close: () => void;
-  setHeight: (height: number) => void;
+  setSpace: (space: number) => void;
   setAboveTabBar: (above: boolean) => void;
 }
 
 export const usePlayer = create<PlayerState>((set) => ({
   current: null,
-  height: 0,
+  space: 0,
   aboveTabBar: false,
   play: (item) => set({ current: item }),
-  close: () => set({ current: null, height: 0 }),
-  setHeight: (height) => set({ height }),
+  close: () => set({ current: null, space: 0 }),
+  setSpace: (space) => set({ space }),
   setAboveTabBar: (aboveTabBar) => set({ aboveTabBar }),
 }));
 

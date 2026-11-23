@@ -24,7 +24,7 @@ In the installed iPhone app, a link opens in a browser window over BookRough, an
 - **One player at a time** (choice A): a single bar, rendered in `App` above the router, so a route change never unmounts it.
 - **Bandcamp item id** (choice A): a new column filled when a Bandcamp post is published, from the page the server already reads, plus a one-time backfill of existing Bandcamp posts.
 - The server builds each post's embed address (§4), so the frontend never parses a link to build one. The frontend still checks the address's host before it renders an iframe (§5.3).
-- **Play here** on every card that has the main "Listen on / Watch on" button: `PostCard` (feeds, Recommendations, Post Detail, Public Profile) and `SavedPostCard` (My List).
+- **Play here** on every card that has the main "Listen on / Watch on" button: `PostCard` (community feeds, Recommendations, Post Detail) and `SavedPostCard` (My List). Public Profile lists ratings, not cards with that button, so it gets none.
 - Every device, not only iPhone. The existing main button, and the "Open in browser?" sheet on iOS, stay as they are, beside **Play here**.
 - New UC-23 in `docs/use cases.md` and its `.docx`. The three embed hosts are recorded in `docs/tech stack.md` §5 and its `.docx` (CLAUDE.md §18).
 
@@ -70,7 +70,7 @@ The Bandcamp page the metadata fetcher already reads (link-only-posts.md §4.3, 
 
 ## 4. API
 
-No new endpoint. One change to `PublicPost`, so every endpoint that returns a post carries it (feeds, Recommendations, My List, Post Detail, Public Profile, the create endpoints).
+No new endpoint. One change to `PublicPost`, so every endpoint that returns a post carries it (feeds, Recommendations, My List, Post Detail, the create endpoints).
 
 ### `PublicPost.embed` (new key)
 
@@ -106,7 +106,7 @@ Unchanged shape, errors and latency. A Bandcamp post now also stores `bandcamp_i
 - Rendered once in `App.tsx`, as a sibling of `<Routes>` inside `SessionGate`, so navigation never remounts its iframe.
 - **Closed:** renders nothing.
 - **Open (phone width first):** a bar fixed to the bottom, above the tab bar (and at the bottom edge on screens without one), full width, `z` above page content and below sheets. It holds one row with the title (`dir="auto"`, truncated) and a **✕** button (44×44, `aria-label="Close player"`), and under it the platform's iframe at a fixed compact height: Bandcamp 120 px, SoundCloud 120 px, YouTube 16:9 at the bar's width, capped at 200 px tall. Placeholder sizes.
-- While it is open, `TabLayout` adds the bar's height to its bottom padding, so the bar hides no content.
+- While it is open, pages leave room for it, measured from the bottom of the viewport (so the tab bar and the iPhone safe area are counted): `TabLayout` pads its content by that much, and on screens without a tab bar (Create Community, Complete Your Profile, Admin, Join Community) the player adds a spacer of that height after the page. The bar hides no content.
 - **Loading:** the iframe's own loading. Behind it, a quiet "Loading player…" line, so the bar is never an empty box.
 - **Error:** an embed that refuses (a deleted or private item) shows the platform's own message inside the iframe. The card's main button still opens the link. Nothing else is added: a cross-origin iframe cannot report its errors to the page.
 
