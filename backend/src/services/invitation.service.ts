@@ -126,7 +126,14 @@ export async function listMyInvitations(user: User): Promise<MyInvitation[]> {
     orderBy: { createdAt: 'desc' },
     select: {
       createdAt: true,
-      community: { select: { id: true, name: true, _count: { select: { members: true } } } },
+      community: {
+        select: {
+          id: true,
+          name: true,
+          photoUpdatedAt: true,
+          _count: { select: { members: true } },
+        },
+      },
       invitedBy: { select: memberUserSelect },
     },
   });

@@ -178,6 +178,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
         </div>
         <textarea
           id="banner-text"
+          dir="auto"
           value={text}
           onChange={(event) => setText(event.target.value)}
           rows={3}
@@ -235,6 +236,7 @@ function SettingsForm({ initial, onSaved }: SettingsFormProps) {
         </div>
         <input
           id="welcome-tagline"
+          dir="auto"
           value={tagline}
           onChange={(event) => setTagline(event.target.value)}
           maxLength={1000}

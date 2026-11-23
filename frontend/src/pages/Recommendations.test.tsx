@@ -18,14 +18,23 @@ import {
   setOnline,
 } from '../test/fixtures';
 import { Recommendations } from './Recommendations';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   listReceived: vi.fn(),
   listSent: vi.fn(),
   markRecommendationsSeen: vi.fn(),
-  hideRecommendation: vi.fn(),
+  archiveRecommendation: vi.fn(),
+  unarchiveRecommendation: vi.fn(),
+  listArchived: vi.fn(),
+  countArchived: vi.fn(),
   sendRecommendation: vi.fn(),
   countUnseenRecommendations: vi.fn(),
+  countUnchecked: vi.fn(),
+  listUnchecked: vi.fn(),
+  markChecked: vi.fn(),
+  unmarkChecked: vi.fn(),
+  checkInBackground: vi.fn(),
 }));
 vi.mock('../api/recommendations', () => api);
 const { getPost, deletePost, ratePost, listFriends, toastError } = vi.hoisted(() => ({
@@ -100,6 +109,9 @@ beforeEach(() => {
   });
   api.listReceived.mockResolvedValue(page([]));
   api.listSent.mockResolvedValue(page([]));
+  api.countUnchecked.mockResolvedValue(0);
+  api.countArchived.mockResolvedValue(0);
+  api.listUnchecked.mockResolvedValue({ items: [], nextCursor: null });
   api.markRecommendationsSeen.mockResolvedValue(undefined);
 });
 
@@ -258,7 +270,7 @@ describe('Recommendations', () => {
     );
     expect(screen.getByRole('button', { name: 'Send a song' })).toBeDisabled();
     expect(within(card).getByRole('button', { name: /Rate & Review/ })).toBeDisabled();
-    expect(within(card).getByRole('button', { name: 'Hide' })).toBeDisabled();
+    expect(within(card).getByRole('button', { name: 'Archive' })).toBeDisabled();
     expect(within(card).getByRole('button', { name: /Listen Later/ })).toBeDisabled();
   });
 
@@ -316,7 +328,9 @@ describe('Recommendations', () => {
     await user.click(within(sheet).getByRole('button', { name: 'Submit Rating' }));
 
     // Assert
-    expect(await screen.findByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(
+      await screen.findByText(`You're no longer friends with ${isolate('Dana')}`),
+    ).toBeInTheDocument();
     expect(toastError).toHaveBeenCalledWith('You can only rate songs from friends.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -332,32 +346,14 @@ describe('Recommendations', () => {
 
     // Assert
     const card = (await screen.findByText('Song 1')).closest('article')!;
-    expect(within(card).getByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(
+      within(card).getByText(`You're no longer friends with ${isolate('Dana')}`),
+    ).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /Listen Later/ })).toBeEnabled();
   });
 
-  it('Hide confirms, then the card leaves Received', async () => {
-    // Arrange
-    const user = userEvent.setup();
-    api.listReceived.mockResolvedValue(page([inbound(1)]));
-    api.hideRecommendation.mockResolvedValue(undefined);
-    renderScreen();
-
-    // Act
-    const card = (await screen.findByText('Song 1')).closest('article')!;
-    await user.click(within(card).getByRole('button', { name: 'Post options' }));
-    await user.click(within(card).getByRole('button', { name: 'Hide' }));
-    await user.click(
-      within(screen.getByRole('dialog', { name: 'Hide' })).getByRole('button', { name: 'Hide' }),
-    );
-
-    // Assert
-    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument();
-    expect(api.hideRecommendation).toHaveBeenCalledWith('in-1');
-  });
-
-  it('the recipient is offered no delete, and the sender no hide', async () => {
+  it('the recipient is offered no delete, and the sender no archive', async () => {
     // Arrange
     const user = userEvent.setup();
     api.listReceived.mockResolvedValue(page([inbound(1)]));
@@ -377,7 +373,8 @@ describe('Recommendations', () => {
     await user.click(within(sent).getByRole('button', { name: 'Post options' }));
 
     // Assert
-    expect(within(sent).queryByRole('button', { name: 'Hide' })).toBeNull();
+    expect(within(sent).queryByRole('button', { name: 'Archive' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hide' })).toBeNull();
     expect(within(sent).getByRole('button', { name: 'Delete post' })).toBeInTheDocument();
   });
 
@@ -399,7 +396,7 @@ describe('Recommendations', () => {
     // Assert
     expect(
       within(sheet).getByText(
-        "Delete this recommendation? Dana will lose it too, with any rating. They won't be notified.",
+        `Delete this recommendation? ${isolate('Dana')} will lose it too, with any rating. They won't be notified.`,
       ),
     ).toBeInTheDocument();
 

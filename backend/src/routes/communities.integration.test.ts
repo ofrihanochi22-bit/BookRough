@@ -8,7 +8,15 @@ import { signSessionToken } from '../utils/jwt.js';
 
 const app = createApp();
 
-const PUBLIC_COMMUNITY_KEYS = ['createdAt', 'description', 'id', 'memberCount', 'myRole', 'name'];
+const PUBLIC_COMMUNITY_KEYS = [
+  'createdAt',
+  'description',
+  'id',
+  'memberCount',
+  'myRole',
+  'name',
+  'photoUrl',
+];
 
 async function onboardedUser(googleSub: string, displayName: string) {
   const user = await prisma.user.create({
@@ -145,7 +153,7 @@ describe('POST /api/communities', () => {
 });
 
 describe('GET /api/communities', () => {
-  it("returns only the caller's communities, newest joined first, with member counts", async () => {
+  it("returns only the caller's communities with member counts", async () => {
     // Arrange
     const ofri = await onboardedUser('sub-1', 'Ofri');
     const dana = await onboardedUser('sub-2', 'Dana');
@@ -166,6 +174,23 @@ describe('GET /api/communities', () => {
       { id: older.id, memberCount: 2 },
     ]);
     expect(Object.keys(list[0]!).sort()).toEqual(PUBLIC_COMMUNITY_KEYS);
+  });
+
+  it('lists them alphabetically, English before Hebrew, whatever the join order (manual-test-fixes-1122.md §4)', async () => {
+    // Arrange — joined in the reverse of the expected order.
+    const ofri = await onboardedUser('sub-1', 'Ofri');
+    const hebrew = await createVia(ofri.cookie, 'מזרחית ותיקה');
+    const lofi = await createVia(ofri.cookie, 'lo-fi Study');
+    const jazz = await createVia(ofri.cookie, 'Jazz & Coffee');
+    const indie = await createVia(ofri.cookie, 'Indie Rock Night');
+
+    // Act
+    const response = await request(app).get('/api/communities').set('Cookie', ofri.cookie);
+
+    // Assert
+    expect(response.status).toBe(200);
+    const list = response.body.data.communities as Array<{ id: string }>;
+    expect(list.map(({ id }) => id)).toEqual([indie.id, jazz.id, lofi.id, hebrew.id]);
   });
 
   it('returns an empty list for a user in no communities', async () => {

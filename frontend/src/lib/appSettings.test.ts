@@ -8,6 +8,7 @@ import {
   taglineProblem,
 } from './appSettings';
 import { describeChange } from './settingsHistory';
+import { plain } from '../test/bidi';
 
 describe('the mirrored rules', () => {
   it.each([
@@ -84,6 +85,6 @@ describe('describeChange', () => {
     ],
   ] as const)('%j', (change, expected) => {
     // Act / Assert
-    expect(describeChange({ ...base, ...change })).toBe(expected);
+    expect(plain(describeChange({ ...base, ...change }))).toBe(expected);
   });
 });

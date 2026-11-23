@@ -16,7 +16,9 @@ import {
   candidates as invitationCandidates,
   invite as inviteFriends,
 } from '../controllers/invitation.controller.js';
+import { deletePhoto, getPhoto, putPhoto } from '../controllers/communityPhoto.controller.js';
 import { create as createPost, list as listPosts } from '../controllers/post.controller.js';
+import { imageBody } from '../middleware/imageBody.js';
 import { conversionLimit, outreachLimit } from '../middleware/rateLimits.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
@@ -28,6 +30,10 @@ communitiesRouter.get('/', requireAuth, listMine);
 communitiesRouter.get('/:id', requireAuth, show);
 communitiesRouter.patch('/:id', requireAuth, update);
 communitiesRouter.delete('/:id', requireAuth, destroy);
+// The raw body parser is on this route only (community-photo.md §4).
+communitiesRouter.put('/:id/photo', requireAuth, outreachLimit, imageBody, putPhoto);
+communitiesRouter.delete('/:id/photo', requireAuth, deletePhoto);
+communitiesRouter.get('/:id/photo', requireAuth, getPhoto);
 communitiesRouter.get('/:id/members', requireAuth, members);
 // Registered before '/:id/members/:userId', so "me" is never read as a user id.
 communitiesRouter.delete('/:id/members/me', requireAuth, leave);

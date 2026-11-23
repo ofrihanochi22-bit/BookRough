@@ -18,6 +18,7 @@ import {
   type CommunityMember,
 } from '../api/membership';
 import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
+import { CommunityPhotoSection } from '../components/CommunityPhotoSection';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { InvitePanel } from '../components/InvitePanel';
 import { PersonLink } from '../components/PersonLink';
@@ -33,6 +34,7 @@ import { TopBar } from '../components/ui/TopBar';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { isolate } from '../lib/bidi';
 import { memberCountLabel } from '../lib/communityCopy';
 import { isAdmin, memberActions, type MemberAction } from '../lib/communityRoles';
 import { useAuthStore } from '../stores/auth';
@@ -224,6 +226,16 @@ export function CommunitySettings() {
       {data && (
         <div className="flex flex-col gap-8 pb-8">
           {isAdmin(data.community.myRole) && (
+            <Section title="Photo">
+              <CommunityPhotoSection
+                community={data.community}
+                disabled={!online}
+                onChanged={refresh}
+              />
+            </Section>
+          )}
+
+          {isAdmin(data.community.myRole) && (
             <DetailsSection
               key={detailsVersion}
               community={data.community}
@@ -263,7 +275,7 @@ export function CommunitySettings() {
                       className="text-sm"
                       label={
                         <>
-                          {member.user.displayName}
+                          <bdi>{member.user.displayName}</bdi>
                           {isSelf && <span className="text-muted"> · You</span>}
                         </>
                       }
@@ -301,7 +313,9 @@ export function CommunitySettings() {
                       decorative
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{entry.user.displayName}</p>
+                      <p className="truncate text-sm">
+                        <bdi>{entry.user.displayName}</bdi>
+                      </p>
                       <p className="text-xs text-muted">
                         Blocked {new Date(entry.blockedAt).toLocaleDateString()}
                       </p>
@@ -364,7 +378,7 @@ export function CommunitySettings() {
 
       {menuMember && data && (
         <ActionSheet
-          title={menuMember.user.displayName}
+          title={isolate(menuMember.user.displayName)}
           onClose={() => setOpenMenu(null)}
           actions={memberActions(
             data.community.myRole,
@@ -581,7 +595,7 @@ function ConfirmSheet({
     },
     delete: {
       title: 'Delete community',
-      body: `Delete ${community.name}?`,
+      body: `Delete ${isolate(community.name)}?`,
       note:
         community.memberCount > 1
           ? `Warning: this can't be undone. The community will be deleted for all ${community.memberCount} members.`

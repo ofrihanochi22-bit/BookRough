@@ -134,7 +134,7 @@
 - **Step-by-step scenario (Success):**
   - The user taps the "Create Community" button.
   - The system presents a creation form.
-  - The user inputs the Community Name and Description. The cover graphic is generated from the name and id — there is no image to upload.
+  - The user inputs the Community Name and Description. The cover graphic is generated from the name and id; an Admin may add a photo here, or later in Community Settings (amended 2026-11-22, `docs/features/community-photo.md`).
   - The system presents the user's friends list, allowing them to select friends to invite.
   - The user submits the form.
   - The backend creates the Community and makes the creator its Owner. The selected friends each receive an invitation on their Friends tab, which they accept (joining as Members) or decline; nobody is added without saying yes. Admins can invite more friends later from the community's Invite friends panel (`docs/features/invite-friends.md`).
@@ -263,7 +263,7 @@
 ### UC-18: User Deletes a Post (Song Recommendation)
 
 - **Description:** The original author of a music recommendation permanently removes their post from a Community feed. A Community's Admins and its Owner can delete any post in that Community the same way — a member's, a fellow Admin's, the Owner's, or a former member's (`docs/features/posts-delete.md`).
-- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community. A direct recommendation is deleted by its sender only, for both people; its recipient hides it instead (UC-20).
+- **Pre-conditions:** The user is logged in, viewing a Community feed, and either their User ID matches the authorId of the target Post or they are an Admin or the Owner of that Community. A direct recommendation is deleted by its sender only, for both people; its recipient archives it instead (UC-20).
 - **Post-conditions:** The Post record, including its associated ratings array, is permanently deleted from the database and removed from the Community's posts array.
 - **Trigger:** The user taps the "Delete Post" option within the specific post's context menu.
 - **Step-by-step scenario (Success):**
@@ -297,6 +297,8 @@
 > **Decided scope** (`docs/features/admin-panel.md`). The area shows two read-only lists - users and communities - and three presentation settings: an announcement banner for signed-in users, an accent colour from a fixed palette, and the Welcome tagline. Every settings change is recorded with who made it, the old and new value, and when, and the last 20 changes are shown on the settings screen. The admin can delete, suspend or edit nobody — the one exception is removing a user's photo, which returns them to the generated avatar (`docs/features/avatar-upload.md`) — and the settings list is fixed in code.
 >
 > **Amended — Admin → Overview** (`docs/features/admin-overview.md`, 2026-11-17). The area's first tab is a read-only overview of the application's health: the storage limits that could get it blocked (Vercel's three storage meters, read by the `/vercel-usage` skill, and the database's own size against its plan limit), the deployments and registry images that exist and when each kind was last deleted (posted by the `prune-deployments` job and the `/vercel-image-cleanup` skill), and live counts of users, communities, posts, ratings, comments and anonymous daily app opens. Each block says where its data came from and how old it is, and a reading older than 48 hours is marked Stale. Its one control is Refresh, which re-reads what is stored; it triggers no scrape and takes no action.
+>
+> **Amended — Community photos** (`docs/features/community-photo.md`, 2026-11-22). The administrator can also remove a community's photo from the communities list, behind a confirmation, which returns it to the generated cover; it is recorded as a log line, like a deletion. A community's own Admins upload, replace and remove its photo (UC-9). No new UC number.
 
 ### UC-20: User Sends a Recommendation to a Friend
 
@@ -310,10 +312,12 @@
   - The user taps "Send". The backend converts the link exactly as for a post, while the user sees "Finding this track on other services…".
   - The system saves the item and shows "Sent to {name}". It appears under Sent.
   - The recipient sees a notification (UC-21), opens Recommendations, and finds it under Received. Its main button opens the service they chose, falling back to the original link.
-  - The recipient can rate it there, save it to My List, or hide it. The sender sees the rating under Sent and on Post Detail.
+  - The recipient can rate it there, save it to My List, or archive it, and unarchive it later from the archive at the top of Received. The sender sees the rating under Sent and on Post Detail.
 - **Fail description (Alternative Scenario):** The recipient is not a friend — a stranger, a pending request in either direction, or someone who unfriended the sender, even during the conversion. The system refuses with "You can only send songs to friends.", saves nothing, and keeps the draft. A link that is invalid is refused as in UC-11, and Bandcamp, SoundCloud and live YouTube videos are shared without conversion exactly as there (`docs/features/link-only-posts.md`). If the conversion cannot run, the item is still saved with the original link and a quiet "Other services unavailable" note, and the sender can tap "Find on other services" later.
 
-> **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient hides an item for themselves only, and the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md.
+> **Not a chat.** One friend per send, one sender comment, one rating comment, and no replies. A recipient archives an item for themselves only, and can unarchive it; the sender is not told; the sender deletes it for both. Specified in docs/features/direct-recommendations.md and docs/features/archive-recommendations.md.
+
+> **Amended — From communities** (docs/features/community-unchecked.md, 2026-11-22). The Recommendations screen has a third list, "Communities": other members' posts, across every community the user is in, that the user has not checked yet. A post counts from the later of joining its community and the feature's launch. Opening its link or Post Detail, rating it, saving it, or "Mark checked" (with Undo) takes it off the list; it stays in its community's feed. The bell and the Recommendations row's count are unchanged. No new UC number.
 
 ### UC-21: User Receives Notifications
 
@@ -341,3 +345,16 @@
   - The reply appears in the review's thread, and Dana's bell shows "Noam replied to you on Blue".
   - Dana opens it, lands on the post, and replies back in the same thread.
 - **Fail description (Alternative Scenario):** An empty comment or one over 500 characters is refused before sending. Offline, Send and Reply are disabled with "You're offline. Connect to comment." A reply to a comment deleted meanwhile is refused with "That comment is gone." After unfriending, a direct recommendation's discussion stays readable but takes no new comments. A deleted comment with replies reads "Comment deleted" and keeps its thread. Specified in docs/features/discussion-threads.md.
+
+### UC-23: User Listens to a Recommendation in the App
+
+- **Description:** A user plays a Bandcamp, SoundCloud or YouTube video recommendation inside BookRough, in the platform's own player, and keeps scrolling, rating and commenting while it plays. Recommendations converted to the streaming services (UC-11) keep their "Open in …" button only.
+- **Pre-conditions:** The user is logged in, has finished onboarding, can see the post, and is online. The post is a Bandcamp, SoundCloud or YouTube video post whose player address could be built.
+- **Post-conditions:** One player is docked at the bottom of the screen and stays there across every screen until the user closes it, plays another post, or signs out. Nothing is saved on the server.
+- **Trigger:** "Play here" beside the post's "Listen on …" or "Watch on YouTube" button, in a community feed, Recommendations, Post Detail or My List.
+- **Step-by-step scenario (Success):**
+  - Noam opens Friday Jazz and taps "Play here" on Dana's Bandcamp album.
+  - A player opens at the bottom of the screen; the card's button reads "Playing".
+  - Noam scrolls on, opens another post and rates it; the album keeps playing.
+  - He taps "Play here" on a SoundCloud set; the player switches to it. He closes it with ✕.
+- **Fail description (Alternative Scenario):** Offline, "Play here" is disabled and reads "Offline". A deleted, private or embed-blocked item shows the platform's own message inside the player, and the post's main button still opens it. On iPhone the platform's player may need its own play button tapped, and locking the screen or switching apps may stop the sound: iOS and the platform decide that, not BookRough. Specified in docs/features/in-app-player.md.

@@ -320,3 +320,14 @@ describe('CreateCommunity — submitting', () => {
     expect(createButton()).toBeDisabled();
   });
 });
+
+describe('CreateCommunity — Hebrew typing (manual-test-fixes-1122.md §5.1)', () => {
+  it('lets the name and description take the direction of what is typed', () => {
+    // Act
+    renderForm();
+
+    // Assert
+    expect(nameInput()).toHaveAttribute('dir', 'auto');
+    expect(descriptionInput()).toHaveAttribute('dir', 'auto');
+  });
+});

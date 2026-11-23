@@ -81,6 +81,8 @@ interface LinkMetadata {
   title: string;
   artist: string | null;
   coverArtUrl: string | null;
+  /** Bandcamp only (in-app-player.md §3). */
+  itemId?: string | null;
 }
 
 /**
@@ -101,6 +103,7 @@ function linkOnlyData(
     songTitle: metadata?.title ?? null,
     songArtist: metadata?.artist ?? null,
     songCoverArtUrl: metadata?.coverArtUrl ?? null,
+    bandcampItemId: platform === 'BANDCAMP' ? (metadata?.itemId ?? null) : null,
     conversionPending: false,
   };
 }

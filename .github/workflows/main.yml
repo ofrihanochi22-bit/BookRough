@@ -23,8 +23,11 @@ jobs:
   test-e2e:
     name: test:e2e
     runs-on: ubuntu-latest
-    # No point booting browsers if the cheap checks already failed.
     needs: [checks]
+    # Runs even when `checks` failed, so it can fail too. A job left "skipped"
+    # reaches Vercel as a passing Deployment Check, and production would be
+    # promoted (docs/features/deploy-gate-skipped-checks.md).
+    if: ${{ always() }}
 
     services:
       postgres:
@@ -64,6 +67,12 @@ jobs:
       TUTORIAL_ENABLED: 'false'
 
     steps:
+      # No point booting browsers if the cheap checks already failed: report
+      # failure, never skipped, so Vercel holds the production deployment.
+      # cancelled() too: once a run is cancelled, a step without it is skipped.
+      - name: Stop if the shared checks did not pass
+        if: ${{ cancelled() || needs.checks.result != 'success' }}
+        run: echo "checks ended '${{ needs.checks.result }}', or the run was cancelled; not promoting this commit." && exit 1
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -127,6 +136,8 @@ jobs:
     name: test:docker
     runs-on: ubuntu-latest
     needs: [checks]
+    # Same as test:e2e: fail, never skip, when `checks` did not pass.
+    if: ${{ always() }}
 
     services:
       postgres:
@@ -144,6 +155,12 @@ jobs:
           --health-retries 10
 
     steps:
+      # No point building the image if the cheap checks already failed: report
+      # failure, never skipped, so Vercel holds the production deployment.
+      # cancelled() too: once a run is cancelled, a step without it is skipped.
+      - name: Stop if the shared checks did not pass
+        if: ${{ cancelled() || needs.checks.result != 'success' }}
+        run: echo "checks ended '${{ needs.checks.result }}', or the run was cancelled; not promoting this commit." && exit 1
       - uses: actions/checkout@v4
       - name: Build the image
         run: docker build -t bookrough-api backend

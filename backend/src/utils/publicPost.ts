@@ -1,5 +1,6 @@
 import type { LinkPlatform, Post, PostKind, StreamingService } from '@prisma/client';
 
+import { embedFor, type PostEmbed } from '../services/embeds.js';
 import { type MemberUser, memberUserSelect, toMemberUser } from './communityMember.js';
 import type { RatingSummary } from './ratingSummary.js';
 
@@ -21,6 +22,8 @@ export interface PublicPost {
   title: string | null;
   artist: string | null;
   coverArtUrl: string | null;
+  /** A link-only post's embedded player; null otherwise (in-app-player.md §4). */
+  embed: PostEmbed | null;
   /** Only the services a link was found for. */
   links: Partial<Record<StreamingService, string>>;
   comment: string | null;
@@ -69,8 +72,8 @@ export function postInclude(viewerId: string) {
 /**
  * Field by field, never a spread: a column added to `posts` later must not
  * reach a client until someone adds it here on purpose. `communityId`,
- * `authorId`, `recipientId`, `recipientHiddenAt` and `updatedAt` are
- * deliberately absent. `friendIds` holds who the viewer is friends with now.
+ * `authorId`, `recipientId`, `recipientArchivedAt`, `bandcampItemId` and
+ * `updatedAt` are deliberately absent (the Bandcamp id leaves only inside `embed`). `friendIds` holds who the viewer is friends with now.
  */
 export function toPublicPost(
   post: PostWithAuthor,
@@ -105,6 +108,7 @@ export function toPublicPost(
     title: post.songTitle,
     artist: post.songArtist,
     coverArtUrl: post.songCoverArtUrl,
+    embed: embedFor(post),
     links,
     comment: post.textComment,
     commentCount: post._count?.comments ?? 0,

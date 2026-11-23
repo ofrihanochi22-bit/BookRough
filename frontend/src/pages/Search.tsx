@@ -95,6 +95,7 @@ export function Search() {
     <input
       ref={field}
       id="people-search"
+      dir="auto"
       type="search"
       placeholder="Display name"
       autoComplete="off"
@@ -169,7 +170,7 @@ export function Search() {
                         className="text-sm font-medium"
                         label={
                           <>
-                            {user.displayName}
+                            <bdi>{user.displayName}</bdi>
                             {user.id === viewerId && <span className="text-muted"> · You</span>}
                           </>
                         }

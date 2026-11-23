@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { friendPage, onboardedAccount, openSearch } from '../support/flows';
+import { friendPage, isolated, onboardedAccount, openSearch } from '../support/flows';
 
 /**
  * Phase 5 golden loop, "two users, one sends a request, the other accepts" —
@@ -40,7 +40,9 @@ test('a user sends a request; the other accepts it from the Friends tab, then re
   await requests.getByRole('button', { name: `Accept ${sender.displayName}` }).click();
 
   // Assert — friends on both sides; the badge is gone.
-  await expect(receiver.getByText(`You're now friends with ${sender.displayName}.`)).toBeVisible();
+  await expect(
+    receiver.getByText(`You're now friends with ${isolated(sender.displayName)}.`),
+  ).toBeVisible();
   await expect(
     receiver
       .getByRole('region', { name: 'Your friends' })
@@ -63,7 +65,7 @@ test('a user sends a request; the other accepts it from the Friends tab, then re
 
   // Assert — gone for both, silently: the sender's profile of them offers Add Friend again.
   await expect(
-    receiver.getByText(`Removed ${sender.displayName} from your friends.`),
+    receiver.getByText(`Removed ${isolated(sender.displayName)} from your friends.`),
   ).toBeVisible();
   await expect(receiver.getByText('No friends yet')).toBeVisible();
   await page.goBack();

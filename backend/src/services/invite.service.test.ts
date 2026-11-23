@@ -41,6 +41,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     walkthroughSeenAt: null,
     saveTipSeenAt: null,
     listTipSeenAt: null,
+    communityChecksSince: new Date(0),
     preferredService: 'SPOTIFY',
     role: 'USER',
     createdAt: new Date(),
@@ -55,6 +56,7 @@ function makeCommunity(overrides: Partial<Community> = {}): Community {
     name: 'Friday Jazz',
     description: null,
     inviteToken: TOKEN,
+    photoUpdatedAt: null,
     createdAt: new Date('2026-10-04T09:00:00.000Z'),
     updatedAt: new Date('2026-10-04T09:00:00.000Z'),
     ...overrides,
@@ -200,6 +202,7 @@ describe('previewInvite', () => {
     expect(preview).toEqual({
       communityId: 'community-1',
       name: 'Friday Jazz',
+      photoUrl: null,
       memberCount: 3,
       alreadyMember: false,
     });

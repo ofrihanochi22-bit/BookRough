@@ -428,6 +428,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'coverArtUrl',
         'createdAt',
         'direct',
+        'embed',
         'id',
         'isBookmarked',
         'isMine',

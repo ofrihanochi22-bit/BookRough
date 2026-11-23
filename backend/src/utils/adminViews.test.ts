@@ -80,6 +80,7 @@ describe('toAdminCommunity', () => {
     name: 'Friday Jazz',
     description: 'secret description',
     inviteToken: 'secret-token',
+    photoUpdatedAt: null,
     createdAt: new Date('2026-10-03T09:00:00.000Z'),
     _count: { members: 5 },
     members: [{ user: { id: 'u-1', displayName: 'Mia', googleSub: 'secret-sub' } }],
@@ -93,6 +94,7 @@ describe('toAdminCommunity', () => {
     expect(result).toStrictEqual({
       id: 'c-1',
       name: 'Friday Jazz',
+      photoUrl: null,
       memberCount: 5,
       createdAt: '2026-10-03T09:00:00.000Z',
       owner: { id: 'u-1', displayName: 'Mia' },
@@ -105,5 +107,16 @@ describe('toAdminCommunity', () => {
 
     // Assert
     expect(result.owner).toBeNull();
+  });
+
+  it('gives the versioned photo URL when the community has a photo', () => {
+    // Act
+    const result = toAdminCommunity({
+      ...communityRow,
+      photoUpdatedAt: new Date('2026-11-22T12:00:00.000Z'),
+    });
+
+    // Assert
+    expect(result.photoUrl).toBe('/api/communities/c-1/photo?v=1795348800000');
   });
 });

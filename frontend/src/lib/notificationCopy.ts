@@ -1,4 +1,5 @@
 import type { PublicNotification } from '../api/notifications';
+import { isolate } from './bidi';
 
 export const NOTIFICATIONS_LOAD_FAILED = "Couldn't load your notifications.";
 export const MORE_FAILED = "Couldn't load more notifications.";
@@ -18,14 +19,14 @@ export function viewOf(item: PublicNotification): NotificationView {
   // admin-delete.md §5: no actor, and the community is gone, so no link.
   if (item.type === 'COMMUNITY_REMOVED') {
     return {
-      lead: item.communityName ?? 'A community',
+      lead: item.communityName ? isolate(item.communityName) : 'A community',
       rest: ' was removed by an admin.',
       to: null,
     };
   }
-  const actor = item.actor?.displayName ?? 'Someone';
-  const community = item.community?.name ?? 'a community';
-  const title = item.post?.title ?? null;
+  const actor = item.actor ? isolate(item.actor.displayName) : 'Someone';
+  const community = item.community ? isolate(item.community.name) : 'a community';
+  const title = item.post?.title ? isolate(item.post.title) : null;
 
   switch (item.type) {
     case 'COMMUNITY_POSTS':

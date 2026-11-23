@@ -14,18 +14,34 @@ const api = vi.hoisted(() => ({
   listReceived: vi.fn(),
   listSent: vi.fn(),
   markRecommendationsSeen: vi.fn(),
-  hideRecommendation: vi.fn(),
+  archiveRecommendation: vi.fn(),
+  unarchiveRecommendation: vi.fn(),
+  listArchived: vi.fn(),
+  countArchived: vi.fn(),
   sendRecommendation: vi.fn(),
   countUnseenRecommendations: vi.fn(),
+  countUnchecked: vi.fn(),
+  listUnchecked: vi.fn(),
+  markChecked: vi.fn(),
+  unmarkChecked: vi.fn(),
+  checkInBackground: vi.fn(),
   listFriends: vi.fn(),
 }));
 vi.mock('../api/recommendations', () => ({
   listReceived: api.listReceived,
   listSent: api.listSent,
   markRecommendationsSeen: api.markRecommendationsSeen,
-  hideRecommendation: api.hideRecommendation,
+  archiveRecommendation: api.archiveRecommendation,
+  unarchiveRecommendation: api.unarchiveRecommendation,
+  listArchived: api.listArchived,
+  countArchived: api.countArchived,
   sendRecommendation: api.sendRecommendation,
   countUnseenRecommendations: api.countUnseenRecommendations,
+  countUnchecked: api.countUnchecked,
+  listUnchecked: api.listUnchecked,
+  markChecked: api.markChecked,
+  unmarkChecked: api.unmarkChecked,
+  checkInBackground: api.checkInBackground,
 }));
 vi.mock('../api/posts', () => ({
   getPost: vi.fn(),
@@ -68,6 +84,9 @@ beforeEach(() => {
   });
   api.listReceived.mockResolvedValue(page([]));
   api.listSent.mockResolvedValue(page([]));
+  api.countUnchecked.mockResolvedValue(0);
+  api.countArchived.mockResolvedValue(0);
+  api.listUnchecked.mockResolvedValue({ items: [], nextCursor: null });
   api.markRecommendationsSeen.mockResolvedValue(undefined);
   api.listFriends.mockResolvedValue([]);
 });

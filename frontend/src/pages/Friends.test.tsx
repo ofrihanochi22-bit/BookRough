@@ -9,6 +9,7 @@ import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
 import { httpError, makeSession, networkError, resetAuthStore, setOnline } from '../test/fixtures';
 import { Friends } from './Friends';
+import { isolate } from '../lib/bidi';
 
 const api = vi.hoisted(() => ({
   listFriends: vi.fn(),
@@ -121,7 +122,9 @@ describe('Friends', () => {
     expect(api.acceptFriendRequest).toHaveBeenCalledWith('dana');
     expect(names(requests())).toEqual(['NNoa']);
     expect(names(friends())).toEqual(['DLDana Levi', 'YBYael Ben']);
-    expect(api.toastSuccess).toHaveBeenCalledWith("You're now friends with Dana Levi.");
+    expect(api.toastSuccess).toHaveBeenCalledWith(
+      `You're now friends with ${isolate('Dana Levi')}.`,
+    );
     expect(useFriendRequests.getState().count).toBe(1);
   });
 
@@ -216,12 +219,16 @@ describe('Friends', () => {
     // Act
     await userEvent.click(await screen.findByRole('button', { name: 'Actions for Yael Ben' }));
     const sheet = screen.getByRole('dialog', { name: 'Remove friend?' });
-    expect(sheet).toHaveTextContent("Remove Yael Ben from your friends? They won't be notified.");
+    expect(sheet).toHaveTextContent(
+      `Remove ${isolate('Yael Ben')} from your friends? They won't be notified.`,
+    );
     await userEvent.click(within(sheet).getByRole('button', { name: 'Remove friend' }));
 
     // Assert
     expect(api.removeFriend).toHaveBeenCalledWith('yael');
-    expect(api.toastSuccess).toHaveBeenCalledWith('Removed Yael Ben from your friends.');
+    expect(api.toastSuccess).toHaveBeenCalledWith(
+      `Removed ${isolate('Yael Ben')} from your friends.`,
+    );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(names(friends())).toEqual([]);
   });
@@ -314,7 +321,9 @@ describe('Friends — invitations (invite-friends.md §5.4)', () => {
 
     // Assert
     const section = await screen.findByRole('region', { name: 'Invitations' });
-    expect(within(section).getByText('Dana Levi invited you · 3 members')).toBeInTheDocument();
+    expect(
+      within(section).getByText(`${isolate('Dana Levi')} invited you · 3 members`),
+    ).toBeInTheDocument();
     expect(within(section).getByText("You're invited · 1 member")).toBeInTheDocument();
     const order = [...document.querySelectorAll('section h2')].map((h) => h.textContent);
     expect(order.slice(0, 2)).toEqual(['Invitations', 'Requests']);
@@ -332,7 +341,7 @@ describe('Friends — invitations (invite-friends.md §5.4)', () => {
     // Assert
     expect(invitationsApi.acceptInvitation).toHaveBeenCalledWith('club');
     expect(await screen.findByText('Community page')).toBeInTheDocument();
-    expect(api.toastSuccess).toHaveBeenCalledWith('You joined Dana Club.');
+    expect(api.toastSuccess).toHaveBeenCalledWith(`You joined ${isolate('Dana Club')}.`);
     expect(api.countFriendRequests).toHaveBeenCalled();
   });
 

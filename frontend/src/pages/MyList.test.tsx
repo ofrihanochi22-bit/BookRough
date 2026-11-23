@@ -24,6 +24,8 @@ import {
   setOnline,
 } from '../test/fixtures';
 import { MyList } from './MyList';
+import { readsAs } from '../test/bidi';
+import { isolate } from '../lib/bidi';
 
 const { listBookmarks, removeBookmark, toastSuccess, toastError } = vi.hoisted(() => ({
   listBookmarks: vi.fn(),
@@ -102,7 +104,7 @@ describe('MyList', () => {
     // Assert
     const card = (await screen.findByText('Song 1')).closest('article')!;
     expect(within(card).getByText('Queen')).toBeInTheDocument();
-    expect(within(card).getByText(/Shared by Dana in/)).toBeInTheDocument();
+    expect(within(card).getByText(readsAs(/Shared by Dana in/))).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'Open in Deezer' })).toHaveAttribute(
       'href',
       'https://www.deezer.com/track/1',
@@ -151,9 +153,9 @@ describe('MyList', () => {
     renderList();
 
     // Assert
-    expect(await screen.findByText('Old Crew')).toBeInTheDocument();
+    expect(await screen.findByText(readsAs(/in Old Crew · Saved/))).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Old Crew' })).not.toBeInTheDocument();
-    expect(screen.getByText("You're no longer in Old Crew")).toBeInTheDocument();
+    expect(screen.getByText(readsAs("You're no longer in Old Crew"))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove' })).toBeEnabled();
   });
@@ -353,7 +355,7 @@ describe('MyList', () => {
 
     // Assert
     const card = (await screen.findByText('Song 1')).closest('article')!;
-    expect(within(card).getByText(/Sent by Dana/)).toBeInTheDocument();
+    expect(within(card).getByText(readsAs(/Sent by Dana/))).toBeInTheDocument();
     expect(within(card).queryByText(/Shared by/)).not.toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /Rate & Review/ })).toBeInTheDocument();
   });
@@ -383,7 +385,9 @@ describe('MyList', () => {
 
     // Assert
     const card = (await screen.findByText('Song 1')).closest('article')!;
-    expect(within(card).getByText("You're no longer friends with Dana")).toBeInTheDocument();
+    expect(
+      within(card).getByText(`You're no longer friends with ${isolate('Dana')}`),
+    ).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: /Rate & Review/ })).not.toBeInTheDocument();
   });
 
@@ -644,5 +648,39 @@ describe('MyList — a pending post (pending-notice-lists.md §5.1)', () => {
     // Assert
     expect(await screen.findByText(PENDING_NOTICE)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: TRY_AGAIN })).not.toBeInTheDocument();
+  });
+});
+
+describe('MyList — user text and links (manual-test-fixes-1122.md §5)', () => {
+  it('isolates the sender and the community in the source line, and opens the song in a new tab', async () => {
+    // Arrange
+    listBookmarks.mockResolvedValue({
+      items: [
+        saved(1, {
+          community: { id: COMMUNITY.id, name: 'מזרחית ותיקה' },
+          post: makePost({
+            id: 'post-1',
+            title: 'Song 1',
+            isBookmarked: true,
+            author: { id: 'a1', displayName: 'דנה', profilePictureUrl: null },
+          }),
+        }),
+      ],
+      nextCursor: null,
+    });
+
+    // Act
+    renderList();
+
+    // Assert
+    const card = (await screen.findByText('Song 1')).closest('article')!;
+    expect(within(card).getByText('דנה').tagName).toBe('BDI');
+    expect(within(card).getByText('מזרחית ותיקה').tagName).toBe('BDI');
+    expect(within(card).getByText(readsAs(/^Shared by דנה in מזרחית ותיקה/))).toBeInTheDocument();
+    expect(within(card).getByText('Song 1')).toHaveAttribute('dir', 'auto');
+    expect(within(card).getByRole('link', { name: /^Open in/ })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
   });
 });

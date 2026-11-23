@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,6 +48,8 @@ vi.mock('../api/posts', () => ({
 vi.mock('../api/ratings', () => ({ listPostRatings, editRating, ratePost: vi.fn() }));
 vi.mock('../api/comments', () => comments);
 vi.mock('../api/bookmarks', () => ({ saveBookmark: vi.fn(), removeBookmark: vi.fn() }));
+const { checkInBackground } = vi.hoisted(() => ({ checkInBackground: vi.fn() }));
+vi.mock('../api/recommendations', () => ({ checkInBackground }));
 vi.mock('react-hot-toast', () => ({ default: { success: toastSuccess, error: vi.fn() } }));
 
 const POST = makePost({ myScore: 6, ratingSummary: { average: 7.5, count: 2 } });
@@ -662,5 +664,40 @@ describe('PostDetail — discussion (discussion-threads.md §7)', () => {
     const row = within(ratingsRegion()).getAllByRole('listitem')[0]!;
     expect(within(row).getByText('Still here')).toBeInTheDocument();
     expect(within(row).queryByRole('button', { name: 'Reply' })).not.toBeInTheDocument();
+  });
+});
+
+describe('PostDetail — reviews in their own direction (manual-test-fixes-1122.md §5.1)', () => {
+  it('lays out each review by its own text', async () => {
+    // Act
+    renderDetail();
+
+    // Assert
+    const review = await screen.findByText(/Still gives me chills/);
+    expect(review).toHaveAttribute('dir', 'auto');
+  });
+});
+
+describe('PostDetail checks the post (community-unchecked.md §5)', () => {
+  it('once the post has loaded, once per visit', async () => {
+    // Act
+    renderDetail();
+
+    // Assert
+    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(checkInBackground).toHaveBeenCalledWith(POST));
+    expect(checkInBackground).toHaveBeenCalledTimes(1);
+  });
+
+  it('not before the post has loaded, nor when it fails', async () => {
+    // Arrange
+    getPost.mockRejectedValue(networkError());
+
+    // Act
+    renderDetail();
+
+    // Assert
+    await screen.findByRole('button', { name: 'Try again' });
+    expect(checkInBackground).not.toHaveBeenCalled();
   });
 });

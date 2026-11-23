@@ -237,3 +237,21 @@ describe('Community page — losing access', () => {
     expect(await screen.findByRole('heading', { name: 'Sunday Soul' })).toBeInTheDocument();
   });
 });
+
+describe('Community page — Hebrew text (manual-test-fixes-1122.md §5.1)', () => {
+  it('lays out a Hebrew description in its own direction and isolates the name on the banner', async () => {
+    // Arrange
+    getCommunity.mockResolvedValue(
+      makeCommunity({ name: 'מזרחית ותיקה', description: 'הקלאסיקות של פעם, בלי פשרות.' }),
+    );
+
+    // Act
+    renderCommunity();
+
+    // Assert
+    const heading = await screen.findByRole('heading', { name: 'מזרחית ותיקה' });
+    expect(heading.querySelector('bdi')).toHaveTextContent('מזרחית ותיקה');
+    expect(screen.getByText('הקלאסיקות של פעם, בלי פשרות.')).toHaveAttribute('dir', 'auto');
+    expect(document.documentElement).not.toHaveAttribute('dir');
+  });
+});

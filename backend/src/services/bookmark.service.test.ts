@@ -24,6 +24,7 @@ const { db } = vi.hoisted(() => ({
     post: { findUnique: vi.fn() },
     rating: { findUnique: vi.fn(), groupBy: vi.fn() },
     bookmark: { createMany: vi.fn(), deleteMany: vi.fn(), findMany: vi.fn() },
+    communityPostCheck: { createMany: vi.fn() },
   },
 }));
 
@@ -82,6 +83,7 @@ beforeEach(() => {
   db.post.findUnique.mockResolvedValue({ authorId: AUTHOR, communityId: COMMUNITY });
   db.communityMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
   db.bookmark.createMany.mockResolvedValue({ count: 1 });
+  db.communityPostCheck.createMany.mockResolvedValue({ count: 1 });
   db.bookmark.deleteMany.mockResolvedValue({ count: 1 });
   db.bookmark.findMany.mockResolvedValue([]);
   db.rating.groupBy.mockResolvedValue([]);
@@ -94,6 +96,11 @@ describe('saveBookmark', () => {
 
     // Assert
     expect(db.bookmark.createMany).toHaveBeenCalledWith({
+      data: [{ userId: USER.id, postId: POST_ID }],
+      skipDuplicates: true,
+    });
+    // Saving checks a community post (community-unchecked.md §4).
+    expect(db.communityPostCheck.createMany).toHaveBeenCalledWith({
       data: [{ userId: USER.id, postId: POST_ID }],
       skipDuplicates: true,
     });

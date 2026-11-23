@@ -38,7 +38,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - `playwright` (headless Chromium) for the link-conversion scraper
 - `p-limit` to cap concurrent Chromium instances — see §7
 - `express-rate-limit` for four request-limit tiers, counted in each instance's memory — see docs/features/production-hardening.md
-- `sharp` to re-encode an uploaded profile photo to a 256×256 WebP without metadata — the one image-processing dependency (docs/features/avatar-upload.md)
+- `sharp` to re-encode an uploaded photo — a user's or a community's — to a 256×256 WebP without metadata, the one image-processing dependency (docs/features/avatar-upload.md, docs/features/community-photo.md)
 - Pino for structured logging
 - Zod for request validation
 
@@ -71,7 +71,7 @@ This file is the working contract between the developer and Claude. Read it befo
 - **Odesli / Songlink API** for link conversion. The service has been degraded for months and does not return links for most platforms. `squigly.link` + Playwright is the chosen path. (`docs/general.md` originally suggested Odesli; that has been corrected.)
 - **MongoDB.** The data is relational. PostgreSQL + Prisma, full stop.
 - **i18n / RTL.** The UI is English-only — see §8.
-- **Uploads beyond the user's own photo.** Community covers stay generated; the one upload is a profile photo, re-encoded server-side and stored in Postgres — see §8. No storage bucket or CDN.
+- **Uploads beyond two photos.** A user's own photo and a community's photo (since 2026-11-22) are the only uploads, both re-encoded server-side and stored in Postgres — see §8. No storage bucket or CDN.
 - **Email/password login, and any second identity provider.** Google Sign-In only — see §5. `bcrypt` and `password_resets` are gone.
 - **Storing user email addresses.** Deliberate data minimisation — see §5. Do not add an email column back without a new recorded decision.
 
@@ -216,9 +216,9 @@ This is a deliberate data-minimisation decision by the product owner. Accepted c
 
 ## 6. Database
 
-The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Sixteen tables** in total:
+The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table contract is in [docs/tables.md](docs/tables.md) (companion `docs/tables.docx`). **Eighteen tables** in total:
 
-`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`.
+`users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`, `community_photos`.
 
 - `community_members.role` is `OWNER` / `ADMIN` / `MEMBER`, with exactly one `OWNER` per community enforced by a hand-written partial unique index in a migration (Prisma cannot express it). Use migrations only — `prisma db push` would drop that index.
 - `ratings.score` is limited to 1–10 by the hand-written CHECK `ratings_score_range` in the `add_ratings` migration — likewise invisible to Prisma and to `prisma migrate diff` (docs/features/rate-post.md §3).
@@ -236,6 +236,12 @@ The schema is defined in `backend/prisma/schema.prisma`. The full table-by-table
 - `comments` holds the discussion on a post (UC-22): a post comment, or a reply in one flat thread under a review (`rating_id`) or a post comment (`parent_id`). The hand-written CHECKs `comments_one_thread` and `comments_body_or_deleted` in the `add_comments` migration, and the partial unique index `notifications_one_open_reply_group` in `add_comment_reply_group` (the target of the reply-grouping upsert), are invisible to Prisma (docs/features/discussion-threads.md §3).
 
 - `ops_snapshots` holds what the ops tools read (Vercel's storage meters, the deployments, the registry images) for Admin → Overview, kept 90 days; `daily_app_opens` is one row per UTC day of anonymous app-open counts, with no column that refers to a person. Their CHECKs `ops_snapshots_deleted_nonneg` and `daily_app_opens_nonneg`, in the `add_ops_overview` migration, are invisible to Prisma (docs/features/admin-overview.md §3).
+
+- `community_photos` holds a community's uploaded photo, through the same pipeline as `user_avatars`; clients see `/api/communities/<id>/photo?v=<ms>`, built from `communities.photo_updated_at`, which is written with the row in one transaction (docs/features/community-photo.md §3).
+
+- `community_post_checks` holds the community posts a user has checked, one row per user and post; `users.community_checks_since` is the clean start before which no post counts as unchecked (docs/features/community-unchecked.md §3).
+
+- `posts.bandcamp_item_id` holds a Bandcamp post's album or track id for its embedded player, read from the page at publish time and never serialised except inside `embed.url`; the hand-written CHECK `posts_bandcamp_item_id_shape` (digits only, and only on a Bandcamp post), added in `add_bandcamp_item_id` and corrected in `fix_bandcamp_item_id_check` to compare with `IS NOT DISTINCT FROM` so a NULL `link_platform` can't pass it, is invisible to Prisma (docs/features/in-app-player.md §3).
 
 - `password_resets` **was removed** — no passwords, no email, nothing to reset (§5, withdrawn UC-17).
 - `users` has **no `email`, no `password_hash`, and no `username`**. The one user-chosen name is `display_name` — any language, editable, unique through a hidden `display_name_key` (docs/features/google-auth.md §3). The account key is `google_sub`; `role` (`USER` / `ADMIN`) gates the admin area and is set directly in the database, never through an API. Three nullable timestamps — `walkthrough_seen_at`, `save_tip_seen_at`, `list_tip_seen_at` — record the onboarding tutorial, and reach only the user themself as `tutorial` flags in the session (docs/features/onboarding-tutorial.md).
@@ -283,9 +289,10 @@ Registration, Login, Forgot Password, and Create New Password screens were **wit
 ### UI conventions
 
 - **Language: English only.** All UI copy, labels, errors, and empty states are in English. There is **no i18n layer and no RTL support** — do not add `react-i18next`, do not add `dir` switching, do not write translation keys. A hardcoded English string is the correct implementation.
+- **User-written text keeps its own direction** (approved 2026-11-22, docs/features/manual-test-fixes-1122.md §5.1). This is the one exception to "no `dir` switching": a paragraph of user text (description, comment, review, song title or artist) gets `dir="auto"`, a name in a row or an English sentence is wrapped in `<bdi>` (or `isolate()` from `lib/bidi.ts` when the sentence is a string), and free-text inputs get `dir="auto"`. It lays out user content only; the UI's own direction never changes, and no `dir` goes on the page root.
 - **Mobile-first.** Write the base Tailwind classes for a phone viewport and add `sm:` / `md:` / `lg:` upward. The primary target device is an iPhone running the installed PWA; the desktop browser is the secondary layout. Verify at 375px width before anything else.
 - **Touch targets** are at least 44×44px, because the primary surface is a phone. **One declared exception:** the rating sheet's row of ten stars, about 34×44px each at 375px — the developer's choice for the Mixtape redesign (2026-11-09), mitigated by an edge-to-edge row, dragging across it, arrow keys, and an "N/10" readout before Submit (docs/features/ui-redesign.md §5.10). No other control may go below the rule without its own recorded decision.
-- **One upload: the user's own photo.** Profile pictures default to **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. A user may instead choose their Google photo (during onboarding, or later with a fresh Google sign-in), or **upload a photo on My Profile** — reversed from "no uploads" on 2026-11-08, manual-test note N10. The browser shrinks it, the server re-encodes it with `sharp` to a 256×256 WebP without metadata, and it is stored in Postgres (docs/features/avatar-upload.md). Community covers are always generated; there is no other upload, and no storage bucket.
+- **Two uploads: a user's photo and a community's photo.** Profile pictures default to **generated avatars**: initials derived from the display name over a background colour derived deterministically from the entity's id, so the same user or community always renders the same colour. A user may instead choose their Google photo (during onboarding, or later with a fresh Google sign-in), or **upload a photo on My Profile** — reversed from "no uploads" on 2026-11-08, manual-test note N10. The browser shrinks it, the server re-encodes it with `sharp` to a 256×256 WebP without metadata, and it is stored in Postgres (docs/features/avatar-upload.md). Community covers are generated too, unless a community's admins **upload a photo** in Community Settings or on Create Community — reversed from "covers stay generated" on 2026-11-22, parked idea D5 — through the same pipeline (docs/features/community-photo.md). There is no other upload, and no storage bucket.
 - **Loading is a designed state.** Every screen that waits on the network has an explicit skeleton or spinner, not a blank area. This matters most on the post-submit flow (§7), where the wait is genuinely several seconds.
 
 ---
@@ -299,8 +306,12 @@ The full UC list (UC-1 through UC-20) is in [docs/use cases.md](<docs/use cases.
 - **UC-20 is new**: direct recommendations between friends, side by side with community posting (docs/features/direct-recommendations.md).
 - **UC-21 is new**: the in-app notification center — new community posts, direct recommendations, ratings, friend requests and invitations (docs/features/notifications.md). No push, no email.
 - **UC-22 is new**: discussing a recommendation — comments on a post and replies in a flat thread under a review or a comment, with the person replied to notified (docs/features/discussion-threads.md).
+- **UC-23 is new**: listening to a recommendation inside the app — "Play here" on a Bandcamp, SoundCloud or YouTube video post opens the platform's official player in one bar docked above the router, so the song keeps playing across screens; converted songs are out of scope, and background audio on iOS is not guaranteed (docs/features/in-app-player.md).
 - **UC-19 and UC-21 were amended** so the admin can delete a user or a community, whose members are told with a `COMMUNITY_REMOVED` notification (docs/features/admin-delete.md). No new UC number.
+- **UC-9 and UC-19 were amended** for community photos: admins upload one on Create Community or in Settings, and the site admin can remove it (docs/features/community-photo.md). No new UC number.
 - **UC-19 was amended** with Admin → Overview: a read-only page of storage limits, deployments, images, last deletions and app counts, fed by the ops tools' snapshots and by Postgres (docs/features/admin-overview.md). No new UC number.
+- **UC-20 was amended** with a third Recommendations list, "Communities": other members' community posts the user hasn't checked yet (docs/features/community-unchecked.md). No new UC number.
+- **UC-20 was amended** again: the recipient archives a received item in place of hiding it, and can unarchive it from an archive at the top of Received (docs/features/archive-recommendations.md). No new UC number.
 - **UC-11 was amended** for link-only posts: Bandcamp, SoundCloud and live YouTube videos, shared without conversion in both posting targets (docs/features/link-only-posts.md). No new UC number.
 
 ---
@@ -594,7 +605,7 @@ An admin area owned by the product owner, scheduled for **Phase 2** so that user
 
 Settled in the feature's Stage 1 session and written to [docs/features/admin-panel.md](docs/features/admin-panel.md):
 
-- **Lists** of users and communities, read-only except for three writes. No suspending or editing anyone. The admin can **remove a user's photo** (added 2026-11-08, docs/features/avatar-upload.md D2), and, since 2026-11-18, **delete a user or a community** behind an "Are you sure?" dialog (docs/features/admin-delete.md): a hard delete through the cascades, a deleted owner's communities pass to their oldest admin, else oldest member, and a deleted community's members get a `COMMUNITY_REMOVED` notification. An `ADMIN` — the admin themself included — can't be deleted through the API. Each is recorded as a log line.
+- **Lists** of users and communities, read-only except for four writes. No suspending or editing anyone. The admin can **remove a user's photo** (added 2026-11-08, docs/features/avatar-upload.md D2) or **a community's photo** (added 2026-11-22, docs/features/community-photo.md D2), and, since 2026-11-18, **delete a user or a community** behind an "Are you sure?" dialog (docs/features/admin-delete.md): a hard delete through the cascades, a deleted owner's communities pass to their oldest admin, else oldest member, and a deleted community's members get a `COMMUNITY_REMOVED` notification. An `ADMIN` — the admin themself included — can't be deleted through the API. Each is recorded as a log line.
 - **Three presentation settings, fixed in code**: an announcement banner, an accent colour from a named palette, and the Welcome tagline. A new setting needs a new spec — never just a new row. Do not let it grow into a CMS by accident.
 - **A history table** records every settings change (who, old value, new value, when), shown on the settings screen.
 - **An Overview tab, first** (added 2026-11-17, docs/features/admin-overview.md): storage limits, deployments, images, last deletions and app counts on one read-only page. The Vercel figures are snapshots posted by `/vercel-usage` and `/vercel-image-cleanup` (through the admin's session) and by `prune-deployments` (through `OPS_INGEST_TOKEN`, which can write deployments only); the server never calls Vercel, and Refresh re-reads what is stored. Site visits are an anonymous daily count of app opens: no identifier per person, so never unique visitors.

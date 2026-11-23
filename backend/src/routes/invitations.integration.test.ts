@@ -110,7 +110,7 @@ describe('the invitation lifecycle', () => {
     expect(await countOf(dana)).toBe(1);
     expect((await mine(dana)).body.data.invitations).toEqual([
       {
-        community: { id, name: 'Crew', memberCount: 2 },
+        community: { id, name: 'Crew', photoUrl: null, memberCount: 2 },
         invitedBy: { id: ofri.id, displayName: 'Ofri', profilePictureUrl: null },
         sentAt: expect.any(String),
       },

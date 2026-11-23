@@ -3,15 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../utils/AppError.js';
 import {
+  archiveRecommendation,
+  countArchived,
   countUnseen,
   FRIENDS_ONLY,
-  hideRecommendation,
+  listArchived,
   listReceived,
   listSent,
   markSeen,
-  RECIPIENT_ONLY,
+  RECIPIENT_ONLY_ARCHIVE,
+  RECIPIENT_ONLY_UNARCHIVE,
   SELF_SEND,
   sendRecommendation,
+  unarchiveRecommendation,
 } from './recommendation.service.js';
 import type * as ProfileService from './profile.service.js';
 import { INVALID_LINK } from './supportedLinks.js';
@@ -243,7 +247,7 @@ describe('sendRecommendation', () => {
 });
 
 describe('listReceived and listSent', () => {
-  it('Received reads what was sent to the caller and is not hidden, with one friendship query', async () => {
+  it('Received reads what was sent to the caller and is not archived, with one friendship query', async () => {
     // Arrange
     db.post.findMany.mockResolvedValue([row(), row({ id: 'post-2' })]);
     db.friend.findMany.mockResolvedValue([{ requesterId: SENDER, addresseeId: RECIPIENT }]);
@@ -254,7 +258,7 @@ describe('listReceived and listSent', () => {
     // Assert
     expect(db.post.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { recipientId: RECIPIENT, recipientHiddenAt: null },
+        where: { recipientId: RECIPIENT, recipientArchivedAt: null },
       }),
     );
     expect(db.friend.findMany).toHaveBeenCalledTimes(1);
@@ -299,17 +303,19 @@ describe('listReceived and listSent', () => {
     // Act & Assert
     await expectAppError(listReceived(recipient, 'nope'), 422);
     await expectAppError(listSent(sender, 'nope'), 422);
+    await expectAppError(listArchived(recipient, 'nope'), 422);
   });
 
   it('refuses a caller mid-onboarding', async () => {
     // Act & Assert
     await expectAppError(listReceived(onboarding), 403);
     await expectAppError(listSent(onboarding), 403);
+    await expectAppError(listArchived(onboarding), 403);
   });
 });
 
 describe('countUnseen and markSeen', () => {
-  it('counts everything not hidden until Received was first opened', async () => {
+  it('counts everything not archived until Received was first opened', async () => {
     // Arrange
     db.post.count.mockResolvedValue(3);
 
@@ -319,7 +325,7 @@ describe('countUnseen and markSeen', () => {
     // Assert
     expect(count).toBe(3);
     expect(db.post.count).toHaveBeenCalledWith({
-      where: { recipientId: RECIPIENT, recipientHiddenAt: null },
+      where: { recipientId: RECIPIENT, recipientArchivedAt: null },
     });
   });
 
@@ -333,7 +339,7 @@ describe('countUnseen and markSeen', () => {
 
     // Assert
     expect(db.post.count).toHaveBeenCalledWith({
-      where: { recipientId: RECIPIENT, recipientHiddenAt: null, createdAt: { gt: seenAt } },
+      where: { recipientId: RECIPIENT, recipientArchivedAt: null, createdAt: { gt: seenAt } },
     });
   });
 
@@ -355,7 +361,81 @@ describe('countUnseen and markSeen', () => {
   });
 });
 
-describe('hideRecommendation', () => {
+describe('listArchived and countArchived', () => {
+  it("the archive reads the caller's archived items, newest sent first", async () => {
+    // Arrange
+    db.post.findMany.mockResolvedValue([row(), row({ id: 'post-2' })]);
+
+    // Act
+    const page = await listArchived(recipient);
+
+    // Assert
+    expect(db.post.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { recipientId: RECIPIENT, recipientArchivedAt: { not: null } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
+    expect(page.posts).toHaveLength(2);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('the archive gives a cursor when there is another page', async () => {
+    // Arrange
+    db.post.findMany.mockResolvedValue(
+      Array.from({ length: 21 }, (_, n) =>
+        row({ id: `00000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}` }),
+      ),
+    );
+
+    // Act
+    const page = await listArchived(recipient);
+
+    // Assert
+    expect(page.posts).toHaveLength(20);
+    expect(page.nextCursor).not.toBeNull();
+  });
+
+  it('counts the same rule as the list', async () => {
+    // Arrange
+    db.post.count.mockResolvedValue(4);
+
+    // Act
+    const count = await countArchived(recipient);
+
+    // Assert
+    expect(count).toBe(4);
+    expect(db.post.count).toHaveBeenCalledWith({
+      where: { recipientId: RECIPIENT, recipientArchivedAt: { not: null } },
+    });
+  });
+
+  it('the count refuses a caller mid-onboarding', async () => {
+    // Act & Assert
+    await expectAppError(countArchived(onboarding), 403);
+  });
+});
+
+describe.each([
+  {
+    name: 'archiveRecommendation',
+    write: archiveRecommendation,
+    refusal: RECIPIENT_ONLY_ARCHIVE,
+    expected: {
+      where: { id: POST_ID, recipientArchivedAt: null },
+      data: { recipientArchivedAt: expect.any(Date) as Date },
+    },
+  },
+  {
+    name: 'unarchiveRecommendation',
+    write: unarchiveRecommendation,
+    refusal: RECIPIENT_ONLY_UNARCHIVE,
+    expected: {
+      where: { id: POST_ID, recipientArchivedAt: { not: null } },
+      data: { recipientArchivedAt: null },
+    },
+  },
+])('$name', ({ write, refusal, expected }) => {
   beforeEach(() => {
     db.post.findUnique.mockResolvedValue({
       authorId: SENDER,
@@ -364,20 +444,28 @@ describe('hideRecommendation', () => {
     });
   });
 
-  it('sets the column only if it is not set yet', async () => {
+  it('writes only a row that needs it, so a repeat is a no-op', async () => {
     // Act
-    await hideRecommendation(recipient, POST_ID);
+    await write(recipient, POST_ID);
 
     // Assert
-    expect(db.post.updateMany).toHaveBeenCalledWith({
-      where: { id: POST_ID, recipientHiddenAt: null },
-      data: { recipientHiddenAt: expect.any(Date) as Date },
-    });
+    expect(db.post.updateMany).toHaveBeenCalledWith(expected);
+  });
+
+  it('is allowed after unfriending', async () => {
+    // Arrange
+    db.friend.count.mockResolvedValue(0);
+
+    // Act
+    await write(recipient, POST_ID);
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it('refuses the sender', async () => {
     // Act & Assert
-    await expectAppError(hideRecommendation(sender, POST_ID), 403, RECIPIENT_ONLY);
+    await expectAppError(write(sender, POST_ID), 403, refusal);
     expect(db.post.updateMany).not.toHaveBeenCalled();
   });
 
@@ -386,20 +474,21 @@ describe('hideRecommendation', () => {
     const third = { ...sender, id: UNKNOWN } as User;
 
     // Act & Assert
-    await expectAppError(hideRecommendation(third, POST_ID), 404);
+    await expectAppError(write(third, POST_ID), 404);
     db.post.findUnique.mockResolvedValue(null);
-    await expectAppError(hideRecommendation(recipient, POST_ID), 404);
+    await expectAppError(write(recipient, POST_ID), 404);
     db.post.findUnique.mockResolvedValue({
       authorId: SENDER,
       communityId: 'community-1',
       recipientId: null,
     });
     db.communityMember.findUnique.mockResolvedValue({ role: 'OWNER' });
-    await expectAppError(hideRecommendation(recipient, POST_ID), 404);
+    await expectAppError(write(recipient, POST_ID), 404);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
   });
 
   it('refuses a caller mid-onboarding', async () => {
     // Act & Assert
-    await expectAppError(hideRecommendation(onboarding, POST_ID), 403);
+    await expectAppError(write(onboarding, POST_ID), 403);
   });
 });

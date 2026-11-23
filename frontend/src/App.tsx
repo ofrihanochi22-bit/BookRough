@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppSettings } from './components/AppSettings';
+import { MiniPlayer } from './components/MiniPlayer';
 import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { TabLayout } from './components/TabLayout';
 import { AdminCommunities, AdminLayout, AdminUsers } from './pages/Admin';
@@ -99,6 +100,8 @@ export function App() {
           <Route path="/invite/:token" element={<InvitePreview />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        {/* Beside the routes, so navigating never stops the song (in-app-player.md §5.2). */}
+        <MiniPlayer />
       </SessionGate>
     </>
   );

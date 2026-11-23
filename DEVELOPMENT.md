@@ -3593,6 +3593,333 @@ cd frontend && npm run test:unit
 cd backend && npm run test:coverage
 ```
 
+### Step 6.1z6 — The deploy gate holds when `checks` fails (Phase 6, a fix to Step 6.4)
+
+Status: 🟡 PR open (#89; spec approved 2026-11-23)
+Branch: fix/deploy-gate-skipped-checks
+Spec: docs/features/deploy-gate-skipped-checks.md
+
+Goal: a commit whose shared checks fail on `main` is never promoted to production.
+
+What I did:
+
+- **Cause, with evidence (spec §2):** PR #87's post-merge run (44533585501) failed `checks / test:unit`, so GitHub skipped `test:e2e` and `test:docker`. Vercel held the built deployment (`dpl_CMi8U7nLzTxa32pZNffLTWRWRd5y`) and released it 2 s after both checks concluded `skipped`. For `d3ef14d` and `c0df513`, where `test:e2e` failed, Vercel answered "Checks for Deployment have failed". So the Deployment Checks work, but treat `skipped` as passing.
+- `.github/workflows/main.yml`: `test:e2e` and `test:docker` now have `if: ${{ always() }}`, and their first step, "Stop if the shared checks did not pass", exits 1 when `needs.checks.result` is not `success` or the run was cancelled. They now conclude `failure`, which Vercel blocks, and still install no browsers and build no image on a red run.
+- `docs/features/production-hardening.md` §9: the fix recorded. No dashboard change.
+- `/code-review` (high), 5 findings, all fixed: a cancelled run could skip the guard step (it now has `cancelled() ||`), the check command needed `encoding='utf-8'` on Windows, the step name read backwards on failure, the spec said the old deployment still holds the production alias, and the spec's status row was ticked too early. No `/security-review`: CI condition only, no new input, secret or permission.
+
+How to view & test:
+
+No screen changes. `main.yml` runs only on `main`, so the checks come after the merge (spec §8):
+
+1. M1: the merge's run is green, both suites show "Stop if the shared checks did not pass" as skipped, and production is promoted after `test:e2e`.
+2. M2: the next red `checks` on `main` or at night shows both suites failed at that step, and the commit's Production deployment on GitHub says "Checks for Deployment have failed".
+
+```bash
+python -c "import yaml; d=yaml.safe_load(open('.github/workflows/main.yml', encoding='utf-8')); print(d['jobs']['test-e2e']['if'], d['jobs']['test-docker']['if'])"
+```
+
+### Step 6.1z7 — Manual-test fixes of 2026-11-22: Hebrew text direction, new-tab links, alphabetical Home (Phase 6 — UC-9, UC-10, UC-11, UC-12, UC-21, UC-22 presentation; UC-9 list order)
+
+Status: ✅ Done (merged as PR #91)
+Branch: fix/manual-test-1122
+Spec: docs/features/manual-test-fixes-1122.md
+
+Goal: three items from the manual test session of 2026-11-22 on the iPhone, in one PR at the developer's request: F1 (a Hebrew description's final period showed on the wrong side), D3 (external links open in a new tab) and D4 (Home lists communities alphabetically).
+
+What I did:
+
+- **F1, user text keeps its own direction** (approved by the developer as an exception to CLAUDE.md §8, which now records it). A paragraph of user text gets `dir="auto"`: community descriptions, post comments, reviews, thread comments, song titles and artists, on cards, Post Detail, My List, Public Profile and the rating sheet. A name in a row, on a cassette label or inside an English sentence is wrapped in `<bdi>`: person rows (`PersonLink`), `CommunityCover`, Search, Friends, Community Settings, Admin lists and delete sheets, "Shared by … in …" on My List, the Share and Send-a-song sheets. Sentences built as strings (toasts, notification lines, sheet titles and bodies, the settings history) wrap the user part with `isolate()` from the new `frontend/src/lib/bidi.ts`, which adds the Unicode isolate marks U+2068/U+2069. Free-text inputs get `dir="auto"` (community name and description, display name, comments, reviews, the admin banner and tagline, Search). The UI stays English and left-to-right.
+- **D3, external links:** the three links that leave the app (the "Open in …" button on post cards and My List cards, and the Other services sheet) already opened a new tab. They now go through one component, `frontend/src/components/ExternalLink.tsx`, and `frontend/src/externalLinks.test.ts` fails if a raw `<a>` appears anywhere else. Checked on the developer's iPhone: in Safari the link opens in a new tab in front of BookRough, which stays behind it, so a Bandcamp song keeps playing. In the installed PWA, iOS opens the link in a window over the app, and closing it stops the song; a site can't change that. An in-app player is parked as future feature **D6**.
+- **D4, alphabetical Home:** `listMyCommunities` in `backend/src/services/community.service.ts` sorts with an `Intl.Collator('en', { sensitivity: 'base', numeric: true })`, ties broken by id (`compareCommunities`). Case and accents are ignored, numbers sort by value, and English comes before Hebrew (the developer's choice). The Share sheet's community list follows, since it uses the same endpoint.
+- Docs: the new spec; `communities-create.md` §4, §6.4 and its scenarios amended; `docs/frontend screens.md` and `.docx` (Home's order, and the user-text direction line); `CLAUDE.md` §8.
+- Tests: `frontend/src/test/bidi.ts` (`plain`, `readsAs`, `named`) lets tests read text split by `<bdi>` or carrying isolate marks; about 45 existing assertions were updated for it, and the E2E assertions that read names in toasts and notifications use `isolated()` from `e2e/support/flows.ts`.
+- `/code-review` (high), 7 findings, all fixed: the E2E assertions that would have broken on the isolate marks, the backend tests still asserting join order, `docs/frontend screens.md`/`.docx` and `communities-create.md` still saying "newest joined first", CLAUDE.md §8 not yet amended, a stale comment in `Dashboard.tsx`, the missing guard test, and the import order of the new helper. No `/security-review`: no authentication, permission, endpoint or external service changes. The one new input-adjacent change is a `dir` attribute.
+- **Fix, 2026-11-22 (`fix/e2e-banner-history-isolate`):** the post-merge `main.yml` run of PR #91 failed `test:e2e` on one assertion this PR missed. `admin-settings.spec.ts` read the settings history line `turned on the banner: “…”`, whose banner text is now isolated. It reads it through `isolated()` too. Test only; no app change. Production stayed on the previous deployment until this ran green.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+1. Open `http://localhost:5173/`, sign in, and create two communities: "Zebra Club", then "מזרחית ותיקה" with the description "הקלאסיקות של פעם, בלי פשרות.", then "Alpha Club".
+2. **Home** lists Alpha Club, Zebra Club, then מזרחית ותיקה, whatever the order you joined in.
+3. Open מזרחית ותיקה: the description reads right-to-left, aligned right, with its period at the end of the sentence (the left end). Type Hebrew in a post comment: the box follows the text's direction, and the posted comment reads right-to-left on the card.
+4. On a post card, tap **Open in …** and **Other services** → any service: each opens in a new tab and BookRough stays open in its own tab.
+5. On the iPhone (Safari and the installed app), repeat steps 3–4 against a preview or production build.
+
+```bash
+cd frontend && npx vitest run src/externalLinks src/lib/bidi src/components/ExternalLink src/components/PostCard src/pages/Community.test src/pages/Dashboard src/pages/MyList src/pages/PostDetail src/pages/CreateCommunity
+```
+
+```bash
+cd backend && npx vitest run src/services/community.service && npm run test:integration -- communities
+```
+
+### Step 6.1z8 — Open in Safari from the installed iPhone app (Phase 6 — UC-11, UC-12, UC-20 presentation)
+
+Status: ✅ Done (merged as PR #93; iPhone checks M1–M3 passed in production on 2026-11-23)
+Branch: feat/open-in-safari
+Spec: docs/features/open-in-safari.md
+
+Goal: in the installed PWA on the iPhone, iOS opens an external link in a window over BookRough, and closing it stops the song (Step 6.1z7, D3). Now a tap first asks **"Open in browser?"** and can hand the link to full Safari, so the music keeps playing while the user goes back to BookRough. This is an alternative to the parked in-app player (D6).
+
+What I did:
+
+- `frontend/src/lib/openInSafari.ts`: `isIosStandalone` (iPhone or iPad, running as the installed app; reuses `isIos` from `installHint.ts`), `safariUrl` (`https://…` → `x-safari-https://…`, `null` for anything but http(s)), and `openInSafari`, which navigates and, if the app has not been hidden or lost focus within 2 s, reports that Safari didn't open.
+- `frontend/src/components/OpenInBrowserSheet.tsx`: the sheet, built on `Sheet`, with **Open in Safari**, **Copy link** and **Cancel**. Copy link toasts "Link copied. Paste it in Safari."; if the clipboard is refused it shows the link, selected, to copy by hand. "Safari didn't open. Try Copy link instead." is toasted when the scheme does nothing.
+- `frontend/src/components/ExternalLink.tsx`: in the installed iOS app a tap is intercepted and opens the sheet; everywhere else (Safari tabs, Android, desktop) the link still opens in a new tab. The `href` is unchanged, so a long-press still shows the real address. This covers all three external links: "Open in …" on post cards and My List cards, and the Other services sheet (where the new sheet opens on top and Cancel leaves Other services open).
+- **Decision reversed:** manual-test-fixes-1122.md §5.2 had rejected the undocumented `x-safari-https://` scheme. The developer chose it, asked on every tap with Copy link always beside it; recorded in the new spec's §8.
+- `/code-review` (high), 4 findings: the failure toast could fire while an iOS prompt covered the page (fixed: `blur` and `pagehide` also count as a hand-off), a redundant `dir="ltr"` (removed), Escape closing both nested sheets (accepted in spec §6), and missing tests (written). No `/security-review`: no authentication, permission, endpoint or new external service. The links are the same server-supplied service URLs as before, and `safariUrl` refuses anything but http(s), so a `javascript:` address can never be navigated to.
+- Tests: `lib/openInSafari.test.ts` (16), `OpenInBrowserSheet.test.tsx` (8), `ExternalLink.test.tsx` (5), and one nested-sheet case in `PostCard.test.tsx`. Frontend line coverage 98.5%.
+
+How to view & test:
+
+```bash
+cd frontend && npx vitest run src/lib/openInSafari src/components/OpenInBrowserSheet src/components/ExternalLink src/components/PostCard src/externalLinks
+```
+
+In a desktop browser nothing changes: run `cd backend && npm run dev` and `cd frontend && npm run dev`, open `http://localhost:5173/`, and **Open in …** still opens a new tab with no question. The sheet appears only in the installed iOS app, so it is checked on the developer's iPhone after the merge (spec §7):
+
+1. **M1.** From the home-screen app, tap **Open in Bandcamp** on a post → "Open in browser?" → **Open in Safari**. Safari opens the album. Play it, switch back to BookRough: the song keeps playing. If Safari doesn't open, the app says "Safari didn't open. Try Copy link instead." — then a follow-up removes the Open in Safari button.
+2. **M2.** Same, with **Copy link**: paste it in Safari, same result.
+3. **M3.** In Safari (not installed), the link opens in a new tab with no question.
+
+### Step 6.1z9 — Unchecked community recommendations, D1 (Phase 6 — UC-20 amended, UC-11)
+
+Status: ✅ Done (merged as PR #94)
+Branch: feat/community-unchecked
+Spec: docs/features/community-unchecked.md
+
+Goal: until now a community post showed only in its own community's feed (parked idea D1, manual test of 2026-11-22, test 7). Now Recommendations has a third list, **Communities**: other members' posts, across every community the user is in, that the user hasn't checked yet.
+
+What I did:
+
+- **Schema** (migration `add_community_post_checks`): a new table `community_post_checks` (`user_id`, `post_id`, `checked_at`; PK on the pair, both FKs cascade). A new column `users.community_checks_since` (`NOT NULL DEFAULT now()`) is the clean start: the migration gives every existing user the moment it ran, so nobody's list is flooded at launch.
+- **Backend:**
+  - `services/communityChecks.service.ts`: `listUnchecked` and `countUnchecked`. They use raw SQL, because the rule compares `posts.created_at` with `community_members.joined_at`, and Prisma can't express that. The rule: someone else's post, in a community the user is in now, from the later of joining and the clean start, not checked. Then `findMany` with `postInclude`, so admins keep Delete as in the feed.
+  - Also `markChecked` / `unmarkChecked` (idempotent; a direct recommendation, a non-member or a missing post is `404`; the user's own post is a no-op) and `recordCheck`.
+  - `ratePost` (in its transaction) and `saveBookmark` now record the check. `removeBookmark` doesn't undo it.
+  - Four routes on `recommendationsRouter`: `GET /community`, `GET /community/count`, and `PUT` / `DELETE /community/:postId/checked`.
+- **Frontend:**
+  - `Recommendations.tsx`: the third pill, "Communities · N". Each card sits under "in {community}", which links to the community, and has **Mark checked**. The card leaves at once, with a "Marked as checked" toast and **Undo**. Rating or saving from the list removes the card too. The list has an empty state ("You're all caught up"), a load error with Try again, Load more, and Mark checked disabled offline.
+  - `PostCard` and `OpenInBrowserSheet` / `ExternalLink`: opening the main link or an Other services link checks someone else's community post in the background. In the installed iPhone app this happens only once "Open in Safari" or "Copy link" is chosen, not on Cancel.
+  - `PostDetail`: opening a post checks it, once per visit.
+  - `PostCard`'s Rate & Review now also shows on a community post (it used to assume a direct item).
+- **Unchanged:** the bell and the Friends tab's Recommendations count stay as they were (Stage 1 answer 4). There's no history of checked posts; D2 is still parked.
+- **Docs:** `tables`, `use cases` (UC-20 amended) and `frontend screens` (2.5), both `.md` and `.docx`. `CLAUDE.md` §6 now says seventeen tables, and §9 records the UC-20 amendment.
+- **`/code-review` (high), 5 findings:**
+  - Fixed: a Received or Sent page persisted by the previous version would have crashed the screen (no `communities` field).
+  - Fixed: the "in {community}" link was under 44px.
+  - Fixed: admins had no Delete on this list.
+  - Fixed: the iPhone link check ran even on Cancel.
+  - Accepted (spec §9): Undo after switching pills shows the post again only at the next visit.
+- **`/security-review`:** clean. The raw SQL is parameterised. Writes are limited to the caller's own rows, behind `requirePostAccess`. Nothing new is serialised beyond the community's id and name.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev        # applies add_community_post_checks
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/`, signed in as a member of a community that has at least one other member:
+
+1. As the other member, post a song in that community.
+2. As you, go to **Friends → Recommendations → Communities**. The pill reads "Communities · 1", and the card shows "in {community}".
+3. Press **Mark checked**. The card goes, and the toast offers **Undo**. Press it: the card comes back.
+4. Press **Open in …** on the card, then come back and reopen the tab: the post is gone. The same happens after **Rate & Review**, saving to **Listen Later**, or opening the post.
+5. Your own posts, direct recommendations, and posts from before you joined the community (or before the migration) never appear.
+6. The bell and the Recommendations count on Friends behave exactly as before.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/communityChecks src/services/rating src/services/bookmark
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/communityChecks
+cd frontend && npx vitest run src/pages/Recommendations src/pages/PostDetail src/components/PostCard src/components/ExternalLink src/components/OpenInBrowserSheet src/api/recommendations
+```
+
+### Step 6.1z10 — Archive received recommendations, D2 (Phase 6 — UC-20 amended)
+
+Status: ✅ Done (merged as PR #96)
+Branch: feat/archive-recommendations
+Spec: docs/features/archive-recommendations.md
+
+Goal: until now every direct recommendation stayed in Received forever, and Hide removed one for good (parked idea D2, manual test of 2026-11-22, test 7). Now **Archive** replaces Hide: it moves an item out of Received by hand, with Undo, into an archive opened from an "Archived · N" row at the top of Received, where **Unarchive** puts it back.
+
+What I did:
+
+- **Schema:** no migration. The Prisma field `recipientHiddenAt` is now `recipientArchivedAt`, mapped onto the same column `recipient_hidden_at`, so every item hidden until now is archived. A first draft renamed the column; `/code-review` caught that a rename breaks the previous production deployment, still serving during the switch and kept for rollback, so it was dropped (spec §3, §9).
+- **Backend** (`services/recommendation.service.ts`, controller, `routes/recommendations.ts`):
+  - `listArchived` (Received's keyset and order) and `countArchived`.
+  - `archiveRecommendation` and `unarchiveRecommendation`, through one `requireRecipient` check: a community post, a missing post or a third party is `404`; the sender is `403` ("Only the recipient can archive this." / "… unarchive this."). Both are idempotent and allowed after unfriending.
+  - Routes `GET /archived`, `GET /archived/count`, `PUT` and `DELETE /:postId/archived`. `PUT /:postId/hidden` is removed (`404`).
+- **Frontend:**
+  - `Recommendations.tsx`: Archive in the card's ⋯ menu, with no confirmation. The card leaves at once with an "Archived" toast and **Undo**; a failure brings it back with an error toast, and a `404` leaves it out quietly. The "Archived · N" row shows only while the count is above 0. The archive view has "← Received", the title "Archived", the same cards with **Unarchive** ("Back in Received"), an empty state ("Nothing archived"), a load error with Try again, and Load more. Switching pills closes it.
+  - The Undo toast and the remove-then-write logic are now shared by Mark checked (D1) and Archive.
+  - `PostCard`: `onHide` became `onArchive` / `onUnarchive`. `HideRecommendationSheet` and its copy are deleted.
+- **Docs:** `tables` (the column's new meaning), `use cases` (UC-20 amended) and `frontend screens` (2.5), both `.md` and `.docx`. An amendment note in `direct-recommendations.md`. `CLAUDE.md` §9 records the UC-20 amendment.
+- **`/code-review` (medium), 3 findings:**
+  - Fixed: the column rename (above).
+  - Fixed in Stage 4: the old Hide tests no longer compiled.
+  - No change needed: the Received pill does close the archive (`PillTrack` always calls `onChange`).
+- **`/security-review`:** clean. Both writes sit behind `requirePostAccess` and the recipient check, the archive and its count read only the caller's own rows, no raw SQL was added, and the archive time is never serialised.
+
+How to view & test:
+
+```bash
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/`, signed in as someone a friend has sent a song to:
+
+1. **Friends → Recommendations → Received.** Open a card's ⋯ menu and press **Archive**. The card goes, and the toast offers **Undo**. Press it: the card comes back.
+2. Archive it again. An **Archived · 1** row appears at the top of Received. Press it: the archive shows the card.
+3. In the archive, ⋯ → **Unarchive**. The toast says "Back in Received", and the archive shows "Nothing archived". Press **← Received**: the card is back.
+4. As the sender, **Sent** still shows the item and its rating; nothing tells them it was archived.
+5. Offline, Archive and Unarchive are disabled.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/recommendation.service
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations src/routes/linkOnlyPosts
+cd frontend && npx vitest run src/pages/Recommendations src/components/PostCard src/api/recommendations src/api/invalidation
+```
+
+### Step 6.1z11 — A photo for a community, D5 (Phase 6 — UC-9 and UC-19 amended)
+
+Status: ✅ Done (merged as PR #98)
+Branch: feat/community-photo
+Spec: docs/features/community-photo.md
+
+Goal: until now a community's cover was always the generated cassette (parked idea D5, manual test of 2026-11-22). Now its admins — the owner included — can give it a photo, on Create Community or later in Community Settings, and the site admin can remove one. This reverses "community covers stay generated" (CLAUDE.md §2, §8) on 2026-11-22. It was built while D2 was still open, a deliberate exception to "one feature at a time" (CLAUDE.md §15).
+
+What I did:
+
+- **Schema:** migration `add_community_photos` — the table `community_photos` (one row per community: the 256×256 WebP and `updated_at`, cascading with the community) and the column `communities.photo_updated_at`. Clients see `photoUrl = /api/communities/<id>/photo?v=<ms>`, built from that column, so no serializer needs a join and every upload busts caches.
+- **Shared pipeline:** the avatar's re-encode moved to `services/squareImage.ts` (`processSquareImage`) and its raw body parser to `middleware/imageBody.ts`, so both uploads go through one audited path, unchanged.
+- **Backend** (`services/communityPhoto.service.ts`, `controllers/communityPhoto.controller.ts`):
+  - `PUT /api/communities/:id/photo`: admins and the owner (`requireAdmin`, "Only admins can change the photo."), tier-3 rate limit. The row and the timestamp are written in one transaction, and a community deleted mid-upload is `404`. Errors `401`, `403`, `404`, `413`, `415`, `422`, `429`.
+  - `DELETE /api/communities/:id/photo`: idempotent, the same check.
+  - `GET /api/communities/:id/photo`: any signed-in user (D3), `image/webp`, cached immutably.
+  - `DELETE /api/admin/communities/:communityId/photo`: `requireAppAdmin`, returns the refreshed admin row, logged only when there was a photo.
+  - `photoUrl` added field by field to `PublicCommunity`, the invitations list, the invite preview and `AdminCommunity`.
+- **Frontend:**
+  - `CommunityCover`: an optional `photoUrl` takes the reel window's place (thumb, card, banner), and falls back to the reels if the image fails (a signed-out `401` included). Every caller passes it.
+  - Community Settings: a **Photo** section for admins (`CommunityPhotoSection`) — Upload a photo / Replace photo ("Uploading…", "Photo updated"), Remove photo behind a sheet, inline errors, disabled offline.
+  - Create Community: **Add a photo (optional)** previews in the cover, with Change photo and Remove. It is uploaded after the community exists; a failed upload still lands on the community with "Community created, but the photo couldn't be uploaded. Try again in Settings."
+  - Admin → Communities: the row shows the photo, and **Remove photo** sits beside Delete, behind a sheet. The user and community rows share one `RemovePhotoSheet`.
+  - `PhotoPickerButton` is shared by My Profile, Settings and Create.
+- **Docs:** `CLAUDE.md` §2, §6 (eighteen tables), §8, §9 and §17; `tables`, `frontend screens`, `use cases` (UC-9, UC-19) and `tech stack` (`sharp`), each `.md` and `.docx`; amendment notes in `communities-create.md`, `communities-membership.md`, `admin-panel.md` and `avatar-upload.md`; `production-hardening.md` §3.1's rate-limit table.
+- **`/code-review` (medium), 4 findings, all fixed:** `prisma format` had realigned unrelated models (reverted, to avoid conflicts with D2); a stale "covers are always generated" schema comment; the admin removal logged even with no photo; the admin row copied its props into state once (now lifted into the list, as the users list does).
+- **`/security-review`:** clean. Upload and removal sit behind `requireAdmin` before the image is read, the admin route behind `requireAppAdmin`, only `sharp`'s own WebP is stored and it is served with a fixed `image/webp` type, ids are UUID-checked, no raw SQL, and the serializers add `photoUrl` only.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width, signed in as a community's owner or admin:
+
+1. **New community:** press **Add a photo (optional)** and pick a JPEG or PNG. It shows in the cover preview in place of the reels. Name it and press **Create**: the community's banner shows the photo.
+2. **Home** and the **share sheet** show the photo in the community's cassette.
+3. **Settings → Photo:** **Replace photo** with another picture ("Uploading…", then "Photo updated"). Then **Remove photo** → confirm: the generated cassette is back.
+4. As a plain member, Settings has no Photo section.
+5. Invite a friend: their **Friends → Invitations** row shows the photo. A signed-out invite link shows the generated cover.
+6. As the site admin, **Admin → Communities**: the row shows the photo; **Remove photo** → confirm → "Photo removed".
+7. Offline, Settings' photo buttons are disabled.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/communityPhoto.service src/services/squareImage src/services/avatar.service src/utils
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/communityPhoto src/routes/avatar src/routes/communities src/routes/invites src/routes/invitations
+cd frontend && npx vitest run src/components/CommunityPhotoSection src/components/ui/CommunityCover src/pages/CreateCommunity src/pages/CommunitySettings src/pages/Admin src/api/invalidation
+```
+
+### Step 6.1z12 — In-app player, D6 (Phase 6 — UC-23, new)
+
+Status: ✅ Done (merged as PR #101; the production backfill and M1–M5 wait on the developer)
+Branch: feat/in-app-player
+Spec: docs/features/in-app-player.md
+
+Goal: in the installed iPhone app, a link opens in a browser window over BookRough, and closing it stops the song (manual-test-fixes-1122.md §5.2). Step 6.1z8 can send the link to Safari, but that leaves the app. Now a Bandcamp, SoundCloud or YouTube video post has **Play here**, which opens the platform's official player in one bar docked at the bottom. It keeps playing while the user scrolls and changes screens (parked idea D6, manual test of 2026-11-22). The work began while D5 was still open, a deliberate exception to "one feature at a time" (CLAUDE.md §15); D5 was merged first, and its `main` is merged into this branch.
+
+What I did:
+
+- **Schema:**
+  - Migration `add_bandcamp_item_id` adds the nullable column `posts.bandcamp_item_id` and the hand-written CHECK `posts_bandcamp_item_id_shape`: digits only, and only on a Bandcamp post.
+  - Migration `fix_bandcamp_item_id_check` corrects that CHECK to `IS NOT DISTINCT FROM`. Its first form passed on a converted post, where `link_platform` is NULL; a Stage 4 test caught it.
+- **Backend:**
+  - `linkMetadata.service.ts`: `bandcampItemId()` reads the id from the `bc-page-properties` tag of the page it already fetches. It keeps the id only when it is a safe positive integer and its `item_type` matches the album or track link.
+  - `post.service.ts` stores the id on a new Bandcamp post.
+  - `services/embeds.ts`: `embedFor()` builds the player address from stored columns and fixed prefixes. The three players are `youtube-nocookie.com/embed/<id>`, `w.soundcloud.com/player/?url=<canonical, encoded>` and `bandcamp.com/EmbeddedPlayer/<album|track>=<id>`.
+  - `PublicPost` gains `embed: { platform, url } | null` on every endpoint that returns a post. The raw id is never serialised.
+- **Backfill:** `npm run backfill:bandcamp` (`src/ops/backfillBandcampIds.ts`) fills the id for older Bandcamp posts, one page at a time, through the same fetcher. It writes only that column and is safe to run again.
+- **Frontend:**
+  - `stores/player.ts` holds what is playing: one item at a time, cleared on sign-out or any 401.
+  - `MiniPlayer` is rendered once in `App`, beside the routes, so a route change never remounts its iframe.
+    - The iframe is sandboxed without `allow-top-navigation` and is created only after the tap.
+    - The bar sits above the tab bar and its raised Share button. Pages leave room for it, measured from the viewport's bottom edge, so the iPhone safe area is counted. `TabLayout` pads by that amount; a spacer does it on screens without a tab bar.
+  - `PlayHereButton` sits on `PostCard` and `SavedPostCard`. It reads **Playing** (disabled) on the card that is playing and **Offline** (disabled) offline.
+  - `lib/embeds.ts` allows only https, with no credentials or port, on the exact host for that platform.
+- **Docs:**
+  - `CLAUDE.md` §6 (the column and its CHECK) and §9 (UC-23).
+  - `use cases` (UC-23), `tech stack` §5 (the embed hosts) and `frontend screens` (Play here), each `.md` and `.docx`.
+- **`/code-review` (high), 5 findings, all fixed:**
+  - The bar covered the bottom of screens without a tab bar.
+  - The tab padding ignored the iPhone safe area.
+  - The embed hosts were not yet in `tech stack`.
+  - "Loading player…" was skipped when a post was replayed.
+  - The spec named Public Profile, which has no post cards.
+- **`/security-review`:** clean.
+  - Every variable part of an embed address is an 11-character video id, digits, or an encoded canonical SoundCloud link.
+  - The frontend re-checks the host.
+  - The page's JSON is read for two fields only.
+  - There are no new outbound fetches.
+  - `embed` adds nothing beyond `originalUrl`.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev
+cd backend && npm run backfill:bandcamp
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width, signed in, in a community with link-only posts. To make some, share `https://khruangbin.bandcamp.com/album/a-la-sala`, `https://soundcloud.com/forss/flickermood` and `https://www.youtube.com/watch?v=QrR_gm6RqCo`.
+
+1. Each of those cards shows **Play here** beside "Listen on …" / "Watch on YouTube". A Spotify post has none.
+2. **Play here** on the Bandcamp album opens the bar above the tab bar ("Loading player…", then Bandcamp's player). The card reads **Playing**.
+3. Open the post's Comments, then My List: the bar and the song stay. Scroll to the end of the feed: nothing is hidden under the bar.
+4. **Play here** on the YouTube video: the bar switches to it. ✕ closes it.
+5. With a song playing, open **Create community**: the form's Create button can be scrolled clear of the bar.
+6. Offline (DevTools → Network → Offline): **Play here** reads "Offline", disabled.
+7. Sign out while playing: the player is gone on Welcome.
+
+Production, after the merge (the developer runs it, because `DATABASE_URL` is a secret): in `backend`, set `DATABASE_URL` to Neon's production direct string in your shell, then run `npm run backfill:bandcamp`. It prints one line per post id and a total. Then follow M1–M5 in the spec on the iPhone: they record what iOS does with the screen locked or in another app, which no test here can show.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/embeds src/services/linkMetadata.service src/ops/backfillBandcampIds src/utils/publicPost
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/linkOnlyPosts
+cd frontend && npx vitest run src/lib/embeds src/components/MiniPlayer src/components/TabLayout
+```
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

@@ -6,6 +6,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import {
   listAdminCommunities,
   listAdminUsers,
+  removeAdminCommunityPhoto,
   removeUserPhoto,
   type AdminCommunity,
   type AdminUser,
@@ -24,6 +25,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { TopBar } from '../components/ui/TopBar';
 import { useForbiddenEndsAdmin } from '../hooks/useForbiddenEndsAdmin';
 import { useRequest } from '../hooks/useRequest';
+import { isolate } from '../lib/bidi';
 import { memberCountLabel } from '../lib/communityCopy';
 import { formatDate } from '../lib/overviewCopy';
 import { streamingServiceLabel } from '../lib/streamingServices';
@@ -147,7 +149,7 @@ function UserRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`truncate font-medium ${user.displayName ? '' : 'text-muted'}`}>
-            {user.displayName ?? 'Not finished signing up'}
+            <bdi>{user.displayName ?? 'Not finished signing up'}</bdi>
           </span>
           {user.isAdmin && (
             <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-ink">
@@ -169,7 +171,11 @@ function UserRow({
         </Button>
       )}
       {removing && (
-        <RemovePhotoSheet user={user} onClose={() => setRemoving(false)} onRemoved={onChange} />
+        <RemovePhotoSheet
+          body={`Remove ${user.displayName ?? 'this user'}'s photo? They'll see their initials instead.`}
+          remove={async () => onChange(await removeUserPhoto(user.id))}
+          onClose={() => setRemoving(false)}
+        />
       )}
       {deleting && (
         <DeleteUserSheet user={user} onClose={() => setDeleting(false)} onDeleted={onDeleted} />
@@ -178,23 +184,25 @@ function UserRow({
   );
 }
 
-/** The admin removes a user's photo — docs/features/avatar-upload.md §5.2. */
+/**
+ * The admin removes a photo: a user's (avatar-upload.md §5.2) or a community's
+ * (community-photo.md §5.4).
+ */
 function RemovePhotoSheet({
-  user,
+  body,
+  remove,
   onClose,
-  onRemoved,
 }: {
-  user: AdminUser;
+  body: string;
+  remove: () => Promise<void>;
   onClose: () => void;
-  onRemoved: (user: AdminUser) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const name = user.displayName ?? 'this user';
 
-  async function remove() {
+  async function confirm() {
     setBusy(true);
     try {
-      onRemoved(await removeUserPhoto(user.id));
+      await remove();
       toast.success('Photo removed');
       onClose();
     } catch (caught) {
@@ -209,14 +217,12 @@ function RemovePhotoSheet({
   return (
     <Sheet title="Remove photo?" onClose={onClose} dismissible={!busy}>
       <div className="flex flex-col gap-4">
-        <p className="text-sm">
-          Remove {name}&apos;s photo? They&apos;ll see their initials instead.
-        </p>
+        <p className="text-sm">{body}</p>
         <div className="flex gap-3">
           <Button variant="secondary" disabled={busy} onClick={onClose} className="flex-1">
             Cancel
           </Button>
-          <Button busy={busy} onClick={() => void remove()} className="flex-1">
+          <Button busy={busy} onClick={() => void confirm()} className="flex-1">
             Remove photo
           </Button>
         </div>
@@ -228,6 +234,8 @@ function RemovePhotoSheet({
 export function AdminCommunities() {
   const communities = useRequest(listAdminCommunities);
   const forbidden = useForbiddenEndsAdmin(communities);
+  /** Rows changed here (a photo removed), by id, over the loaded list. */
+  const [changed, setChanged] = useState<Record<string, AdminCommunity>>({});
   /** Rows deleted here (admin-delete.md §5), hidden from the loaded list. */
   const [deleted, setDeleted] = useState<ReadonlySet<string>>(new Set());
 
@@ -254,7 +262,8 @@ export function AdminCommunities() {
         {shown.map((community) => (
           <CommunityRow
             key={community.id}
-            community={community}
+            community={changed[community.id] ?? community}
+            onChange={(updated) => setChanged((rows) => ({ ...rows, [updated.id]: updated }))}
             onDeleted={() => setDeleted((ids) => new Set(ids).add(community.id))}
           />
         ))}
@@ -265,21 +274,32 @@ export function AdminCommunities() {
 
 function CommunityRow({
   community,
+  onChange,
   onDeleted,
 }: {
   community: AdminCommunity;
+  onChange: (community: AdminCommunity) => void;
   onDeleted: () => void;
 }) {
+  const [removing, setRemoving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const owner = community.owner
-    ? `Owner: ${community.owner.displayName ?? 'Not finished signing up'}`
+    ? `Owner: ${community.owner.displayName ? isolate(community.owner.displayName) : 'Not finished signing up'}`
     : 'No owner';
 
   return (
     <li className={ROW}>
-      <Avatar id={community.id} name={community.name} size={40} decorative />
+      <Avatar
+        id={community.id}
+        name={community.name}
+        pictureUrl={community.photoUrl}
+        size={40}
+        decorative
+      />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{community.name}</p>
+        <p className="truncate font-medium">
+          <bdi>{community.name}</bdi>
+        </p>
         <p className="truncate text-xs text-muted">
           {[
             memberCountLabel(community.memberCount),
@@ -288,9 +308,21 @@ function CommunityRow({
           ].join(' · ')}
         </p>
       </div>
+      {community.photoUrl && (
+        <Button variant="secondary" onClick={() => setRemoving(true)} className="shrink-0 px-4">
+          Remove photo
+        </Button>
+      )}
       <Button variant="destructive" onClick={() => setDeleting(true)} className="shrink-0 px-4">
         Delete
       </Button>
+      {removing && (
+        <RemovePhotoSheet
+          body={`Remove ${isolate(community.name)}'s photo? Its members will see the generated cover instead.`}
+          remove={async () => onChange(await removeAdminCommunityPhoto(community.id))}
+          onClose={() => setRemoving(false)}
+        />
+      )}
       {deleting && (
         <DeleteCommunitySheet
           community={community}

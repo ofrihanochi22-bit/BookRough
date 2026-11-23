@@ -79,10 +79,18 @@ export function Community() {
       {ready && (
         <article className="flex flex-col gap-4">
           {/* The name on the label is the page's h1 (ui-redesign.md §5.2). */}
-          <CommunityCover id={ready.id} name={ready.name} variant="banner" label="h1" />
+          <CommunityCover
+            id={ready.id}
+            name={ready.name}
+            variant="banner"
+            label="h1"
+            photoUrl={ready.photoUrl}
+          />
           <div className="flex flex-col gap-2">
             {ready.description && (
-              <p className="whitespace-pre-line break-words text-sm">{ready.description}</p>
+              <p dir="auto" className="whitespace-pre-line break-words text-sm">
+                {ready.description}
+              </p>
             )}
             <p className="text-xs text-muted">{membershipLine(ready)}</p>
           </div>

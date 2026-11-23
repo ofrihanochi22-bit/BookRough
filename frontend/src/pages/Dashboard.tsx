@@ -55,7 +55,8 @@ function NotificationsBell() {
 
 /**
  * Communities Dashboard, the home screen — docs/features/communities-create.md
- * §6.4. Lists the communities the user belongs to, newest joined first. Layout
+ * §6.4. Lists the communities the user belongs to, alphabetically by name, in the
+ * server's order (manual-test-fixes-1122.md §4). Layout
  * per docs/features/ui-redesign.md §5.1: a two-row header
  * (the logo, Search and the bell; then the heading), cassette
  * cards, and a dashed Create tile ending the list instead of a floating button.
@@ -110,6 +111,7 @@ export function Dashboard() {
                     id={community.id}
                     name={community.name}
                     variant="card"
+                    photoUrl={community.photoUrl}
                     label="text"
                     detail={
                       <>
