@@ -3920,6 +3920,29 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/li
 cd frontend && npx vitest run src/lib/embeds src/components/MiniPlayer src/components/TabLayout
 ```
 
+### Step 6.1z13 — Pruning waits while production is held in checks (Phase 6, a fix to deployment pruning)
+
+Status: 🟡 PR open
+Branch: fix/prune-waits-for-promotion
+Spec: docs/features/prune-waits-for-promotion.md
+
+Goal: `prune-deployments` no longer turns `main` red when the newest production deployment is still waiting in Deployment Checks.
+
+What I did:
+
+- **Cause (spec §2):** on 2026-11-23 the post-merge runs of PR #90 and PR #104 both failed at `prune-deployments` with "not marked as promoted". The script takes the project's production target as live, and Vercel points that at the newest production deployment while its checks still hold it. #104's prune ran 3 s before its own promotion; #90's saw #104's deployment in checks. Both deleted nothing.
+- `backend/src/ops/pruneDeployments.ts`: `liveStatus` tells a held target (READY, production, not promoted, newer than every promoted deployment) from a listing that looks wrong, which still throws. `readPromotedLive` reads the target and the list up to 12 times, 10 s apart. Once it is promoted, the job plans and prunes as before. If it is still held, the job prints a `::warning::`, deletes nothing, posts no Overview snapshot, and exits 0.
+- `backend/src/ops/pruneDeployments.test.ts`: 11 new tests (`liveStatus`'s held and failing shapes, and the wait with a fake `sleep`).
+- `/code-review` (high): 5 nits; two fixed, three accepted (spec §9). No `/security-review`: no new input, secret, endpoint or permission; the same two Vercel reads.
+
+How to view & test:
+
+```bash
+cd backend && npx vitest run src/ops/pruneDeployments
+```
+
+After the merge (spec §8): M1, the merge's own `prune-deployments` is green, with "waiting in Deployment Checks" lines first if it ran before the promotion. M2, the four production deployments left by the two failed runs are pruned to two.
+
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
 Status: ✅ Done (post-merge checks S1–S5 in the spec)

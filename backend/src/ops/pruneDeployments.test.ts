@@ -9,10 +9,12 @@ import {
   describeEntry,
   failureDetail,
   listDeployments,
+  liveStatus,
   planDeploymentPrune,
   postSnapshot,
   readConfig,
   readLiveId,
+  readPromotedLive,
 } from './pruneDeployments.js';
 
 /* docs/features/deployment-pruning.md §7: every guard of the deployment prune. */
@@ -698,5 +700,176 @@ describe('postSnapshot', () => {
 
     // Assert
     expect(line).toBe('::warning::Posting the Overview snapshot failed (getaddrinfo ENOTFOUND).\n');
+  });
+});
+
+/* docs/features/prune-waits-for-promotion.md §8: production held in Deployment Checks. */
+describe('liveStatus', () => {
+  it('is promoted when the production target is promoted', () => {
+    // Arrange
+    const list = [deployment(2), deployment(1)];
+
+    // Act
+    const status = liveStatus(list, 'dpl_2');
+
+    // Assert
+    expect(status).toBe('promoted');
+  });
+
+  it('is held when the target is READY, production, unpromoted and newer than every promoted one', () => {
+    // Arrange
+    const list = [deployment(3, { promoted: false, substate: 'STAGED' }), deployment(2)];
+
+    // Act
+    const status = liveStatus(list, 'dpl_3');
+
+    // Assert
+    expect(status).toBe('held');
+  });
+
+  it('throws when no deployment in the list is promoted', () => {
+    // Arrange
+    const list = [deployment(2, { promoted: false }), deployment(1, { promoted: false })];
+
+    // Act
+    const act = () => liveStatus(list, 'dpl_2');
+
+    // Assert
+    expect(act).toThrow('No deployment in the list is marked as promoted; deleting nothing.');
+  });
+
+  it('throws when the unpromoted target is older than a promoted deployment', () => {
+    // Arrange
+    const list = [deployment(3), deployment(2, { promoted: false })];
+
+    // Act
+    const act = () => liveStatus(list, 'dpl_2');
+
+    // Assert
+    expect(act).toThrow('The live deployment dpl_2 is not marked as promoted in the list');
+  });
+
+  it.each([
+    ['not READY', { state: 'BUILDING' }],
+    ['not production', { target: null }],
+  ])('throws when the unpromoted target is %s', (_label, overrides) => {
+    // Arrange
+    const list = [deployment(3, { promoted: false, ...overrides }), deployment(2)];
+
+    // Act
+    const act = () => liveStatus(list, 'dpl_3');
+
+    // Assert
+    expect(act).toThrow('The live deployment dpl_3 is not marked as promoted in the list');
+  });
+
+  it('throws when the target is missing from the list', () => {
+    // Arrange
+    const list = [deployment(1)];
+
+    // Act
+    const act = () => liveStatus(list, 'dpl_9');
+
+    // Assert
+    expect(act).toThrow('The live deployment dpl_9 is not in the list; deleting nothing.');
+  });
+});
+
+describe('readPromotedLive', () => {
+  const config: Config = { token: 't', team: 'team', project: 'bookrough', deleting: true };
+  const fetchMock = vi.fn();
+  const sleep = vi.fn((_ms: number) => Promise.resolve());
+  const lines: string[] = [];
+  const wait = { attempts: 12, delayMs: 10_000, sleep, write: (line: string) => lines.push(line) };
+
+  const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body)));
+  const raw = (day: number, promoted: boolean) => ({
+    uid: `dpl_${day}`,
+    created: day * DAY,
+    readyState: 'READY',
+    target: 'production',
+    readySubstate: promoted ? 'PROMOTED' : 'STAGED',
+    aliasAssigned: promoted ? day * DAY + 1000 : null,
+    meta: { githubCommitSha: `sha${day}` },
+  });
+
+  /** Answers the project read with dpl_3 and the list with dpl_3 promoted from the given read on. */
+  function vercel(promotedFromRead: number) {
+    let lists = 0;
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/v9/projects/')) return json({ targets: { production: { id: 'dpl_3' } } });
+      lists += 1;
+      return json({ deployments: [raw(3, lists >= promotedFromRead), raw(2, true)] });
+    });
+  }
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    sleep.mockClear();
+    lines.length = 0;
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns at once when the target is already promoted', async () => {
+    // Arrange
+    vercel(1);
+
+    // Act
+    const read = await readPromotedLive(config, wait);
+
+    // Assert
+    expect(read?.liveId).toBe('dpl_3');
+    expect(sleep).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits while the target is held, and plans from the read that shows it promoted', async () => {
+    // Arrange
+    vercel(3);
+
+    // Act
+    const read = await readPromotedLive(config, wait);
+
+    // Assert
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(10_000);
+    expect(read?.deployments.find((d) => d.id === 'dpl_3')?.promoted).toBe(true);
+    expect(lines[0]).toContain('dpl_3 is waiting in Deployment Checks');
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+
+  it('gives up with a warning and null after the last attempt', async () => {
+    // Arrange
+    vercel(Infinity);
+
+    // Act
+    const read = await readPromotedLive(config, wait);
+
+    // Assert
+    expect(read).toBeNull();
+    expect(sleep).toHaveBeenCalledTimes(11);
+    expect(lines.at(-1)).toBe(
+      '::warning::Production deployment dpl_3 is still waiting in Deployment Checks; pruning nothing this run.\n',
+    );
+  });
+
+  it('throws without waiting when the listing looks wrong', async () => {
+    // Arrange
+    fetchMock.mockImplementation((url: string) =>
+      url.includes('/v9/projects/')
+        ? json({ targets: { production: { id: 'dpl_3' } } })
+        : json({ deployments: [raw(3, false), raw(2, false)] }),
+    );
+
+    // Act
+    const act = readPromotedLive(config, wait);
+
+    // Assert
+    await expect(act).rejects.toThrow('No deployment in the list is marked as promoted');
+    expect(sleep).not.toHaveBeenCalled();
   });
 });
