@@ -39,10 +39,11 @@ Stores the group details.
 - **name** (VARCHAR, Not Null): Name of the group.
 - **description** (TEXT, Nullable): Group bio or rules.
 - **invite_token** (VARCHAR(64), Unique, Nullable): the community's one invite link (UC-15). 128 random bits, base64url. Created the first time an Admin asks for the link; replaced when an Admin resets it, which kills the old link at once. No expiry. A secret: returned only to Admins, never logged, never in any other response.
+- **photo_updated_at** (TIMESTAMP, Nullable): when the community's photo was last uploaded; null means the generated cover. Written in one transaction with its `community_photos` row; it versions the photo's URL, `/api/communities/<id>/photo?v=<ms>` (`docs/features/community-photo.md` §3).
 - **created_at** (TIMESTAMP, Default Current Time).
 - **updated_at** (TIMESTAMP, updated automatically on every change).
 
-No cover image column: covers are always generated from the name and id (CLAUDE.md §8). Names are not unique — communities are found by invite, never by name.
+The cover is generated from the name and id, unless an admin uploaded a photo (`community_photos`, since 2026-11-22, `docs/features/community-photo.md`). Names are not unique — communities are found by invite, never by name.
 
 ### 3. community_members Table (Junction Table)
 
@@ -216,8 +217,16 @@ The community posts a user has checked (UC-20 amended, `docs/features/community-
 - **checked_at** (TIMESTAMP, Default Current Time): kept for debugging; never read by the app.
 - (Primary key on user_id and post_id, so checking twice is one row; indexed on post_id for the cascade.)
 
+### 18. community_photos Table
+
+A community's uploaded photo (UC-9 and UC-19 amended, `docs/features/community-photo.md` §3). One row at most per community; uploaded, replaced and removed by its admins, and removable by the site admin. Kept apart from `communities` so the bytes are never read with a community.
+
+- **community_id** (UUID, Primary Key, Foreign Key referencing communities(id), cascade on delete).
+- **image** (BYTEA, Not Null): the server's own re-encode, through the same pipeline as `user_avatars` — a 256×256 WebP of at most 100 KB, no metadata. The uploaded bytes are never stored.
+- **updated_at** (TIMESTAMP, Not Null): set on every upload, and copied into `communities.photo_updated_at` in the same transaction.
+
 > **The former table 8 (`password_resets`) has been removed.** It existed to hold recovery tokens emailed to users. With no passwords and no email addresses there is nothing to recover and nowhere to send a link, so the table, the endpoints, and the screens that used it are all withdrawn (UC-17).
 >
-> **The schema is seventeen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`.
+> **The schema is eighteen tables:** `users`, `communities`, `community_members`, `community_bans`, `friends`, `posts`, `ratings`, `bookmarks`, `app_settings`, `setting_changes`, `community_invitations`, `notifications`, `user_avatars`, `comments`, `ops_snapshots`, `daily_app_opens`, `community_post_checks`, `community_photos`.
 >
 > The administrative area's settings (`app_settings`, `setting_changes`) were designed in that feature's specification session - `docs/features/admin-panel.md`.

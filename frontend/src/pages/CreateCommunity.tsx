@@ -1,13 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
-import { createCommunity } from '../api/communities';
+import { createCommunity, uploadCommunityPhoto } from '../api/communities';
 import { listFriends } from '../api/friends';
 import { inviteFriends, type InviteCandidate } from '../api/invitations';
 import { CommunityDetailsFields } from '../components/CommunityDetailsFields';
 import { FriendPicker } from '../components/FriendPicker';
+import { PhotoPickerButton } from '../components/PhotoPickerButton';
 import { useCommunityDetailsForm } from '../hooks/useCommunityDetailsForm';
 import { Button } from '../components/ui/Button';
 import { CommunityCover } from '../components/ui/CommunityCover';
@@ -16,6 +17,7 @@ import { TopBar } from '../components/ui/TopBar';
 import { MIXTAPE_H1 } from '../components/ui/heading';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useRequest } from '../hooks/useRequest';
+import { AvatarImageError, prepareAvatar } from '../lib/avatarImage';
 import { cleanCommunityName } from '../lib/communityText';
 import { INVITES_NOT_SENT, MAX_SELECTED } from '../lib/invitationCopy';
 
@@ -25,12 +27,55 @@ async function loadCandidates(): Promise<InviteCandidate[]> {
   return friends.map((friend) => ({ user: friend.user, status: 'INVITABLE' }));
 }
 
+export const PHOTO_NOT_UPLOADED =
+  "Community created, but the photo couldn't be uploaded. Try again in Settings.";
+
+/** The chosen photo, already cropped and shrunk, and a local URL to preview it. */
+function usePickedPhoto() {
+  const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+
+  // Each preview URL is released when it is replaced, cleared or the form goes away.
+  useEffect(() => {
+    if (!photo) {
+      return;
+    }
+    return () => URL.revokeObjectURL(photo.url);
+  }, [photo]);
+
+  async function pick(file: File) {
+    setPreparing(true);
+    setError(null);
+    try {
+      const blob = await prepareAvatar(file);
+      setPhoto({ blob, url: URL.createObjectURL(blob) });
+    } catch (caught) {
+      setError(
+        caught instanceof AvatarImageError ? caught.message : 'That photo could not be read.',
+      );
+    } finally {
+      setPreparing(false);
+    }
+  }
+
+  return {
+    photo: photo?.blob ?? null,
+    previewUrl: photo?.url ?? null,
+    error,
+    preparing,
+    pick,
+    clear: () => setPhoto(null),
+  };
+}
+
 /**
  * Create Community — docs/features/communities-create.md §6.5 (UC-9). A
  * full-screen route rather than a modal, so the phone's back gesture works.
  * The friends picker invites after the community exists
  * (docs/features/invite-friends.md §5.2), so an invitation failure never
- * loses the community.
+ * loses the community. So does the optional photo (community-photo.md §5.3):
+ * it is uploaded after the community exists, and a failure only toasts.
  */
 export function CreateCommunity() {
   const navigate = useNavigate();
@@ -40,6 +85,7 @@ export function CreateCommunity() {
   const [formError, setFormError] = useState<string | null>(null);
   const friends = useRequest(loadCandidates);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const picked = usePickedPhoto();
 
   function toggle(userId: string) {
     setSelected((current) => {
@@ -53,7 +99,7 @@ export function CreateCommunity() {
     });
   }
 
-  const canSubmit = form.values !== null && online && !saving;
+  const canSubmit = form.values !== null && online && !saving && !picked.preparing;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -66,6 +112,13 @@ export function CreateCommunity() {
     setFormError(null);
     try {
       const community = await createCommunity(form.values);
+      if (picked.photo) {
+        try {
+          await uploadCommunityPhoto(community.id, picked.photo);
+        } catch {
+          toast.error(PHOTO_NOT_UPLOADED);
+        }
+      }
       if (selected.size > 0) {
         try {
           await inviteFriends(community.id, [...selected]);
@@ -108,10 +161,38 @@ export function CreateCommunity() {
         )}
 
         <div className="flex flex-col gap-2">
-          <CommunityCover id={null} name={cleanCommunityName(form.name)} variant="banner" />
+          <CommunityCover
+            id={null}
+            name={cleanCommunityName(form.name)}
+            variant="banner"
+            photoUrl={picked.previewUrl}
+          />
           <p className="text-xs text-muted">
             Your cover&apos;s colour is picked when the community is created.
           </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <PhotoPickerButton
+              label={
+                picked.preparing
+                  ? 'Preparing…'
+                  : picked.photo
+                    ? 'Change photo'
+                    : 'Add a photo (optional)'
+              }
+              disabled={saving || picked.preparing}
+              onPick={(file) => void picked.pick(file)}
+            />
+            {picked.photo && (
+              <Button variant="secondary" disabled={saving} onClick={picked.clear}>
+                Remove
+              </Button>
+            )}
+          </div>
+          {picked.error && (
+            <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+              {picked.error}
+            </p>
+          )}
         </div>
 
         <CommunityDetailsFields form={form} onEdit={() => setFormError(null)} />

@@ -3722,7 +3722,7 @@ cd frontend && npx vitest run src/pages/Recommendations src/pages/PostDetail src
 
 ### Step 6.1z10 — Archive received recommendations, D2 (Phase 6 — UC-20 amended)
 
-Status: 🟡 In progress (PR open, waiting for the developer's word to merge)
+Status: ✅ Done (merged as PR #96)
 Branch: feat/archive-recommendations
 Spec: docs/features/archive-recommendations.md
 
@@ -3767,6 +3767,60 @@ Tests:
 cd backend && npx vitest run src/services/recommendation.service
 cd backend && npx vitest run --config vitest.integration.config.ts src/routes/recommendations src/routes/linkOnlyPosts
 cd frontend && npx vitest run src/pages/Recommendations src/components/PostCard src/api/recommendations src/api/invalidation
+```
+
+### Step 6.1z11 — A photo for a community, D5 (Phase 6 — UC-9 and UC-19 amended)
+
+Status: ✅ Done (merged as PR #98)
+Branch: feat/community-photo
+Spec: docs/features/community-photo.md
+
+Goal: until now a community's cover was always the generated cassette (parked idea D5, manual test of 2026-11-22). Now its admins — the owner included — can give it a photo, on Create Community or later in Community Settings, and the site admin can remove one. This reverses "community covers stay generated" (CLAUDE.md §2, §8) on 2026-11-22. It was built while D2 was still open, a deliberate exception to "one feature at a time" (CLAUDE.md §15).
+
+What I did:
+
+- **Schema:** migration `add_community_photos` — the table `community_photos` (one row per community: the 256×256 WebP and `updated_at`, cascading with the community) and the column `communities.photo_updated_at`. Clients see `photoUrl = /api/communities/<id>/photo?v=<ms>`, built from that column, so no serializer needs a join and every upload busts caches.
+- **Shared pipeline:** the avatar's re-encode moved to `services/squareImage.ts` (`processSquareImage`) and its raw body parser to `middleware/imageBody.ts`, so both uploads go through one audited path, unchanged.
+- **Backend** (`services/communityPhoto.service.ts`, `controllers/communityPhoto.controller.ts`):
+  - `PUT /api/communities/:id/photo`: admins and the owner (`requireAdmin`, "Only admins can change the photo."), tier-3 rate limit. The row and the timestamp are written in one transaction, and a community deleted mid-upload is `404`. Errors `401`, `403`, `404`, `413`, `415`, `422`, `429`.
+  - `DELETE /api/communities/:id/photo`: idempotent, the same check.
+  - `GET /api/communities/:id/photo`: any signed-in user (D3), `image/webp`, cached immutably.
+  - `DELETE /api/admin/communities/:communityId/photo`: `requireAppAdmin`, returns the refreshed admin row, logged only when there was a photo.
+  - `photoUrl` added field by field to `PublicCommunity`, the invitations list, the invite preview and `AdminCommunity`.
+- **Frontend:**
+  - `CommunityCover`: an optional `photoUrl` takes the reel window's place (thumb, card, banner), and falls back to the reels if the image fails (a signed-out `401` included). Every caller passes it.
+  - Community Settings: a **Photo** section for admins (`CommunityPhotoSection`) — Upload a photo / Replace photo ("Uploading…", "Photo updated"), Remove photo behind a sheet, inline errors, disabled offline.
+  - Create Community: **Add a photo (optional)** previews in the cover, with Change photo and Remove. It is uploaded after the community exists; a failed upload still lands on the community with "Community created, but the photo couldn't be uploaded. Try again in Settings."
+  - Admin → Communities: the row shows the photo, and **Remove photo** sits beside Delete, behind a sheet. The user and community rows share one `RemovePhotoSheet`.
+  - `PhotoPickerButton` is shared by My Profile, Settings and Create.
+- **Docs:** `CLAUDE.md` §2, §6 (eighteen tables), §8, §9 and §17; `tables`, `frontend screens`, `use cases` (UC-9, UC-19) and `tech stack` (`sharp`), each `.md` and `.docx`; amendment notes in `communities-create.md`, `communities-membership.md`, `admin-panel.md` and `avatar-upload.md`; `production-hardening.md` §3.1's rate-limit table.
+- **`/code-review` (medium), 4 findings, all fixed:** `prisma format` had realigned unrelated models (reverted, to avoid conflicts with D2); a stale "covers are always generated" schema comment; the admin removal logged even with no photo; the admin row copied its props into state once (now lifted into the list, as the users list does).
+- **`/security-review`:** clean. Upload and removal sit behind `requireAdmin` before the image is read, the admin route behind `requireAppAdmin`, only `sharp`'s own WebP is stored and it is served with a fixed `image/webp` type, ids are UUID-checked, no raw SQL, and the serializers add `photoUrl` only.
+
+How to view & test:
+
+```bash
+cd backend && npx prisma migrate dev
+cd backend && npm run dev
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` at 375px width, signed in as a community's owner or admin:
+
+1. **New community:** press **Add a photo (optional)** and pick a JPEG or PNG. It shows in the cover preview in place of the reels. Name it and press **Create**: the community's banner shows the photo.
+2. **Home** and the **share sheet** show the photo in the community's cassette.
+3. **Settings → Photo:** **Replace photo** with another picture ("Uploading…", then "Photo updated"). Then **Remove photo** → confirm: the generated cassette is back.
+4. As a plain member, Settings has no Photo section.
+5. Invite a friend: their **Friends → Invitations** row shows the photo. A signed-out invite link shows the generated cover.
+6. As the site admin, **Admin → Communities**: the row shows the photo; **Remove photo** → confirm → "Photo removed".
+7. Offline, Settings' photo buttons are disabled.
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/communityPhoto.service src/services/squareImage src/services/avatar.service src/utils
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/communityPhoto src/routes/avatar src/routes/communities src/routes/invites src/routes/invitations
+cd frontend && npx vitest run src/components/CommunityPhotoSection src/components/ui/CommunityCover src/pages/CreateCommunity src/pages/CommunitySettings src/pages/Admin src/api/invalidation
 ```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)

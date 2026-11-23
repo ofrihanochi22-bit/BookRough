@@ -111,6 +111,7 @@ export function Dashboard() {
                     id={community.id}
                     name={community.name}
                     variant="card"
+                    photoUrl={community.photoUrl}
                     label="text"
                     detail={
                       <>

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { chooseGooglePhoto, updateProfile, uploadAvatar, type ProfileUpdate } from '../api/users';
 import { DisplayNameField } from '../components/DisplayNameField';
 import { GoogleCredentialButton } from '../components/GoogleCredentialButton';
+import { PhotoPickerButton } from '../components/PhotoPickerButton';
 import { SignOutButton } from '../components/SignOutSheet';
 import { Walkthrough } from '../components/Walkthrough';
 import { StreamingServicePicker } from '../components/StreamingServicePicker';
@@ -252,27 +253,11 @@ function AvatarSection({ user, offline, saving, busy, onBusyChange }: AvatarSect
         />
       </span>
 
-      <label
-        className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border-[1.5px] border-line px-6 text-sm font-semibold text-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-          locked ? 'pointer-events-none border-dashed opacity-60' : ''
-        }`}
-      >
-        {uploading ? 'Uploading…' : 'Upload a photo'}
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-          className="sr-only"
-          disabled={offline || saving || busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            // Cleared, so choosing the same file again still uploads.
-            event.target.value = '';
-            if (file) {
-              void upload(file);
-            }
-          }}
-        />
-      </label>
+      <PhotoPickerButton
+        label={uploading ? 'Uploading…' : 'Upload a photo'}
+        disabled={locked}
+        onPick={(file) => void upload(file)}
+      />
 
       {usingPhoto ? (
         <>

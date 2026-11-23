@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `community-photo.md` (D5, 2026-11-22).** Community Settings has a Photo section for admins and the owner: upload, replace or remove the community's photo (`PUT` / `DELETE /api/communities/:id/photo`, the same `requireAdmin` check as editing the details).
+
 > **Amended by `role-notifications.md` (N5, 2026-11-08).** Making a member an Admin, and transferring ownership, now notify that member in the notification center. A demotion and a removal stay silent.
 
 ## 1. Goal

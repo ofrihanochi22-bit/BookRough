@@ -12,6 +12,8 @@
 
 ---
 
+> **Amended by `community-photo.md` (D5, 2026-11-22).** §3's "A later upload feature re-adds it" happened as a separate table, `community_photos`, plus `communities.photo_updated_at`. The create form has an optional photo, uploaded after the community exists; the cover shows it in place of the reels.
+
 > **Amended by `notifications.md` (UC-21, 2026-11-08).** The Dashboard header holds a notifications bell beside Sign out, and the Home tab carries a badge with the unread count (§6.3, §6.4).
 
 ## 0. How Phase 2 was re-sliced

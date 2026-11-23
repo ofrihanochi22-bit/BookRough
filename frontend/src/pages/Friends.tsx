@@ -276,6 +276,7 @@ export function Friends() {
                         id={invitation.community.id}
                         name={invitation.community.name}
                         variant="thumb"
+                        photoUrl={invitation.community.photoUrl}
                       />
                     </div>
                     <div className="min-w-0 flex-1">

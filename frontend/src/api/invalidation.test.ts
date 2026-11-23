@@ -2,12 +2,17 @@ import { AxiosError, AxiosHeaders, type AxiosAdapter } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cacheSequence, getCached, setCached } from '../lib/requestCache';
-import { deleteAdminCommunity, deleteAdminUser, removeUserPhoto } from './admin';
+import {
+  deleteAdminCommunity,
+  deleteAdminUser,
+  removeAdminCommunityPhoto,
+  removeUserPhoto,
+} from './admin';
 import { logout, signInWithGoogle } from './auth';
 import { removeBookmark, saveBookmark } from './bookmarks';
 import { api } from './client';
 import { addComment, deleteComment, editComment } from './comments';
-import { createCommunity } from './communities';
+import { createCommunity, removeCommunityPhoto, uploadCommunityPhoto } from './communities';
 import {
   acceptFriendRequest,
   cancelFriendRequest,
@@ -141,6 +146,10 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   // An admin's delete may touch any list (admin-delete.md): every key goes.
   ['deleteAdminUser', () => deleteAdminUser('u2'), UNIVERSE],
   ['deleteAdminCommunity', () => deleteAdminCommunity('c2'), UNIVERSE],
+  // A community's photo shows wherever its cover does (community-photo.md §5.1).
+  ['removeAdminCommunityPhoto', () => removeAdminCommunityPhoto('c1'), COMMUNITY],
+  ['uploadCommunityPhoto', () => uploadCommunityPhoto('c1', new Blob()), COMMUNITY],
+  ['removeCommunityPhoto', () => removeCommunityPhoto('c1'), COMMUNITY],
   ['saveBookmark', () => saveBookmark('p1'), BOOKMARK],
   ['removeBookmark', () => removeBookmark('p1'), BOOKMARK],
   [
