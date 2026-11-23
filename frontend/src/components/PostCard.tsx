@@ -11,6 +11,7 @@ import { noLongerFriends } from '../lib/recommendationCopy';
 import { BookmarkButton } from './BookmarkButton';
 import { EditCommentSheet } from './EditCommentSheet';
 import { ExternalLink } from './ExternalLink';
+import { PlayHereButton } from './PlayHereButton';
 import { PersonLink } from './PersonLink';
 import { TryAgainChip } from './TryAgainChip';
 import { DeletePostSheet, OtherServicesSheet, type PostCardProps } from './postCardParts';
@@ -340,6 +341,7 @@ export function PostCard({
         >
           {main.text}
         </ExternalLink>
+        <PlayHereButton post={post} />
         {!post.conversionPending && !post.platform && (
           <button type="button" className={CHIP} onClick={() => setShowingLinks(true)}>
             Other services

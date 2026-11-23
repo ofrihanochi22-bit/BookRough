@@ -613,3 +613,140 @@ describe('the hand-written CHECKs', () => {
     ).rejects.toThrow(/posts_link_only_unconverted/);
   });
 });
+
+/* The in-app player's embed address — docs/features/in-app-player.md §4, §7. */
+const BANDCAMP_EMBED =
+  'https://bandcamp.com/EmbeddedPlayer/album=1836174753/size=large/tracklist=false/artwork=small/transparent=true/';
+
+/** Bandcamp's page with its `bc-page-properties` tag, as the live page has it. */
+function bandcampWithId(input: string | URL | Request): Promise<Response> {
+  const url = new URL(typeof input === 'string' ? input : input.toString());
+  if (url.hostname.endsWith('.bandcamp.com')) {
+    return Promise.resolve(
+      new Response(
+        '<meta property="og:title" content="A LA SALA, by Khruangbin">' +
+          '<meta name="bc-page-properties" content="{&quot;item_type&quot;:&quot;a&quot;,&quot;item_id&quot;:1836174753}">',
+        { headers: { 'content-type': 'text/html; charset=UTF-8' } },
+      ),
+    );
+  }
+  return platforms(input);
+}
+
+describe.each(TARGETS)('the player embed, as a %s', (target) => {
+  it('201: a Bandcamp post stores its item id and comes back with its player', async () => {
+    // Arrange
+    const w = await world();
+    fetchMock.mockImplementation(bandcampWithId);
+
+    // Act
+    const response = await share(w, target, { url: BANDCAMP });
+
+    // Assert
+    expect(response.status).toBe(201);
+    expect(response.body.data.post.embed).toEqual({ platform: 'BANDCAMP', url: BANDCAMP_EMBED });
+    expect(response.body.data.post).not.toHaveProperty('bandcampItemId');
+    const row = await prisma.post.findFirstOrThrow();
+    expect(row.bandcampItemId).toBe('1836174753');
+  });
+
+  it('201: a Bandcamp page without the id saves the post with no player', async () => {
+    // Arrange
+    const w = await world();
+
+    // Act
+    const response = await share(w, target, { url: BANDCAMP });
+
+    // Assert
+    expect(response.status).toBe(201);
+    expect(response.body.data.post).toMatchObject({ title: 'A LA SALA', embed: null });
+    const row = await prisma.post.findFirstOrThrow();
+    expect(row.bandcampItemId).toBeNull();
+  });
+});
+
+describe('the player embed in a feed', () => {
+  it('200: SoundCloud and YouTube posts carry their player, a converted post none', async () => {
+    // Arrange
+    const w = await world();
+    convertLink.mockResolvedValueOnce(YOUTUBE_ONLY);
+    await share(w, 'community post', { url: VIDEO });
+    await share(w, 'community post', { url: SOUNDCLOUD });
+    await share(w, 'community post', { url: SPOTIFY });
+
+    // Act
+    const response = await request(app)
+      .get(`/api/communities/${w.communityId}/posts`)
+      .set('Cookie', w.noam.cookie);
+
+    // Assert
+    expect(response.status).toBe(200);
+    const embeds = Object.fromEntries(
+      (response.body.data.posts as Array<{ originalUrl: string; embed: unknown }>).map((post) => [
+        post.originalUrl,
+        post.embed,
+      ]),
+    );
+    expect(embeds).toEqual({
+      [VIDEO]: {
+        platform: 'YOUTUBE',
+        url: 'https://www.youtube-nocookie.com/embed/bVwSZQPjRYE?playsinline=1&autoplay=1',
+      },
+      [SOUNDCLOUD]: {
+        platform: 'SOUNDCLOUD',
+        url: 'https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fforss%2Fflickermood&auto_play=true&visual=false&show_comments=false',
+      },
+      [SPOTIFY]: null,
+    });
+  });
+
+  it('401: the feed still needs a session', async () => {
+    // Arrange
+    const w = await world();
+
+    // Act
+    const response = await request(app).get(`/api/communities/${w.communityId}/posts`);
+
+    // Assert
+    expect(response.status).toBe(401);
+  });
+});
+
+describe('posts_bandcamp_item_id_shape (hand-written CHECK)', () => {
+  /** Straight to the database, past every check of ours: only the CHECK is left. */
+  async function insert(data: Record<string, unknown>) {
+    const w = await world();
+    return prisma.post.create({
+      data: {
+        authorId: w.dana.id,
+        communityId: w.communityId,
+        ...(data as { originalUrl: string }),
+      },
+    });
+  }
+
+  it('accepts digits on a Bandcamp post', async () => {
+    // Act
+    const row = await insert({
+      originalUrl: BANDCAMP,
+      linkPlatform: 'BANDCAMP',
+      kind: 'ALBUM',
+      bandcampItemId: '1836174753',
+    });
+
+    // Assert
+    expect(row.bandcampItemId).toBe('1836174753');
+  });
+
+  it.each([
+    ['an id on a SoundCloud post', { originalUrl: SOUNDCLOUD, linkPlatform: 'SOUNDCLOUD' }, '42'],
+    ['an id on a converted post', { originalUrl: SPOTIFY, sourceService: 'SPOTIFY' }, '42'],
+    ['an id that is not digits', { originalUrl: BANDCAMP, linkPlatform: 'BANDCAMP' }, '12a'],
+    ['an id with a leading zero', { originalUrl: BANDCAMP, linkPlatform: 'BANDCAMP' }, '042'],
+  ])('refuses %s', async (_case, data, bandcampItemId) => {
+    // Act & Assert
+    await expect(insert({ ...data, bandcampItemId })).rejects.toThrow(
+      /posts_bandcamp_item_id_shape/,
+    );
+  });
+});

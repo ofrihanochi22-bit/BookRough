@@ -214,6 +214,10 @@ model Post {
   /// Set on a link-only post, which is never converted. Exactly one of this
   /// and `sourceService` is set (`posts_one_source`, hand-written).
   linkPlatform         LinkPlatform?     @map("link_platform")
+  /// Bandcamp's numeric album or track id, for its embedded player. Only on a
+  /// Bandcamp post (`posts_bandcamp_item_id_shape`, hand-written). Never
+  /// serialised: it reaches clients only as `embed.url` (in-app-player.md §3).
+  bandcampItemId       String?           @map("bandcamp_item_id") @db.VarChar(20)
   kind                 PostKind?
   songTitle            String?           @map("song_title") @db.VarChar(300)
   songArtist           String?           @map("song_artist") @db.VarChar(300)

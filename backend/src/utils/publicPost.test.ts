@@ -14,6 +14,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
     sourceService: 'SPOTIFY',
     linkPlatform: null,
+    bandcampItemId: null,
     kind: 'TRACK',
     songTitle: 'Bohemian Rhapsody',
     songArtist: 'Queen',
@@ -54,6 +55,7 @@ describe('toPublicPost', () => {
         'coverArtUrl',
         'createdAt',
         'direct',
+        'embed',
         'id',
         'isBookmarked',
         'isMine',
@@ -81,6 +83,38 @@ describe('toPublicPost', () => {
       APPLE_MUSIC: 'https://music.apple.com/us/album/x/1?i=2',
       DEEZER: 'https://www.deezer.com/track/1',
     });
+  });
+
+  it('sends a Bandcamp id only inside the embed address (in-app-player.md §4)', () => {
+    // Arrange
+    const bandcamp = post({
+      originalUrl: 'https://khruangbin.bandcamp.com/album/a-la-sala',
+      sourceService: null,
+      linkPlatform: 'BANDCAMP',
+      kind: 'ALBUM',
+      bandcampItemId: '1836174753',
+      universalLinkSpotify: null,
+      universalLinkApple: null,
+      universalLinkDeezer: null,
+    });
+
+    // Act
+    const view = toPublicPost(bandcamp, 'viewer-1', false, NO_RATINGS);
+
+    // Assert
+    expect(view.embed).toEqual({
+      platform: 'BANDCAMP',
+      url: 'https://bandcamp.com/EmbeddedPlayer/album=1836174753/size=large/tracklist=false/artwork=small/transparent=true/',
+    });
+    expect(view).not.toHaveProperty('bandcampItemId');
+  });
+
+  it('sends no embed for a converted post', () => {
+    // Act
+    const view = toPublicPost(post(), 'viewer-1', false, NO_RATINGS);
+
+    // Assert
+    expect(view.embed).toBeNull();
   });
 
   it('marks the post as mine only for its author', () => {

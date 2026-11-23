@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useFriendRequests } from '../stores/friendRequests';
 import { useNotifications } from '../stores/notifications';
+import { usePlayer } from '../stores/player';
 
 import { AnnouncementBanner } from './AnnouncementBanner';
 import { BottomNav } from './BottomNav';
@@ -20,6 +21,14 @@ export function TabLayout() {
   // Once per account, over the first tab screen reached after onboarding
   // (onboarding-tutorial.md §5.1). Closing it clears the flag in the store.
   const showWalkthrough = useAuthStore((state) => state.tutorial.walkthrough);
+  const playerSpace = usePlayer((state) => (state.current ? state.space : 0));
+  const setAboveTabBar = usePlayer((state) => state.setAboveTabBar);
+
+  // The docked player sits above the tab bar while one is shown (in-app-player.md §5.2).
+  useEffect(() => {
+    setAboveTabBar(true);
+    return () => setAboveTabBar(false);
+  }, [setAboveTabBar]);
 
   // The Friends and Home badges: on app load and every navigation
   // (friend-requests.md §5.1, notifications.md §5.2).
@@ -29,7 +38,12 @@ export function TabLayout() {
   }, [pathname, refresh, refreshNotifications]);
 
   return (
-    <div className="min-h-full pb-20">
+    <div
+      className="min-h-full pb-20"
+      // Room for the open player, measured from the viewport's bottom edge so it
+      // already counts the tab bar and the safe area: it hides nothing.
+      style={playerSpace ? { paddingBottom: `calc(${playerSpace}px + 0.5rem)` } : undefined}
+    >
       <AnnouncementBanner />
       <Outlet />
       <BottomNav />
