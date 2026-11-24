@@ -13,7 +13,7 @@ export const WINDOW_MS = 5_000;
 
 /** Long enough to see how late a late answer is, rather than cutting it off. */
 export const CLIENT_TIMEOUT_MS = 30_000;
-/** Mirrors CONVERSION_CEILING_MS in src/services/linkScraper.service.ts (CLAUDE.md §7). */
+/** Mirrors CONVERSION_CEILING_MS in src/services/requestDeadline.ts (CLAUDE.md §7). */
 export const CEILING_MS = 12_000;
 /** The request, the database insert and the response on top of the conversion. */
 export const CEILING_MARGIN_MS = 1_000;

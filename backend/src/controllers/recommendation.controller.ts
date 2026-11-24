@@ -19,6 +19,7 @@ import {
   sendRecommendation,
   unarchiveRecommendation,
 } from '../services/recommendation.service.js';
+import { requestDeadline } from '../services/requestDeadline.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
 import { parsePostId } from './post.controller.js';
@@ -36,9 +37,10 @@ const listQuerySchema = z.object({ before: z.string().max(200).optional() }).str
 
 /** POST /api/recommendations — UC-20; friends only; waits for the conversion. */
 export const send: RequestHandler = async (req, res, next) => {
+  const deadline = requestDeadline();
   try {
     const input = parseBody(sendSchema, req.body);
-    const post = await sendRecommendation(sessionUser(req), input);
+    const post = await sendRecommendation(sessionUser(req), input, deadline);
     res.status(201).json(success({ post }));
   } catch (error) {
     next(error);

@@ -46,6 +46,8 @@ export interface PublicPost {
   /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */
   commentEditedAt: string | null;
   conversionPending: boolean;
+  /** Automatic attempts the sender's app has left; 0 unless pending (conversion-auto-retry.md §4.3). */
+  autoRetriesLeft: number;
   createdAt: string;
   /** The viewer saved it to Listen Later (bookmarks-my-list.md §4). */
   isBookmarked: boolean;
@@ -110,14 +112,25 @@ export async function editPostComment(postId: string, comment: string | null): P
   return response.data.data.post;
 }
 
-export async function retryConversion(postId: string): Promise<PublicPost> {
+/**
+ * Try again (conversion-retry.md §4). `automatic` is the sender's app retrying
+ * on its own (conversion-auto-retry.md §4.4): it never shows a toast either.
+ */
+export async function retryConversion(
+  postId: string,
+  options: { automatic?: boolean } = {},
+): Promise<PublicPost> {
   const response = await api.post<SuccessBody<{ post: PublicPost }>>(
     `/posts/${encodeURIComponent(postId)}/conversion`,
-    undefined,
+    options.automatic ? { automatic: true } : undefined,
     { skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS },
   );
-  invalidate([K.post(postId), P.feed, P.profile, P.profileRatings, K.myList, P.recs]);
-  return response.data.data.post;
+  const post = response.data.data.post;
+  // An automatic attempt that found nothing changes no list worth reloading.
+  if (!options.automatic || !post.conversionPending) {
+    invalidate([K.post(postId), P.feed, P.profile, P.profileRatings, K.myList, P.recs]);
+  }
+  return post;
 }
 
 /** The confirmation sheet shows its own outcome, so no toast. */

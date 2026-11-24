@@ -4006,15 +4006,72 @@ cd backend && npx vitest run scripts/load-test
 
 ### Step 6.1z16 — Automatic conversion retry and a whole-request ceiling (Phase 6 — UC-11 and UC-20 amended)
 
-Status: 🟡 In progress (spec approved 2026-11-24; implementation not started)
+Status: 🟡 PR open (load test re-run 2026-11-24: passed, every answer within 12 s, the slowest 11.0 s)
 Branch: feat/conversion-auto-retry
 Spec: docs/features/conversion-auto-retry.md
 
 Goal: the load test (Step 6.1z15) showed that from 20 sends in 5 s only 2–4 convert, and 10 of 150 answers took over 13 s. After this step, a send that finds the converter's queue full is saved at once with a "server is busy" notice. The sender's app retries their pending posts 4 times over about 8 minutes, capped per post on the server. Every send and retry answers within 12 s of the request.
 
-What I did: not yet. The spec is approved; implementation starts in a fresh conversation (one conversation per feature).
+What I did:
 
-How to view & test: to be filled in when the step is done.
+- **Database:** `posts.auto_retry_count` (INTEGER, default 0), with the hand-written CHECK `posts_auto_retry_count_range` (0–4) in the migration `add_post_auto_retry_count`. `docs/tables.md` and `docs/tables.docx` both gained the column, and CLAUDE.md §6 gained one line.
+- **The request deadline** (spec §4.2): the new `backend/src/services/requestDeadline.ts` holds `CONVERSION_CEILING_MS`, `WRITE_RESERVE_MS` (1.5 s) and `requestDeadline()`. The three controllers that convert (`create` for community posts, the recommendation `send` and `retry`) take the deadline as their first line and pass it through `createPost` / `sendRecommendation` → `prepareSharedLink`, and through `retryConversion`. The converter and the Bandcamp, SoundCloud and YouTube metadata fetches stop 1.5 s before the deadline, leaving that time for the write.
+- **The busy rule** (spec §4.1), in `linkScraper.service.ts`: `convertLink(url, service, deadline)` answers `{ outcome: 'unavailable', reason: 'busy' }` at once, with no browser, when `BUSY_QUEUE_LENGTH` (2) conversions are already waiting behind the 2 running. The post is then saved pending. The count is kept as each call arrives, not read from `p-limit`'s `pendingCount`, which fills a microtask later: calls arriving in the same tick would all have seen an empty queue (found in Stage 4, and recorded in the spec).
+- **`POST /api/posts/:postId/conversion`** takes an optional body, `{ automatic?: boolean }` (strict Zod; a bad body is a 422, like every other body — the spec said 400 and was corrected). `parseRetryBody` runs before the rate limiter, so an automatic attempt skips the `conversion` tier. An automatic attempt is for the author only (403 "Only the sender's app retries automatically."). It claims one of the post's 4 attempts with a conditional `updateMany`, so the cap holds even on two instances (429 "No automatic attempts left for this post."). It is single-flight per post on each instance (409). A manual Try again is unchanged and never touches the count.
+- **`PublicPost.autoRetriesLeft`**: `4 − auto_retry_count` while pending, 0 otherwise.
+- **Frontend:**
+  - `lib/autoRetry.ts` holds the schedule (15 s, 45 s, 2 min and 5 min from the post's `createdAt`, plus up to 3 s of jitter, keeping the spacing after a late attempt) and the notice rule.
+  - `stores/autoRetry.ts` is the Zustand store and the app-level runner. It runs one attempt at a time, in due order, and pauses while offline, hidden or unconfirmed. It drops the post on 404, 409 or 429, and spends the slot only on this side after a network error or 5xx. Sign-out clears it.
+  - `components/AutoRetryRunner.tsx` mounts the runner in `App` beside the player.
+  - A post registers when the composer or the Send sheet gets it back, or when a `PostCard` or `SavedPostCard` shows the viewer's own pending post. Cards take the runner's newer answers through the existing `onUpdated` path.
+  - `useRetryConversion` shows `STILL_LOOKING_NOTICE` ("The server is busy. Still looking for this on other services…") on a pending post with attempts left, saved under 10 minutes ago, to every viewer. Try again stays.
+  - `retryConversion(postId, { automatic })` invalidates the list caches only once an automatic attempt has converted the post.
+- **Docs:** the spec, `docs/features/conversion-retry.md`'s out-of-scope line, and CLAUDE.md §6 and §7.
+- **`/code-review` (high)**, 5 findings:
+  - Fixed: the spec's 400 → 422; CLAUDE.md §7 now names the busy rule; automatic attempts no longer invalidate caches when nothing changed.
+  - Done in Stage 4: the tests that didn't compile against the new signatures.
+  - Accepted: the "still looking" line is decided at render time, so a card left open past 10 minutes keeps it until it re-renders.
+- **`/security-review`**: no findings. The author check runs after the existing access check, so a post the caller can't see is still a 404. The flag that skips the tier is validated by Zod and bounded by the per-post cap. There is no raw SQL, and no new field reaches anyone.
+- **Load test** (spec §7, "Load test"): re-run on 2026-11-24 and passed (spec §7.1). Every answer came within 12 s (the slowest took 11.0 s, against 13.3 s before), with no failures and no lost posts. The median answer fell to 0.4–1.3 s, because a busy send is saved at once. squigly was slow that day (7–9 s per conversion), so 2 posts converted per round at send time and the 2 waiting attempts timed out. `BUSY_QUEUE_LENGTH` stays 2: the first run, when squigly was faster, converted waiting attempts. The app's automatic attempts, which the load test doesn't run, convert the rest afterwards.
+
+How to view & test:
+
+```bash
+docker compose up -d
+```
+
+```bash
+cd backend && npx prisma migrate dev && npm run dev
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173/` and sign in. The converter is only busy under real load, so to see the flow by hand, make a post pending and watch the app retry it:
+
+1. In a community, post `https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv` with the network throttled, or with the backend's internet cut, so the conversion times out. The card says "The server is busy. Still looking for this on other services…".
+2. Restore the connection. Within about 15 s the app retries on its own, with no spinner and no toast, and the card turns into the converted song. DevTools → Network shows `POST /api/posts/<id>/conversion` with `{"automatic":true}`.
+3. In Prisma Studio (`cd backend && npx prisma studio`), the post's `auto_retry_count` is 1.
+4. Sign in as another member on a second browser: the same pending post shows the same line and Try again, but that browser never sends an automatic request.
+
+```bash
+cd backend && npm run load-test
+```
+
+Tests:
+
+```bash
+cd backend && npx vitest run src/services/linkScraper.service src/services/post.service src/utils/publicPost
+```
+
+```bash
+cd backend && npx vitest run --config vitest.integration.config.ts src/routes/posts src/routes/recommendations src/routes/rateLimits
+```
+
+```bash
+cd frontend && npx vitest run src/stores/autoRetry src/lib/autoRetry src/components/PostCard src/api
+```
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 

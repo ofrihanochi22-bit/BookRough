@@ -27,6 +27,7 @@ function post(overrides: Partial<Post> = {}): PostWithAuthor {
     textComment: 'A classic',
     commentEditedAt: null,
     conversionPending: false,
+    autoRetryCount: 0,
     createdAt: new Date('2026-10-04T10:00:00.000Z'),
     updatedAt: new Date('2026-10-04T10:00:00.000Z'),
     author: { id: 'author-1', displayName: 'Dana', profilePictureUrl: null },
@@ -52,6 +53,7 @@ describe('toPublicPost', () => {
         'commentCount',
         'commentEditedAt',
         'conversionPending',
+        'autoRetriesLeft',
         'coverArtUrl',
         'createdAt',
         'direct',
@@ -214,5 +216,39 @@ describe('toPublicPost', () => {
     // Assert
     expect(view).not.toHaveProperty('recipientId');
     expect(view).not.toHaveProperty('recipientArchivedAt');
+  });
+});
+
+describe('toPublicPost — autoRetriesLeft (conversion-auto-retry.md §4.3)', () => {
+  it.each([
+    [0, 4],
+    [1, 3],
+    [4, 0],
+  ])('a pending post with %i automatic attempts used has %i left', (used, left) => {
+    // Act
+    const view = toPublicPost(
+      post({ conversionPending: true, autoRetryCount: used }),
+      'viewer-1',
+      false,
+      NO_RATINGS,
+    );
+
+    // Assert
+    expect(view.autoRetriesLeft).toBe(left);
+  });
+
+  it('is 0 on a converted post and on a link-only post, whatever the count', () => {
+    // Act
+    const converted = toPublicPost(post({ autoRetryCount: 2 }), 'viewer-1', false, NO_RATINGS);
+    const linkOnly = toPublicPost(
+      post({ sourceService: null, linkPlatform: 'SOUNDCLOUD', conversionPending: false }),
+      'viewer-1',
+      false,
+      NO_RATINGS,
+    );
+
+    // Assert
+    expect(converted.autoRetriesLeft).toBe(0);
+    expect(linkOnly.autoRetriesLeft).toBe(0);
   });
 });

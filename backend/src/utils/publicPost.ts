@@ -6,6 +6,9 @@ import type { RatingSummary } from './ratingSummary.js';
 
 export const NO_FRIENDS: ReadonlySet<string> = new Set();
 
+/** Automatic conversion attempts per post (`posts_auto_retry_count_range`, conversion-auto-retry.md §3). */
+export const MAX_AUTO_RETRIES = 4;
+
 /** The only post shape that ever leaves the server (docs/features/posts-feed.md §4). */
 export interface PublicPost {
   id: string;
@@ -32,6 +35,8 @@ export interface PublicPost {
   /** When the author last changed the comment; shown as "· edited" (edit-post-comment.md §3). */
   commentEditedAt: string | null;
   conversionPending: boolean;
+  /** Automatic attempts the sender's app has left; 0 unless pending (conversion-auto-retry.md §4.3). */
+  autoRetriesLeft: number;
   createdAt: string;
   /** The viewer saved it to Listen Later. Only ever the viewer's own (bookmarks-my-list.md §4). */
   isBookmarked: boolean;
@@ -114,6 +119,9 @@ export function toPublicPost(
     commentCount: post._count?.comments ?? 0,
     commentEditedAt: post.commentEditedAt?.toISOString() ?? null,
     conversionPending: post.conversionPending,
+    autoRetriesLeft: post.conversionPending
+      ? Math.max(0, MAX_AUTO_RETRIES - post.autoRetryCount)
+      : 0,
     createdAt: post.createdAt.toISOString(),
     isBookmarked: post.bookmarks.some((bookmark) => bookmark.userId === viewerId),
     myScore: post.ratings.find((rating) => rating.userId === viewerId)?.score ?? null,

@@ -28,10 +28,8 @@ vi.mock('../services/googleIdentity.service.js', async (importOriginal) => ({
   ...(await importOriginal<GoogleIdentityModule>()),
   verifyGoogleIdToken,
 }));
-vi.mock('../services/linkScraper.service.js', () => ({
-  convertLink: vi.fn(),
-  CONVERSION_CEILING_MS: 12_000,
-}));
+const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
+vi.mock('../services/linkScraper.service.js', () => ({ convertLink }));
 
 const app = createApp();
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000';
@@ -285,5 +283,39 @@ describe('security headers', () => {
     // Assert
     expect(response.status).toBe(429);
     expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+});
+
+describe('tier 1 — automatic conversion attempts (conversion-auto-retry.md §4.4)', () => {
+  it('never counts them: 11 automatic attempts across 3 posts by one user, none refused', async () => {
+    // Arrange: three pending posts Dana sent Noam, written directly.
+    const [dana, noam] = await Promise.all([person('dana'), person('noam')]);
+    convertLink.mockResolvedValue({ outcome: 'unavailable', reason: 'timeout' });
+    const posts = await Promise.all(
+      [0, 1, 2].map(() =>
+        prisma.post.create({
+          data: {
+            authorId: dana.id,
+            recipientId: noam.id,
+            originalUrl: 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv',
+            sourceService: 'SPOTIFY',
+            conversionPending: true,
+          },
+        }),
+      ),
+    );
+
+    // Act: 4 + 4 + 3.
+    const answers = await statuses(11, (index) =>
+      request(app)
+        .post(`/api/posts/${posts[index % 3]!.id}/conversion`)
+        .set('Cookie', dana.cookie)
+        .send({ automatic: true }),
+    );
+    const manual = await statuses(10, (index) => conversion(dana, index));
+
+    // Assert: every attempt ran, and the tier still has its full 10.
+    expect(answers).toEqual(Array(11).fill(200));
+    expect(manual).not.toContain(429);
   });
 });

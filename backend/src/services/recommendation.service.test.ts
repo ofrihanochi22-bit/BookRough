@@ -14,7 +14,7 @@ import {
   RECIPIENT_ONLY_ARCHIVE,
   RECIPIENT_ONLY_UNARCHIVE,
   SELF_SEND,
-  sendRecommendation,
+  sendRecommendation as sendAt,
   unarchiveRecommendation,
 } from './recommendation.service.js';
 import type * as ProfileService from './profile.service.js';
@@ -46,7 +46,7 @@ const { db, convertLink, notifyRecommendation } = vi.hoisted(() => ({
 }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
+vi.mock('./linkScraper.service.js', () => ({ convertLink }));
 vi.mock('./notification.service.js', () => ({ notifyRecommendation }));
 vi.mock('./profile.service.js', async (importOriginal) => ({
   ...(await importOriginal<typeof ProfileService>()),
@@ -119,6 +119,11 @@ async function expectAppError(promise: Promise<unknown>, statusCode: number, mes
 }
 
 const input = (overrides: object = {}) => ({ recipientId: RECIPIENT, url: TRACK, ...overrides });
+
+/** A request deadline 12 s from now, as the controller sets it. */
+const DEADLINE = Date.now() + 12_000;
+const sendRecommendation = (user: User, body: Parameters<typeof sendAt>[1]) =>
+  sendAt(user, body, DEADLINE);
 
 beforeEach(() => {
   vi.clearAllMocks();

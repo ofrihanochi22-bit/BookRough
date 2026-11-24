@@ -11,6 +11,7 @@ import {
   POST_NOT_FOUND,
   retryConversion,
 } from '../services/post.service.js';
+import { requestDeadline } from '../services/requestDeadline.js';
 import { AppError } from '../utils/AppError.js';
 import { success } from '../utils/response.js';
 import { parseBody, parseQuery } from '../utils/validate.js';
@@ -30,6 +31,9 @@ const postIdSchema = z.string().uuid();
 /** Raw length is generous; the real limit applies after cleaning (edit-post-comment.md §4). */
 const editCommentSchema = z.object({ comment: z.string().max(4000).nullable() }).strict();
 
+/** The retry's optional body (conversion-auto-retry.md §4.4); no body is a manual retry. */
+const retrySchema = z.object({ automatic: z.boolean().optional() }).strict();
+
 /** A malformed post id is a 404 like any post the caller cannot see. */
 export function parsePostId(raw: unknown): string {
   const id = postIdSchema.safeParse(raw);
@@ -41,10 +45,11 @@ export function parsePostId(raw: unknown): string {
 
 /** POST /api/communities/:id/posts — members; waits for the conversion. */
 export const create: RequestHandler = async (req, res, next) => {
+  const deadline = requestDeadline();
   try {
     const communityId = parseCommunityId(req.params.id);
     const input = parseBody(createPostSchema, req.body);
-    const post = await createPost(sessionUser(req), communityId, input);
+    const post = await createPost(sessionUser(req), communityId, input, deadline);
     res.status(201).json(success({ post }));
   } catch (error) {
     next(error);
@@ -63,10 +68,33 @@ export const list: RequestHandler = async (req, res, next) => {
   }
 };
 
-/** POST /api/posts/:postId/conversion — anyone who can see a pending post retries it. */
-export const retry: RequestHandler = async (req, res, next) => {
+/**
+ * Validates the retry's body before the rate limiter, which reads the flag:
+ * an automatic attempt skips the `conversion` tier (conversion-auto-retry.md §4.4).
+ */
+export const parseRetryBody: RequestHandler = (req, res, next) => {
   try {
-    const post = await retryConversion(sessionUser(req), parsePostId(req.params.postId));
+    const { automatic = false } = parseBody(retrySchema, req.body ?? {});
+    res.locals.automaticRetry = automatic;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/posts/:postId/conversion — anyone who can see a pending post
+ * retries it; `{automatic: true}` is the author's app (conversion-auto-retry.md §4.4).
+ */
+export const retry: RequestHandler = async (req, res, next) => {
+  const deadline = requestDeadline();
+  try {
+    const post = await retryConversion(
+      sessionUser(req),
+      parsePostId(req.params.postId),
+      deadline,
+      res.locals.automaticRetry === true,
+    );
     res.status(200).json(success({ post }));
   } catch (error) {
     next(error);

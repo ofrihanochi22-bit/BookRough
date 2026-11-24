@@ -199,6 +199,9 @@ const WRITES: [string, () => Promise<unknown>, readonly string[]][] = [
   ],
   ['editPostComment', () => editPostComment('p1', null), POST_CHANGE],
   ['retryConversion', () => retryConversion('p1'), POST_CHANGE],
+  // An automatic attempt invalidates only once the post converts (conversion-auto-retry.md §5.1);
+  // the stub answers `post: {}`, which is not pending.
+  ['retryConversion (automatic)', () => retryConversion('p1', { automatic: true }), POST_CHANGE],
   ['deletePost', () => deletePost('p1'), POST_CHANGE],
   ['ratePost', () => ratePost('p1', { score: 8 } as never), RATING],
   ['editRating', () => editRating('p1', { score: 8 } as never), RATING],
@@ -361,6 +364,25 @@ describe('invalidation map (client-cache.md §3.4)', () => {
 
     // Act
     await expect(saveBookmark('p1')).rejects.toBeInstanceOf(AxiosError);
+
+    // Assert
+    expect(remaining()).toEqual([...UNIVERSE]);
+  });
+});
+
+describe('an automatic attempt that finds nothing (conversion-auto-retry.md §5.1)', () => {
+  it('invalidates nothing while the post is still pending', async () => {
+    // Arrange
+    api.defaults.adapter = async (config) => ({
+      data: { status: 'success', data: { post: { conversionPending: true } } },
+      status: 200,
+      statusText: '',
+      headers: new AxiosHeaders(),
+      config,
+    });
+
+    // Act
+    await retryConversion('p1', { automatic: true });
 
     // Assert
     expect(remaining()).toEqual([...UNIVERSE]);

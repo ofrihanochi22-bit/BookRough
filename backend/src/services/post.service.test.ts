@@ -7,16 +7,19 @@ import {
   ALREADY_CONVERTED,
   AUTHOR_ONLY,
   AUTHOR_OR_ADMIN,
-  createPost,
+  AUTO_RETRY_AUTHOR_ONLY,
+  AUTO_RETRY_IN_FLIGHT,
+  createPost as createPostAt,
   decodeCursor,
   deletePost,
   EDIT_FRIENDS_ONLY,
   editComment,
   encodeCursor,
   getPost,
+  NO_AUTO_RETRIES_LEFT,
   POST_NOT_FOUND,
-  prepareSharedLink,
-  retryConversion,
+  prepareSharedLink as prepareSharedLinkAt,
+  retryConversion as retryAt,
 } from './post.service.js';
 import { INVALID_LINK } from './supportedLinks.js';
 
@@ -50,7 +53,7 @@ const {
 }));
 
 vi.mock('../db/prisma.js', () => ({ prisma: db }));
-vi.mock('./linkScraper.service.js', () => ({ convertLink, CONVERSION_CEILING_MS: 12_000 }));
+vi.mock('./linkScraper.service.js', () => ({ convertLink }));
 vi.mock('./notification.service.js', () => ({ notifyCommunityPost }));
 vi.mock('./friendship.js', () => ({ areFriends, friendsOnPosts: vi.fn(async () => new Set()) }));
 vi.mock('./ratingSummary.js', () => ({
@@ -68,6 +71,14 @@ const USER = { id: '11111111-1111-4111-8111-111111111111' } as User;
 const COMMUNITY = '22222222-2222-4222-8222-222222222222';
 const POST_ID = '33333333-3333-4333-8333-333333333333';
 const TRACK = 'https://open.spotify.com/track/4u7EnebtmKWzUH433cf5Qv';
+
+/** A request deadline 12 s from now, as a controller sets it. */
+const DEADLINE = Date.now() + 12_000;
+type NewPostInput = Parameters<typeof prepareSharedLinkAt>[0];
+const createPost = (user: User, communityId: string, input: NewPostInput) =>
+  createPostAt(user, communityId, input, DEADLINE);
+const prepareSharedLink = (input: NewPostInput) => prepareSharedLinkAt(input, DEADLINE);
+const retryConversion = (user: User, postId: string) => retryAt(user, postId, DEADLINE);
 
 const CONVERTED = {
   outcome: 'converted',
@@ -516,6 +527,7 @@ describe('prepareSharedLink — the YouTube rule (E + C)', () => {
     expect(convertLink).toHaveBeenCalledWith(
       'https://www.youtube.com/watch?v=QrR_gm6RqCo',
       'YOUTUBE',
+      DEADLINE,
     );
     expect(data).toMatchObject({ originalUrl: 'https://www.youtube.com/live/QrR_gm6RqCo' });
   });
@@ -613,7 +625,7 @@ describe('prepareSharedLink — regression for every streaming service', () => {
     const data = await prepareSharedLink({ url });
 
     // Assert
-    expect(convertLink).toHaveBeenCalledWith(url, service);
+    expect(convertLink).toHaveBeenCalledWith(url, service, DEADLINE);
     expect(data).toEqual({
       textComment: null,
       originalUrl: url,
@@ -679,6 +691,7 @@ describe('retryConversion — link-only posts and the YouTube rule', () => {
     expect(convertLink).toHaveBeenCalledWith(
       'https://www.youtube.com/watch?v=bVwSZQPjRYE',
       'YOUTUBE',
+      DEADLINE,
     );
     expect(db.post.updateMany).toHaveBeenCalledWith({
       where: { id: POST_ID, conversionPending: true },
@@ -880,5 +893,241 @@ describe('editComment', () => {
     await expectAppError(editComment(AUTHOR, POST_ID, 'x'.repeat(281)), 422);
     await expectAppError(editComment(MID_ONBOARDING, POST_ID, 'New'), 403);
     expect(db.post.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * The request deadline and automatic retries — conversion-auto-retry.md §4.
+ */
+
+describe('the request deadline (§4.2)', () => {
+  it('prepareSharedLink hands the caller’s deadline to the converter unchanged', async () => {
+    // Arrange: a deadline already shortened by slow work before it.
+    const deadline = Date.now() + 4_000;
+
+    // Act
+    await prepareSharedLinkAt({ url: TRACK }, deadline);
+
+    // Assert
+    expect(convertLink).toHaveBeenCalledWith(expect.any(String), 'SPOTIFY', deadline);
+  });
+
+  it('keeps the write reserve back from a link-only post’s metadata fetch', async () => {
+    // Arrange
+    fetchLinkMetadata.mockResolvedValue(FOUND);
+    const deadline = Date.now() + 4_000;
+
+    // Act
+    await prepareSharedLinkAt({ url: SOUNDCLOUD }, deadline);
+
+    // Assert
+    expect(fetchLinkMetadata).toHaveBeenCalledWith('SOUNDCLOUD', SOUNDCLOUD, deadline - 1_500);
+  });
+
+  it('createPost passes it through to the conversion', async () => {
+    // Arrange
+    db.$queryRaw.mockResolvedValue([]);
+    const deadline = Date.now() + 6_000;
+
+    // Act
+    await createPostAt(USER, COMMUNITY, { url: TRACK }, deadline).catch(() => undefined);
+
+    // Assert
+    expect(convertLink).toHaveBeenCalledWith(expect.any(String), 'SPOTIFY', deadline);
+  });
+});
+
+describe('retryConversion — automatic (conversion-auto-retry.md §4.4)', () => {
+  /** A full row, as Prisma returns it with postInclude, for the answer's serialisation. */
+  function row(overrides: Record<string, unknown> = {}) {
+    return {
+      id: POST_ID,
+      authorId: USER.id,
+      communityId: COMMUNITY,
+      recipientId: null,
+      recipientArchivedAt: null,
+      originalUrl: TRACK,
+      sourceService: 'SPOTIFY',
+      linkPlatform: null,
+      bandcampItemId: null,
+      kind: null,
+      songTitle: null,
+      songArtist: null,
+      songCoverArtUrl: null,
+      universalLinkSpotify: null,
+      universalLinkApple: null,
+      universalLinkYoutube: null,
+      universalLinkTidal: null,
+      universalLinkDeezer: null,
+      textComment: null,
+      commentEditedAt: null,
+      conversionPending: true,
+      autoRetryCount: 0,
+      createdAt: new Date('2026-11-24T10:00:00.000Z'),
+      updatedAt: new Date('2026-11-24T10:00:00.000Z'),
+      author: { id: USER.id, displayName: 'Dana', profilePictureUrl: null },
+      recipient: null,
+      bookmarks: [],
+      ratings: [],
+      ...overrides,
+    };
+  }
+
+  const CLAIM = {
+    where: { id: POST_ID, conversionPending: true, autoRetryCount: { lt: 4 } },
+    data: { autoRetryCount: { increment: 1 } },
+  };
+
+  it('the author claims an attempt, it converts, and no automatic attempts are left to show', async () => {
+    // Arrange
+    db.post.findUnique
+      .mockResolvedValueOnce(row())
+      .mockResolvedValueOnce(
+        row({ conversionPending: false, autoRetryCount: 1, songTitle: 'Song', kind: 'TRACK' }),
+      );
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    const post = await retryAt(USER, POST_ID, DEADLINE, true);
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenNthCalledWith(1, CLAIM);
+    expect(convertLink).toHaveBeenCalledWith(expect.any(String), 'SPOTIFY', DEADLINE);
+    expect(post).toMatchObject({ conversionPending: false, autoRetriesLeft: 0 });
+  });
+
+  it('still pending after the attempt: the count went up, so one fewer is left', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'unavailable', reason: 'timeout' });
+    db.post.findUnique
+      .mockResolvedValueOnce(row({ autoRetryCount: 1 }))
+      .mockResolvedValueOnce(row({ autoRetryCount: 2 }));
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    const post = await retryAt(USER, POST_ID, DEADLINE, true);
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledTimes(1);
+    expect(post).toMatchObject({ conversionPending: true, autoRetriesLeft: 2 });
+  });
+
+  it('a busy answer still spends the slot', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'unavailable', reason: 'busy' });
+    db.post.findUnique
+      .mockResolvedValueOnce(row())
+      .mockResolvedValueOnce(row({ autoRetryCount: 1 }));
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+
+    // Act
+    const post = await retryAt(USER, POST_ID, DEADLINE, true);
+
+    // Assert
+    expect(db.post.updateMany).toHaveBeenCalledWith(CLAIM);
+    expect(post.autoRetriesLeft).toBe(3);
+  });
+
+  it.each([
+    ['another member of the community', { authorId: 'someone-else' }],
+    [
+      'the recipient of a direct recommendation',
+      { authorId: 'someone-else', communityId: null, recipientId: USER.id },
+    ],
+  ])('refuses %s with a 403, claiming and converting nothing', async (_who, owner) => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue(row(owner));
+
+    // Act & Assert
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), 403, AUTO_RETRY_AUTHOR_ONLY);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+    expect(convertLink).not.toHaveBeenCalled();
+  });
+
+  it('is a 429 with no attempts left, and converts nothing', async () => {
+    // Arrange: the claim matches nothing, and the post is still pending.
+    db.post.findUnique
+      .mockResolvedValueOnce(row({ autoRetryCount: 4 }))
+      .mockResolvedValueOnce({ conversionPending: true });
+    db.post.updateMany.mockResolvedValue({ count: 0 });
+
+    // Act & Assert
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), 429, NO_AUTO_RETRIES_LEFT);
+    expect(convertLink).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['converted meanwhile', { conversionPending: false }, 409],
+    ['deleted meanwhile', null, 404],
+  ])('a claim that misses because the post was %s says so', async (_what, now, status) => {
+    // Arrange
+    db.post.findUnique.mockResolvedValueOnce(row()).mockResolvedValueOnce(now);
+    db.post.updateMany.mockResolvedValue({ count: 0 });
+
+    // Act & Assert
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), status);
+    expect(convertLink).not.toHaveBeenCalled();
+  });
+
+  it('is a 409 while an attempt for the same post is in flight, claiming no slot', async () => {
+    // Arrange: the first attempt's conversion is held open.
+    let finish: (value: unknown) => void = () => undefined;
+    convertLink.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    db.post.findUnique.mockResolvedValue(row());
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+    const first = retryAt(USER, POST_ID, DEADLINE, true);
+    await vi.waitFor(() => expect(convertLink).toHaveBeenCalledTimes(1));
+
+    // Act & Assert
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), 409, AUTO_RETRY_IN_FLIGHT);
+    expect(db.post.updateMany).toHaveBeenCalledTimes(1);
+
+    // The first ends, and the post is free again.
+    finish({ outcome: 'unavailable', reason: 'timeout' });
+    await first;
+    await expect(retryAt(USER, POST_ID, DEADLINE, true)).resolves.toBeDefined();
+  });
+
+  it('frees the post even when the claim fails', async () => {
+    // Arrange
+    db.post.findUnique
+      .mockResolvedValueOnce(row())
+      .mockResolvedValueOnce({ conversionPending: true });
+    db.post.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), 429);
+
+    // Act: the next attempt is not refused as in flight.
+    db.post.findUnique.mockResolvedValue(row());
+    db.post.updateMany.mockResolvedValue({ count: 1 });
+
+    // Assert
+    await expect(retryAt(USER, POST_ID, DEADLINE, true)).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['already converted', { conversionPending: false }],
+    ['link-only', { sourceService: null, linkPlatform: 'SOUNDCLOUD', conversionPending: false }],
+  ])('is a 409 on a post %s', async (_what, state) => {
+    // Arrange
+    db.post.findUnique.mockResolvedValue(row(state));
+
+    // Act & Assert
+    await expectAppError(retryAt(USER, POST_ID, DEADLINE, true), 409, ALREADY_CONVERTED);
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('a manual retry leaves the automatic count alone', async () => {
+    // Arrange
+    convertLink.mockResolvedValue({ outcome: 'unavailable', reason: 'timeout' });
+    db.post.findUnique
+      .mockResolvedValueOnce(row({ autoRetryCount: 1 }))
+      .mockResolvedValueOnce(row({ autoRetryCount: 1 }));
+
+    // Act
+    const post = await retryAt(USER, POST_ID, DEADLINE);
+
+    // Assert
+    expect(db.post.updateMany).not.toHaveBeenCalled();
+    expect(post.autoRetriesLeft).toBe(3);
   });
 });

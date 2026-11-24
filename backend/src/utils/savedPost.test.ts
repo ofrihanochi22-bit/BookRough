@@ -30,6 +30,7 @@ function bookmark(members: Array<{ role: CommunityRole }>): BookmarkWithPost {
       textComment: null,
       commentEditedAt: null,
       conversionPending: false,
+      autoRetryCount: 0,
       createdAt: at,
       updatedAt: at,
       author: { id: 'author-1', displayName: 'Dana', profilePictureUrl: null },

@@ -8,7 +8,7 @@
 | **Use cases** | UC-11, UC-20 (amended)                                             |
 | **Phase**     | 6 (a fix to Step 3, after the load test, Step 6.1z15)              |
 | **Branch**    | `feat/conversion-auto-retry`                                       |
-| **Status**    | ☑ Spec approved · ☐ Implemented · ☐ Reviewed · ☐ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
 
 ---
 
@@ -63,8 +63,9 @@ One column on `posts`:
 ### 4.1 Busy detection (in `linkScraper.service.ts`)
 
 - `convertLink(url, sourceService, deadline)` takes the request's deadline instead of starting its own 12 s clock.
-- **Busy rule:** when the call arrives and `limit.pendingCount ≥ BUSY_QUEUE_LENGTH` (2 to start, one constant, tuned by re-running the load test), it returns `{ outcome: 'unavailable', reason: 'busy' }` at once. No queueing and no browser. It is logged like the other outcomes, as `reason: 'busy'`.
+- **Busy rule:** when the call arrives and `BUSY_QUEUE_LENGTH` conversions are already waiting behind the 2 running (2 to start, one constant, tuned by re-running the load test), it returns `{ outcome: 'unavailable', reason: 'busy' }` at once. No queueing and no browser. It is logged like the other outcomes, as `reason: 'busy'`.
 - **Time left:** an attempt that leaves the queue with less than `MIN_ATTEMPT_MS` before `deadline − WRITE_RESERVE_MS` isn't started (unchanged in spirit). The ceiling timer fires at `deadline − WRITE_RESERVE_MS`.
+- **Counted on arrival** (found in Stage 4): the waiting conversions are counted synchronously as each call arrives, not read from `limit.pendingCount`, which `p-limit` fills a microtask later, so calls arriving in the same tick would all see an empty queue.
 - **`WRITE_RESERVE_MS`:** 1.5 s, kept for the work after the conversion (the post's write, notifications, the response). It covers the 1.3 s measured.
 
 ### 4.2 The request deadline
@@ -89,7 +90,7 @@ One column on `posts`:
   - **Single-flight:** an in-memory set of post ids with an automatic attempt in flight, per instance. A second automatic request for the same post while one runs answers `409` without claiming an attempt (§6).
 - **Success:** `200` `{ post: PublicPost }`, converted or still pending, with `autoRetriesLeft` updated.
 - **Errors:**
-  - `400` a malformed body (unknown key, `automatic` not a boolean).
+  - `422` a malformed body (unknown key, `automatic` not a boolean), like every body the project validates (`parseBody`). Unparseable JSON stays a `400`.
   - `401` not signed in.
   - `403` `automatic: true` from anyone but the author, who can see the post. Message: "Only the sender's app retries automatically."
   - `404` no such post, a malformed id, or a post the caller can't see (unchanged).
@@ -155,7 +156,7 @@ Every screen that shows a `PostCard` or `SavedPostCard` (Community Feed, Post De
 
 **Unit (services)**
 
-- ✅ `convertLink` returns `busy` at once, launching no browser, when `pendingCount ≥ BUSY_QUEUE_LENGTH`.
+- ✅ `convertLink` returns `busy` at once, launching no browser, when `BUSY_QUEUE_LENGTH` conversions are already waiting, including calls made in the same tick.
 - ✅ `convertLink` queues normally below the busy threshold.
 - ✅ `convertLink`'s ceiling fires at `deadline − WRITE_RESERVE_MS` and closes what it opened.
 - ❌ `convertLink` doesn't start an attempt that leaves the queue with less than `MIN_ATTEMPT_MS` left before the reserve.
@@ -177,7 +178,7 @@ Every screen that shows a `PostCard` or `SavedPostCard` (Community Feed, Post De
 - ✅ `POST /posts/:id/conversion {automatic:true}` by the author → `200`, converted.
 - ✅ The same, still pending → `200` with `autoRetriesLeft` decreased.
 - ✅ Automatic requests don't count in the `conversion` tier: 11 automatic attempts across 3 posts by one user, none `429` for the tier.
-- ❌ `400`: `{automatic: "yes"}` and `{automatic: true, extra: 1}`.
+- ❌ `422`: `{automatic: "yes"}` and `{automatic: true, extra: 1}`.
 - ❌ `401`: no session.
 - ❌ `403`: `{automatic:true}` from a community member who isn't the author.
 - ❌ `403`: `{automatic:true}` from the recipient of a direct item.
@@ -205,6 +206,26 @@ Every screen that shows a `PostCard` or `SavedPostCard` (Community Feed, Post De
 **Load test (by hand, after implementation)**
 
 - Re-run `npm run load-test`: every answer under 12 s, and no round fails on the ceiling. Then tune `BUSY_QUEUE_LENGTH` from the result. The load test doesn't run the client-side runner, so the conversion rate it reports is the send-time rate only.
+
+### 7.1 Load test re-run (2026-11-24, local image at 2 GB / 1 vCPU)
+
+`npm run load-test`, the same rounds as load-test.md §5, with this feature and `BUSY_QUEUE_LENGTH = 2`:
+
+| Round | Converted | Pending: busy | Pending: timeout | p50   | p95    | Max    | Peak memory | Worst health |
+| ----- | --------- | ------------- | ---------------- | ----- | ------ | ------ | ----------- | ------------ |
+| 10    | 2         | 6             | 2                | 1.3 s | 10.8 s | 10.8 s | 324 MB      | 194 ms       |
+| 20    | 2         | 16            | 2                | 0.5 s | 10.8 s | 11.0 s | 335 MB      | 78 ms        |
+| 30    | 2         | 26            | 2                | 0.4 s | 10.6 s | 10.8 s | 349 MB      | 341 ms       |
+| 40    | 2         | 36            | 2                | 0.5 s | 9.2 s  | 9.4 s  | 352 MB      | 207 ms       |
+| 50    | 2         | 46            | 2                | 0.6 s | 8.5 s  | 10.9 s | 352 MB      | 173 ms       |
+
+Verdict: **PASSED.** Every answer came within 12 s (the slowest took 11.0 s, against 13.3 s before). All 150 posts are in the database, and there were no 5xx, 429, network errors, error-level log lines, out-of-memory kills or restarts. A post saved busy answers in about half a second instead of about 12 s.
+
+What it shows:
+
+1. **The ceiling holds.** The deadline and the write reserve fixed the 13 s answers.
+2. **Two conversions per round.** squigly took 7.3–9.4 s per conversion on this run, against 3.8–12 s on the first run. With the attempt cutoff at 8.5 s (12 − 1.5 − 2), a waiting attempt never got a slot in time. So the 2 waiting per round ended `timeout`, and the rest were `busy` at once. The load test doesn't run the app's automatic attempts, which are what convert these posts afterwards (§5.1).
+3. **`BUSY_QUEUE_LENGTH` stays 2.** On this run the 2 waiting attempts converted nothing, but on the first run, when squigly was faster, waiting attempts did convert (8 of 10 in the first round). A queue of 0 would refuse those too. One run at a slow moment isn't enough to change the constant: the cost of keeping 2 is at most 2 requests that wait about 10 s before being saved pending.
 
 ## 8. Open questions
 

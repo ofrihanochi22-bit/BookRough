@@ -13,7 +13,6 @@ import { signSessionToken } from '../utils/jwt.js';
 const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
 vi.mock('../services/linkScraper.service.js', () => ({
   convertLink,
-  CONVERSION_CEILING_MS: 12_000,
 }));
 
 const app = createApp();
@@ -1221,5 +1220,61 @@ describe('regression: communities are unchanged', () => {
 
     // Assert
     expect(forFriend.body.data.items).toEqual([]);
+  });
+});
+
+describe('automatic retry on a direct item (conversion-auto-retry.md §7)', () => {
+  const BUSY = { outcome: 'unavailable', reason: 'busy' };
+  const auto = (who: Person, postId: string) =>
+    request(app)
+      .post(`/api/posts/${postId}/conversion`)
+      .set('Cookie', who.cookie)
+      .send({ automatic: true });
+
+  it('201: a send that finds the converter busy is saved pending at once, with 4 attempts', async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    convertLink.mockResolvedValueOnce(BUSY);
+
+    // Act
+    const started = Date.now();
+    const response = await send(dana, noam.id);
+    const elapsed = Date.now() - started;
+
+    // Assert
+    expect(response.status).toBe(201);
+    expect(response.body.data.post).toMatchObject({ conversionPending: true, autoRetriesLeft: 4 });
+    expect(elapsed).toBeLessThan(12_000);
+    expect(convertLink).toHaveBeenCalledWith(TRACK, 'SPOTIFY', expect.any(Number));
+  });
+
+  it("200: the sender's app converts it on its own", async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    convertLink.mockResolvedValueOnce(BUSY);
+    const postId = ((await send(dana, noam.id)).body.data.post as { id: string }).id;
+
+    // Act
+    const response = await auto(dana, postId);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post).toMatchObject({ conversionPending: false, autoRetriesLeft: 0 });
+  });
+
+  it("403: the recipient's app never retries automatically, and no slot is spent", async () => {
+    // Arrange
+    const { dana, noam } = await trio();
+    convertLink.mockResolvedValueOnce(BUSY);
+    const postId = ((await send(dana, noam.id)).body.data.post as { id: string }).id;
+
+    // Act
+    const response = await auto(noam, postId);
+
+    // Assert
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Only the sender's app retries automatically.");
+    const stored = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+    expect(stored.autoRetryCount).toBe(0);
   });
 });

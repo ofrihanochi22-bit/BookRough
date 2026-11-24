@@ -1,6 +1,7 @@
 import { isAxiosError } from 'axios';
 
 import { createPost, type NewPost, type PublicPost } from '../api/posts';
+import { registerAutoRetry } from '../stores/autoRetry';
 import { LinkCommentForm, type LinkFormOutcome } from './LinkCommentForm';
 
 interface PostComposerProps {
@@ -28,7 +29,10 @@ export function PostComposer({
 }: PostComposerProps) {
   async function share(input: NewPost): Promise<LinkFormOutcome> {
     try {
-      onPosted(await createPost(communityId, input));
+      const post = await createPost(communityId, input);
+      // Saved pending: the app keeps trying while open (conversion-auto-retry.md §5.1).
+      registerAutoRetry(post);
+      onPosted(post);
       return { status: 'done' };
     } catch (caught) {
       const status = isAxiosError(caught) ? caught.response?.status : undefined;

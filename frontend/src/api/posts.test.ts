@@ -65,6 +65,19 @@ describe('posts API module', () => {
     expect(seen[1]!.params).toEqual({ before: 'abc' });
   });
 
+  it("retryConversion sends {automatic: true} for the sender's app, quietly", async () => {
+    // Arrange
+    const post = makePost();
+    const seen = respondWith(ok({ post }));
+
+    // Act
+    await retryConversion(post.id, { automatic: true });
+
+    // Assert
+    expect(JSON.parse(seen[0]?.data as string)).toEqual({ automatic: true });
+    expect(seen[0]).toMatchObject({ skipErrorToast: true, timeout: CONVERSION_REQUEST_TIMEOUT_MS });
+  });
+
   it('retryConversion posts to the post and unwraps it', async () => {
     // Arrange
     const post = makePost();
