@@ -8,7 +8,7 @@
 | **Use cases** | None directly: CI and deployment, Phase 6 (a fix to Step 6.4, production-hardening.md §3.7) |
 | **Phase**     | 6                                                                                           |
 | **Branch**    | `fix/deploy-gate-skipped-checks`                                                            |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☐ Tested · ☐ Merged                          |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested (M1) · ☑ Merged                     |
 
 ---
 
@@ -79,15 +79,16 @@ None.
 
 `main.yml` runs only on `main`, nightly and on dispatch, and a dispatched run would also run `prune-deployments` against production, so this is checked after the merge:
 
-- ✅ M1. The merge of this PR: all jobs green, the guard step shows as skipped in both suites, and production is promoted after `test:e2e` passes.
+- ✅ M1. The merge of this PR: all jobs green, the guard step shows as skipped in both suites, and production is promoted after `test:e2e` passes. **Passed 2026-11-23:** run 45198941146 for `a7efba8` was green, the guard step was skipped in both suites, and production was promoted at 15:03:26, 5 s after `test:e2e` passed at 15:03:21.
 - ❌ M2. The next red `checks` on `main` (or a nightly one): `test:e2e` and `test:docker` conclude `failure` at the guard step, and the commit's GitHub Production deployment status is "Checks for Deployment have failed". If the failed jobs are then re-run green, the deployment is promoted.
 - Before the merge: the workflow parses as YAML, and the guard's condition and both `if:` lines are read back from the parsed file.
 
 ## 9. Decisions log
 
-| Date       | Decision                                                                                       | Reason                                                                                             |
-| ---------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 2026-11-22 | Cause: Vercel lets a `skipped` check through; `main.yml` skipped both suites on a red `checks` | §2: four commits, one per conclusion, and the 2 s gap between the skip and the promotion           |
-| 2026-11-22 | Fix in `main.yml` (guard step), not in the dashboard                                           | Keeps the two existing Deployment Checks; no dashboard step for the developer                      |
-| 2026-11-22 | `always()`, not `!cancelled()`                                                                 | A cancelled run must not leave the checks skipped either                                           |
-| 2026-11-23 | Spec approved by the developer                                                                 | Stage 1 closed (CLAUDE.md §15); the fix was built first because the task asked for a spec or a fix |
+| Date       | Decision                                                                                          | Reason                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 2026-11-22 | Cause: Vercel lets a `skipped` check through; `main.yml` skipped both suites on a red `checks`    | §2: four commits, one per conclusion, and the 2 s gap between the skip and the promotion           |
+| 2026-11-22 | Fix in `main.yml` (guard step), not in the dashboard                                              | Keeps the two existing Deployment Checks; no dashboard step for the developer                      |
+| 2026-11-22 | `always()`, not `!cancelled()`                                                                    | A cancelled run must not leave the checks skipped either                                           |
+| 2026-11-23 | Spec approved by the developer                                                                    | Stage 1 closed (CLAUDE.md §15); the fix was built first because the task asked for a spec or a fix |
+| 2026-11-23 | Merged as PR #89 (`a7efba8`); M1 passed, M2 waits for the next red `checks` on `main` or at night | §8                                                                                                 |

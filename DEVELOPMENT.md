@@ -3595,7 +3595,7 @@ cd backend && npm run test:coverage
 
 ### Step 6.1z6 — The deploy gate holds when `checks` fails (Phase 6, a fix to Step 6.4)
 
-Status: 🟡 PR open (#89; spec approved 2026-11-23)
+Status: ✅ Done (merged as PR #89; M1 passed 2026-11-23, M2 waits for the next red `checks` run)
 Branch: fix/deploy-gate-skipped-checks
 Spec: docs/features/deploy-gate-skipped-checks.md
 
@@ -3920,7 +3920,53 @@ cd backend && npx vitest run --config vitest.integration.config.ts src/routes/li
 cd frontend && npx vitest run src/lib/embeds src/components/MiniPlayer src/components/TabLayout
 ```
 
-### Step 6.1z13 — Burst load test for sending recommendations (Phase 6 — UC-20 and UC-11 under load)
+### Step 6.1z13 — Pruning waits while production is held in checks (Phase 6, a fix to deployment pruning)
+
+Status: 🟡 PR open
+Branch: fix/prune-waits-for-promotion
+Spec: docs/features/prune-waits-for-promotion.md
+
+Goal: `prune-deployments` no longer turns `main` red when the newest production deployment is still waiting in Deployment Checks.
+
+What I did:
+
+- **Cause (spec §2):** on 2026-11-23 the post-merge runs of PR #90 and PR #104 both failed at `prune-deployments` with "not marked as promoted". The script takes the project's production target as live, and Vercel points that at the newest production deployment while its checks still hold it. #104's prune ran 3 s before its own promotion; #90's saw #104's deployment in checks. Both deleted nothing.
+- `backend/src/ops/pruneDeployments.ts`: `liveStatus` tells a held target (READY, production, not promoted, newer than every promoted deployment) from a listing that looks wrong, which still throws. `readPromotedLive` reads the target and the list up to 12 times, 10 s apart. Once it is promoted, the job plans and prunes as before. If it is still held, the job prints a `::warning::`, deletes nothing, posts no Overview snapshot, and exits 0.
+- `backend/src/ops/pruneDeployments.test.ts`: 11 new tests (`liveStatus`'s held and failing shapes, and the wait with a fake `sleep`).
+- `/code-review` (high): 5 nits; two fixed, three accepted (spec §9). No `/security-review`: no new input, secret, endpoint or permission; the same two Vercel reads.
+
+How to view & test:
+
+```bash
+cd backend && npx vitest run src/ops/pruneDeployments
+```
+
+After the merge (spec §8): M1, the merge's own `prune-deployments` is green, with "waiting in Deployment Checks" lines first if it ran before the promotion. M2, the four production deployments left by the two failed runs are pruned to two.
+
+### Step 6.1z14 — Image cleanup reads every tag (Phase 6, a fix to the `/vercel-image-cleanup` skill)
+
+Status: 🟡 PR open
+Branch: fix/image-cleanup-hidden-tags
+Spec: docs/features/image-cleanup-hidden-tags.md
+
+Goal: `/vercel-image-cleanup` never plans to delete an image whose tags it hasn't fully read.
+
+What I did:
+
+- **Cause (spec §2):** the registry table shows at most five tags per image and folds the rest into "+N". `read-images.js` read only the visible ones. On 2026-11-23 that hid `f6121df1b4c6`, the live deployment's commit (PR #104), on the one image in the registry. Nothing was deleted, because the image also carried the rollback deployment's tag.
+- `.claude/skills/vercel-image-cleanup/read-images.js` now returns `hiddenTags` (the N in "+N") and `tagsComplete` per image.
+- New `.claude/skills/vercel-image-cleanup/read-image-tags.js` reads every tag under "Image tags" on an image's own page, plus its digest.
+- `SKILL.md`: a new step 4a opens the page of each image with hidden tags (by clicking its row, which has no link address) and plans with the full list. The rule gains a fourth keep: an image whose full tag list can't be read is kept.
+- The prune failure seen on the same runs is Step 6.1z13 (PR #105), not this step.
+- `/code-review` (low): no findings. No `/security-review`: the change is the skill's own scripts and instructions, read-only in the browser, with no app code, input, endpoint or secret. The keep rule only grows, and step 7's tag check before each delete is unchanged.
+
+How to view & test (in Claude in Chrome, against the live registry; the scripts are not in CI):
+
+1. Open `https://vercel.com/bookrough/bookrough/images/api` and run `read-images.js` with `javascript_tool`: an image showing "+1" reports `hiddenTags: 1, tagsComplete: false`.
+2. Click that row and run `read-image-tags.js`: it returns all its tags (six on 2026-11-23, `f6121df1b4c6` among them) and the row's digest.
+3. On `https://vercel.com/bookrough/bookrough/images` (not an image page), `read-image-tags.js` returns `count: 0`.
+
+### Step 6.1z15 — Burst load test for sending recommendations (Phase 6 — UC-20 and UC-11 under load)
 
 Status: 🟡 In progress (spec approved 2026-11-23; code and tests done, first run pending)
 Branch: chore/load-test

@@ -107,6 +107,72 @@ export function planDeploymentPrune(deployments: Deployment[], options: PlanOpti
   return plan;
 }
 
+/**
+ * Whether production can be pruned now. Vercel points the project's production target at the
+ * newest production deployment as soon as it is built, even while Deployment Checks hold it
+ * (docs/features/prune-waits-for-promotion.md §2). Such a target is "held": READY, production, not
+ * promoted, and newer than every promoted deployment. Every other unpromoted shape means the listing
+ * or Vercel's fields look wrong, so it throws rather than guess.
+ */
+export function liveStatus(deployments: Deployment[], liveId: string): 'promoted' | 'held' {
+  const live = deployments.find((deployment) => deployment.id === liveId);
+  if (live === undefined) {
+    throw new Error(`The live deployment ${liveId} is not in the list; deleting nothing.`);
+  }
+  if (live.promoted) return 'promoted';
+  const promoted = deployments.filter((deployment) => deployment.promoted);
+  if (promoted.length === 0) {
+    throw new Error('No deployment in the list is marked as promoted; deleting nothing.');
+  }
+  const newestPromoted = Math.max(...promoted.map((deployment) => deployment.created));
+  if (live.state === 'READY' && live.target === 'production' && live.created > newestPromoted) {
+    return 'held';
+  }
+  throw new Error(
+    `The live deployment ${live.id} is not marked as promoted in the list; deleting nothing.`,
+  );
+}
+
+export interface WaitOptions {
+  attempts: number;
+  delayMs: number;
+  sleep: (ms: number) => Promise<void>;
+  write: (line: string) => void;
+}
+
+export const DEFAULT_WAIT: WaitOptions = {
+  attempts: 12,
+  delayMs: 10_000,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  write: (line) => process.stdout.write(line),
+};
+
+/**
+ * Reads the production target and the list until the target is promoted, at most `attempts` times
+ * (docs/features/prune-waits-for-promotion.md §3). Returns them, or `null` when production is still
+ * held in checks after the last attempt, after printing a warning: the caller then prunes nothing.
+ */
+export async function readPromotedLive(
+  config: Config,
+  wait: WaitOptions = DEFAULT_WAIT,
+): Promise<{ liveId: string; deployments: Deployment[] } | null> {
+  for (let attempt = 1; ; attempt += 1) {
+    const liveId = await readLiveId(config);
+    const deployments = await listDeployments(config);
+    if (liveStatus(deployments, liveId) === 'promoted') return { liveId, deployments };
+    if (attempt >= wait.attempts) {
+      wait.write(
+        `::warning::Production deployment ${liveId} is still waiting in Deployment Checks; pruning nothing this run.\n`,
+      );
+      return null;
+    }
+    wait.write(
+      `Production deployment ${liveId} is waiting in Deployment Checks; reading again in ${wait.delayMs / 1000} s (attempt ${attempt} of ${wait.attempts}).\n`,
+    );
+    await wait.sleep(wait.delayMs);
+  }
+}
+
 export interface Config {
   token: string;
   team: string;
@@ -371,9 +437,12 @@ export async function postSnapshot(
 /* v8 ignore start -- the entry point; every decision and call above is tested. */
 export async function main(source: NodeJS.ProcessEnv = process.env): Promise<void> {
   const config = readConfig(source);
-  const liveId = await readLiveId(config);
+  const read = await readPromotedLive(config);
+  // Still held after the wait: the warning is printed; the next push or the nightly run prunes.
+  if (read === null) return;
+  const { liveId, deployments } = read;
   const capturedAt = new Date();
-  const plan = planDeploymentPrune(await listDeployments(config), {
+  const plan = planDeploymentPrune(deployments, {
     liveId,
     keep: 2,
     maxDeletes: 10,
