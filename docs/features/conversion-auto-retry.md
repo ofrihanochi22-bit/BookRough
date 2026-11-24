@@ -8,7 +8,7 @@
 | **Use cases** | UC-11, UC-20 (amended)                                             |
 | **Phase**     | 6 (a fix to Step 3, after the load test, Step 6.1z15)              |
 | **Branch**    | `feat/conversion-auto-retry`                                       |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged |
 
 ---
 

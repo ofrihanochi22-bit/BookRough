@@ -4006,7 +4006,7 @@ cd backend && npx vitest run scripts/load-test
 
 ### Step 6.1z16 — Automatic conversion retry and a whole-request ceiling (Phase 6 — UC-11 and UC-20 amended)
 
-Status: 🟡 PR open (load test re-run 2026-11-24: passed, every answer within 12 s, the slowest 11.0 s)
+Status: ✅ Done (merged in PR #109, E2E fix PR #110; load test re-run 2026-11-24: passed, every answer within 12 s, the slowest 11.0 s)
 Branch: feat/conversion-auto-retry
 Spec: docs/features/conversion-auto-retry.md
 
