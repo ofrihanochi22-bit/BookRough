@@ -125,6 +125,24 @@ The output goes to `backend/scripts/load-test/out/<timestamp>/`, which is git-ig
 
 From reading the code: every request is answered within 12 s, with no failures and no lost posts. Roughly 5–7 posts per round convert, whatever N is, because two Chromium slots × about 10 usable seconds ÷ about 3 s per conversion is the queue's capacity. Every other post is saved as `pending`. Peak memory is about 330 MB, the same as with 5 posts, because Chromium never runs more than twice at once. If the run shows otherwise, that is the finding.
 
+### First run (2026-11-24, local image at 2 GB / 1 vCPU)
+
+| Round | Converted | Pending | Over 13 s | p50    | p95    | Peak memory | Worst health |
+| ----- | --------- | ------- | --------- | ------ | ------ | ----------- | ------------ |
+| 10    | 8         | 2       | 0         | 9.3 s  | 11.9 s | 333 MB      | 78 ms        |
+| 20    | 4         | 16      | 1         | 12.1 s | 13.0 s | 351 MB      | 98 ms        |
+| 30    | 4         | 26      | 0         | 11.6 s | 12.7 s | 368 MB      | 76 ms        |
+| 40    | 2         | 38      | 2         | 11.9 s | 12.9 s | 368 MB      | 164 ms       |
+| 50    | 2         | 48      | 7         | 12.4 s | 13.3 s | 305 MB      | 493 ms       |
+
+Verdict: **FAILED** (rounds 20, 40 and 50), but only on the ceiling. What held: all 150 requests were answered with a 201, and all 150 posts are in the database. There were no 5xx, 429 or network errors, no error-level log lines, no out-of-memory kill and no restart. Memory stayed under 370 MB of 2048, and the health check never failed. Every post that wasn't converted was saved as `pending` with reason `timeout`.
+
+What differed from the hypothesis:
+
+1. **The 12 s ceiling is the converter's, not the request's.** 10 of 150 answers took 13.0–13.3 s, past the 13 s allowed (the ceiling plus a 1 s margin). `CONVERSION_CEILING_MS` starts when `convertLink` is called. The work before it and the post's write after it add up to 1.3 s on a busy single vCPU.
+2. **Fewer conversions than expected.** About 8 converted at 10 requests, but only 2–4 per round from 20 upward, not 5–7. Conversions of 9–12 s each, slower when Chromium shares one vCPU, leave each slot room for about one conversion before the ceiling.
+3. **Responsiveness degrades slowly.** The worst health check grew from about 80 ms to 493 ms at 50 requests, still under the 2 s limit.
+
 ## 6. Edge cases & failure modes
 
 - **squigly.link is slow or down during the run.** Every post comes back `pending` with reason `timeout` or `unavailable`. The report shows the reasons from the logs, so an outage can't be mistaken for a capacity limit. The developer can run the test again later.

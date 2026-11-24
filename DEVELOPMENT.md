@@ -3968,7 +3968,7 @@ How to view & test (in Claude in Chrome, against the live registry; the scripts 
 
 ### Step 6.1z15 — Burst load test for sending recommendations (Phase 6 — UC-20 and UC-11 under load)
 
-Status: 🟡 In progress (spec approved 2026-11-23; code and tests done, first run pending)
+Status: 🟡 PR open (first run 2026-11-24: no lost posts or errors; 10 of 150 answers took 13.0–13.3 s, past the 12 s ceiling plus a 1 s margin — results in the spec §5)
 Branch: chore/load-test
 Spec: docs/features/load-test.md
 
