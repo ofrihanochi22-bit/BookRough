@@ -3968,7 +3968,7 @@ How to view & test (in Claude in Chrome, against the live registry; the scripts 
 
 ### Step 6.1z15 — Burst load test for sending recommendations (Phase 6 — UC-20 and UC-11 under load)
 
-Status: 🟡 PR open (first run 2026-11-24: no lost posts or errors; 10 of 150 answers took 13.0–13.3 s, past the 12 s ceiling plus a 1 s margin — results in the spec §5)
+Status: ✅ Done (merged in PR #107; first run 2026-11-24: no lost posts or errors; 10 of 150 answers took 13.0–13.3 s, past the 12 s ceiling plus a 1 s margin — results in the spec §5)
 Branch: chore/load-test
 Spec: docs/features/load-test.md
 
@@ -4003,6 +4003,18 @@ Tests:
 ```bash
 cd backend && npx vitest run scripts/load-test
 ```
+
+### Step 6.1z16 — Automatic conversion retry and a whole-request ceiling (Phase 6 — UC-11 and UC-20 amended)
+
+Status: 🟡 In progress (spec approved 2026-11-24; implementation not started)
+Branch: feat/conversion-auto-retry
+Spec: docs/features/conversion-auto-retry.md
+
+Goal: the load test (Step 6.1z15) showed that from 20 sends in 5 s only 2–4 convert, and 10 of 150 answers took over 13 s. After this step, a send that finds the converter's queue full is saved at once with a "server is busy" notice. The sender's app retries their pending posts 4 times over about 8 minutes, capped per post on the server. Every send and retry answers within 12 s of the request.
+
+What I did: not yet. The spec is approved; implementation starts in a fresh conversation (one conversation per feature).
+
+How to view & test: to be filled in when the step is done.
 
 ### Step 6.3a — Deployment storage (Phase 6, a fix to Step 6.3)
 
