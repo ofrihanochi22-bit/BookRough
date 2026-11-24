@@ -8,7 +8,7 @@
 | **Use cases** | UC-20 (direct recommendations), UC-11 (the link conversion behind it) |
 | **Phase**     | 6 (production hardening)                                              |
 | **Branch**    | `chore/load-test`                                                     |
-| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☐ Merged    |
+| **Status**    | ☑ Spec approved · ☑ Implemented · ☑ Reviewed · ☑ Tested · ☑ Merged    |
 
 ---
 

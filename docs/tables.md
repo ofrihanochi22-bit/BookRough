@@ -88,6 +88,7 @@ The core entity for music recommendations, to a community or, with UC-20, to one
 - **comment_edited_at** (TIMESTAMP, Nullable): when the author last changed the comment; null if never. Shown as "· edited" (`docs/features/edit-post-comment.md` §3).
 - **created_at** (TIMESTAMP, Default Current Time).
 - **conversion_pending** (BOOLEAN, Default false): True when the conversion could not run (squigly.link down, a timeout, an unreadable page); the author can retry it.
+- **auto_retry_count** (INTEGER, Default 0): Automatic conversion attempts the sender's app has used on the post, 0–4. Kept in range by the hand-written CHECK posts_auto_retry_count_range in the add_post_auto_retry_count migration, invisible to Prisma and to prisma migrate diff. Reaches clients only as `autoRetriesLeft`, 4 minus this while the post is pending (`docs/features/conversion-auto-retry.md` §3).
 - **updated_at** (TIMESTAMP): Set on every write.
 - (Indexed on community_id, created_at and id, newest first, for the feed; on author_id, community_id, for removal; on recipient_id, created_at and id, for Received; and on author_id, created_at and id, for Sent. Cascades: deleting the community, the author or the recipient deletes the posts; removing a member deletes their posts in that community — UC-14.)
 

@@ -2,13 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BLOCKED_RESOURCES,
-  CONVERSION_CEILING_MS,
+  BUSY_QUEUE_LENGTH,
   convertLink,
   LAUNCH_ARGS,
+  MAX_CONCURRENT_CONVERSIONS,
   parseResultPage,
   RESULT_PAGE_URL,
   type ResultPage,
 } from './linkScraper.service.js';
+import { CONVERSION_CEILING_MS, requestDeadline, WRITE_RESERVE_MS } from './requestDeadline.js';
 
 /*
  * Playwright is mocked at module level: no test here launches a browser
@@ -147,10 +149,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** A conversion with a request deadline starting now, as a controller sets it. */
+const convert = () => convertLink(SOURCE, 'SPOTIFY', requestDeadline());
+
 describe('convertLink', () => {
   it('converts a track: metadata from JSON-LD, links mapped by host', async () => {
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toEqual({
@@ -172,7 +177,7 @@ describe('convertLink', () => {
 
   it('launches with the three memory flags and blocks heavy resources', async () => {
     // Act
-    await convertLink(SOURCE, 'SPOTIFY');
+    await convert();
     const route = (type: string) => ({
       request: () => ({ resourceType: () => type }),
       abort: vi.fn(),
@@ -200,7 +205,7 @@ describe('convertLink', () => {
     state.script = { answer: 'not_found' };
 
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toEqual({ outcome: 'not_found' });
@@ -212,7 +217,7 @@ describe('convertLink', () => {
     state.script = { answer: 'none' };
 
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toEqual({ outcome: 'unavailable', reason: 'no answer' });
@@ -224,7 +229,7 @@ describe('convertLink', () => {
     state.script = { answer: 'result', linksNeverRender: true };
 
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toEqual({ outcome: 'unavailable', reason: 'TimeoutError' });
@@ -236,7 +241,7 @@ describe('convertLink', () => {
     state.script = { answer: 'result', launchFails: true };
 
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toMatchObject({ outcome: 'unavailable' });
@@ -250,7 +255,7 @@ describe('convertLink', () => {
     };
 
     // Act
-    const result = await convertLink(SOURCE, 'SPOTIFY');
+    const result = await convert();
 
     // Assert
     expect(result).toEqual({ outcome: 'unavailable', reason: 'no title' });
@@ -267,11 +272,12 @@ describe('convertLink', () => {
       },
     };
 
-    // Act
-    const results = Array.from({ length: 5 }, () => convertLink(SOURCE, 'SPOTIFY'));
+    // Act: two run and two wait — the most the queue takes.
+    const count = MAX_CONCURRENT_CONVERSIONS + BUSY_QUEUE_LENGTH;
+    const results = Array.from({ length: count }, () => convert());
     await flush();
     const launchedAtFirst = state.launches;
-    while (releases.length > 0 || state.launches < 5) {
+    while (releases.length > 0 || state.launches < count) {
       releases.shift()?.();
       await flush();
     }
@@ -281,54 +287,130 @@ describe('convertLink', () => {
     expect(launchedAtFirst).toBe(2);
     expect(state.maxInFlight).toBe(2);
     expect(outcomes.every((result) => result.outcome === 'converted')).toBe(true);
-    expect(state.closes).toBe(5);
+    expect(state.closes).toBe(count);
   });
 
-  it('gives up at the ceiling, queue wait included, and closes what it opened', async () => {
+  it('gives up at the deadline less the write reserve, queue wait included, and closes what it opened', async () => {
     // Arrange: pages that never answer.
     vi.useFakeTimers();
     state.script = { answer: 'result', gate: new Promise<void>(() => undefined) };
+    let settled = 0;
 
     // Act: three at once — two run, one waits in the queue.
-    const results = Array.from({ length: 3 }, () => convertLink(SOURCE, 'SPOTIFY'));
+    const results = Array.from({ length: 3 }, () =>
+      convert().finally(() => {
+        settled += 1;
+      }),
+    );
     await vi.advanceTimersByTimeAsync(0);
     const launchedBefore = state.launches;
-    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS);
+    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS - WRITE_RESERVE_MS - 1);
+    const settledBeforeCutoff = settled;
+    await vi.advanceTimersByTimeAsync(1);
     const outcomes = await Promise.all(results);
     await vi.advanceTimersByTimeAsync(0);
 
     // Assert
     expect(launchedBefore).toBe(2);
+    expect(settledBeforeCutoff).toBe(0);
     expect(outcomes).toEqual(Array(3).fill({ outcome: 'unavailable', reason: 'timeout' }));
     // The queued one was abandoned before it started: no third browser.
     expect(state.launches).toBe(2);
     expect(state.closes).toBe(2);
     expect(state.inFlight).toBe(0);
   });
+
+  it('answers at once when the deadline has already passed', async () => {
+    // Arrange
+    vi.useFakeTimers();
+    state.script = { answer: 'result', gate: new Promise<void>(() => undefined) };
+
+    // Act: a request whose earlier work took the whole budget.
+    const result = convertLink(SOURCE, 'SPOTIFY', Date.now() + WRITE_RESERVE_MS);
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Assert
+    await expect(result).resolves.toEqual({ outcome: 'unavailable', reason: 'timeout' });
+    expect(state.launches).toBe(0);
+  });
+});
+
+describe('convertLink — busy (conversion-auto-retry.md §4.1)', () => {
+  it('answers busy at once, launching no browser, once the queue is full', async () => {
+    // Arrange: pages that never answer, so nothing frees a slot.
+    vi.useFakeTimers();
+    state.script = { answer: 'result', gate: new Promise<void>(() => undefined) };
+    const filling = Array.from({ length: MAX_CONCURRENT_CONVERSIONS + BUSY_QUEUE_LENGTH }, () =>
+      convert(),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Act
+    const started = Date.now();
+    const busy = await convert();
+
+    // Assert
+    expect(busy).toEqual({ outcome: 'unavailable', reason: 'busy' });
+    expect(Date.now() - started).toBe(0);
+    expect(state.launches).toBe(MAX_CONCURRENT_CONVERSIONS);
+
+    // Cleanup: let the others reach their cutoff.
+    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS);
+    await Promise.all(filling);
+  });
+
+  it('queues normally below the threshold', async () => {
+    // Arrange: two running, one already queued.
+    vi.useFakeTimers();
+    const releases: Array<() => void> = [];
+    state.script = {
+      answer: 'result',
+      get gate() {
+        return new Promise<void>((resolve) => releases.push(resolve));
+      },
+    };
+    const first = Array.from({ length: 3 }, () => convert());
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Act: one more fits in the queue.
+    const queued = convert();
+    while (releases.length > 0 || state.launches < 4) {
+      releases.shift()?.();
+      await vi.advanceTimersByTimeAsync(0);
+    }
+
+    // Assert
+    expect((await queued).outcome).toBe('converted');
+    expect((await Promise.all(first)).every((r) => r.outcome === 'converted')).toBe(true);
+    expect(state.launches).toBe(4);
+  });
 });
 
 describe('convertLink — a burst (production-hardening.md §3.4)', () => {
-  it('holds five at once to two browsers, and every one answers by the ceiling', async () => {
+  it('holds a full queue to two browsers, and every one answers by the cutoff', async () => {
     // Arrange: pages that never answer, so nothing frees a slot early.
     vi.useFakeTimers();
     state.script = { answer: 'result', gate: new Promise<void>(() => undefined) };
     let settled = 0;
 
-    // Act
+    // Act: five at once — two run, two wait, the fifth is busy.
     const results = Array.from({ length: 5 }, () =>
-      convertLink(SOURCE, 'SPOTIFY').finally(() => {
+      convert().finally(() => {
         settled += 1;
       }),
     );
-    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS - 1);
-    const settledBeforeCeiling = settled;
+    await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS - WRITE_RESERVE_MS - 1);
+    const settledBeforeCutoff = settled;
     await vi.advanceTimersByTimeAsync(1);
     const outcomes = await Promise.all(results);
     await vi.advanceTimersByTimeAsync(0);
 
     // Assert
-    expect(settledBeforeCeiling).toBe(0);
-    expect(outcomes).toEqual(Array(5).fill({ outcome: 'unavailable', reason: 'timeout' }));
+    expect(settledBeforeCutoff).toBe(1);
+    expect(outcomes).toEqual([
+      ...Array(4).fill({ outcome: 'unavailable', reason: 'timeout' }),
+      { outcome: 'unavailable', reason: 'busy' },
+    ]);
     expect(state.maxInFlight).toBe(2);
     expect(state.launches).toBe(2);
     expect(state.inFlight).toBe(0);
@@ -336,11 +418,12 @@ describe('convertLink — a burst (production-hardening.md §3.4)', () => {
 });
 
 describe('convertLink — leaving the queue', () => {
+  // The cutoff is 12 − 1.5 = 10.5 s; an attempt needs 2 s of it, so 8.5 s is the last start.
   it.each([
-    [9_000, 3, 'converted'],
-    [10_500, 2, 'unavailable'],
+    [8_000, 3, 'converted'],
+    [9_000, 2, 'unavailable'],
   ])(
-    'when the slot frees at %ims, the queued attempt launches only with 2 s left (%i launches)',
+    'when the slot frees at %ims, the queued attempt launches only with 2 s left before the reserve (%i launches)',
     async (busyMs, launches, outcome) => {
       // Arrange: the first two conversions hold their slots for busyMs.
       vi.useFakeTimers();
@@ -356,7 +439,7 @@ describe('convertLink — leaving the queue', () => {
       };
 
       // Act
-      const results = Array.from({ length: 3 }, () => convertLink(SOURCE, 'SPOTIFY'));
+      const results = Array.from({ length: 3 }, () => convert());
       await vi.advanceTimersByTimeAsync(busyMs);
       await vi.advanceTimersByTimeAsync(CONVERSION_CEILING_MS);
       const third = (await Promise.all(results))[2];

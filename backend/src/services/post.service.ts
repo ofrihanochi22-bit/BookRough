@@ -10,7 +10,12 @@ import { prisma } from '../db/prisma.js';
 import { AppError } from '../utils/AppError.js';
 import { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE } from '../utils/cursor.js';
 import { createLogger } from '../utils/logger.js';
-import { postInclude, type PublicPost, toPublicPost } from '../utils/publicPost.js';
+import {
+  MAX_AUTO_RETRIES,
+  postInclude,
+  type PublicPost,
+  toPublicPost,
+} from '../utils/publicPost.js';
 import { NO_RATINGS } from '../utils/ratingSummary.js';
 import {
   COMMUNITY_NOT_FOUND,
@@ -25,13 +30,10 @@ import {
   resolveSoundcloudShortLink,
   youtubeThumbnail,
 } from './linkMetadata.service.js';
-import {
-  CONVERSION_CEILING_MS,
-  type ConversionResult,
-  convertLink,
-} from './linkScraper.service.js';
+import { type ConversionResult, convertLink } from './linkScraper.service.js';
 import { notifyCommunityPost } from './notification.service.js';
-import { checkPostAccess, requirePostAccess } from './postAccess.js';
+import { checkPostAccess, type PostAccess, requirePostAccess } from './postAccess.js';
+import { workEnd } from './requestDeadline.js';
 import { checkPostComment } from './postText.js';
 import { requireOnboarded } from './profile.service.js';
 import { ratingSummaries, summaryFor } from './ratingSummary.js';
@@ -53,6 +55,9 @@ export const ALREADY_CONVERTED = 'This post already has its links.';
 export const AUTHOR_OR_ADMIN = 'Only the author or an admin can delete this post.';
 export const SENDER_ONLY = 'Only the sender can delete this.';
 export const EDIT_FRIENDS_ONLY = 'You can only edit songs you sent to friends.';
+export const AUTO_RETRY_AUTHOR_ONLY = "Only the sender's app retries automatically.";
+export const NO_AUTO_RETRIES_LEFT = 'No automatic attempts left for this post.';
+export const AUTO_RETRY_IN_FLIGHT = 'This post is already being tried again.';
 // The keyset cursor lives in utils/cursor.ts, shared with notifications; re-exported for callers.
 export { beforeCursor, decodeCursor, encodeCursor, PAGE_SIZE };
 
@@ -153,8 +158,8 @@ async function youtubeVideo(
 
 /** A streaming-service link: converted through squigly, as before this feature. */
 async function serviceLinkData(link: SupportedLink, deadline: number) {
-  const result = await convertLink(conversionUrl(link), link.service);
-  const video = await youtubeVideo(link.url, link.service, result, deadline);
+  const result = await convertLink(conversionUrl(link), link.service, deadline);
+  const video = await youtubeVideo(link.url, link.service, result, workEnd(deadline));
   if (video === 'gone' || (video === null && result.outcome === 'not_found')) {
     throw new AppError(INVALID_LINK, 422);
   }
@@ -173,7 +178,8 @@ async function serviceLinkData(link: SupportedLink, deadline: number) {
  * §4.3, §4.4). Only the platform saying "no such item" refuses it; any other
  * failure saves it without metadata.
  */
-async function platformLinkData(link: PlatformLink, deadline: number) {
+async function platformLinkData(link: PlatformLink, requestDeadline: number) {
+  const deadline = workEnd(requestDeadline);
   let { url, kind } = link;
   if (link.needsResolve) {
     const resolved = await resolveSoundcloudShortLink(url, deadline);
@@ -201,10 +207,10 @@ function isForeignKeyViolation(error: unknown): boolean {
  * converts a streaming link or fetches a link-only one's metadata. Only a link
  * we can tell is wrong — its shape, squigly's explicit "could not be found", or
  * the platform's own "no such item" — is refused; anything that cannot run
- * still saves the post (CLAUDE.md §7, link-only-posts.md §4).
+ * still saves the post (CLAUDE.md §7, link-only-posts.md §4). `deadline` is
+ * the request's, set by the controller (conversion-auto-retry.md §4.2).
  */
-export async function prepareSharedLink(input: NewPost) {
-  const deadline = Date.now() + CONVERSION_CEILING_MS;
+export async function prepareSharedLink(input: NewPost, deadline: number) {
   const link = parseSharedLink(input.url);
   if (!link) {
     throw new AppError(INVALID_LINK, 422);
@@ -226,9 +232,10 @@ export async function createPost(
   user: User,
   communityId: string,
   input: NewPost,
+  deadline: number,
 ): Promise<PublicPost> {
   await requireMember(user, communityId);
-  const shared = await prepareSharedLink(input);
+  const shared = await prepareSharedLink(input, deadline);
 
   try {
     const post = await prisma.$transaction(async (tx) => {
@@ -302,6 +309,35 @@ export async function listPosts(
   };
 }
 
+/** Posts with an automatic attempt running on this instance (conversion-auto-retry.md §4.4). */
+const autoRetriesInFlight = new Set<string>();
+
+/**
+ * Claims one of the post's automatic attempts with a conditional write, so two
+ * at once can never pass the cap. Throws when none was claimed.
+ */
+async function claimAutoRetry(postId: string): Promise<void> {
+  const { count } = await prisma.post.updateMany({
+    where: { id: postId, conversionPending: true, autoRetryCount: { lt: MAX_AUTO_RETRIES } },
+    data: { autoRetryCount: { increment: 1 } },
+  });
+  if (count > 0) {
+    return;
+  }
+  // Nothing claimed: say why, from the row as it is now.
+  const current = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { conversionPending: true },
+  });
+  if (!current) {
+    throw new AppError(POST_NOT_FOUND, 404);
+  }
+  if (!current.conversionPending) {
+    throw new AppError(ALREADY_CONVERTED, 409);
+  }
+  throw new AppError(NO_AUTO_RETRIES_LEFT, 429);
+}
+
 /**
  * POST /posts/:postId/conversion — anyone who can see a pending post retries it
  * (conversion-retry.md §4): a member of its community, or the sender or
@@ -309,24 +345,62 @@ export async function listPosts(
  * reach is a 404, like a missing one. A link-only post
  * is never pending, so it is a 409; a pending YouTube video may become one
  * (link-only-posts.md §4).
+ *
+ * `automatic` is the sender's app retrying on its own (conversion-auto-retry.md
+ * §4.4): the author only, one at a time per post on this instance, and at most
+ * MAX_AUTO_RETRIES per post, counted even when the attempt finds the queue
+ * busy. `deadline` is the request's, set by the controller.
  */
-export async function retryConversion(user: User, postId: string): Promise<PublicPost> {
+export async function retryConversion(
+  user: User,
+  postId: string,
+  deadline: number,
+  automatic = false,
+): Promise<PublicPost> {
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) {
     throw new AppError(POST_NOT_FOUND, 404);
   }
   const access = await checkPostAccess(user, post);
+  if (automatic && post.authorId !== user.id) {
+    throw new AppError(AUTO_RETRY_AUTHOR_ONLY, 403);
+  }
   if (!post.conversionPending || !post.sourceService) {
     throw new AppError(ALREADY_CONVERTED, 409);
   }
+  const target = { id: postId, originalUrl: post.originalUrl, sourceService: post.sourceService };
 
-  const deadline = Date.now() + CONVERSION_CEILING_MS;
-  const link = parseSupportedLink(post.originalUrl);
+  if (!automatic) {
+    return convertAgain(user, target, access, deadline);
+  }
+  if (autoRetriesInFlight.has(postId)) {
+    throw new AppError(AUTO_RETRY_IN_FLIGHT, 409);
+  }
+  // Added in the same tick as the check: nothing awaits between them.
+  autoRetriesInFlight.add(postId);
+  try {
+    await claimAutoRetry(postId);
+    return await convertAgain(user, target, access, deadline);
+  } finally {
+    autoRetriesInFlight.delete(postId);
+  }
+}
+
+/** One more conversion of a pending post, written only if it is still pending. */
+async function convertAgain(
+  user: User,
+  post: { id: string; originalUrl: string; sourceService: StreamingService },
+  access: PostAccess,
+  deadline: number,
+): Promise<PublicPost> {
+  const { id: postId, originalUrl, sourceService } = post;
+  const link = parseSupportedLink(originalUrl);
   const result = await convertLink(
-    link ? conversionUrl(link) : post.originalUrl,
-    post.sourceService,
+    link ? conversionUrl(link) : originalUrl,
+    sourceService,
+    deadline,
   );
-  const video = await youtubeVideo(post.originalUrl, post.sourceService, result, deadline);
+  const video = await youtubeVideo(originalUrl, sourceService, result, workEnd(deadline));
   // Conditional, so a double tap writes once and the second sees the result.
   // An accepted post is never refused after the fact: `gone` leaves it pending.
   if (video && video !== 'gone') {
@@ -355,6 +429,7 @@ export async function retryConversion(user: User, postId: string): Promise<Publi
       communityId: current.communityId,
       postId,
       conversionPending: current.conversionPending,
+      autoRetryCount: current.autoRetryCount,
     },
     'Post conversion retried',
   );

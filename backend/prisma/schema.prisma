@@ -234,6 +234,9 @@ model Post {
   commentEditedAt      DateTime?         @map("comment_edited_at") @db.Timestamptz(3)
   /// The conversion could not run (squigly down, timeout, unreadable page).
   conversionPending    Boolean           @default(false) @map("conversion_pending")
+  /// Automatic conversion attempts the sender's app has used, 0–4
+  /// (`posts_auto_retry_count_range`, hand-written; conversion-auto-retry.md §3).
+  autoRetryCount       Int               @default(0) @map("auto_retry_count")
   createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
   author               User              @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)

@@ -5,14 +5,21 @@ import {
   create as createComment,
   list as listComments,
 } from '../controllers/comment.controller.js';
-import { destroy, editPostComment, retry, show } from '../controllers/post.controller.js';
+import {
+  destroy,
+  editPostComment,
+  parseRetryBody,
+  retry,
+  show,
+} from '../controllers/post.controller.js';
 import { edit, list, rate } from '../controllers/rating.controller.js';
 import { conversionLimit } from '../middleware/rateLimits.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 
 export const postsRouter: Router = Router();
 
-postsRouter.post('/:postId/conversion', requireAuth, conversionLimit, retry);
+// The body is read first: an automatic attempt skips the conversion tier.
+postsRouter.post('/:postId/conversion', requireAuth, parseRetryBody, conversionLimit, retry);
 postsRouter.delete('/:postId', requireAuth, destroy);
 postsRouter.patch('/:postId/comment', requireAuth, editPostComment);
 postsRouter.put('/:postId/bookmark', requireAuth, save);

@@ -15,7 +15,6 @@ import { signSessionToken } from '../utils/jwt.js';
 const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
 vi.mock('../services/linkScraper.service.js', () => ({
   convertLink,
-  CONVERSION_CEILING_MS: 12_000,
 }));
 
 const app = createApp();
@@ -257,7 +256,7 @@ describe.each(TARGETS)('sharing as a %s', (target) => {
 
     // Assert
     expect(response.status).toBe(201);
-    expect(convertLink).toHaveBeenCalledWith(VIDEO, 'YOUTUBE');
+    expect(convertLink).toHaveBeenCalledWith(VIDEO, 'YOUTUBE', expect.any(Number));
     expect(response.body.data.post).toMatchObject({
       originalUrl: LIVE,
       sourceService: null,
@@ -302,7 +301,7 @@ describe.each(TARGETS)('sharing as a %s', (target) => {
 
     // Assert
     expect(response.status).toBe(201);
-    expect(convertLink).toHaveBeenCalledWith(url, service);
+    expect(convertLink).toHaveBeenCalledWith(url, service, expect.any(Number));
     expect(response.body.data.post).toMatchObject({
       sourceService: service,
       platform: null,

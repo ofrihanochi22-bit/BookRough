@@ -35,7 +35,7 @@ When a link could not be converted, everyone who sees the post is told plainly t
 **Out of scope**
 
 - Any limit on retries beyond the existing `conversion` rate-limit tier (10 per user per 10 min) — developer's choice A: no per-post cooldown and no attempt cap.
-- Automatic background retries, polling, or notifying the author when someone else's retry succeeds.
+- Polling, or notifying the author when someone else's retry succeeds. Automatic retries by the sender's app were added later, by conversion-auto-retry.md (2026-11-24); viewers still have only Try again.
 - Telling the viewer _why_ it failed (timeout vs. squigly down): one generic message.
 - Visual design beyond the simplest placeholder (memory: defer visual design).
 

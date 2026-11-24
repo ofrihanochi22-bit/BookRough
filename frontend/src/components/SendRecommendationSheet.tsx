@@ -10,6 +10,7 @@ import { sendRecommendation } from '../api/recommendations';
 import { useRequest } from '../hooks/useRequest';
 import { cacheKeys } from '../lib/cacheKeys';
 import { RECIPIENT_GONE, SEND_FAILED, sentTo } from '../lib/recommendationCopy';
+import { registerAutoRetry } from '../stores/autoRetry';
 import { LinkCommentForm, type LinkFormOutcome } from './LinkCommentForm';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
@@ -112,6 +113,8 @@ export function SendRecommendationSheet({
   async function send(recipient: MemberUser, input: NewPost): Promise<LinkFormOutcome> {
     try {
       const post = await sendRecommendation(recipient.id, input);
+      // Saved pending: the app keeps trying while open (conversion-auto-retry.md §5.1).
+      registerAutoRetry(post);
       toast.success(sentTo(recipient.displayName));
       onSent(post);
       return { status: 'done' };

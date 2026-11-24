@@ -14,7 +14,6 @@ import { signSessionToken } from '../utils/jwt.js';
 const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
 vi.mock('../services/linkScraper.service.js', () => ({
   convertLink,
-  CONVERSION_CEILING_MS: 12_000,
 }));
 
 const app = createApp();
@@ -425,6 +424,7 @@ describe('GET /api/users/me/bookmarks', () => {
         'commentCount',
         'commentEditedAt',
         'conversionPending',
+        'autoRetriesLeft',
         'coverArtUrl',
         'createdAt',
         'direct',

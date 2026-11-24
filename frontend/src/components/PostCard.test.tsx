@@ -10,8 +10,10 @@ import {
   PENDING_NOTICE,
   RETRY_ERROR_NOTICE,
   RETRY_FAILED_NOTICE,
+  STILL_LOOKING_NOTICE,
   STILL_PENDING_NOTICE,
 } from '../hooks/useRetryConversion';
+import { startAutoRetryRunner, useAutoRetry } from '../stores/autoRetry';
 import { type StreamingService, useAuthStore } from '../stores/auth';
 import {
   httpError,
@@ -799,5 +801,92 @@ describe('PostCard — From communities (community-unchecked.md §5)', () => {
 
     // Assert
     expect(screen.queryByRole('button', { name: 'Mark checked' })).not.toBeInTheDocument();
+  });
+});
+
+describe('PostCard — automatic retry (conversion-auto-retry.md §5.2)', () => {
+  const TRY_AGAIN = 'Try again to convert this link';
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+  it('says it is still looking on a recent pending post with attempts left, and keeps Try again', () => {
+    // Act: any viewer, not only the sender.
+    renderCard(makePendingPost({ autoRetriesLeft: 2, createdAt: ago(2 * 60_000) }));
+
+    // Assert
+    expect(screen.getByRole('status')).toHaveTextContent(STILL_LOOKING_NOTICE);
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it.each([
+    ['no attempts left', { autoRetriesLeft: 0, createdAt: ago(2 * 60_000) }],
+    ['saved 20 minutes ago', { autoRetriesLeft: 3, createdAt: ago(20 * 60_000) }],
+  ])('falls back to the pending notice with %s', (_why, overrides) => {
+    // Act
+    renderCard(makePendingPost(overrides));
+
+    // Assert
+    expect(screen.getByRole('status')).toHaveTextContent(PENDING_NOTICE);
+    expect(screen.getByRole('button', { name: TRY_AGAIN })).toBeEnabled();
+  });
+
+  it("shows the manual retry's outcome in place of the still-looking line", async () => {
+    // Arrange
+    const post = makePendingPost({ autoRetriesLeft: 2, createdAt: ago(60_000) });
+    retryConversion.mockResolvedValue(post);
+    renderCard(post);
+
+    // Act
+    await userEvent.click(screen.getByRole('button', { name: TRY_AGAIN }));
+
+    // Assert
+    expect(await screen.findByText(STILL_PENDING_NOTICE)).toBeInTheDocument();
+  });
+
+  it("the sender's card is tried on its own at 15 s and takes the converted post", async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    useAuthStore.getState().setSession(makeSession());
+    const stop = startAutoRetryRunner();
+    onTestFinished(() => {
+      stop();
+      useAutoRetry.getState().clear();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+    const post = makePendingPost({
+      isMine: true,
+      autoRetriesLeft: 4,
+      createdAt: new Date().toISOString(),
+    });
+    const converted = makePost({ id: post.id, isMine: true });
+    retryConversion.mockResolvedValue(converted);
+    const { onUpdated } = renderCard(post);
+
+    // Act
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    // Assert
+    expect(retryConversion).toHaveBeenCalledWith(post.id, { automatic: true });
+    expect(onUpdated).toHaveBeenCalledWith(converted);
+  });
+
+  it("never tries someone else's card on its own", async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    useAuthStore.getState().setSession(makeSession());
+    const stop = startAutoRetryRunner();
+    onTestFinished(() => {
+      stop();
+      useAutoRetry.getState().clear();
+      vi.useRealTimers();
+    });
+    renderCard(makePendingPost({ autoRetriesLeft: 4, createdAt: new Date().toISOString() }));
+
+    // Act
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    // Assert
+    expect(retryConversion).not.toHaveBeenCalled();
   });
 });

@@ -13,7 +13,6 @@ import { signSessionToken } from '../utils/jwt.js';
 const { convertLink } = vi.hoisted(() => ({ convertLink: vi.fn() }));
 vi.mock('../services/linkScraper.service.js', () => ({
   convertLink,
-  CONVERSION_CEILING_MS: 12_000,
 }));
 
 const app = createApp();
@@ -101,7 +100,7 @@ describe('POST /api/communities/:id/posts', () => {
 
     // Assert
     expect(response.status).toBe(201);
-    expect(convertLink).toHaveBeenCalledWith(TRACK, 'SPOTIFY');
+    expect(convertLink).toHaveBeenCalledWith(TRACK, 'SPOTIFY', expect.any(Number));
     expect(response.body.data.post).toMatchObject({
       author: { id: yoni.id, displayName: 'Yoni', profilePictureUrl: null },
       isMine: true,
@@ -656,4 +655,176 @@ describe('DELETE /api/posts/:postId', () => {
     expect(feed.body.data.posts).toEqual([]);
     expect(retried.status).toBe(404);
   });
+});
+
+describe('automatic retry (conversion-auto-retry.md §7)', () => {
+  const BUSY = { outcome: 'unavailable', reason: 'busy' };
+
+  async function pendingPost() {
+    const setup = await community();
+    convertLink.mockResolvedValueOnce(BUSY);
+    const created = await post(setup.id, setup.dana);
+    return { ...setup, postId: created.body.data.post.id as string };
+  }
+
+  const auto = (postId: string, who?: Person, body: object = { automatic: true }) => {
+    const call = request(app).post(`/api/posts/${postId}/conversion`);
+    return (who ? call.set('Cookie', who.cookie) : call).send(body);
+  };
+
+  it('201: a post that finds the converter busy is saved pending at once', async () => {
+    // Arrange
+    const { id, dana } = await community();
+    convertLink.mockResolvedValueOnce(BUSY);
+
+    // Act
+    const response = await post(id, dana);
+
+    // Assert
+    expect(response.status).toBe(201);
+    expect(response.body.data.post).toMatchObject({ conversionPending: true, autoRetriesLeft: 4 });
+  });
+
+  it("200: the author's automatic attempt converts the post", async () => {
+    // Arrange
+    const { postId, dana } = await pendingPost();
+
+    // Act
+    const response = await auto(postId, dana);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post).toMatchObject({
+      conversionPending: false,
+      autoRetriesLeft: 0,
+      title: 'Bohemian Rhapsody',
+    });
+    const stored = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+    expect(stored.autoRetryCount).toBe(1);
+  });
+
+  it('200: still pending, with one fewer attempt left', async () => {
+    // Arrange
+    const { postId, dana } = await pendingPost();
+    convertLink.mockResolvedValue(UNAVAILABLE);
+
+    // Act
+    const response = await auto(postId, dana);
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post).toMatchObject({ conversionPending: true, autoRetriesLeft: 3 });
+  });
+
+  it('a manual Try again leaves the automatic attempts alone', async () => {
+    // Arrange
+    const { postId, dana } = await pendingPost();
+    convertLink.mockResolvedValue(UNAVAILABLE);
+
+    // Act
+    const response = await auto(postId, dana, {});
+
+    // Assert
+    expect(response.status).toBe(200);
+    expect(response.body.data.post.autoRetriesLeft).toBe(4);
+  });
+
+  it('429: a fifth automatic attempt on one post', async () => {
+    // Arrange
+    const { postId, dana } = await pendingPost();
+    convertLink.mockResolvedValue(UNAVAILABLE);
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      expect((await auto(postId, dana)).status).toBe(200);
+    }
+
+    // Act
+    const fifth = await auto(postId, dana);
+
+    // Assert
+    expect(fifth.status).toBe(429);
+    expect(fifth.body.message).toBe('No automatic attempts left for this post.');
+    // The send and four attempts; the fifth never reached the converter.
+    expect(convertLink).toHaveBeenCalledTimes(5);
+  });
+
+  it.each([
+    ['automatic is not a boolean', { automatic: 'yes' }],
+    ['an unknown key', { automatic: true, extra: 1 }],
+  ])('422: %s', async (_why, body) => {
+    // Arrange
+    const { postId, dana } = await pendingPost();
+
+    // Act
+    const response = await auto(postId, dana, body);
+
+    // Assert
+    expect(response.status).toBe(422);
+    expect(convertLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('401: no session', async () => {
+    // Arrange
+    const { postId } = await pendingPost();
+
+    // Act & Assert
+    expect((await auto(postId)).status).toBe(401);
+  });
+
+  it('403: a member who is not the author, with no slot spent', async () => {
+    // Arrange
+    const { postId, yoni } = await pendingPost();
+
+    // Act
+    const response = await auto(postId, yoni);
+
+    // Assert
+    expect(response.status).toBe(403);
+    expect(response.body.message).toBe("Only the sender's app retries automatically.");
+    const stored = await prisma.post.findUniqueOrThrow({ where: { id: postId } });
+    expect(stored.autoRetryCount).toBe(0);
+  });
+
+  it("404: another community's post, and a missing post", async () => {
+    // Arrange: Zed's own pending post, in a community Dana isn't in.
+    const { dana, zed } = await pendingPost();
+    const theirs = await request(app)
+      .post('/api/communities')
+      .set('Cookie', zed.cookie)
+      .send({ name: 'Elsewhere' });
+    convertLink.mockResolvedValueOnce(BUSY);
+    const created = await post(theirs.body.data.community.id as string, zed);
+
+    // Act
+    const other = await auto(created.body.data.post.id as string, dana);
+    const missing = await auto(UNKNOWN_UUID, dana);
+
+    // Assert
+    expect(other.status).toBe(404);
+    expect(missing.status).toBe(404);
+  });
+
+  it('409: an already-converted post', async () => {
+    // Arrange
+    const { id, dana } = await community();
+    const created = await post(id, dana);
+
+    // Act
+    const response = await auto(created.body.data.post.id as string, dana);
+
+    // Assert
+    expect(response.status).toBe(409);
+  });
+
+  it.each([5, -1])(
+    'the CHECK posts_auto_retry_count_range refuses %i written directly',
+    async (count) => {
+      // Arrange
+      const { postId } = await pendingPost();
+
+      // Act & Assert
+      await expect(
+        prisma.$executeRaw`UPDATE posts SET auto_retry_count = ${count} WHERE id = ${postId}::uuid`,
+      ).rejects.toThrow(/posts_auto_retry_count_range/);
+    },
+  );
 });

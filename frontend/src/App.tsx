@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppSettings } from './components/AppSettings';
+import { AutoRetryRunner } from './components/AutoRetryRunner';
 import { MiniPlayer } from './components/MiniPlayer';
 import { AdminOnly, RequireSession, SessionGate, SignedOutOnly } from './components/RouteGuards';
 import { TabLayout } from './components/TabLayout';
@@ -102,6 +103,8 @@ export function App() {
         </Routes>
         {/* Beside the routes, so navigating never stops the song (in-app-player.md §5.2). */}
         <MiniPlayer />
+        {/* The sender's automatic conversion attempts, on any screen (conversion-auto-retry.md §5.1). */}
+        <AutoRetryRunner />
       </SessionGate>
     </>
   );

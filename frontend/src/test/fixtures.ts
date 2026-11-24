@@ -72,6 +72,7 @@ export function makePost(overrides: Partial<PublicPost> = {}): PublicPost {
     comment: null,
     commentEditedAt: null,
     conversionPending: false,
+    autoRetriesLeft: 0,
     createdAt: '2026-10-04T10:00:00.000Z',
     isBookmarked: false,
     myScore: null,

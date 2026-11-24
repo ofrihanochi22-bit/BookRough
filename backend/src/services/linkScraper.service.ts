@@ -17,6 +17,7 @@ import { type Browser, chromium } from 'playwright';
 
 import { env } from '../config/env.js';
 import { createLogger } from '../utils/logger.js';
+import { workEnd } from './requestDeadline.js';
 import { convertWithStandIn } from './linkScraper.standIn.js';
 import { cleanScrapedText as cleanText } from './textRules.js';
 import { MAX_URL_LENGTH, SERVICE_HOSTS, serviceForHost } from './supportedLinks.js';
@@ -45,8 +46,12 @@ export type ConversionResult =
 
 /** Two Chromium instances at most: the deployment target is memory-constrained. */
 export const MAX_CONCURRENT_CONVERSIONS = 2;
-/** The whole operation, queue wait included (CLAUDE.md §7). */
-export const CONVERSION_CEILING_MS = 12_000;
+/**
+ * Waiting conversions (beyond the MAX_CONCURRENT_CONVERSIONS running) at which
+ * a new one is answered `busy` at once instead of queueing
+ * (conversion-auto-retry.md §4.1). Tuned by the load test.
+ */
+export const BUSY_QUEUE_LENGTH = 2;
 /** A queued attempt with less time left than this is not started (squigly takes ~2 s). */
 export const MIN_ATTEMPT_MS = 2_000;
 /** Each wait on squigly's page. */
@@ -90,6 +95,14 @@ const NOT_FOUND_TEXT = /could not be found/i;
 const SUBMIT_FALLBACK_MS = 2_000;
 
 const limit = pLimit(MAX_CONCURRENT_CONVERSIONS);
+/**
+ * Conversions running or waiting for a slot. Counted here, as each call
+ * arrives, rather than read from `limit.pendingCount`, which only fills a
+ * microtask later: two calls in the same tick would both see an empty queue.
+ * A call leaves the count when its queued job ends, not when the ceiling
+ * answers for it, since an abandoned job still holds its place until then.
+ */
+let occupied = 0;
 
 const unavailable = (reason: string): ConversionResult => ({ outcome: 'unavailable', reason });
 
@@ -108,39 +121,58 @@ interface Attempt {
 }
 
 /**
- * Converts a supported link. Resolves within CONVERSION_CEILING_MS of being
- * called, whether the attempt is still queued, running, or done.
+ * Converts a supported link. Resolves by `deadline − WRITE_RESERVE_MS`
+ * (`deadline` is an epoch time in ms, set by the controller), whether the
+ * attempt is still queued, running, or done. With the queue already full it
+ * answers `busy` at once and launches nothing (conversion-auto-retry.md §4.1).
  */
 export async function convertLink(
   url: string,
   sourceService: StreamingService,
+  deadline: number,
 ): Promise<ConversionResult> {
   const started = Date.now();
+  const cutoff = workEnd(deadline);
+  if (occupied >= MAX_CONCURRENT_CONVERSIONS + BUSY_QUEUE_LENGTH) {
+    log.warn(
+      { outcome: 'unavailable', reason: 'busy', durationMs: 0, sourceService },
+      'Link conversion unavailable',
+    );
+    return unavailable('busy');
+  }
   const attempt: Attempt = { browser: null, abandoned: false };
   let timer: NodeJS.Timeout | undefined;
 
   const canned = env.E2E_SCRAPER_FIXTURES
     ? convertWithStandIn(url, env.E2E_SCRAPER_FIXTURES)
     : Promise.resolve(null);
-  const run = canned.then(
-    (result) =>
-      result ??
-      limit(() =>
-        // Leaving the queue too late to finish is the same as timing out:
-        // don't launch a browser only to close it a moment later.
-        attempt.abandoned || Date.now() - started > CONVERSION_CEILING_MS - MIN_ATTEMPT_MS
-          ? Promise.resolve(unavailable('timeout'))
-          : scrape(url, sourceService, attempt),
-      ),
-  );
+  occupied += 1;
+  const run = canned
+    .then(
+      (result) =>
+        result ??
+        limit(() =>
+          // Leaving the queue too late to finish is the same as timing out:
+          // don't launch a browser only to close it a moment later.
+          attempt.abandoned || Date.now() > cutoff - MIN_ATTEMPT_MS
+            ? Promise.resolve(unavailable('timeout'))
+            : scrape(url, sourceService, attempt),
+        ),
+    )
+    .finally(() => {
+      occupied -= 1;
+    });
 
   const ceiling = new Promise<ConversionResult>((resolve) => {
-    timer = setTimeout(() => {
-      attempt.abandoned = true;
-      // Frees the queue slot: the pending page call rejects and `scrape` ends.
-      void attempt.browser?.close().catch(() => undefined);
-      resolve(unavailable('timeout'));
-    }, CONVERSION_CEILING_MS);
+    timer = setTimeout(
+      () => {
+        attempt.abandoned = true;
+        // Frees the queue slot: the pending page call rejects and `scrape` ends.
+        void attempt.browser?.close().catch(() => undefined);
+        resolve(unavailable('timeout'));
+      },
+      Math.max(0, cutoff - started),
+    );
   });
 
   const result = await Promise.race([run, ceiling]).finally(() => clearTimeout(timer));

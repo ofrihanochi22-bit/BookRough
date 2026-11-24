@@ -40,6 +40,7 @@ export interface NewRecommendation extends NewPost {
 export async function sendRecommendation(
   user: User,
   input: NewRecommendation,
+  deadline: number,
 ): Promise<PublicPost> {
   requireOnboarded(user);
   const { recipientId } = input;
@@ -51,7 +52,7 @@ export async function sendRecommendation(
     throw new AppError(FRIENDS_ONLY, 403);
   }
 
-  const shared = await prepareSharedLink(input);
+  const shared = await prepareSharedLink(input, deadline);
 
   const post = await prisma.$transaction(async (tx) => {
     if (!(await lockFriendship(tx, user.id, recipientId))) {
