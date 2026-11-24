@@ -76,12 +76,11 @@ test('when the converter is unavailable the post is saved with its original link
   // Act
   await share(page, OUTAGE_TRACK);
 
-  // Assert — no error dialog, no lost post.
+  // Assert — no error dialog, no lost post. The author's app will try again
+  // on its own, so the card says it is still looking (conversion-auto-retry.md §5.2).
   const card = postsOn(page).filter({ hasText: 'Shared from Spotify' });
   await expect(
-    card.getByText(
-      "Couldn't convert this link to other services. Something went wrong on our side.",
-    ),
+    card.getByText('The server is busy. Still looking for this on other services…'),
   ).toBeVisible();
   await expect(card.getByRole('link', { name: 'Open in Spotify' })).toHaveAttribute(
     'href',
